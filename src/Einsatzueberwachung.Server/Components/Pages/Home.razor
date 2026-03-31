@@ -1,7 +1,247 @@
 ﻿@page "/"
+@rendermode InteractiveServer
+@inject IEinsatzService EinsatzService
+@inject IArchivService ArchivService
+@implements IDisposable
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Startseite — Einsatzüberwachung</PageTitle>
 
-<h1>Hello, world!</h1>
+@{
+    var e = EinsatzService.CurrentEinsatz;
+    var teams = EinsatzService.Teams;
+    var notes = EinsatzService.GlobalNotes;
+    var laufend = teams.Where(t => t.IsRunning).ToList();
+    var warnung = teams.Where(t => t.IsSecondWarning).ToList();
+    var orange = teams.Where(t => t.IsFirstWarning && !t.IsSecondWarning).ToList();
+    var letzteFunk = notes.Where(n => n.SourceType == "Funk")
+                          .OrderByDescending(n => n.Timestamp).Take(3).ToList();
+    var letzteNotizen = notes.Where(n => n.SourceType != "Funk")
+                             .OrderByDescending(n => n.Timestamp).Take(3).ToList();
+    bool aktiv = !string.IsNullOrWhiteSpace(e.Einsatzort);
+}
 
-Welcome to your new app.
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard
+            </h1>
+            <p class="text-muted mb-0">@DateTime.Now.ToString("dddd, dd. MMMM yyyy")</p>
+        </div>
+        @if (aktiv)
+        {
+            <span class="badge bg-success fs-6 align-self-center px-3 py-2">
+                <i class="bi bi-record-circle me-1"></i>Einsatz aktiv
+            </span>
+        }
+        else
+        {
+            <span class="badge bg-secondary fs-6 align-self-center px-3 py-2">
+                <i class="bi bi-pause-circle me-1"></i>Kein Einsatz
+            </span>
+        }
+    </div>
+
+    <!-- Kennzahlen -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold text-primary">@teams.Count</div>
+                    <div class="text-muted small">Teams gesamt</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold text-success">@laufend.Count</div>
+                    <div class="text-muted small">Teams im Einsatz</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card h-100 border-0 shadow-sm @(warnung.Count > 0 ? "border-danger" : "")">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold @(warnung.Count > 0 ? "text-danger" : "text-muted")">@warnung.Count</div>
+                    <div class="text-muted small">Kritische Teams</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold text-info">@notes.Count</div>
+                    <div class="text-muted small">Einträge gesamt</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- Einsatz-Info -->
+        <div class="col-md-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-transparent border-0 fw-semibold">
+                    <i class="bi bi-info-circle me-2 text-primary"></i>Aktueller Einsatz
+                </div>
+                <div class="card-body">
+                    @if (aktiv)
+                    {
+                        <dl class="row mb-0 small">
+                            <dt class="col-5 text-muted">Typ</dt>
+                            <dd class="col-7">@(e.IstEinsatz ? "Einsatz" : "Übung")</dd>
+                            <dt class="col-5 text-muted">Einsatzort</dt>
+                            <dd class="col-7">@e.Einsatzort</dd>
+                            <dt class="col-5 text-muted">Alarmiert</dt>
+                            <dd class="col-7">@e.Alarmiert</dd>
+                            <dt class="col-5 text-muted">Einsatzleiter</dt>
+                            <dd class="col-7">@(string.IsNullOrWhiteSpace(e.Einsatzleiter) ? "—" : e.Einsatzleiter)</dd>
+                            @if (!string.IsNullOrWhiteSpace(e.Fuehrungsassistent))
+                            {
+                                <dt class="col-5 text-muted">Führungsass.</dt>
+                                <dd class="col-7">@e.Fuehrungsassistent</dd>
+                            }
+                        </dl>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-3">Kein Einsatz aktiv.</p>
+                    }
+                    <div class="d-flex gap-2 mt-3 flex-wrap">
+                        @if (!aktiv)
+                        {
+                            <a class="btn btn-primary btn-sm" href="/einsatz-start"><i class="bi bi-plus-circle me-1"></i>Einsatz anlegen</a>
+                        }
+                        <a class="btn btn-outline-primary btn-sm" href="/einsatz-monitor"><i class="bi bi-display me-1"></i>Monitor</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/einsatz-karte"><i class="bi bi-map me-1"></i>Karte</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/einsatz-archiv"><i class="bi bi-archive me-1"></i>Archiv</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Teams Status -->
+        <div class="col-md-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-transparent border-0 fw-semibold">
+                    <i class="bi bi-people me-2 text-primary"></i>Team-Status
+                </div>
+                <div class="card-body p-0">
+                    @if (teams.Count == 0)
+                    {
+                        <p class="text-muted p-3 mb-0">Keine Teams aktiv.</p>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var team in teams.Take(8))
+                            {
+                                var elapsed = team.ElapsedTime;
+                                string timerCss = team.IsSecondWarning ? "text-danger fw-bold" : team.IsFirstWarning ? "text-warning fw-bold" : "text-success";
+                                string statusBadge = team.IsSecondWarning ? "bg-danger" : team.IsFirstWarning ? "bg-warning text-dark" : team.IsRunning ? "bg-success" : "bg-secondary";
+                                <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center border-0 py-2">
+                                    <div>
+                                        <div class="fw-semibold small">@team.TeamName</div>
+                                        <div class="text-muted" style="font-size:.75rem;">
+                                            @(string.IsNullOrWhiteSpace(team.SearchAreaName) ? "Kein Suchgebiet" : team.SearchAreaName)
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="@timerCss" style="font-family:monospace;font-size:.85rem;">
+                                            @elapsed.ToString(@"hh\:mm\:ss")
+                                        </span>
+                                        <span class="badge @statusBadge">@(team.IsRunning ? "Läuft" : "Stop")</span>
+                                    </div>
+                                </div>
+                            }
+                            @if (teams.Count > 8)
+                            {
+                                <div class="list-group-item text-muted small text-center border-0">
+                                    +@(teams.Count - 8) weitere → <a href="/einsatz-monitor">Monitor öffnen</a>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Letzte Einträge -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 fw-semibold">
+                    <i class="bi bi-chat-left-text me-2 text-primary"></i>Letzte Notizen
+                </div>
+                <div class="card-body p-0">
+                    @if (letzteNotizen.Count == 0)
+                    {
+                        <p class="text-muted p-3 mb-0">Keine Notizen vorhanden.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var n in letzteNotizen)
+                            {
+                                <li class="list-group-item border-0 py-2">
+                                    <div class="small">@n.Text</div>
+                                    <div class="text-muted" style="font-size:.72rem;">@n.Timestamp.ToString("HH:mm")</div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Letzte Funksprüche -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 fw-semibold">
+                    <i class="bi bi-broadcast me-2 text-primary"></i>Letzte Funksprüche
+                </div>
+                <div class="card-body p-0">
+                    @if (letzteFunk.Count == 0)
+                    {
+                        <p class="text-muted p-3 mb-0">Keine Funksprüche vorhanden.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var f in letzteFunk)
+                            {
+                                <li class="list-group-item border-0 py-2">
+                                    <div class="small">@f.Text</div>
+                                    <div class="text-muted" style="font-size:.72rem;">@f.Timestamp.ToString("HH:mm")</div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        EinsatzService.EinsatzChanged += Refresh;
+        EinsatzService.TeamAdded += _ => Refresh();
+        EinsatzService.TeamRemoved += _ => Refresh();
+        EinsatzService.TeamUpdated += _ => Refresh();
+        EinsatzService.NoteAdded += _ => Refresh();
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        EinsatzService.EinsatzChanged -= Refresh;
+        EinsatzService.TeamAdded -= _ => Refresh();
+        EinsatzService.TeamRemoved -= _ => Refresh();
+        EinsatzService.TeamUpdated -= _ => Refresh();
+        EinsatzService.NoteAdded -= _ => Refresh();
+    }
+}

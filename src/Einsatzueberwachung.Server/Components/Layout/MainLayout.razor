@@ -1,4 +1,7 @@
 ﻿@inherits LayoutComponentBase
+@implements IAsyncDisposable
+@inject Einsatzueberwachung.Domain.Interfaces.ISettingsService SettingsService
+@inject IJSRuntime JS
 
 <div class="page">
     <div class="sidebar">
@@ -7,7 +10,13 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <span class="text-muted">Desktop Leitstelle</span>
+            <button class="btn btn-sm btn-outline-secondary ms-auto"
+                    type="button"
+                    title="Dark Mode umschalten"
+                    @onclick="ToggleThemeAsync">
+                @(_isDarkMode ? "Hell" : "Dunkel")
+            </button>
         </div>
 
         <article class="content px-4">
@@ -17,7 +26,55 @@
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+    Es ist ein Fehler aufgetreten.
+    <a href="." class="reload">Neu laden</a>
+    <span class="dismiss">X</span>
 </div>
+
+@code {
+    private bool _isDarkMode;
+    private DotNetObjectReference<MainLayout>? _dotNetRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _isDarkMode = await SettingsService.GetIsDarkModeAsync();
+        _dotNetRef = DotNetObjectReference.Create(this);
+
+        await JS.InvokeVoidAsync("themeSync.init", _dotNetRef, _isDarkMode);
+        StateHasChanged();
+    }
+
+    private async Task ToggleThemeAsync()
+    {
+        _isDarkMode = !_isDarkMode;
+        await SettingsService.SetIsDarkModeAsync(_isDarkMode);
+        await JS.InvokeVoidAsync("themeSync.setTheme", _isDarkMode);
+    }
+
+    [JSInvokable]
+    public async Task OnThemeChangedFromStorage(bool isDark)
+    {
+        _isDarkMode = isDark;
+        await SettingsService.SetIsDarkModeAsync(isDark);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("themeSync.dispose");
+        }
+        catch
+        {
+            // Ignore disposal errors during disconnect/shutdown.
+        }
+
+        _dotNetRef?.Dispose();
+    }
+}

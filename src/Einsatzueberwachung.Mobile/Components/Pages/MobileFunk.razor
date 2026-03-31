@@ -1,0 +1,141 @@
+@page "/funk"
+@rendermode InteractiveServer
+
+@inject Einsatzueberwachung.Mobile.Services.MobileSignalRClient LiveSync
+
+<PageTitle>Funk</PageTitle>
+
+<section class="mobile-card">
+    <h1>Funksprueche</h1>
+    <button class="btn btn-outline-secondary mobile-btn mb-2" @onclick="RefreshMessagesAsync">Aktualisieren</button>
+
+    <div class="mobile-field">
+        <label for="filter">Filter</label>
+        <InputSelect id="filter" class="form-select" @bind-Value="_filter" @onchange="OnFilterChangedAsync">
+            <option value="alle">Alle</option>
+            <option value="funk">Funksprueche</option>
+            <option value="notiz">Notizen</option>
+        </InputSelect>
+    </div>
+
+    <EditForm OnSubmit="AddMessageAsync">
+        <div class="mobile-field">
+            <label for="funkText">Neuer Eintrag</label>
+            <InputTextArea id="funkText" class="form-control" @bind-Value="_text" />
+        </div>
+        <button class="btn btn-primary mobile-btn" type="submit">Senden</button>
+    </EditForm>
+
+    <PullToRefreshPanel OnRefresh="RefreshMessagesAsync">
+        <div class="message-list">
+            @foreach (var item in _messages)
+            {
+                <article class="message-item">
+                    <header>
+                        <strong>@item.SourceTeamName</strong>
+                        <span>@item.FormattedTimestamp</span>
+                    </header>
+                    <p>@item.Text</p>
+
+                    @if (item.Replies.Count > 0)
+                    {
+                        <div class="small mt-2">
+                            @foreach (var reply in item.Replies.OrderBy(r => r.Timestamp))
+                            {
+                                <div class="border-start ps-2 mb-1">
+                                    <div class="text-muted">@reply.SourceTeamName · @reply.FormattedTimestamp</div>
+                                    <div>@reply.Text</div>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="input-group input-group-sm mt-2">
+                        <input class="form-control"
+                               placeholder="Antwort"
+                               value="@GetReplyText(item.Id)"
+                               @oninput="e => SetReplyText(item.Id, e.Value?.ToString())" />
+                        <button class="btn btn-outline-primary" @onclick="() => AddReplyAsync(item.Id)">Antworten</button>
+                    </div>
+                </article>
+            }
+        </div>
+    </PullToRefreshPanel>
+</section>
+
+@code {
+    private string _filter = "alle";
+    private string _text = string.Empty;
+    private IReadOnlyList<Einsatzueberwachung.Domain.Models.GlobalNotesEntry> _messages = Array.Empty<Einsatzueberwachung.Domain.Models.GlobalNotesEntry>();
+    private readonly Dictionary<string, string> _replyTexts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        LiveSync.UpdateReceived += OnUpdateReceived;
+        await RefreshMessagesAsync();
+    }
+
+    public void Dispose()
+    {
+        LiveSync.UpdateReceived -= OnUpdateReceived;
+    }
+
+    private async Task AddMessageAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_text))
+        {
+            return;
+        }
+
+        await LiveSync.AddNoteAsync(_text, "Funk");
+
+        _text = string.Empty;
+        await RefreshMessagesAsync();
+    }
+
+    private Task OnFilterChangedAsync(ChangeEventArgs _)
+    {
+        return RefreshMessagesAsync();
+    }
+
+    private void OnUpdateReceived(string eventName, string payload)
+    {
+        if (eventName is "note.added" or "einsatz.changed")
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await RefreshMessagesAsync();
+                StateHasChanged();
+            });
+        }
+    }
+
+    private async Task RefreshMessagesAsync()
+    {
+        _messages = await LiveSync.GetNotesAsync(_filter);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AddReplyAsync(string noteId)
+    {
+        _replyTexts.TryGetValue(noteId, out var text);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        await LiveSync.AddReplyAsync(noteId, text.Trim());
+        _replyTexts[noteId] = string.Empty;
+        await RefreshMessagesAsync();
+    }
+
+    private string GetReplyText(string noteId)
+    {
+        return _replyTexts.TryGetValue(noteId, out var text) ? text : string.Empty;
+    }
+
+    private void SetReplyText(string noteId, string? text)
+    {
+        _replyTexts[noteId] = text ?? string.Empty;
+    }
+}

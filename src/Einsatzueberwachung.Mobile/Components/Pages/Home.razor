@@ -1,7 +1,15 @@
 ﻿@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Mobile Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<section class="mobile-card">
+	<h1>Mobile Dashboard</h1>
+	<p class="subline">Schnellzugriff fuer den Einsatzbetrieb</p>
 
-Welcome to your new app.
+	<div class="d-grid gap-2">
+		<a class="btn btn-outline-primary mobile-btn" href="/einsatz">Einsatz anlegen</a>
+		<a class="btn btn-outline-primary mobile-btn" href="/teams">Team-Uebersicht</a>
+		<a class="btn btn-outline-primary mobile-btn" href="/notizen">Notizen</a>
+		<a class="btn btn-outline-primary mobile-btn" href="/funk">Funksprueche</a>
+	</div>
+</section>

@@ -1,0 +1,478 @@
+@page "/einsatz-karte"
+@rendermode InteractiveServer
+
+@inject IEinsatzService EinsatzService
+@inject IJSRuntime JS
+
+<PageTitle>Einsatzkarte</PageTitle>
+
+<div class="container py-4">
+    <h1>Einsatzkarte</h1>
+    <p class="text-muted">Leaflet-Karte mit Suchgebieten und Team-Zuordnung.</p>
+
+    <div class="d-flex gap-2 mb-3 flex-wrap">
+        <button class="btn btn-primary" @onclick="AddDemoAreaAsync">Demo-Suchgebiet anlegen</button>
+        <button class="btn btn-outline-secondary" @onclick="CenterOnElwAsync">Auf Einsatzort zentrieren</button>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">Interaktiver Karteneditor</div>
+        <div class="card-body">
+            <p class="text-muted mb-2">
+                Zeichnen: Bearbeitung starten, dann Punkte per Klick setzen oder verschieben. Danach in Suchgebiet uebernehmen.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-primary" @onclick="StartNewDraftAsync">Neues Polygon zeichnen</button>
+                <button class="btn btn-outline-secondary" @onclick="UndoDraftPointAsync" disabled="@(!_draftActive)">Letzten Punkt entfernen</button>
+                <button class="btn btn-success" @onclick="SaveDraftToAreaAsync" disabled="@(!_draftActive)">In Suchgebiet uebernehmen</button>
+                <button class="btn btn-outline-danger" @onclick="CancelDraftAsync" disabled="@(!_draftActive)">Bearbeitung abbrechen</button>
+            </div>
+            @if (_draftActive)
+            {
+                <div class="small text-muted mt-2">
+                    @if (string.IsNullOrWhiteSpace(_draftAreaId))
+                    {
+                        <span>Aktiv: neues Suchgebiet</span>
+                    }
+                    else
+                    {
+                        <span>Aktiv: bestehendes Suchgebiet bearbeiten</span>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_statusMessage))
+    {
+        <div class="alert @( _statusIsError ? "alert-danger" : "alert-success") py-2" role="alert">
+            @_statusMessage
+        </div>
+    }
+
+    <div id="einsatzMap" style="height: 65vh; min-height: 420px;" class="border rounded"></div>
+
+    <div class="card mt-3">
+        <div class="card-header">Suchgebiete</div>
+        <div class="card-body">
+            @if (EinsatzService.CurrentEinsatz.SearchAreas.Count == 0)
+            {
+                <p class="text-muted mb-0">Keine Suchgebiete vorhanden.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Flaeche</th>
+                                <th>Koordinaten</th>
+                                <th>Farbe</th>
+                                <th>Team</th>
+                                <th>Status</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var area in EinsatzService.CurrentEinsatz.SearchAreas)
+                            {
+                                <tr>
+                                    <td>
+                                        <input class="form-control form-control-sm"
+                                               value="@GetAreaNameDraft(area.Id, area.Name)"
+                                               @oninput="e => SetAreaNameDraft(area.Id, e.Value?.ToString())" />
+                                    </td>
+                                    <td>@area.FormattedArea</td>
+                                    <td style="min-width: 300px;">
+                                        <textarea class="form-control form-control-sm"
+                                                  rows="4"
+                                                  placeholder="lat,lng pro Zeile"
+                                                  @oninput="e => SetAreaCoordinatesDraft(area.Id, e.Value?.ToString())">@GetAreaCoordinatesDraft(area.Id, area.Coordinates)</textarea>
+                                    </td>
+                                    <td>
+                                        <input class="form-control form-control-color"
+                                               type="color"
+                                               value="@GetAreaColorDraft(area.Id, area.Color)"
+                                               @oninput="e => SetAreaColorDraft(area.Id, e.Value?.ToString())" />
+                                    </td>
+                                    <td>
+                                        <select class="form-select form-select-sm"
+                                                value="@GetAssignedTeam(area.Id, area.AssignedTeamId)"
+                                                @onchange="e => SetAssignedTeam(area.Id, e.Value?.ToString())">
+                                            <option value="">Kein Team</option>
+                                            @foreach (var team in EinsatzService.Teams.OrderBy(t => t.TeamName))
+                                            {
+                                                <option value="@team.TeamId">@team.TeamName</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(area.IsCompleted ? "bg-success" : "bg-secondary")">
+                                            @(area.IsCompleted ? "Abgeschlossen" : "Offen")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" @onclick="() => SaveAreaAsync(area.Id)">Speichern</button>
+                                            <button class="btn btn-outline-info" @onclick="() => EditAreaOnMapAsync(area.Id)">Auf Karte bearbeiten</button>
+                                            <button class="btn btn-outline-warning" @onclick="() => ToggleAreaCompletedAsync(area.Id)">
+                                                @(area.IsCompleted ? "Oeffnen" : "Abschliessen")
+                                            </button>
+                                            <button class="btn btn-outline-danger" @onclick="() => DeleteAreaAsync(area.Id)">Loeschen</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool _mapInitialized;
+    private readonly Dictionary<string, string> _nameDrafts = new();
+    private readonly Dictionary<string, string> _colorDrafts = new();
+    private readonly Dictionary<string, string> _teamAssignments = new();
+    private readonly Dictionary<string, string> _coordinatesDrafts = new();
+    private string _statusMessage = string.Empty;
+    private bool _statusIsError;
+    private bool _draftActive;
+    private string _draftAreaId = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        EinsatzService.EinsatzChanged += OnEinsatzChanged;
+    }
+
+    public void Dispose()
+    {
+        EinsatzService.EinsatzChanged -= OnEinsatzChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var (lat, lng) = GetElwCoordinates();
+            await JS.InvokeVoidAsync("einsatzMap.init", "einsatzMap", lat, lng, 13);
+            _mapInitialized = true;
+        }
+
+        if (_mapInitialized)
+        {
+            await RenderAreasAsync();
+        }
+    }
+
+    private void OnEinsatzChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            await RenderAreasAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task AddDemoAreaAsync()
+    {
+        var (lat, lng) = GetElwCoordinates();
+        var offset = 0.0025;
+
+        var area = new SearchArea
+        {
+            Name = $"Gebiet {EinsatzService.CurrentEinsatz.SearchAreas.Count + 1}",
+            Color = "#1e88e5",
+            Coordinates = new List<(double Latitude, double Longitude)>
+            {
+                (lat + offset, lng - offset),
+                (lat + offset, lng + offset),
+                (lat - offset, lng + offset),
+                (lat - offset, lng - offset)
+            }
+        };
+
+        if (EinsatzService.Teams.Count > 0)
+        {
+            var team = EinsatzService.Teams[0];
+            area.AssignedTeamId = team.TeamId;
+            area.AssignedTeamName = team.TeamName;
+        }
+
+        await EinsatzService.AddSearchAreaAsync(area);
+        await RenderAreasAsync();
+    }
+
+    private async Task CenterOnElwAsync()
+    {
+        var (lat, lng) = GetElwCoordinates();
+        await JS.InvokeVoidAsync("einsatzMap.setView", lat, lng, 13);
+    }
+
+    private async Task StartNewDraftAsync()
+    {
+        _draftAreaId = string.Empty;
+        _draftActive = true;
+        _statusMessage = "Zeichenmodus aktiv. Punkte auf der Karte setzen.";
+        _statusIsError = false;
+        await JS.InvokeVoidAsync("einsatzMap.startDraft", Array.Empty<LatLngDto>());
+    }
+
+    private async Task EditAreaOnMapAsync(string areaId)
+    {
+        var area = EinsatzService.CurrentEinsatz.SearchAreas.FirstOrDefault(a => a.Id == areaId);
+        if (area is null)
+        {
+            return;
+        }
+
+        _draftAreaId = areaId;
+        _draftActive = true;
+        var coordinates = area.Coordinates
+            .Select(c => new LatLngDto { Latitude = c.Latitude, Longitude = c.Longitude })
+            .ToList();
+
+        await JS.InvokeVoidAsync("einsatzMap.startDraft", coordinates);
+        _statusMessage = "Bearbeitung aktiv. Punkte koennen auf der Karte verschoben werden.";
+        _statusIsError = false;
+    }
+
+    private async Task UndoDraftPointAsync()
+    {
+        if (!_draftActive)
+        {
+            return;
+        }
+
+        await JS.InvokeVoidAsync("einsatzMap.undoDraftPoint");
+    }
+
+    private async Task CancelDraftAsync()
+    {
+        _draftActive = false;
+        _draftAreaId = string.Empty;
+        await JS.InvokeVoidAsync("einsatzMap.clearDraft");
+        _statusMessage = "Kartenbearbeitung abgebrochen.";
+        _statusIsError = false;
+    }
+
+    private async Task SaveDraftToAreaAsync()
+    {
+        if (!_draftActive)
+        {
+            return;
+        }
+
+        var coordinates = await JS.InvokeAsync<List<LatLngDto>>("einsatzMap.getDraftCoordinates");
+        if (coordinates is null || coordinates.Count < 3)
+        {
+            _statusMessage = "Mindestens drei Punkte sind fuer ein Suchgebiet erforderlich.";
+            _statusIsError = true;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_draftAreaId))
+        {
+            var area = new SearchArea
+            {
+                Name = $"Gebiet {EinsatzService.CurrentEinsatz.SearchAreas.Count + 1}",
+                Color = "#1e88e5",
+                Coordinates = coordinates.Select(c => (c.Latitude, c.Longitude)).ToList()
+            };
+
+            await EinsatzService.AddSearchAreaAsync(area);
+        }
+        else
+        {
+            var existing = EinsatzService.CurrentEinsatz.SearchAreas.FirstOrDefault(a => a.Id == _draftAreaId);
+            if (existing is null)
+            {
+                _statusMessage = "Das ausgewaehlte Suchgebiet wurde nicht gefunden.";
+                _statusIsError = true;
+                return;
+            }
+
+            existing.Coordinates = coordinates.Select(c => (c.Latitude, c.Longitude)).ToList();
+            await EinsatzService.UpdateSearchAreaAsync(existing);
+        }
+
+        await JS.InvokeVoidAsync("einsatzMap.clearDraft");
+        _draftActive = false;
+        _draftAreaId = string.Empty;
+        _statusMessage = "Kartenpolygon erfolgreich uebernommen.";
+        _statusIsError = false;
+        await RenderAreasAsync();
+    }
+
+    private async Task RenderAreasAsync()
+    {
+        var payload = EinsatzService.CurrentEinsatz.SearchAreas.Select(area => new SearchAreaMapDto
+        {
+            Id = area.Id,
+            Name = area.Name,
+            Color = area.Color,
+            AssignedTeamName = area.AssignedTeamName,
+            IsCompleted = area.IsCompleted,
+            Coordinates = area.Coordinates
+                .Select(c => new LatLngDto { Latitude = c.Latitude, Longitude = c.Longitude })
+                .ToList()
+        }).ToList();
+
+        await JS.InvokeVoidAsync("einsatzMap.renderAreas", payload);
+    }
+
+    private string GetAreaNameDraft(string areaId, string currentName)
+    {
+        return _nameDrafts.TryGetValue(areaId, out var value) ? value : currentName;
+    }
+
+    private void SetAreaNameDraft(string areaId, string? value)
+    {
+        _nameDrafts[areaId] = value ?? string.Empty;
+    }
+
+    private string GetAreaColorDraft(string areaId, string currentColor)
+    {
+        return _colorDrafts.TryGetValue(areaId, out var value) ? value : currentColor;
+    }
+
+    private void SetAreaColorDraft(string areaId, string? value)
+    {
+        _colorDrafts[areaId] = string.IsNullOrWhiteSpace(value) ? "#2196F3" : value;
+    }
+
+    private string GetAssignedTeam(string areaId, string currentTeamId)
+    {
+        return _teamAssignments.TryGetValue(areaId, out var value) ? value : currentTeamId;
+    }
+
+    private void SetAssignedTeam(string areaId, string? teamId)
+    {
+        _teamAssignments[areaId] = teamId ?? string.Empty;
+    }
+
+    private string GetAreaCoordinatesDraft(string areaId, List<(double Latitude, double Longitude)> coordinates)
+    {
+        return _coordinatesDrafts.TryGetValue(areaId, out var value) ? value : FormatCoordinates(coordinates);
+    }
+
+    private void SetAreaCoordinatesDraft(string areaId, string? value)
+    {
+        _coordinatesDrafts[areaId] = value ?? string.Empty;
+    }
+
+    private async Task SaveAreaAsync(string areaId)
+    {
+        var area = EinsatzService.CurrentEinsatz.SearchAreas.FirstOrDefault(a => a.Id == areaId);
+        if (area is null)
+        {
+            return;
+        }
+
+        _statusMessage = string.Empty;
+        _statusIsError = false;
+
+        area.Name = GetAreaNameDraft(area.Id, area.Name).Trim();
+        area.Color = GetAreaColorDraft(area.Id, area.Color);
+
+        var coordinatesText = GetAreaCoordinatesDraft(area.Id, area.Coordinates);
+        if (!TryParseCoordinates(coordinatesText, out var parsedCoordinates))
+        {
+            _statusMessage = "Koordinaten konnten nicht gelesen werden. Format: lat,lng pro Zeile.";
+            _statusIsError = true;
+            return;
+        }
+
+        area.Coordinates = parsedCoordinates;
+
+        var selectedTeamId = GetAssignedTeam(area.Id, area.AssignedTeamId);
+        await EinsatzService.AssignTeamToSearchAreaAsync(area.Id, selectedTeamId);
+
+        await EinsatzService.UpdateSearchAreaAsync(area);
+        await RenderAreasAsync();
+        _statusMessage = "Suchgebiet gespeichert.";
+    }
+
+    private async Task ToggleAreaCompletedAsync(string areaId)
+    {
+        var area = EinsatzService.CurrentEinsatz.SearchAreas.FirstOrDefault(a => a.Id == areaId);
+        if (area is null)
+        {
+            return;
+        }
+
+        area.IsCompleted = !area.IsCompleted;
+        area.CompletedAt = area.IsCompleted ? DateTime.Now : null;
+
+        await EinsatzService.UpdateSearchAreaAsync(area);
+        await RenderAreasAsync();
+    }
+
+    private async Task DeleteAreaAsync(string areaId)
+    {
+        await EinsatzService.DeleteSearchAreaAsync(areaId);
+        _nameDrafts.Remove(areaId);
+        _colorDrafts.Remove(areaId);
+        _teamAssignments.Remove(areaId);
+        _coordinatesDrafts.Remove(areaId);
+        await RenderAreasAsync();
+    }
+
+    private static string FormatCoordinates(IEnumerable<(double Latitude, double Longitude)> coordinates)
+    {
+        return string.Join("\n", coordinates.Select(c => $"{c.Latitude:F6},{c.Longitude:F6}"));
+    }
+
+    private static bool TryParseCoordinates(string input, out List<(double Latitude, double Longitude)> coordinates)
+    {
+        coordinates = new List<(double Latitude, double Longitude)>();
+        var separators = new[] { '\n', '\r', ';' };
+        var lines = input
+            .Split(separators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        foreach (var line in lines)
+        {
+            var parts = line.Split(',', StringSplitOptions.TrimEntries);
+            if (parts.Length != 2)
+            {
+                return false;
+            }
+
+            if (!double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat) ||
+                !double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lng))
+            {
+                return false;
+            }
+
+            coordinates.Add((lat, lng));
+        }
+
+        return coordinates.Count >= 3;
+    }
+
+    private (double Latitude, double Longitude) GetElwCoordinates()
+    {
+        var fallback = (Latitude: 51.1657, Longitude: 10.4515);
+        var elw = EinsatzService.CurrentEinsatz.ElwPosition;
+        return elw ?? fallback;
+    }
+
+    private sealed class SearchAreaMapDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Color { get; set; } = "#2196F3";
+        public string AssignedTeamName { get; set; } = string.Empty;
+        public bool IsCompleted { get; set; }
+        public List<LatLngDto> Coordinates { get; set; } = new();
+    }
+
+    private sealed class LatLngDto
+    {
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+    }
+}

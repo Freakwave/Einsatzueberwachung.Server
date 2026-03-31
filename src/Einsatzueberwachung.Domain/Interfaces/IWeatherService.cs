@@ -18,6 +18,11 @@ namespace Einsatzueberwachung.Domain.Interfaces
         Task<WeatherData?> GetCurrentWeatherByAddressAsync(string address);
 
         /// <summary>
+        /// Ermittelt Koordinaten zu einer Adresse/Ort
+        /// </summary>
+        Task<(double Latitude, double Longitude)?> GeocodeAddressAsync(string address);
+
+        /// <summary>
         /// Holt Wettervorhersage fuer die naechsten Stunden
         /// </summary>
         Task<WeatherForecast?> GetForecastAsync(double latitude, double longitude);

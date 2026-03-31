@@ -94,6 +94,17 @@ namespace Einsatzueberwachung.Domain.Services
 
         public async Task<WeatherData?> GetCurrentWeatherByAddressAsync(string address)
         {
+            var coordinates = await GeocodeAddressAsync(address);
+            if (coordinates is null)
+            {
+                return null;
+            }
+
+            return await GetCurrentWeatherAsync(coordinates.Value.Latitude, coordinates.Value.Longitude);
+        }
+
+        public async Task<(double Latitude, double Longitude)?> GeocodeAddressAsync(string address)
+        {
             if (string.IsNullOrWhiteSpace(address))
             {
                 _logger?.LogWarning("Address-based weather lookup was called with an empty address.");
@@ -106,7 +117,7 @@ namespace Einsatzueberwachung.Domain.Services
                 var url = $"{NominatimBaseUrl}?q={encodedAddress}&format=jsonv2&limit=1&addressdetails=0";
 
                 using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                request.Headers.UserAgent.ParseAdd("Einsatzueberwachung.Web/1.0 (+https://github.com/Elemirus1996/Einsatzueberwachung.Web)");
+                request.Headers.UserAgent.ParseAdd("Einsatzueberwachung.Server/1.0 (+https://github.com/Elemirus1996/Einsatzueberwachung.Server)");
                 request.Headers.Accept.ParseAdd("application/json");
 
                 var response = await _httpClient.SendAsync(request);
@@ -143,7 +154,7 @@ namespace Einsatzueberwachung.Domain.Services
                 }
 
                 _logger?.LogInformation("Address '{Address}' geocoded to lat={Lat}, lon={Lon}", address, latitude, longitude);
-                return await GetCurrentWeatherAsync(latitude, longitude);
+                return (latitude, longitude);
             }
             catch (Exception ex)
             {

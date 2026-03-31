@@ -1,0 +1,19 @@
+[Unit]
+Description=Einsatzueberwachung Mobile
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/einsatzueberwachung/mobile
+ExecStart=/usr/bin/dotnet Einsatzueberwachung.Mobile.dll
+Restart=always
+RestartSec=10
+SyslogIdentifier=einsatzueberwachung-mobile
+User=einsatz
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5001
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+Environment=EINSATZUEBERWACHUNG_DATA_DIR=/opt/einsatzueberwachung/data
+Environment=EINSATZUEBERWACHUNG_REPORT_DIR=/opt/einsatzueberwachung/data/berichte
+
+[Install]
+WantedBy=multi-user.target

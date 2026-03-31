@@ -1,0 +1,81 @@
+@page "/mobile-karte"
+@rendermode InteractiveServer
+@inject IEinsatzService EinsatzService
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>Mobile Karte</PageTitle>
+
+<div style="display:flex;flex-direction:column;height:calc(100vh - 60px);">
+    <!-- Toolbar -->
+    <div class="d-flex align-items-center gap-2 p-2 border-bottom bg-body flex-wrap">
+        <span class="fw-semibold small me-auto"><i class="bi bi-map me-1 text-primary"></i>Einsatzkarte (Lesemodus)</span>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="CenterMapAsync">
+            <i class="bi bi-geo-alt"></i> Zentrieren
+        </button>
+        <span class="badge bg-secondary">@EinsatzService.Teams.Count Teams</span>
+    </div>
+
+    <!-- Karte -->
+    <div id="mobile-map" style="flex:1;min-height:300px;"></div>
+</div>
+
+@if (EinsatzService.Teams.Count == 0 && string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzort))
+{
+    <div class="position-absolute top-50 start-50 translate-middle text-center text-muted" style="pointer-events:none;">
+        <i class="bi bi-map display-4"></i>
+        <p class="mt-2 small">Kein Einsatz aktiv</p>
+    </div>
+}
+
+@code {
+    private bool _mapInit;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var areas = EinsatzService.CurrentEinsatz.SearchAreas ?? new();
+            await JS.InvokeVoidAsync("einsatzMap.initMap", "mobile-map", 51.1657, 10.4515, 10);
+            await RenderAreasAsync(areas);
+            _mapInit = true;
+
+            EinsatzService.EinsatzChanged += OnChanged;
+            EinsatzService.TeamUpdated += _ => OnChanged();
+        }
+    }
+
+    private async Task RenderAreasAsync(List<Einsatzueberwachung.Domain.Models.SearchArea> areas)
+    {
+        foreach (var area in areas.Where(a => a.Coordinates?.Count > 1))
+        {
+            var coords = area.Coordinates!.Select(c => new[] { c.Item1, c.Item2 }).ToArray();
+            var team = EinsatzService.Teams.FirstOrDefault(t => t.SearchAreaId == area.Id);
+            var label = team is not null ? $"{area.Name} ({team.TeamName})" : area.Name;
+            await JS.InvokeVoidAsync("einsatzMap.addPolygon", area.Id, coords, area.Color ?? "#3388ff", label, false);
+        }
+    }
+
+    private void OnChanged() => InvokeAsync(async () =>
+    {
+        if (_mapInit)
+        {
+            await JS.InvokeVoidAsync("einsatzMap.clearPolygons");
+            await RenderAreasAsync(EinsatzService.CurrentEinsatz.SearchAreas ?? new());
+        }
+        StateHasChanged();
+    });
+
+    private async Task CenterMapAsync()
+    {
+        var e = EinsatzService.CurrentEinsatz;
+        if (e.ElwLatitude.HasValue && e.ElwLongitude.HasValue)
+            await JS.InvokeVoidAsync("einsatzMap.setView", e.ElwLatitude.Value, e.ElwLongitude.Value, 13);
+    }
+
+    public void Dispose()
+    {
+        EinsatzService.EinsatzChanged -= OnChanged;
+        EinsatzService.TeamUpdated -= _ => OnChanged();
+    }
+}

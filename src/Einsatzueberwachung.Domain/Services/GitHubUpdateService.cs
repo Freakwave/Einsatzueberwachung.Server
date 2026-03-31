@@ -17,7 +17,7 @@ namespace Einsatzueberwachung.Domain.Services
         
         // GitHub API Konfiguration
         private const string GITHUB_OWNER = "Elemirus1996";
-        private const string GITHUB_REPO = "Einsatzueberwachung.Web";
+        private const string GITHUB_REPO = "Einsatzueberwachung.Server";
         private const string GITHUB_API_URL = "https://api.github.com/repos/{0}/{1}/releases/latest";
         
         public string CurrentVersion { get; set; } = "4.3.4";
@@ -70,8 +70,11 @@ namespace Einsatzueberwachung.Domain.Services
                 foreach (var asset in assets.EnumerateArray())
                 {
                     var name = asset.GetProperty("name").GetString() ?? "";
-                    if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || 
-                        name.Contains("Installer", StringComparison.OrdinalIgnoreCase))
+                    if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                        name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+                        name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("installer", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("linux", StringComparison.OrdinalIgnoreCase))
                     {
                         installerUrl = asset.GetProperty("browser_download_url").GetString();
                         break;

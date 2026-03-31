@@ -1,0 +1,63 @@
+@page "/einsatz"
+@rendermode InteractiveServer
+
+@inject Einsatzueberwachung.Mobile.Services.MobileSignalRClient LiveSync
+
+<PageTitle>Einsatz anlegen</PageTitle>
+
+<section class="mobile-card">
+    <h1>Einsatz anlegen</h1>
+    <p class="subline">Vereinfachte Mobile-Eingabe fuer neuen Einsatz</p>
+
+    <EditForm Model="_einsatz" OnValidSubmit="OnSubmitAsync">
+        <DataAnnotationsValidator />
+
+        <div class="mobile-field">
+            <label for="einsatzTyp">Einsatzart</label>
+            <InputSelect id="einsatzTyp" class="form-select" @bind-Value="_einsatz.IstEinsatz">
+                <option value="true">Einsatz</option>
+                <option value="false">Uebung</option>
+            </InputSelect>
+        </div>
+
+        <div class="mobile-field">
+            <label for="alarmzeit">Alarmzeit</label>
+            <InputDate id="alarmzeit" class="form-control" @bind-Value="_einsatz.EinsatzDatum" />
+        </div>
+
+        <div class="mobile-field">
+            <label for="ort">Einsatzort</label>
+            <InputText id="ort" class="form-control" @bind-Value="_einsatz.Einsatzort" />
+        </div>
+
+        <div class="mobile-field">
+            <label for="leiter">Melder / Einsatzleiter</label>
+            <InputText id="leiter" class="form-control" @bind-Value="_einsatz.Einsatzleiter" />
+        </div>
+
+        <div class="mobile-field">
+            <label for="bemerkung">Bemerkungen</label>
+            <InputTextArea id="bemerkung" class="form-control" @bind-Value="_bemerkung" />
+        </div>
+
+        <button class="btn btn-primary mobile-btn" type="submit">Einsatz starten</button>
+    </EditForm>
+
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <p class="status-line">@_status</p>
+    }
+</section>
+
+@code {
+    private Einsatzueberwachung.Domain.Models.EinsatzData _einsatz = new();
+    private string _bemerkung = string.Empty;
+    private string _status = string.Empty;
+
+    private async Task OnSubmitAsync()
+    {
+        await LiveSync.StartEinsatzAsync(_einsatz, _bemerkung);
+
+        _status = "Einsatz wurde gespeichert.";
+    }
+}

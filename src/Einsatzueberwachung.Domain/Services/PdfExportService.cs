@@ -28,14 +28,7 @@ namespace Einsatzueberwachung.Domain.Services
             try
             {
                 var filename = $"Einsatzbericht_{einsatzData.EinsatzNummer}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-                var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                var einsatzPath = Path.Combine(documentsPath, "Einsatzueberwachung", "Berichte");
-                
-                if (!Directory.Exists(einsatzPath))
-                {
-                    Directory.CreateDirectory(einsatzPath);
-                }
-
+                var einsatzPath = AppPathResolver.GetReportDirectory();
                 var filePath = Path.Combine(einsatzPath, filename);
 
                 await Task.Run(() =>
@@ -373,14 +366,7 @@ namespace Einsatzueberwachung.Domain.Services
             try
             {
                 var filename = $"Einsatzbericht_{archivedEinsatz.EinsatzNummer}_{archivedEinsatz.EinsatzDatum:yyyyMMdd}.pdf";
-                var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                var einsatzPath = Path.Combine(documentsPath, "Einsatzueberwachung", "Berichte");
-                
-                if (!Directory.Exists(einsatzPath))
-                {
-                    Directory.CreateDirectory(einsatzPath);
-                }
-
+                var einsatzPath = AppPathResolver.GetReportDirectory();
                 var filePath = Path.Combine(einsatzPath, filename);
                 var pdfDocument = CreateArchivedEinsatzDocument(archivedEinsatz);
 

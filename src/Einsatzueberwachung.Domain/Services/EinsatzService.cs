@@ -16,6 +16,7 @@ namespace Einsatzueberwachung.Domain.Services
         private EinsatzData _currentEinsatz;
         private readonly List<Team> _teams;
         private readonly List<GlobalNotesEntry> _globalNotes;
+        private readonly List<GlobalNotesHistory> _noteHistory;
 
         public EinsatzData CurrentEinsatz => _currentEinsatz;
         public List<Team> Teams => _teams;
@@ -33,6 +34,7 @@ namespace Einsatzueberwachung.Domain.Services
             _currentEinsatz = new EinsatzData();
             _teams = new List<Team>();
             _globalNotes = new List<GlobalNotesEntry>();
+            _noteHistory = new List<GlobalNotesHistory>();
 
             EnsureCurrentEinsatzTeamReference();
         }
@@ -42,6 +44,7 @@ namespace Einsatzueberwachung.Domain.Services
             _currentEinsatz = einsatzData;
             _teams.Clear();
             _globalNotes.Clear();
+            _noteHistory.Clear();
             EnsureCurrentEinsatzTeamReference();
 
             var startNote = new GlobalNotesEntry
@@ -110,9 +113,8 @@ namespace Einsatzueberwachung.Domain.Services
             var existing = _teams.FirstOrDefault(t => t.TeamId == team.TeamId);
             if (existing != null)
             {
-                var index = _teams.IndexOf(existing);
-                _teams[index] = team;
-                TeamUpdated?.Invoke(team);
+                CopyMutableTeamFields(existing, team);
+                TeamUpdated?.Invoke(existing);
             }
 
             return Task.CompletedTask;
@@ -207,6 +209,17 @@ namespace Einsatzueberwachung.Domain.Services
             var area = _currentEinsatz.SearchAreas.FirstOrDefault(a => a.Id == areaId);
             if (area != null)
             {
+                if (!string.IsNullOrWhiteSpace(area.AssignedTeamId))
+                {
+                    var assignedTeam = _teams.FirstOrDefault(t => t.TeamId == area.AssignedTeamId);
+                    if (assignedTeam != null)
+                    {
+                        assignedTeam.SearchAreaId = string.Empty;
+                        assignedTeam.SearchAreaName = string.Empty;
+                        TeamUpdated?.Invoke(assignedTeam);
+                    }
+                }
+
                 _currentEinsatz.SearchAreas.Remove(area);
                 EinsatzChanged?.Invoke();
             }
@@ -217,17 +230,61 @@ namespace Einsatzueberwachung.Domain.Services
         public Task AssignTeamToSearchAreaAsync(string areaId, string teamId)
         {
             var area = _currentEinsatz.SearchAreas.FirstOrDefault(a => a.Id == areaId);
-            var team = _teams.FirstOrDefault(t => t.TeamId == teamId);
-
-            if (area != null && team != null)
+            if (area == null)
             {
-                area.AssignedTeamId = teamId;
-                area.AssignedTeamName = team.TeamName;
-                team.SearchAreaId = areaId;
-                team.SearchAreaName = area.Name;
-                EinsatzChanged?.Invoke();
-                TeamUpdated?.Invoke(team);
+                return Task.CompletedTask;
             }
+
+            // Falls das Gebiet bereits einem anderen Team zugeordnet ist, alte Zuordnung entfernen.
+            if (!string.IsNullOrWhiteSpace(area.AssignedTeamId) && area.AssignedTeamId != teamId)
+            {
+                var oldTeam = _teams.FirstOrDefault(t => t.TeamId == area.AssignedTeamId);
+                if (oldTeam != null)
+                {
+                    oldTeam.SearchAreaId = string.Empty;
+                    oldTeam.SearchAreaName = string.Empty;
+                    TeamUpdated?.Invoke(oldTeam);
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(teamId))
+            {
+                if (!string.IsNullOrWhiteSpace(area.AssignedTeamId))
+                {
+                    var previousTeam = _teams.FirstOrDefault(t => t.TeamId == area.AssignedTeamId);
+                    if (previousTeam != null)
+                    {
+                        previousTeam.SearchAreaId = string.Empty;
+                        previousTeam.SearchAreaName = string.Empty;
+                        TeamUpdated?.Invoke(previousTeam);
+                    }
+                }
+
+                area.AssignedTeamId = string.Empty;
+                area.AssignedTeamName = string.Empty;
+                EinsatzChanged?.Invoke();
+                return Task.CompletedTask;
+            }
+
+            var team = _teams.FirstOrDefault(t => t.TeamId == teamId);
+            if (team == null)
+            {
+                return Task.CompletedTask;
+            }
+
+            // Ein Team darf nur genau einem Gebiet zugeordnet sein.
+            foreach (var otherArea in _currentEinsatz.SearchAreas.Where(a => a.AssignedTeamId == team.TeamId && a.Id != area.Id))
+            {
+                otherArea.AssignedTeamId = string.Empty;
+                otherArea.AssignedTeamName = string.Empty;
+            }
+
+            area.AssignedTeamId = teamId;
+            area.AssignedTeamName = team.TeamName;
+            team.SearchAreaId = areaId;
+            team.SearchAreaName = area.Name;
+            EinsatzChanged?.Invoke();
+            TeamUpdated?.Invoke(team);
 
             return Task.CompletedTask;
         }
@@ -304,9 +361,7 @@ namespace Einsatzueberwachung.Domain.Services
                 ChangedAt = DateTime.Now,
                 ChangedBy = updatedBy
             };
-            
-            // Historie würde hier in eine separate Liste/DB gespeichert werden
-            // Für In-Memory können wir sie auch in SessionData aufnehmen
+            _noteHistory.Add(history);
 
             note.Text = newText;
             note.UpdatedAt = DateTime.Now;
@@ -325,9 +380,12 @@ namespace Einsatzueberwachung.Domain.Services
         
         public Task<List<GlobalNotesHistory>> GetNoteHistoryAsync(string noteId)
         {
-            // TODO: Implementiere Speicherung und Abruf der Historie
-            // Momentan In-Memory, könnte erweitert werden
-            return Task.FromResult(new List<GlobalNotesHistory>());
+            var history = _noteHistory
+                .Where(h => h.NoteId == noteId)
+                .OrderByDescending(h => h.ChangedAt)
+                .ToList();
+
+            return Task.FromResult(history);
         }
         
         // ========================================
@@ -429,6 +487,7 @@ namespace Einsatzueberwachung.Domain.Services
             // Teams und Notizen leeren
             _teams.Clear();
             _globalNotes.Clear();
+            _noteHistory.Clear();
             
             // Einsatz-Daten zuruecksetzen
             _currentEinsatz = new EinsatzData
@@ -445,6 +504,27 @@ namespace Einsatzueberwachung.Domain.Services
         private void EnsureCurrentEinsatzTeamReference()
         {
             _currentEinsatz.Teams = _teams;
+        }
+
+        private static void CopyMutableTeamFields(Team target, Team source)
+        {
+            target.TeamName = source.TeamName;
+            target.DogName = source.DogName;
+            target.DogId = source.DogId;
+            target.DogSpecialization = source.DogSpecialization;
+            target.HundefuehrerName = source.HundefuehrerName;
+            target.HundefuehrerId = source.HundefuehrerId;
+            target.HelferName = source.HelferName;
+            target.HelferId = source.HelferId;
+            target.SearchAreaName = source.SearchAreaName;
+            target.SearchAreaId = source.SearchAreaId;
+            target.FirstWarningMinutes = source.FirstWarningMinutes;
+            target.SecondWarningMinutes = source.SecondWarningMinutes;
+            target.Notes = source.Notes;
+            target.IsDroneTeam = source.IsDroneTeam;
+            target.DroneType = source.DroneType;
+            target.DroneId = source.DroneId;
+            target.IsSupportTeam = source.IsSupportTeam;
         }
     }
 }

@@ -26,19 +26,8 @@ namespace Einsatzueberwachung.Domain.Services
 
         public ArchivService()
         {
-            // Speichert im AppData-Ordner
-            _archivDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Einsatzueberwachung",
-                "Archiv");
-            
+            _archivDirectory = AppPathResolver.GetArchiveDirectory();
             _archivFilePath = Path.Combine(_archivDirectory, "einsatz_archiv.json");
-            
-            // Stelle sicher, dass der Ordner existiert
-            if (!Directory.Exists(_archivDirectory))
-            {
-                Directory.CreateDirectory(_archivDirectory);
-            }
         }
 
         private async Task EnsureLoadedAsync()

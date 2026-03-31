@@ -1,0 +1,490 @@
+@page "/einstellungen"
+@rendermode InteractiveServer
+@using System.Text.Json
+@using System.IO.Compression
+@using System.Text
+
+@inject ISettingsService SettingsService
+@inject IMasterDataService MasterDataService
+@inject IArchivService ArchivService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Einstellungen</PageTitle>
+
+<div class="container py-4">
+    <h1>Einstellungen</h1>
+
+    <div class="row g-4">
+        <div class="col-12 col-xl-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h4 mb-3">Staffel</h2>
+
+                    <div class="mb-3">
+                        <label class="form-label">Staffelname</label>
+                        <InputText class="form-control" @bind-Value="_staffelSettings.StaffelName" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Adresse</label>
+                        <InputText class="form-control" @bind-Value="_staffelSettings.StaffelAdresse" />
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Telefon</label>
+                            <InputText class="form-control" @bind-Value="_staffelSettings.StaffelTelefon" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">E-Mail</label>
+                            <InputText class="form-control" @bind-Value="_staffelSettings.StaffelEmail" />
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label">Logo-Pfad</label>
+                        <InputText class="form-control" @bind-Value="_staffelSettings.StaffelLogoPfad" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h4 mb-3">Anwendung</h2>
+
+                    <div class="form-check form-switch mb-3">
+                        <InputCheckbox class="form-check-input" id="darkMode" @bind-Value="_appSettings.IsDarkMode" />
+                        <label class="form-check-label" for="darkMode">Dark Mode aktiv</label>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Erste Warnung (Minuten)</label>
+                            <InputNumber class="form-control" @bind-Value="_appSettings.DefaultFirstWarningMinutes" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Zweite Warnung (Minuten)</label>
+                            <InputNumber class="form-control" @bind-Value="_appSettings.DefaultSecondWarningMinutes" />
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label">Update-URL</label>
+                        <InputText class="form-control" @bind-Value="_appSettings.UpdateUrl" />
+                    </div>
+
+                    <div class="form-check mt-3">
+                        <InputCheckbox class="form-check-input" id="autoUpdates" @bind-Value="_appSettings.AutoCheckUpdates" />
+                        <label class="form-check-label" for="autoUpdates">Updates automatisch pruefen</label>
+                    </div>
+
+                    <div class="form-check mt-2">
+                        <InputCheckbox class="form-check-input" id="soundAlerts" @bind-Value="_appSettings.SoundAlertsEnabled" />
+                        <label class="form-check-label" for="soundAlerts">Sound-Warnungen aktiv</label>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label">Lautstaerke</label>
+                        <InputNumber class="form-control" @bind-Value="_appSettings.SoundVolume" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h4 mb-3">Dateien und Speicherorte</h2>
+
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Datenpfad</dt>
+                        <dd class="col-sm-8"><code>@_dataDirectory</code></dd>
+
+                        <dt class="col-sm-4">Berichte</dt>
+                        <dd class="col-sm-8"><code>@_reportDirectory</code></dd>
+
+                        <dt class="col-sm-4">Mobile URL</dt>
+                        <dd class="col-sm-8"><a href="@_mobileUrl" target="_blank">@_mobileUrl</a></dd>
+                    </dl>
+
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <a class="btn btn-outline-secondary" href="@GetDownloadUrl("/downloads/app-settings.json")">App-Settings JSON</a>
+                        <a class="btn btn-outline-secondary" href="@GetDownloadUrl("/downloads/staffel-settings.json")">Staffel JSON</a>
+                        <a class="btn btn-outline-secondary" href="@GetDownloadUrl("/downloads/session-data.json")">Session JSON</a>
+                        <a class="btn btn-outline-secondary" href="@GetDownloadUrl("/downloads/stammdaten.xlsx")">Excel Export</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h4 mb-3">System</h2>
+                    <p class="text-muted mb-3">Die Einstellungen werden serverseitig gespeichert und beim naechsten Start weiterverwendet.</p>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-primary" @onclick="SaveAsync">Einstellungen speichern</button>
+                        <a class="btn btn-outline-primary" href="@GetDownloadUrl("/mobile-connect")">Mobile Verbindung</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h4 mb-3">Wartung und Datenverwaltung</h2>
+
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <a class="btn btn-outline-success" href="@GetDownloadUrl("/downloads/data-backup.zip")">Daten-Backup herunterladen (ZIP)</a>
+                        <button class="btn btn-outline-danger" @onclick="ConfirmResetDataAsync">Daten auf Standard zuruecksetzen</button>
+                    </div>
+
+                    <label class="form-label">SessionData Import (JSON)</label>
+                    <textarea class="form-control"
+                              rows="8"
+                              placeholder="JSON-Inhalt von SessionData hier einfuegen"
+                              @bind="_sessionImportJson"></textarea>
+                    <div class="mt-2 d-flex flex-wrap gap-2">
+                        <button class="btn btn-outline-secondary" @onclick="ImportSessionJsonAsync">SessionData importieren</button>
+                        <InputFile OnChange="ImportSessionFileAsync" accept=".json,application/json" />
+                    </div>
+
+                    <hr />
+
+                    <label class="form-label">AppSettings / StaffelSettings Import (JSON)</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="d-inline-flex align-items-center gap-2">
+                            <span class="small text-muted">AppSettings</span>
+                            <InputFile OnChange="ImportAppSettingsFileAsync" accept=".json,application/json" />
+                        </span>
+                        <span class="d-inline-flex align-items-center gap-2">
+                            <span class="small text-muted">StaffelSettings</span>
+                            <InputFile OnChange="ImportStaffelSettingsFileAsync" accept=".json,application/json" />
+                        </span>
+                    </div>
+
+                    <hr />
+
+                    <label class="form-label">Backup wiederherstellen (ZIP)</label>
+                    <p class="text-muted mb-2">Importiert SessionData, AppSettings, StaffelSettings und Archivdaten aus einer zuvor erzeugten Daten-Backup-ZIP.</p>
+                    <div>
+                        <InputFile OnChange="ConfirmRestoreBackupZipAsync" accept=".zip,application/zip" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_maintenanceStatus))
+                    {
+                        <div class="alert @(_maintenanceError ? "alert-danger" : "alert-success") mt-3 mb-0">@_maintenanceStatus</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <div class="alert alert-success mt-4">@_status</div>
+    }
+</div>
+
+@code {
+    private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    private StaffelSettings _staffelSettings = new();
+    private AppSettings _appSettings = new();
+    private string _status = string.Empty;
+    private string _dataDirectory = string.Empty;
+    private string _reportDirectory = string.Empty;
+    private string _mobileUrl = string.Empty;
+    private string _sessionImportJson = string.Empty;
+    private string _maintenanceStatus = string.Empty;
+    private bool _maintenanceError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _staffelSettings = await SettingsService.GetStaffelSettingsAsync();
+        _appSettings = await SettingsService.GetAppSettingsAsync();
+        _dataDirectory = AppPathResolver.GetDataDirectory();
+        _reportDirectory = AppPathResolver.GetReportDirectory();
+        _mobileUrl = new Uri(new Uri(Navigation.BaseUri), "mobile/").ToString();
+    }
+
+    private async Task SaveAsync()
+    {
+        _appSettings.Theme = _appSettings.IsDarkMode ? "Dark" : "Light";
+        await SettingsService.SaveStaffelSettingsAsync(_staffelSettings);
+        await SettingsService.SaveAppSettingsAsync(_appSettings);
+        _status = "Einstellungen gespeichert.";
+    }
+
+    private async Task ResetDataAsync()
+    {
+        await MasterDataService.SaveSessionDataAsync(new SessionData());
+        await SettingsService.SaveStaffelSettingsAsync(new StaffelSettings());
+        await SettingsService.SaveAppSettingsAsync(new AppSettings());
+
+        _staffelSettings = await SettingsService.GetStaffelSettingsAsync();
+        _appSettings = await SettingsService.GetAppSettingsAsync();
+        _sessionImportJson = string.Empty;
+        SetMaintenanceStatus("Daten wurden auf Standard zurueckgesetzt.", false);
+    }
+
+    private async Task ConfirmResetDataAsync()
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Sollen die Einsatzdaten und Einstellungen wirklich auf Standard zurueckgesetzt werden?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        await ResetDataAsync();
+    }
+
+    private async Task ImportSessionJsonAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_sessionImportJson))
+        {
+            SetMaintenanceStatus("Bitte zuerst SessionData-JSON einfuegen.", true);
+            return;
+        }
+
+        try
+        {
+            var imported = JsonSerializer.Deserialize<SessionData>(_sessionImportJson, _jsonOptions);
+            if (imported is null)
+            {
+                SetMaintenanceStatus("Import fehlgeschlagen: JSON konnte nicht gelesen werden.", true);
+                return;
+            }
+
+            await MasterDataService.SaveSessionDataAsync(imported);
+            SetMaintenanceStatus("SessionData wurde importiert.", false);
+        }
+        catch (Exception ex)
+        {
+            SetMaintenanceStatus($"Import fehlgeschlagen: {ex.Message}", true);
+        }
+    }
+
+    private async Task ImportSessionFileAsync(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (file is null)
+        {
+            SetMaintenanceStatus("Keine Datei ausgewaehlt.", true);
+            return;
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            _sessionImportJson = await reader.ReadToEndAsync();
+            await ImportSessionJsonAsync();
+        }
+        catch (Exception ex)
+        {
+            SetMaintenanceStatus($"Datei-Import fehlgeschlagen: {ex.Message}", true);
+        }
+    }
+
+    private async Task ImportAppSettingsFileAsync(InputFileChangeEventArgs args)
+    {
+        try
+        {
+            var imported = await ReadJsonFromInputFileAsync<AppSettings>(args, 2 * 1024 * 1024);
+            if (imported is null)
+            {
+                SetMaintenanceStatus("AppSettings-Import fehlgeschlagen: Datei war leer oder ungueltig.", true);
+                return;
+            }
+
+            await SettingsService.SaveAppSettingsAsync(imported);
+            _appSettings = await SettingsService.GetAppSettingsAsync();
+            SetMaintenanceStatus("AppSettings wurden importiert.", false);
+        }
+        catch (Exception ex)
+        {
+            SetMaintenanceStatus($"AppSettings-Import fehlgeschlagen: {ex.Message}", true);
+        }
+    }
+
+    private async Task ImportStaffelSettingsFileAsync(InputFileChangeEventArgs args)
+    {
+        try
+        {
+            var imported = await ReadJsonFromInputFileAsync<StaffelSettings>(args, 2 * 1024 * 1024);
+            if (imported is null)
+            {
+                SetMaintenanceStatus("StaffelSettings-Import fehlgeschlagen: Datei war leer oder ungueltig.", true);
+                return;
+            }
+
+            await SettingsService.SaveStaffelSettingsAsync(imported);
+            _staffelSettings = await SettingsService.GetStaffelSettingsAsync();
+            SetMaintenanceStatus("StaffelSettings wurden importiert.", false);
+        }
+        catch (Exception ex)
+        {
+            SetMaintenanceStatus($"StaffelSettings-Import fehlgeschlagen: {ex.Message}", true);
+        }
+    }
+
+    private static async Task<T?> ReadJsonFromInputFileAsync<T>(InputFileChangeEventArgs args, long maxSize)
+    {
+        var file = args.File;
+        if (file is null)
+        {
+            return default;
+        }
+
+        await using var stream = file.OpenReadStream(maxAllowedSize: maxSize);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        var content = await reader.ReadToEndAsync();
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return default;
+        }
+
+        return JsonSerializer.Deserialize<T>(content, _jsonOptions);
+    }
+
+    private async Task ConfirmRestoreBackupZipAsync(InputFileChangeEventArgs args)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Soll die ausgewaehlte Backup-Datei wirklich eingespielt werden?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        await RestoreBackupZipAsync(args);
+    }
+
+    private async Task RestoreBackupZipAsync(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (file is null)
+        {
+            SetMaintenanceStatus("Keine Backup-Datei ausgewaehlt.", true);
+            return;
+        }
+
+        try
+        {
+            await using var uploadStream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
+            using var memory = new MemoryStream();
+            await uploadStream.CopyToAsync(memory);
+            memory.Position = 0;
+
+            using var archive = new ZipArchive(memory, ZipArchiveMode.Read, leaveOpen: false);
+
+            var importedCount = 0;
+
+            var sessionEntry = FindZipEntry(archive, "SessionData.json");
+            if (sessionEntry is not null)
+            {
+                var session = await ReadZipJsonAsync<SessionData>(sessionEntry);
+                if (session is not null)
+                {
+                    await MasterDataService.SaveSessionDataAsync(session);
+                    importedCount++;
+                }
+            }
+
+            var appEntry = FindZipEntry(archive, "AppSettings.json");
+            if (appEntry is not null)
+            {
+                var appSettings = await ReadZipJsonAsync<AppSettings>(appEntry);
+                if (appSettings is not null)
+                {
+                    await SettingsService.SaveAppSettingsAsync(appSettings);
+                    importedCount++;
+                }
+            }
+
+            var staffelEntry = FindZipEntry(archive, "StaffelSettings.json");
+            if (staffelEntry is not null)
+            {
+                var staffelSettings = await ReadZipJsonAsync<StaffelSettings>(staffelEntry);
+                if (staffelSettings is not null)
+                {
+                    await SettingsService.SaveStaffelSettingsAsync(staffelSettings);
+                    importedCount++;
+                }
+            }
+
+            var archiveEntry = FindZipEntry(archive, "einsatz_archiv.json") ?? FindZipEntry(archive, "archiv-export.json");
+            if (archiveEntry is not null)
+            {
+                var archiveBytes = await ReadZipBytesAsync(archiveEntry);
+                var importedArchiveCount = await ArchivService.ImportFromJsonAsync(archiveBytes);
+                if (importedArchiveCount > 0)
+                {
+                    importedCount++;
+                }
+            }
+
+            _staffelSettings = await SettingsService.GetStaffelSettingsAsync();
+            _appSettings = await SettingsService.GetAppSettingsAsync();
+
+            if (importedCount == 0)
+            {
+                SetMaintenanceStatus("Keine passenden Einstellungsdateien in der ZIP gefunden.", true);
+                return;
+            }
+
+            SetMaintenanceStatus($"Backup erfolgreich eingespielt ({importedCount} Datei(en)).", false);
+        }
+        catch (Exception ex)
+        {
+            SetMaintenanceStatus($"Backup-Wiederherstellung fehlgeschlagen: {ex.Message}", true);
+        }
+    }
+
+    private static ZipArchiveEntry? FindZipEntry(ZipArchive archive, string fileName)
+    {
+        return archive.Entries.FirstOrDefault(entry =>
+            string.Equals(Path.GetFileName(entry.FullName), fileName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static async Task<T?> ReadZipJsonAsync<T>(ZipArchiveEntry entry)
+    {
+        await using var stream = entry.Open();
+        using var reader = new StreamReader(stream);
+        var content = await reader.ReadToEndAsync();
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return default;
+        }
+
+        return JsonSerializer.Deserialize<T>(content, _jsonOptions);
+    }
+
+    private static async Task<byte[]> ReadZipBytesAsync(ZipArchiveEntry entry)
+    {
+        await using var stream = entry.Open();
+        using var memory = new MemoryStream();
+        await stream.CopyToAsync(memory);
+        return memory.ToArray();
+    }
+
+    private string GetDownloadUrl(string relativePath)
+    {
+        return new Uri(new Uri(Navigation.BaseUri), relativePath.TrimStart('/')).ToString();
+    }
+
+    private void SetMaintenanceStatus(string message, bool isError)
+    {
+        _maintenanceStatus = message;
+        _maintenanceError = isError;
+    }
+}

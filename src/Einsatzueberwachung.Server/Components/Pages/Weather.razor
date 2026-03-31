@@ -1,64 +1,177 @@
-﻿@page "/weather"
-@attribute [StreamRendering]
+﻿@page "/wetter"
+@rendermode InteractiveServer
 
-<PageTitle>Weather</PageTitle>
+@inject IEinsatzService EinsatzService
+@inject IWeatherService WeatherService
 
-<h1>Weather</h1>
+<PageTitle>Wetter</PageTitle>
 
-<p>This component demonstrates showing data.</p>
+<div class="container py-4">
+    <h1>Wetter</h1>
 
-@if (forecasts == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th aria-label="Temperature in Celsius">Temp. (C)</th>
-                <th aria-label="Temperature in Farenheit">Temp. (F)</th>
-                <th>Summary</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var forecast in forecasts)
+    <div class="input-group mb-3">
+        <InputText class="form-control" @bind-Value="_address" placeholder="Ort eingeben" />
+        <button class="btn btn-primary" @onclick="LoadWeatherAsync">Aktualisieren</button>
+    </div>
+
+    @if (_loading)
+    {
+        <p>Lade Wetterdaten...</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="alert alert-warning">@_errorMessage</div>
+    }
+    else if (_weather is null)
+    {
+        <p class="text-muted">Keine Wetterdaten verfuegbar.</p>
+    }
+    else
+    {
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <span class="badge text-bg-secondary">Stand: @_lastLoadedLocal.ToString("dd.MM.yyyy HH:mm")</span>
+            <span class="badge text-bg-info">Ort: @_address</span>
+            @if (_flugwetter is not null)
             {
-                <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
-                    <td>@forecast.TemperatureC</td>
-                    <td>@forecast.TemperatureF</td>
-                    <td>@forecast.Summary</td>
-                </tr>
+                <span class="badge @_flugwetter.GetKategorieBadgeClass()">@_flugwetter.Kategorie</span>
             }
-        </tbody>
-    </table>
-}
+        </div>
+
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <div class="card"><div class="card-body"><strong>Temperatur:</strong> @_weather.TemperaturFormatiert</div></div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="card"><div class="card-body"><strong>Wind:</strong> @_weather.WindFormatiert</div></div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="card"><div class="card-body"><strong>Luftfeuchte:</strong> @_weather.LuftfeuchtigkeitFormatiert</div></div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="card"><div class="card-body"><strong>Wetterlage:</strong> @_weather.Wetterlage</div></div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="card"><div class="card-body"><strong>Sichtweite:</strong> @_weather.Sichtweite.ToString("0.0") km</div></div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="card"><div class="card-body"><strong>Luftdruck:</strong> @_weather.Luftdruck.ToString("0") hPa</div></div>
+            </div>
+        </div>
+
+        @if (_flugwetter is not null)
+        {
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Flugwetter</strong>
+                    <span class="badge @_flugwetter.GetKategorieBadgeClass()">@_flugwetter.GetKategorieText()</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4"><strong>Wind:</strong> @_flugwetter.Windgeschwindigkeit.ToString("0") km/h (@_flugwetter.WindrichtungText)</div>
+                        <div class="col-12 col-md-4"><strong>Boeen:</strong> @_flugwetter.Windboeen.ToString("0") km/h</div>
+                        <div class="col-12 col-md-4"><strong>Sicht:</strong> @_flugwetter.Sichtweite.ToString("0.0") km</div>
+                        <div class="col-12 col-md-4"><strong>Wolkenuntergrenze:</strong> @_flugwetter.WolkenuntergrenzeFuss ft</div>
+                        <div class="col-12 col-md-4"><strong>QNH:</strong> @_flugwetter.QNH hPa</div>
+                    </div>
+                    <div class="alert @(_flugwetter.IstDrohnenflugMoeglich ? "alert-success" : "alert-danger") mt-3 mb-0">
+                        <strong>@(_flugwetter.IstDrohnenflugMoeglich ? "Drohnenflug moeglich" : "Drohnenflug kritisch"):</strong>
+                        @_flugwetter.DrohnenflugHinweis
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (_forecast?.StundenVorhersage?.Length > 0)
+        {
+            <div class="card mt-4">
+                <div class="card-header">
+                    <strong>Vorhersage (naechste Stunden)</strong>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Zeit</th>
+                                <th>Temp</th>
+                                <th>Wind</th>
+                                <th>Niederschlag</th>
+                                <th>Wetter</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in _forecast.StundenVorhersage.Take(12))
+                            {
+                                <tr>
+                                    <td>@item.Zeitpunkt.ToLocalTime().ToString("HH:mm")</td>
+                                    <td>@item.Temperatur.ToString("0.0") °C</td>
+                                    <td>@item.Windgeschwindigkeit.ToString("0") km/h</td>
+                                    <td>@item.Niederschlag.ToString("0.0") mm</td>
+                                    <td>@item.Wetterlage</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+</div>
 
 @code {
-    private WeatherForecast[]? forecasts;
+    private string _address = string.Empty;
+    private bool _loading;
+    private WeatherData? _weather;
+    private WeatherForecast? _forecast;
+    private FlugwetterData? _flugwetter;
+    private DateTime _lastLoadedLocal;
+    private string _errorMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        // Simulate asynchronous loading to demonstrate streaming rendering
-        await Task.Delay(500);
-
-        var startDate = DateOnly.FromDateTime(DateTime.Now);
-        var summaries = new[] { "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching" };
-        forecasts = Enumerable.Range(1, 5).Select(index => new WeatherForecast
-        {
-            Date = startDate.AddDays(index),
-            TemperatureC = Random.Shared.Next(-20, 55),
-            Summary = summaries[Random.Shared.Next(summaries.Length)]
-        }).ToArray();
+        _address = EinsatzService.CurrentEinsatz.Einsatzort;
+        await LoadWeatherAsync();
     }
 
-    private class WeatherForecast
+    private async Task LoadWeatherAsync()
     {
-        public DateOnly Date { get; set; }
-        public int TemperatureC { get; set; }
-        public string? Summary { get; set; }
-        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+        _errorMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_address))
+        {
+            _errorMessage = "Bitte einen Ort angeben.";
+            return;
+        }
+
+        _loading = true;
+
+        try
+        {
+            var coordinates = await WeatherService.GeocodeAddressAsync(_address);
+            if (coordinates is null)
+            {
+                _weather = null;
+                _forecast = null;
+                _flugwetter = null;
+                _errorMessage = "Der Ort konnte nicht aufgeloest werden.";
+                return;
+            }
+
+            _weather = await WeatherService.GetCurrentWeatherAsync(coordinates.Value.Latitude, coordinates.Value.Longitude);
+            _forecast = await WeatherService.GetForecastAsync(coordinates.Value.Latitude, coordinates.Value.Longitude);
+            _flugwetter = await WeatherService.GetFlugwetterAsync(coordinates.Value.Latitude, coordinates.Value.Longitude);
+
+            if (_weather is null)
+            {
+                _errorMessage = "Aktuell konnten keine Wetterdaten geladen werden.";
+            }
+            else
+            {
+                _lastLoadedLocal = DateTime.Now;
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 }

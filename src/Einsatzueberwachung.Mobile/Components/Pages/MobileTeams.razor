@@ -1,0 +1,92 @@
+@page "/teams"
+@rendermode InteractiveServer
+
+@inject Einsatzueberwachung.Mobile.Services.MobileSignalRClient LiveSync
+
+<PageTitle>Teams</PageTitle>
+
+<section class="mobile-card">
+    <h1>Team-Uebersicht</h1>
+    <p class="subline">Aktive Teams mit Status und Laufzeit</p>
+    <button class="btn btn-outline-secondary mobile-btn mb-2" @onclick="RefreshTeamsAsync">Aktualisieren</button>
+
+    <PullToRefreshPanel OnRefresh="RefreshTeamsAsync">
+        @if (_teams.Count == 0)
+        {
+            <p class="empty-state">Keine aktiven Teams vorhanden.</p>
+        }
+        else
+        {
+            @foreach (var team in _teams)
+            {
+                <article class="team-item @GetTeamStatusClass(team)">
+                    <header>
+                        <strong>@team.TeamName</strong>
+                        <span>@FormatElapsed(team.ElapsedTime)</span>
+                    </header>
+                    <p>HF: @team.HundefuehrerName | Helfer: @team.HelferName</p>
+                    @if (!string.IsNullOrWhiteSpace(team.DogName))
+                    {
+                        <p>Hund: @team.DogName</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(team.SearchAreaName))
+                    {
+                        <p>Gebiet: @team.SearchAreaName</p>
+                    }
+                </article>
+            }
+        }
+    </PullToRefreshPanel>
+</section>
+
+@code {
+    private IReadOnlyList<Einsatzueberwachung.Domain.Models.Team> _teams = Array.Empty<Einsatzueberwachung.Domain.Models.Team>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        LiveSync.UpdateReceived += OnUpdateReceived;
+        await RefreshTeamsAsync();
+    }
+
+    public void Dispose()
+    {
+        LiveSync.UpdateReceived -= OnUpdateReceived;
+    }
+
+    private void OnUpdateReceived(string eventName, string payload)
+    {
+        if (eventName is "team.added" or "team.removed" or "team.updated" or "einsatz.changed")
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await RefreshTeamsAsync();
+                StateHasChanged();
+            });
+        }
+    }
+
+    private async Task RefreshTeamsAsync()
+    {
+        _teams = await LiveSync.GetTeamsAsync();
+    }
+
+    private static string FormatElapsed(TimeSpan elapsed) =>
+        $"{elapsed.Hours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+
+    private static string GetTeamStatusClass(Einsatzueberwachung.Domain.Models.Team team)
+    {
+        var minutes = (int)team.ElapsedTime.TotalMinutes;
+
+        if (minutes >= team.SecondWarningMinutes)
+        {
+            return "status-critical";
+        }
+
+        if (minutes >= team.FirstWarningMinutes)
+        {
+            return "status-warning";
+        }
+
+        return "status-ok";
+    }
+}

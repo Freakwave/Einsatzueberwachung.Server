@@ -1,0 +1,108 @@
+@page "/mobile-dashboard"
+@rendermode InteractiveServer
+@inject IEinsatzService EinsatzService
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Mobile Dashboard</PageTitle>
+
+@{
+    var e = EinsatzService.CurrentEinsatz;
+    var teams = EinsatzService.Teams;
+    var aktiv = !string.IsNullOrWhiteSpace(e.Einsatzort);
+    var laufend = teams.Count(t => t.IsRunning);
+    var kritisch = teams.Count(t => t.IsSecondWarning);
+    var mobileUrl = Navigation.BaseUri.TrimEnd('/') + ":5001";
+}
+
+<div class="container py-4" style="max-width:540px;">
+    <h1 class="h4 mb-1"><i class="bi bi-phone me-2 text-primary"></i>Mobile Dashboard</h1>
+    <p class="text-muted mb-4">Kurzübersicht für mobile Einsatzkräfte — vollständige App über QR-Code erreichbar.</p>
+
+    <!-- Einsatz-Status -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-semibold">Einsatz-Status</span>
+                @if (aktiv)
+                {
+                    <span class="badge bg-success">Aktiv</span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary">Kein Einsatz</span>
+                }
+            </div>
+            @if (aktiv)
+            {
+                <p class="mb-1 small"><strong>Ort:</strong> @e.Einsatzort</p>
+                <p class="mb-1 small"><strong>Alarmiert:</strong> @e.Alarmiert</p>
+                <p class="mb-0 small"><strong>Teams:</strong> @teams.Count gesamt, @laufend laufend@(kritisch > 0 ? $", {kritisch} kritisch" : "")</p>
+            }
+            else
+            {
+                <p class="text-muted small mb-0">Kein Einsatz aktiv. Verwende die Desktop-Ansicht zum Anlegen.</p>
+            }
+        </div>
+    </div>
+
+    <!-- Team-Schnellübersicht -->
+    @if (teams.Count > 0)
+    {
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-0 small fw-semibold">Teams im Einsatz</div>
+            <div class="list-group list-group-flush">
+                @foreach (var t in teams.Take(6))
+                {
+                    string css = t.IsSecondWarning ? "text-danger fw-bold" : t.IsFirstWarning ? "text-warning fw-bold" : "text-success";
+                    <div class="list-group-item border-0 d-flex justify-content-between align-items-center py-2">
+                        <div class="small">
+                            <div class="fw-semibold">@t.TeamName</div>
+                            <div class="text-muted" style="font-size:.72rem;">@(string.IsNullOrWhiteSpace(t.SearchAreaName) ? "—" : t.SearchAreaName)</div>
+                        </div>
+                        <span class="@css" style="font-family:monospace;font-size:.82rem;">@t.ElapsedTime.ToString(@"hh\:mm\:ss")</span>
+                    </div>
+                }
+                @if (teams.Count > 6)
+                {
+                    <div class="list-group-item border-0 text-center text-muted small">+@(teams.Count - 6) weitere</div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Link zur Mobile-PWA -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body text-center">
+            <p class="small text-muted mb-3">Vollständige Mobile-App (4 Funktionen, optimiert für Smartphone):</p>
+            <a class="btn btn-primary w-100 mb-2" href="@mobileUrl" target="_blank">
+                <i class="bi bi-phone me-2"></i>Mobile-App öffnen
+            </a>
+            <a class="btn btn-outline-secondary w-100" href="/mobile-connect">
+                <i class="bi bi-qr-code me-2"></i>QR-Code anzeigen
+            </a>
+        </div>
+    </div>
+
+    <!-- Desktop-Links -->
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-primary flex-fill btn-sm" href="/einsatz-monitor"><i class="bi bi-display me-1"></i>Monitor</a>
+        <a class="btn btn-outline-secondary flex-fill btn-sm" href="/einsatz-karte"><i class="bi bi-map me-1"></i>Karte</a>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        EinsatzService.EinsatzChanged += Refresh;
+        EinsatzService.TeamUpdated += _ => Refresh();
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        EinsatzService.EinsatzChanged -= Refresh;
+        EinsatzService.TeamUpdated -= _ => Refresh();
+    }
+}

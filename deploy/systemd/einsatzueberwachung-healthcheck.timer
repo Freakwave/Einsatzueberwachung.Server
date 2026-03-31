@@ -1,0 +1,11 @@
+[Unit]
+Description=Regelmaessiger Healthcheck fuer Einsatzueberwachung
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Persistent=true
+Unit=einsatzueberwachung-healthcheck.service
+
+[Install]
+WantedBy=timers.target

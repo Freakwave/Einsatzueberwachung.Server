@@ -1,0 +1,87 @@
+version: '3.9'
+
+services:
+
+  # ── Hauptanwendung ──────────────────────────────────────────
+  server:
+    build:
+      context: .
+      dockerfile: src/Einsatzueberwachung.Server/Dockerfile
+    image: einsatzueberwachung-server:latest
+    container_name: einsatz-server
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - einsatz-data:/opt/einsatzueberwachung/data
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      - EINSATZ_DATA_DIR=/opt/einsatzueberwachung/data
+      - EINSATZ_REPORTS_DIR=/opt/einsatzueberwachung/data/berichte
+      - DOTNET_PRINT_TELEMETRY_MESSAGE=false
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - einsatz-net
+
+  # ── Mobile PWA ───────────────────────────────────────────────
+  mobile:
+    build:
+      context: .
+      dockerfile: src/Einsatzueberwachung.Mobile/Dockerfile
+    image: einsatzueberwachung-mobile:latest
+    container_name: einsatz-mobile
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    volumes:
+      - einsatz-data:/opt/einsatzueberwachung/data:ro
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5001
+      - EINSATZ_DATA_DIR=/opt/einsatzueberwachung/data
+      - EINSATZ_HUB_URL=http://server:5000/hubs/einsatz
+      - DOTNET_PRINT_TELEMETRY_MESSAGE=false
+    depends_on:
+      server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - einsatz-net
+
+  # ── Nginx Reverse-Proxy ──────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: einsatz-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/einsatzueberwachung.conf:/etc/nginx/conf.d/default.conf:ro
+      - nginx-certs:/etc/ssl:ro
+    depends_on:
+      - server
+      - mobile
+    networks:
+      - einsatz-net
+
+volumes:
+  einsatz-data:
+    driver: local
+  nginx-certs:
+    driver: local
+
+networks:
+  einsatz-net:
+    driver: bridge

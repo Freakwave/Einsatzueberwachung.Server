@@ -1,0 +1,96 @@
+@page "/popout-teams"
+@rendermode InteractiveServer
+@implements IDisposable
+
+@inject IEinsatzService EinsatzService
+
+<PageTitle>Popout Teams</PageTitle>
+
+<div class="container py-3">
+    <h1>Popout Teams</h1>
+    <p class="text-muted">Separates Fenster fuer Team-Uebersicht und Timer.</p>
+
+    @if (EinsatzService.Teams.Count == 0)
+    {
+        <p class="text-muted">Keine Teams aktiv.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Laufzeit</th>
+                        <th>Warnstufe</th>
+                        <th>Suchgebiet</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var team in EinsatzService.Teams.OrderBy(t => t.TeamName))
+                    {
+                        <tr>
+                            <td>@team.TeamName</td>
+                            <td><span class="badge @GetTimerBadge(team)">@team.ElapsedTime.ToString(@"hh\:mm\:ss")</span></td>
+                            <td>@GetWarningText(team)</td>
+                            <td>@(string.IsNullOrWhiteSpace(team.SearchAreaName) ? "-" : team.SearchAreaName)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <a class="btn btn-outline-primary" href="/einsatz-monitor">Zum Monitor</a>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        EinsatzService.TeamAdded += OnTeamChanged;
+        EinsatzService.TeamRemoved += OnTeamChanged;
+        EinsatzService.TeamUpdated += OnTeamChanged;
+    }
+
+    public void Dispose()
+    {
+        EinsatzService.TeamAdded -= OnTeamChanged;
+        EinsatzService.TeamRemoved -= OnTeamChanged;
+        EinsatzService.TeamUpdated -= OnTeamChanged;
+    }
+
+    private void OnTeamChanged(Team _)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private static string GetWarningText(Team team)
+    {
+        if (team.ElapsedTime.TotalMinutes >= team.SecondWarningMinutes)
+        {
+            return "Rot";
+        }
+
+        if (team.ElapsedTime.TotalMinutes >= team.FirstWarningMinutes)
+        {
+            return "Orange";
+        }
+
+        return "Gruen";
+    }
+
+    private static string GetTimerBadge(Team team)
+    {
+        if (team.ElapsedTime.TotalMinutes >= team.SecondWarningMinutes)
+        {
+            return "bg-danger";
+        }
+
+        if (team.ElapsedTime.TotalMinutes >= team.FirstWarningMinutes)
+        {
+            return "bg-warning text-dark";
+        }
+
+        return "bg-success";
+    }
+}

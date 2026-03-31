@@ -1,0 +1,201 @@
+@page "/einsatz-archiv"
+@rendermode InteractiveServer
+
+@inject IArchivService ArchivService
+
+<PageTitle>Einsatz-Archiv</PageTitle>
+
+<div class="container py-4">
+    <h1>Einsatz-Archiv</h1>
+
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-md-4">
+            <InputText class="form-control" @bind-Value="_search" placeholder="Suche nach Ort, Leiter, Ergebnis" />
+        </div>
+        <div class="col-6 col-md-3">
+            <InputDate class="form-control" @bind-Value="_fromDate" />
+        </div>
+        <div class="col-6 col-md-3">
+            <InputDate class="form-control" @bind-Value="_toDate" />
+        </div>
+        <div class="col-12 col-md-2 d-grid">
+            <button class="btn btn-outline-primary" @onclick="SearchAsync">Filtern</button>
+        </div>
+    </div>
+
+    @if (_stats is not null)
+    {
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="card"><div class="card-body"><strong>Gesamt:</strong> @_stats.GesamtAnzahl</div></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card"><div class="card-body"><strong>Einsaetze:</strong> @_stats.AnzahlEinsaetze</div></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card"><div class="card-body"><strong>Uebungen:</strong> @_stats.AnzahlUebungen</div></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card"><div class="card-body"><strong>Dauer (avg):</strong> @_stats.DurchschnittlicheDauer.ToString(@"hh\:mm")</div></div>
+            </div>
+        </div>
+    }
+
+    <div class="d-flex gap-2 mb-3">
+        <button class="btn btn-outline-secondary" @onclick="LoadAsync">Neu laden</button>
+        <a class="btn btn-outline-success" href="/downloads/einsatz-archiv.json" target="_blank" rel="noopener">Archiv als JSON exportieren</a>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <div class="alert alert-secondary">@_status</div>
+    }
+
+    @if (_loading)
+    {
+        <p>Lade Archiv...</p>
+    }
+    else if (_entries.Count == 0)
+    {
+        <p class="text-muted">Keine archivierten Einsaetze vorhanden.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Typ</th>
+                        <th>Ort</th>
+                        <th>Einsatzleiter</th>
+                        <th>Ergebnis</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in _entries)
+                    {
+                        <tr>
+                            <td>@item.EinsatzDatum.ToString("dd.MM.yyyy HH:mm")</td>
+                            <td>@item.EinsatzTyp</td>
+                            <td>@item.Einsatzort</td>
+                            <td>@item.Einsatzleiter</td>
+                            <td>@item.Ergebnis</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetailsAsync(item.Id)">Details</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (_selected is not null)
+        {
+            <div class="card mt-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Archivdetails: @_selected.EinsatzNummer</strong>
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-sm btn-outline-primary" href="@GetArchivedPdfDownloadUrl(_selected.Id)" target="_blank" rel="noopener">PDF</a>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="CloseDetails">Schliessen</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-4"><strong>Datum:</strong> @_selected.EinsatzDatum.ToString("dd.MM.yyyy HH:mm")</div>
+                        <div class="col-12 col-md-4"><strong>Typ:</strong> @_selected.EinsatzTyp</div>
+                        <div class="col-12 col-md-4"><strong>Dauer:</strong> @_selected.DauerFormatiert</div>
+                        <div class="col-12 col-md-6"><strong>Ort:</strong> @_selected.Einsatzort</div>
+                        <div class="col-12 col-md-6"><strong>Ergebnis:</strong> @_selected.Ergebnis</div>
+                        <div class="col-12"><strong>Bemerkungen:</strong> @(!string.IsNullOrWhiteSpace(_selected.Bemerkungen) ? _selected.Bemerkungen : "-")</div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6 col-md-3"><strong>Teams:</strong> @_selected.AnzahlTeams</div>
+                        <div class="col-6 col-md-3"><strong>Personal:</strong> @_selected.AnzahlPersonal</div>
+                        <div class="col-6 col-md-3"><strong>Hunde:</strong> @_selected.AnzahlHunde</div>
+                        <div class="col-6 col-md-3"><strong>Drohnen:</strong> @_selected.AnzahlDrohnen</div>
+                    </div>
+
+                    @if (_selected.Teams.Count > 0)
+                    {
+                        <h5>Teams</h5>
+                        <ul class="mb-3">
+                            @foreach (var team in _selected.Teams)
+                            {
+                                <li>@team.TeamName (@team.Status)</li>
+                            }
+                        </ul>
+                    }
+
+                    @if (_selected.GlobalNotesEntries.Count > 0)
+                    {
+                        <h5>Letzte Notizen/Funksprueche</h5>
+                        <ul class="mb-0">
+                            @foreach (var note in _selected.GlobalNotesEntries.OrderByDescending(n => n.Timestamp).Take(10))
+                            {
+                                <li>
+                                    @note.FormattedTimestamp - @note.Text
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private bool _loading = true;
+    private List<ArchivedEinsatz> _entries = new();
+    private ArchivStatistics? _stats;
+    private string _search = string.Empty;
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+    private string _status = string.Empty;
+    private ArchivedEinsatz? _selected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _entries = await ArchivService.GetAllArchivedAsync();
+        _stats = await ArchivService.GetStatisticsAsync();
+        _loading = false;
+    }
+
+    private async Task SearchAsync()
+    {
+        _loading = true;
+        var criteria = new ArchivSearchCriteria
+        {
+            Suchtext = string.IsNullOrWhiteSpace(_search) ? null : _search.Trim(),
+            VonDatum = _fromDate,
+            BisDatum = _toDate
+        };
+
+        _entries = await ArchivService.SearchAsync(criteria);
+        _loading = false;
+    }
+
+    private async Task ShowDetailsAsync(string id)
+    {
+        _selected = await ArchivService.GetByIdAsync(id);
+    }
+
+    private void CloseDetails()
+    {
+        _selected = null;
+    }
+
+    private static string GetArchivedPdfDownloadUrl(string id)
+    {
+        return $"/downloads/einsatz-archiv/{id}.pdf";
+    }
+}

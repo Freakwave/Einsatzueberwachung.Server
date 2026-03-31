@@ -23,13 +23,7 @@ namespace Einsatzueberwachung.Domain.Services
 
         public MasterDataService()
         {
-            var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            _dataPath = Path.Combine(appDataPath, "Einsatzueberwachung.Web");
-            
-            if (!Directory.Exists(_dataPath))
-            {
-                Directory.CreateDirectory(_dataPath);
-            }
+            _dataPath = AppPathResolver.GetDataDirectory();
         }
 
         public async Task<SessionData> LoadSessionDataAsync()

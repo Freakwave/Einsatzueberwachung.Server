@@ -1,6 +1,6 @@
 ﻿<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Einsatzueberwachung.Server</a>
+        <a class="navbar-brand" href="/">Einsatzueberwachung</a>
     </div>
 </div>
 
@@ -9,21 +9,50 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">Startseite</NavLink>
         </div>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
+            <NavLink class="nav-link" href="/einsatz-start">EinsatzStart</NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/einsatz-monitor">EinsatzMonitor</NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/einsatz-karte">EinsatzKarte</NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/einsatz-bericht">EinsatzBericht</NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/einsatz-archiv">EinsatzArchiv</NavLink>
         </div>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
+            <NavLink class="nav-link" href="/stammdaten">Stammdaten</NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/einstellungen">Einstellungen</NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/wetter">Wetter</NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/popout-notes">PopoutNotes</NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/popout-teams">PopoutTeams</NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/mobile-connect">MobileConnect</NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/mobile-dashboard">MobileDashboard</NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/mobile-karte">MobileKarte</NavLink>
         </div>
     </nav>
 </div>

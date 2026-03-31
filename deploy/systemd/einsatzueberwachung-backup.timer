@@ -1,0 +1,10 @@
+[Unit]
+Description=Taegliches Backup fuer Einsatzueberwachung
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+Unit=einsatzueberwachung-backup.service
+
+[Install]
+WantedBy=timers.target

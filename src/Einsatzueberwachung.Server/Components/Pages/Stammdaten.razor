@@ -1,0 +1,589 @@
+@page "/stammdaten"
+@rendermode InteractiveServer
+
+@inject IMasterDataService MasterDataService
+@inject NavigationManager Navigation
+
+<PageTitle>Stammdaten</PageTitle>
+
+<div class="container py-4">
+    <h1>Stammdaten</h1>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-md-4">
+            <div class="card"><div class="card-body"><strong>Personal:</strong> @_personalCount</div></div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card"><div class="card-body"><strong>Hunde:</strong> @_dogCount</div></div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card"><div class="card-body"><strong>Drohnen:</strong> @_droneCount</div></div>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a class="btn btn-outline-primary" href="@GetDownloadUrl("/downloads/stammdaten.xlsx")">Excel Export herunterladen</a>
+        <button class="btn btn-outline-secondary" @onclick="RefreshAsync">Neu laden</button>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="h4 mb-0">Personal</h2>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="ResetPersonalForm">Neu</button>
+                    </div>
+
+                    <div class="row g-4">
+                        <div class="col-12 col-xl-4">
+                            <div class="mb-3">
+                                <label class="form-label">Vorname</label>
+                                <InputText class="form-control" @bind-Value="_personalDraft.Vorname" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Nachname</label>
+                                <InputText class="form-control" @bind-Value="_personalDraft.Nachname" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Notizen</label>
+                                <InputTextArea class="form-control" @bind-Value="_personalDraft.Notizen" />
+                            </div>
+
+                            <div class="form-check form-switch mb-3">
+                                <InputCheckbox class="form-check-input" id="personalActive" @bind-Value="_personalDraft.IsActive" />
+                                <label class="form-check-label" for="personalActive">Aktiv</label>
+                            </div>
+
+                            <label class="form-label">Qualifikationen</label>
+                            <div class="border rounded p-3 mb-3">
+                                @foreach (var skill in _personalSkillOptions)
+                                {
+                                    var skillId = $"skill-{skill}";
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="@skillId" checked="@_personalDraft.Skills.HasFlag(skill)" @onchange="args => TogglePersonalSkill(skill, args.Value is true)" />
+                                        <label class="form-check-label" for="@skillId">@skill.GetDisplayName()</label>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary" @onclick="SavePersonalAsync">@(_editingPersonalId is null ? "Personal anlegen" : "Personal speichern")</button>
+                                @if (_editingPersonalId is not null)
+                                {
+                                    <button class="btn btn-outline-secondary" @onclick="ResetPersonalForm">Abbrechen</button>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-xl-8">
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Qualifikationen</th>
+                                            <th>Status</th>
+                                            <th class="text-end">Aktionen</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var person in _personal)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <strong>@person.FullName</strong>
+                                                    @if (!string.IsNullOrWhiteSpace(person.Notizen))
+                                                    {
+                                                        <div class="small text-muted">@person.Notizen</div>
+                                                    }
+                                                </td>
+                                                <td>@person.SkillsDisplay</td>
+                                                <td>@(person.IsActive ? "Aktiv" : "Inaktiv")</td>
+                                                <td class="text-end">
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-outline-primary" @onclick="() => EditPersonal(person.Id)">Bearbeiten</button>
+                                                        <button class="btn btn-outline-danger" @onclick="() => DeletePersonalAsync(person.Id)">Loeschen</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="h4 mb-0">Hunde</h2>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="ResetDogForm">Neu</button>
+                    </div>
+
+                    <div class="row g-4">
+                        <div class="col-12 col-xl-4">
+                            <div class="mb-3">
+                                <label class="form-label">Name</label>
+                                <InputText class="form-control" @bind-Value="_dogDraft.Name" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Rasse</label>
+                                <InputText class="form-control" @bind-Value="_dogDraft.Rasse" />
+                            </div>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">Alter</label>
+                                    <InputNumber class="form-control" @bind-Value="_dogDraft.Alter" />
+                                </div>
+
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">Hundefuehrer</label>
+                                    <InputSelect class="form-select" @bind-Value="_dogDraft.HundefuehrerId">
+                                        <option value="">Nicht zugewiesen</option>
+                                        @foreach (var person in _personal)
+                                        {
+                                            <option value="@person.Id">@person.FullName</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Notizen</label>
+                                <InputTextArea class="form-control" @bind-Value="_dogDraft.Notizen" />
+                            </div>
+
+                            <div class="form-check form-switch mb-3">
+                                <InputCheckbox class="form-check-input" id="dogActive" @bind-Value="_dogDraft.IsActive" />
+                                <label class="form-check-label" for="dogActive">Aktiv</label>
+                            </div>
+
+                            <label class="form-label">Spezialisierungen</label>
+                            <div class="border rounded p-3 mb-3">
+                                @foreach (var specialization in _dogSpecializationOptions)
+                                {
+                                    var specializationId = $"dog-spec-{specialization}";
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="@specializationId" checked="@_dogDraft.Specializations.HasFlag(specialization)" @onchange="args => ToggleDogSpecialization(specialization, args.Value is true)" />
+                                        <label class="form-check-label" for="@specializationId">@specialization.GetDisplayName()</label>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary" @onclick="SaveDogAsync">@(_editingDogId is null ? "Hund anlegen" : "Hund speichern")</button>
+                                @if (_editingDogId is not null)
+                                {
+                                    <button class="btn btn-outline-secondary" @onclick="ResetDogForm">Abbrechen</button>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-xl-8">
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Hund</th>
+                                            <th>Hundefuehrer</th>
+                                            <th>Spezialisierung</th>
+                                            <th>Status</th>
+                                            <th class="text-end">Aktionen</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var dog in _dogs)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <strong>@dog.Name</strong>
+                                                    <div class="small text-muted">@dog.Rasse, @dog.Alter Jahre</div>
+                                                </td>
+                                                <td>@GetPersonalName(dog.HundefuehrerId)</td>
+                                                <td>@dog.SpecializationsDisplay</td>
+                                                <td>@(dog.IsActive ? "Aktiv" : "Inaktiv")</td>
+                                                <td class="text-end">
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-outline-primary" @onclick="() => EditDog(dog.Id)">Bearbeiten</button>
+                                                        <button class="btn btn-outline-danger" @onclick="() => DeleteDogAsync(dog.Id)">Loeschen</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="h4 mb-0">Drohnen</h2>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="ResetDroneForm">Neu</button>
+                    </div>
+
+                    <div class="row g-4">
+                        <div class="col-12 col-xl-4">
+                            <div class="mb-3">
+                                <label class="form-label">Name</label>
+                                <InputText class="form-control" @bind-Value="_droneDraft.Name" />
+                            </div>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">Hersteller</label>
+                                    <InputText class="form-control" @bind-Value="_droneDraft.Hersteller" />
+                                </div>
+
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">Modell</label>
+                                    <InputText class="form-control" @bind-Value="_droneDraft.Modell" />
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Seriennummer</label>
+                                <InputText class="form-control" @bind-Value="_droneDraft.Seriennummer" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Pilot</label>
+                                <InputSelect class="form-select" @bind-Value="_droneDraft.DrohnenpilotId">
+                                    <option value="">Nicht zugewiesen</option>
+                                    @foreach (var person in _personal)
+                                    {
+                                        <option value="@person.Id">@person.FullName</option>
+                                    }
+                                </InputSelect>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Notizen</label>
+                                <InputTextArea class="form-control" @bind-Value="_droneDraft.Notizen" />
+                            </div>
+
+                            <div class="form-check form-switch mb-3">
+                                <InputCheckbox class="form-check-input" id="droneActive" @bind-Value="_droneDraft.IsActive" />
+                                <label class="form-check-label" for="droneActive">Aktiv</label>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary" @onclick="SaveDroneAsync">@(_editingDroneId is null ? "Drohne anlegen" : "Drohne speichern")</button>
+                                @if (_editingDroneId is not null)
+                                {
+                                    <button class="btn btn-outline-secondary" @onclick="ResetDroneForm">Abbrechen</button>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-xl-8">
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Drohne</th>
+                                            <th>Pilot</th>
+                                            <th>Seriennummer</th>
+                                            <th>Status</th>
+                                            <th class="text-end">Aktionen</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var drone in _drones)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <strong>@drone.DisplayName</strong>
+                                                    <div class="small text-muted">@drone.FullDescription</div>
+                                                </td>
+                                                <td>@GetPersonalName(drone.DrohnenpilotId)</td>
+                                                <td>@drone.Seriennummer</td>
+                                                <td>@(drone.IsActive ? "Aktiv" : "Inaktiv")</td>
+                                                <td class="text-end">
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-outline-primary" @onclick="() => EditDrone(drone.Id)">Bearbeiten</button>
+                                                        <button class="btn btn-outline-danger" @onclick="() => DeleteDroneAsync(drone.Id)">Loeschen</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <div class="alert alert-secondary mt-3">@_status</div>
+    }
+</div>
+
+@code {
+    private static readonly PersonalSkills[] _personalSkillOptions = Enum.GetValues<PersonalSkills>().Where(value => value != PersonalSkills.None).ToArray();
+    private static readonly DogSpecialization[] _dogSpecializationOptions = Enum.GetValues<DogSpecialization>().Where(value => value != DogSpecialization.None).ToArray();
+
+    private int _personalCount;
+    private int _dogCount;
+    private int _droneCount;
+    private string _status = string.Empty;
+    private List<PersonalEntry> _personal = new();
+    private List<DogEntry> _dogs = new();
+    private List<DroneEntry> _drones = new();
+    private PersonalEntry _personalDraft = new();
+    private DogEntry _dogDraft = new();
+    private DroneEntry _droneDraft = new();
+    private string? _editingPersonalId;
+    private string? _editingDogId;
+    private string? _editingDroneId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _personal = await MasterDataService.GetPersonalListAsync();
+        _dogs = await MasterDataService.GetDogListAsync();
+        _drones = await MasterDataService.GetDroneListAsync();
+
+        _personalCount = _personal.Count;
+        _dogCount = _dogs.Count;
+        _droneCount = _drones.Count;
+    }
+
+    private async Task SavePersonalAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_personalDraft.Vorname) || string.IsNullOrWhiteSpace(_personalDraft.Nachname))
+        {
+            _status = "Vorname und Nachname sind erforderlich.";
+            return;
+        }
+
+        if (_editingPersonalId is null)
+        {
+            await MasterDataService.AddPersonalAsync(ClonePersonal(_personalDraft));
+            _status = "Personal angelegt.";
+        }
+        else
+        {
+            await MasterDataService.UpdatePersonalAsync(ClonePersonal(_personalDraft));
+            _status = "Personal gespeichert.";
+        }
+
+        ResetPersonalForm();
+        await RefreshAsync();
+    }
+
+    private void EditPersonal(string id)
+    {
+        var person = _personal.First(entry => entry.Id == id);
+        _editingPersonalId = id;
+        _personalDraft = ClonePersonal(person);
+    }
+
+    private async Task DeletePersonalAsync(string id)
+    {
+        await MasterDataService.DeletePersonalAsync(id);
+        if (_editingPersonalId == id)
+        {
+            ResetPersonalForm();
+        }
+
+        _status = "Personal geloescht.";
+        await RefreshAsync();
+    }
+
+    private void ResetPersonalForm()
+    {
+        _editingPersonalId = null;
+        _personalDraft = new PersonalEntry();
+    }
+
+    private void TogglePersonalSkill(PersonalSkills skill, bool enabled)
+    {
+        _personalDraft.Skills = enabled
+            ? _personalDraft.Skills | skill
+            : _personalDraft.Skills & ~skill;
+    }
+
+    private async Task SaveDogAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_dogDraft.Name) || string.IsNullOrWhiteSpace(_dogDraft.Rasse))
+        {
+            _status = "Hundename und Rasse sind erforderlich.";
+            return;
+        }
+
+        if (_editingDogId is null)
+        {
+            await MasterDataService.AddDogAsync(CloneDog(_dogDraft));
+            _status = "Hund angelegt.";
+        }
+        else
+        {
+            await MasterDataService.UpdateDogAsync(CloneDog(_dogDraft));
+            _status = "Hund gespeichert.";
+        }
+
+        ResetDogForm();
+        await RefreshAsync();
+    }
+
+    private void EditDog(string id)
+    {
+        var dog = _dogs.First(entry => entry.Id == id);
+        _editingDogId = id;
+        _dogDraft = CloneDog(dog);
+    }
+
+    private async Task DeleteDogAsync(string id)
+    {
+        await MasterDataService.DeleteDogAsync(id);
+        if (_editingDogId == id)
+        {
+            ResetDogForm();
+        }
+
+        _status = "Hund geloescht.";
+        await RefreshAsync();
+    }
+
+    private void ResetDogForm()
+    {
+        _editingDogId = null;
+        _dogDraft = new DogEntry();
+    }
+
+    private void ToggleDogSpecialization(DogSpecialization specialization, bool enabled)
+    {
+        _dogDraft.Specializations = enabled
+            ? _dogDraft.Specializations | specialization
+            : _dogDraft.Specializations & ~specialization;
+    }
+
+    private async Task SaveDroneAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_droneDraft.Name) || string.IsNullOrWhiteSpace(_droneDraft.Modell))
+        {
+            _status = "Drohnenname und Modell sind erforderlich.";
+            return;
+        }
+
+        if (_editingDroneId is null)
+        {
+            await MasterDataService.AddDroneAsync(CloneDrone(_droneDraft));
+            _status = "Drohne angelegt.";
+        }
+        else
+        {
+            await MasterDataService.UpdateDroneAsync(CloneDrone(_droneDraft));
+            _status = "Drohne gespeichert.";
+        }
+
+        ResetDroneForm();
+        await RefreshAsync();
+    }
+
+    private void EditDrone(string id)
+    {
+        var drone = _drones.First(entry => entry.Id == id);
+        _editingDroneId = id;
+        _droneDraft = CloneDrone(drone);
+    }
+
+    private async Task DeleteDroneAsync(string id)
+    {
+        await MasterDataService.DeleteDroneAsync(id);
+        if (_editingDroneId == id)
+        {
+            ResetDroneForm();
+        }
+
+        _status = "Drohne geloescht.";
+        await RefreshAsync();
+    }
+
+    private void ResetDroneForm()
+    {
+        _editingDroneId = null;
+        _droneDraft = new DroneEntry();
+    }
+
+    private string GetPersonalName(string personalId)
+    {
+        if (string.IsNullOrWhiteSpace(personalId))
+        {
+            return "-";
+        }
+
+        return _personal.FirstOrDefault(entry => entry.Id == personalId)?.FullName ?? "-";
+    }
+
+    private string GetDownloadUrl(string relativePath)
+    {
+        return new Uri(new Uri(Navigation.BaseUri), relativePath.TrimStart('/')).ToString();
+    }
+
+    private static PersonalEntry ClonePersonal(PersonalEntry source)
+    {
+        return new PersonalEntry
+        {
+            Id = source.Id,
+            Vorname = source.Vorname,
+            Nachname = source.Nachname,
+            Skills = source.Skills,
+            Notizen = source.Notizen,
+            IsActive = source.IsActive
+        };
+    }
+
+    private static DogEntry CloneDog(DogEntry source)
+    {
+        return new DogEntry
+        {
+            Id = source.Id,
+            Name = source.Name,
+            Rasse = source.Rasse,
+            Alter = source.Alter,
+            Specializations = source.Specializations,
+            HundefuehrerId = source.HundefuehrerId,
+            Notizen = source.Notizen,
+            IsActive = source.IsActive
+        };
+    }
+
+    private static DroneEntry CloneDrone(DroneEntry source)
+    {
+        return new DroneEntry
+        {
+            Id = source.Id,
+            Name = source.Name,
+            Modell = source.Modell,
+            Hersteller = source.Hersteller,
+            Seriennummer = source.Seriennummer,
+            DrohnenpilotId = source.DrohnenpilotId,
+            Notizen = source.Notizen,
+            IsActive = source.IsActive
+        };
+    }
+}

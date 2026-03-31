@@ -1,0 +1,126 @@
+@page "/notizen"
+@rendermode InteractiveServer
+
+@inject Einsatzueberwachung.Mobile.Services.MobileSignalRClient LiveSync
+
+<PageTitle>Notizen</PageTitle>
+
+<section class="mobile-card">
+    <h1>Notizen</h1>
+    <button class="btn btn-outline-secondary mobile-btn mb-2" @onclick="RefreshNotesAsync">Aktualisieren</button>
+
+    <EditForm OnSubmit="AddNoteAsync">
+        <div class="mobile-field">
+            <label for="noteText">Neue Notiz</label>
+            <InputTextArea id="noteText" class="form-control" @bind-Value="_text" />
+        </div>
+        <button class="btn btn-primary mobile-btn" type="submit">Senden</button>
+    </EditForm>
+
+    <PullToRefreshPanel OnRefresh="RefreshNotesAsync">
+        <div class="message-list">
+            @foreach (var note in _notes)
+            {
+                <article class="message-item">
+                    <header>
+                        <strong>@note.SourceTeamName</strong>
+                        <span>@note.FormattedTimestamp</span>
+                    </header>
+                    <p>@note.Text</p>
+
+                    @if (note.Replies.Count > 0)
+                    {
+                        <div class="small mt-2">
+                            @foreach (var reply in note.Replies.OrderBy(r => r.Timestamp))
+                            {
+                                <div class="border-start ps-2 mb-1">
+                                    <div class="text-muted">@reply.SourceTeamName · @reply.FormattedTimestamp</div>
+                                    <div>@reply.Text</div>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="input-group input-group-sm mt-2">
+                        <input class="form-control"
+                               placeholder="Antwort"
+                               value="@GetReplyText(note.Id)"
+                               @oninput="e => SetReplyText(note.Id, e.Value?.ToString())" />
+                        <button class="btn btn-outline-primary" @onclick="() => AddReplyAsync(note.Id)">Antworten</button>
+                    </div>
+                </article>
+            }
+        </div>
+    </PullToRefreshPanel>
+</section>
+
+@code {
+    private string _text = string.Empty;
+    private IReadOnlyList<Einsatzueberwachung.Domain.Models.GlobalNotesEntry> _notes = Array.Empty<Einsatzueberwachung.Domain.Models.GlobalNotesEntry>();
+    private readonly Dictionary<string, string> _replyTexts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        LiveSync.UpdateReceived += OnUpdateReceived;
+        await RefreshNotesAsync();
+    }
+
+    public void Dispose()
+    {
+        LiveSync.UpdateReceived -= OnUpdateReceived;
+    }
+
+    private async Task AddNoteAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_text))
+        {
+            return;
+        }
+
+        await LiveSync.AddNoteAsync(_text, "Notiz");
+
+        _text = string.Empty;
+        await RefreshNotesAsync();
+    }
+
+    private void OnUpdateReceived(string eventName, string payload)
+    {
+        if (eventName is "note.added" or "einsatz.changed")
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await RefreshNotesAsync();
+                StateHasChanged();
+            });
+        }
+    }
+
+    private async Task RefreshNotesAsync()
+    {
+        _notes = await LiveSync.GetNotesAsync("notiz");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AddReplyAsync(string noteId)
+    {
+        _replyTexts.TryGetValue(noteId, out var text);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        await LiveSync.AddReplyAsync(noteId, text.Trim());
+        _replyTexts[noteId] = string.Empty;
+        await RefreshNotesAsync();
+    }
+
+    private string GetReplyText(string noteId)
+    {
+        return _replyTexts.TryGetValue(noteId, out var text) ? text : string.Empty;
+    }
+
+    private void SetReplyText(string noteId, string? text)
+    {
+        _replyTexts[noteId] = text ?? string.Empty;
+    }
+}

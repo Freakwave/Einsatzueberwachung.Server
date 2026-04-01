@@ -7,6 +7,7 @@
 
 @inject IEinsatzService EinsatzService
 @inject IMasterDataService MasterDataService
+@inject IWeatherService WeatherService
 
 <PageTitle>Einsatz-Monitor</PageTitle>
 
@@ -63,6 +64,113 @@
 
     <div class="row g-3 mb-4">
         <div class="col-12">
+            <div class="card monitor-weather-card">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <h4 class="mb-0"><i class="bi bi-cloud-sun me-1"></i>Wetterlage</h4>
+                        @if (_monitorWeather is not null)
+                        {
+                            <span class="badge @GetWeatherRiskBadgeClass(_monitorWeather)">@GetWeatherRiskLabel(_monitorWeather)</span>
+                        }
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        @if (_monitorWeather is not null)
+                        {
+                            <span class="badge text-bg-secondary">Stand: @_monitorWeatherLoadedAtLocal.ToString("HH:mm")</span>
+                        }
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => RefreshMonitorWeatherAsync(true)">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Aktualisieren
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (_monitorWeatherLoading && _monitorWeather is null)
+                    {
+                        <p class="text-muted mb-0">Lade Wetterdaten fuer den Einsatzort...</p>
+                    }
+                    else if (_monitorWeather is null)
+                    {
+                        <div class="alert alert-warning mb-0">
+                            @(!string.IsNullOrWhiteSpace(_monitorWeatherError)
+                                ? _monitorWeatherError
+                                : "Aktuell sind keine Wetterdaten verfuegbar.")
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                            <span class="badge text-bg-info">Ort: @EinsatzService.CurrentEinsatz.Einsatzort</span>
+                            @if (_monitorWeather.HatWarnung)
+                            {
+                                <span class="badge @_monitorWeather.GetWarnungBadgeClass()">DWD-Warnung: @_monitorWeather.WarnungsStufe</span>
+                            }
+                            else
+                            {
+                                <span class="badge text-bg-secondary">Keine DWD-Warnung</span>
+                            }
+                            @if (_monitorWeatherUsingFallback)
+                            {
+                                <span class="badge text-bg-warning">Live-Abruf nicht moeglich - letzte gueltige Daten</span>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(_monitorWeatherError))
+                        {
+                            <div class="small text-warning mb-3">@_monitorWeatherError</div>
+                        }
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6 col-md-3">
+                                <div class="monitor-weather-metric">
+                                    <div class="monitor-weather-value">@_monitorWeather.Temperatur.ToString("0.0") °C</div>
+                                    <div class="monitor-weather-label">Temperatur</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="monitor-weather-metric">
+                                    <div class="monitor-weather-value">@_monitorWeather.Niederschlag.ToString("0.0") mm/h</div>
+                                    <div class="monitor-weather-label">Niederschlag</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="monitor-weather-metric">
+                                    <div class="monitor-weather-value">@_monitorWeather.Windgeschwindigkeit.ToString("0") / @_monitorWeather.Windboeen.ToString("0") km/h</div>
+                                    <div class="monitor-weather-label">Wind / Boeen</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="monitor-weather-metric">
+                                    <div class="monitor-weather-value">@_monitorWeather.Sichtweite.ToString("0.0") km</div>
+                                    <div class="monitor-weather-label">Sichtweite</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (GetMonitorForecastItems().Any())
+                        {
+                            <div class="monitor-weather-forecast">
+                                <div class="monitor-weather-forecast-title">Naechste 6 Stunden</div>
+                                <div class="monitor-weather-forecast-grid">
+                                    @foreach (var item in GetMonitorForecastItems())
+                                    {
+                                        <div class="monitor-weather-forecast-item @GetForecastRiskClass(item)">
+                                            <div class="forecast-time">@item.Zeitpunkt.ToLocalTime().ToString("HH:mm")</div>
+                                            <div class="forecast-temp">@item.Temperatur.ToString("0") °C</div>
+                                            <div class="forecast-rain">@item.Niederschlag.ToString("0.0") mm</div>
+                                            <div class="forecast-wind">@item.Windboeen.ToString("0") km/h</div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center gap-2">
@@ -82,6 +190,9 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <div class="alert alert-info py-2">
+                        Teams koennen waehrend eines laufenden Einsatzes bearbeitet, aber nicht geloescht werden.
+                    </div>
                     @if (EinsatzService.Teams.Count == 0)
                     {
                         <div class="alert alert-info mb-0">
@@ -152,7 +263,6 @@
                                                 <button class="btn btn-secondary" @onclick="() => ResetTeamAsync(team.TeamId)">Reset</button>
                                             }
                                             <button class="btn btn-sm btn-primary" @onclick="() => EditTeam(team.TeamId)">Bearbeiten</button>
-                                            <button class="btn btn-sm btn-danger" @onclick="() => RemoveTeamAsync(team.TeamId)">Loeschen</button>
                                         </div>
                                     </div>
                                 </div>
@@ -479,6 +589,15 @@
     private List<DogEntry> _dogList = new();
     private List<DroneEntry> _droneList = new();
 
+    private WeatherData? _monitorWeather;
+    private WeatherForecast? _monitorForecast;
+    private DateTime _monitorWeatherLoadedAtLocal;
+    private string _monitorWeatherError = string.Empty;
+    private bool _monitorWeatherLoading;
+    private bool _monitorWeatherUsingFallback;
+    private (double Latitude, double Longitude)? _einsatzCoordinates;
+    private System.Threading.Timer? _weatherRefreshTimer;
+
     protected override void OnInitialized()
     {
         EinsatzService.TeamAdded += OnTeamChanged;
@@ -491,6 +610,8 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadMasterDataAsync();
+        await RefreshMonitorWeatherAsync(forceGeocoding: true);
+        StartWeatherRefreshTimer();
     }
 
     public void Dispose()
@@ -500,6 +621,7 @@
         EinsatzService.TeamUpdated -= OnTeamChanged;
         EinsatzService.EinsatzChanged -= OnEinsatzChanged;
         EinsatzService.NoteAdded -= OnNoteAdded;
+        _weatherRefreshTimer?.Dispose();
     }
 
     private IEnumerable<PersonalEntry> ActivePersonnel => _personalList
@@ -534,7 +656,11 @@
 
     private void OnEinsatzChanged()
     {
-        InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(async () =>
+        {
+            await RefreshMonitorWeatherAsync(forceGeocoding: true);
+            StateHasChanged();
+        });
     }
 
     private void OnTeamChanged(Team _)
@@ -545,6 +671,183 @@
     private void OnNoteAdded(GlobalNotesEntry _)
     {
         InvokeAsync(StateHasChanged);
+    }
+
+    private void StartWeatherRefreshTimer()
+    {
+        _weatherRefreshTimer?.Dispose();
+        _weatherRefreshTimer = new System.Threading.Timer(
+            _ => _ = InvokeAsync(() => RefreshMonitorWeatherAsync(forceGeocoding: false)),
+            null,
+            TimeSpan.FromMinutes(10),
+            TimeSpan.FromMinutes(10));
+    }
+
+    private async Task RefreshMonitorWeatherAsync(bool forceGeocoding)
+    {
+        _monitorWeatherError = string.Empty;
+        _monitorWeatherLoading = true;
+
+        try
+        {
+            var coordinates = await ResolveEinsatzCoordinatesAsync(forceGeocoding);
+            if (coordinates is null)
+            {
+                if (_monitorWeather is not null)
+                {
+                    _monitorWeatherUsingFallback = true;
+                }
+
+                return;
+            }
+
+            var weather = await WeatherService.GetCurrentWeatherAsync(coordinates.Value.Latitude, coordinates.Value.Longitude);
+            var forecast = await WeatherService.GetForecastAsync(coordinates.Value.Latitude, coordinates.Value.Longitude);
+
+            if (weather is null)
+            {
+                if (_monitorWeather is null)
+                {
+                    _monitorWeatherError = "Wetterdaten konnten aktuell nicht geladen werden.";
+                }
+                else
+                {
+                    _monitorWeatherUsingFallback = true;
+                    _monitorWeatherError = "Live-Aktualisierung fehlgeschlagen. Letzte gueltige Wetterdaten werden angezeigt.";
+                }
+
+                return;
+            }
+
+            _monitorWeather = weather;
+            _monitorForecast = forecast;
+            _monitorWeatherLoadedAtLocal = DateTime.Now;
+            _monitorWeatherUsingFallback = false;
+        }
+        catch
+        {
+            if (_monitorWeather is null)
+            {
+                _monitorWeatherError = "Wetterdienst derzeit nicht erreichbar.";
+            }
+            else
+            {
+                _monitorWeatherUsingFallback = true;
+                _monitorWeatherError = "Wetterdienst derzeit nicht erreichbar. Letzte gueltige Daten bleiben sichtbar.";
+            }
+        }
+        finally
+        {
+            _monitorWeatherLoading = false;
+        }
+    }
+
+    private async Task<(double Latitude, double Longitude)?> ResolveEinsatzCoordinatesAsync(bool forceGeocoding)
+    {
+        var address = EinsatzService.CurrentEinsatz.Einsatzort;
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            _monitorWeatherError = "Kein Einsatzort gesetzt. Wetterdaten koennen nicht geladen werden.";
+            return null;
+        }
+
+        if (_einsatzCoordinates.HasValue && !forceGeocoding)
+        {
+            return _einsatzCoordinates;
+        }
+
+        var coordinates = await WeatherService.GeocodeAddressAsync(address);
+        if (coordinates is null)
+        {
+            _monitorWeatherError = "Einsatzort konnte nicht geocodiert werden.";
+            return null;
+        }
+
+        _einsatzCoordinates = coordinates;
+        return coordinates;
+    }
+
+    private IEnumerable<WeatherData> GetMonitorForecastItems()
+    {
+        if (_monitorForecast?.StundenVorhersage is null || _monitorForecast.StundenVorhersage.Length == 0)
+        {
+            return Enumerable.Empty<WeatherData>();
+        }
+
+        var nowUtc = DateTime.UtcNow.AddMinutes(-30);
+        return _monitorForecast.StundenVorhersage
+            .Where(item => item.Zeitpunkt >= nowUtc)
+            .OrderBy(item => item.Zeitpunkt)
+            .Take(6);
+    }
+
+    private static string GetWeatherRiskBadgeClass(WeatherData weather)
+    {
+        return EvaluateWeatherRisk(weather) switch
+        {
+            WeatherRiskLevel.Kritisch => "bg-danger",
+            WeatherRiskLevel.Erhoeht => "bg-warning text-dark",
+            WeatherRiskLevel.Beobachten => "bg-info",
+            _ => "bg-success"
+        };
+    }
+
+    private static string GetWeatherRiskLabel(WeatherData weather)
+    {
+        return EvaluateWeatherRisk(weather) switch
+        {
+            WeatherRiskLevel.Kritisch => "Kritisch",
+            WeatherRiskLevel.Erhoeht => "Erhoeht",
+            WeatherRiskLevel.Beobachten => "Beobachten",
+            _ => "Stabil"
+        };
+    }
+
+    private static string GetForecastRiskClass(WeatherData forecast)
+    {
+        return EvaluateWeatherRisk(forecast) switch
+        {
+            WeatherRiskLevel.Kritisch => "forecast-critical",
+            WeatherRiskLevel.Erhoeht => "forecast-warning",
+            _ => string.Empty
+        };
+    }
+
+    private static WeatherRiskLevel EvaluateWeatherRisk(WeatherData weather)
+    {
+        if (weather.WarnungsStufe >= WarnungsStufe.Unwetter
+            || weather.Windboeen >= 65
+            || weather.Niederschlag >= 8
+            || weather.Sichtweite < 1.5)
+        {
+            return WeatherRiskLevel.Kritisch;
+        }
+
+        if (weather.WarnungsStufe >= WarnungsStufe.Markant
+            || weather.Windboeen >= 50
+            || weather.Niederschlag >= 4
+            || weather.Sichtweite < 3)
+        {
+            return WeatherRiskLevel.Erhoeht;
+        }
+
+        if (weather.WarnungsStufe == WarnungsStufe.Vorabwarnung
+            || weather.Windboeen >= 35
+            || weather.Niederschlag >= 1.5
+            || weather.Sichtweite < 5)
+        {
+            return WeatherRiskLevel.Beobachten;
+        }
+
+        return WeatherRiskLevel.Stabil;
+    }
+
+    private enum WeatherRiskLevel
+    {
+        Stabil,
+        Beobachten,
+        Erhoeht,
+        Kritisch
     }
 
     private string GetTimerBadge(Team team)
@@ -688,34 +991,6 @@
     private async Task ResetTeamAsync(string teamId)
     {
         await EinsatzService.ResetTeamTimerAsync(teamId);
-    }
-
-    private async Task RemoveTeamAsync(string teamId)
-    {
-        var team = await EinsatzService.GetTeamByIdAsync(teamId);
-        if (team == null)
-        {
-            return;
-        }
-
-        if (!string.IsNullOrWhiteSpace(team.SearchAreaId))
-        {
-            await EinsatzService.AssignTeamToSearchAreaAsync(team.SearchAreaId, string.Empty);
-        }
-
-        await EinsatzService.RemoveTeamAsync(teamId);
-        await EinsatzService.AddGlobalNoteWithSourceAsync(
-            $"{team.TeamName} wurde entfernt.",
-            team.TeamId,
-            team.TeamName,
-            "Team",
-            GlobalNotesEntryType.System,
-            "Einsatzleitung");
-
-        if (_editingTeamId == teamId)
-        {
-            CancelTeamEdit();
-        }
     }
 
     private void EditTeam(string teamId)

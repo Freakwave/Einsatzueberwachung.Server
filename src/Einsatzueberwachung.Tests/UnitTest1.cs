@@ -81,14 +81,13 @@ public class EinsatzServiceTests
     }
 
     [Fact]
-    public async Task RemoveTeam_RemovesFromList()
+    public async Task RemoveTeam_ThrowsDuringActiveMission()
     {
         var svc = CreateService();
+        await svc.StartEinsatzAsync(new EinsatzData { Einsatzort = "Testort" });
         var t = await svc.AddTeamAsync(new Team { TeamName = "Charlie" });
 
-        await svc.RemoveTeamAsync(t.TeamId);
-
-        Assert.Empty(svc.Teams);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.RemoveTeamAsync(t.TeamId));
     }
 
     [Fact]

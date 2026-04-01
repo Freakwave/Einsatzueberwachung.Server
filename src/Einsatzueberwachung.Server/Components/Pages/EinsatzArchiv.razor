@@ -93,8 +93,9 @@
                             <td>@item.Einsatzort</td>
                             <td>@item.Einsatzleiter</td>
                             <td>@item.Ergebnis</td>
-                            <td>
+                            <td class="d-flex flex-wrap gap-2">
                                 <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetailsAsync(item.Id)">Details</button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => PromptDelete(item)">Loeschen</button>
                             </td>
                         </tr>
                     }
@@ -156,6 +157,28 @@
             </div>
         }
     }
+
+    @if (_deleteCandidate is not null)
+    {
+        <div class="modal-overlay" @onclick="CancelDelete">
+            <div class="modal-modern" @onclick:stopPropagation="true">
+                <div class="modal-modern-header">
+                    <h3 class="mb-0">Archiv-Eintrag loeschen</h3>
+                </div>
+                <div class="modal-modern-body">
+                    <p class="mb-2">
+                        Soll der archivierte Einsatz <strong>@_deleteCandidate.EinsatzNummer</strong>
+                        vom <strong>@_deleteCandidate.EinsatzDatum.ToString("dd.MM.yyyy HH:mm")</strong> wirklich geloescht werden?
+                    </p>
+                    <p class="text-muted mb-0">Diese Aktion kann nicht rueckgaengig gemacht werden.</p>
+                </div>
+                <div class="modal-modern-footer">
+                    <button class="btn btn-outline-secondary" @onclick="CancelDelete">Abbrechen</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDeleteAsync">Endgueltig loeschen</button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
@@ -167,6 +190,7 @@
     private DateTime? _toDate;
     private string _status = string.Empty;
     private ArchivedEinsatz? _selected;
+    private ArchivedEinsatz? _deleteCandidate;
 
     protected override async Task OnInitializedAsync()
     {
@@ -203,6 +227,42 @@
     private void CloseDetails()
     {
         _selected = null;
+    }
+
+    private void PromptDelete(ArchivedEinsatz item)
+    {
+        _deleteCandidate = item;
+        _status = string.Empty;
+    }
+
+    private void CancelDelete()
+    {
+        _deleteCandidate = null;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (_deleteCandidate is null)
+        {
+            return;
+        }
+
+        var success = await ArchivService.DeleteAsync(_deleteCandidate.Id);
+        if (!success)
+        {
+            _status = "Der Archiv-Eintrag konnte nicht geloescht werden.";
+            _deleteCandidate = null;
+            return;
+        }
+
+        if (_selected?.Id == _deleteCandidate.Id)
+        {
+            _selected = null;
+        }
+
+        _status = $"Archiv-Eintrag {_deleteCandidate.EinsatzNummer} wurde geloescht.";
+        _deleteCandidate = null;
+        await LoadAsync();
     }
 
     private static string GetArchivedPdfDownloadUrl(string id)

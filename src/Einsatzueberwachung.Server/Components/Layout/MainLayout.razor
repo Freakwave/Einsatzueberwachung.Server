@@ -1,6 +1,8 @@
 ﻿@inherits LayoutComponentBase
 @implements IAsyncDisposable
+@using Einsatzueberwachung.Domain.Models
 @inject Einsatzueberwachung.Domain.Interfaces.ISettingsService SettingsService
+@inject Einsatzueberwachung.Domain.Interfaces.IEinsatzService EinsatzService
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 
@@ -17,6 +19,19 @@
                     @onclick="GoHome">
                 <i class="bi bi-x-lg"></i>
             </button>
+
+            <div class="mission-status-strip" aria-live="polite">
+                @if (HasActiveEinsatz)
+                {
+                    <span class="badge text-bg-success">Laufend: @RunningTeamsCount</span>
+                    <span class="badge text-bg-secondary">Bereit: @ReadyTeamsCount</span>
+                    <span class="mission-status-location">@EinsatzService.CurrentEinsatz.Einsatzort</span>
+                }
+                else
+                {
+                    <span class="badge text-bg-secondary">Kein aktiver Einsatz</span>
+                }
+            </div>
 
             <div class="mission-topbar-clock" aria-live="polite">
                 <span id="live-time">00:00:00</span>
@@ -46,6 +61,30 @@
     </main>
 </div>
 
+@if (_showCriticalWarningPopup)
+{
+    <div class="global-warning-overlay" @onclick="DismissCriticalWarningAsync">
+        <div class="global-warning-popup" @onclick:stopPropagation="true">
+            <div class="global-warning-header">
+                <h4 class="mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Kritische Teamwarnung</h4>
+            </div>
+            <div class="global-warning-body">
+                <p class="mb-2"><strong>@_criticalWarningTitle</strong></p>
+                <p class="mb-2">@_criticalWarningMessage</p>
+                @if (_audioEnableHintVisible)
+                {
+                    <div class="alert alert-warning py-2 mb-0">
+                        Audio konnte nicht automatisch gestartet werden. Bitte einmal auf die Seite klicken, dann wird Audio aktiviert.
+                    </div>
+                }
+            </div>
+            <div class="global-warning-footer">
+                <button class="btn btn-danger" @onclick="DismissCriticalWarningAsync">Warnung quittieren</button>
+            </div>
+        </div>
+    </div>
+}
+
 <div id="blazor-error-ui" data-nosnippet>
     Es ist ein Fehler aufgetreten.
     <a href="." class="reload">Neu laden</a>
@@ -56,10 +95,28 @@
     private bool _isDarkMode;
     private bool _sidebarCollapsed;
     private DotNetObjectReference<MainLayout>? _dotNetRef;
+    private AppSettings _appSettings = new();
+    private bool _showCriticalWarningPopup;
+    private string _criticalWarningTitle = string.Empty;
+    private string _criticalWarningMessage = string.Empty;
+    private bool _audioEnableHintVisible;
+
+    private bool HasActiveEinsatz =>
+        !string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzort)
+        && EinsatzService.CurrentEinsatz.EinsatzEnde is null;
+
+    private int RunningTeamsCount => EinsatzService.Teams.Count(team => team.IsRunning);
+
+    private int ReadyTeamsCount => EinsatzService.Teams.Count(team => !team.IsDroneTeam && !team.IsSupportTeam && !team.IsRunning);
 
     protected override void OnInitialized()
     {
         Navigation.LocationChanged += OnLocationChanged;
+        EinsatzService.EinsatzChanged += OnEinsatzStateChanged;
+        EinsatzService.TeamAdded += OnTeamStateChanged;
+        EinsatzService.TeamUpdated += OnTeamStateChanged;
+        EinsatzService.TeamRemoved += OnTeamStateChanged;
+        EinsatzService.TeamWarningTriggered += OnTeamWarningTriggered;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -70,6 +127,7 @@
         }
 
         _isDarkMode = await SettingsService.GetIsDarkModeAsync();
+        _appSettings = await SettingsService.GetAppSettingsAsync();
         _sidebarCollapsed = await JS.InvokeAsync<bool>("layoutTools.getSidebarCollapsed");
         _dotNetRef = DotNetObjectReference.Create(this);
 
@@ -77,6 +135,73 @@
         await ApplyPersistedThemeAsync();
         await JS.InvokeVoidAsync("initializeClock");
         StateHasChanged();
+    }
+
+    private void OnEinsatzStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnTeamStateChanged(Einsatzueberwachung.Domain.Models.Team team)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnTeamWarningTriggered(Einsatzueberwachung.Domain.Models.Team team, bool isSecondWarning)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            _appSettings = await SettingsService.GetAppSettingsAsync();
+            var audioStarted = true;
+            if (_appSettings.SoundAlertsEnabled)
+            {
+                var soundType = isSecondWarning ? _appSettings.SecondWarningSound : _appSettings.FirstWarningSound;
+                var frequency = isSecondWarning ? _appSettings.SecondWarningFrequency : _appSettings.FirstWarningFrequency;
+                var shouldRepeat = isSecondWarning && _appSettings.RepeatSecondWarning;
+                var repeatSeconds = Math.Max(1, _appSettings.RepeatWarningIntervalSeconds);
+
+                try
+                {
+                    audioStarted = await JS.InvokeAsync<bool>(
+                        "layoutTools.playWarningAlert",
+                        soundType,
+                        frequency,
+                        _appSettings.SoundVolume,
+                        shouldRepeat,
+                        repeatSeconds);
+                }
+                catch
+                {
+                    audioStarted = false;
+                }
+            }
+
+            _audioEnableHintVisible = _appSettings.SoundAlertsEnabled && !audioStarted;
+
+            if (isSecondWarning)
+            {
+                _criticalWarningTitle = $"{team.TeamName} hat kritische Warnstufe erreicht";
+                _criticalWarningMessage = $"Timer: {team.ElapsedTime:hh\\:mm\\:ss} · Bitte Teamstatus pruefen.";
+                _showCriticalWarningPopup = true;
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    private async Task DismissCriticalWarningAsync()
+    {
+        _showCriticalWarningPopup = false;
+        _audioEnableHintVisible = false;
+
+        try
+        {
+            await JS.InvokeVoidAsync("layoutTools.stopWarningAlert");
+        }
+        catch
+        {
+            // Ignore JS disconnects while closing popup.
+        }
     }
 
     private async Task ApplyPersistedThemeAsync()
@@ -136,10 +261,16 @@
     public async ValueTask DisposeAsync()
     {
         Navigation.LocationChanged -= OnLocationChanged;
+        EinsatzService.EinsatzChanged -= OnEinsatzStateChanged;
+        EinsatzService.TeamAdded -= OnTeamStateChanged;
+        EinsatzService.TeamUpdated -= OnTeamStateChanged;
+        EinsatzService.TeamRemoved -= OnTeamStateChanged;
+        EinsatzService.TeamWarningTriggered -= OnTeamWarningTriggered;
 
         try
         {
             await JS.InvokeVoidAsync("themeSync.dispose");
+            await JS.InvokeVoidAsync("layoutTools.stopWarningAlert");
         }
         catch
         {

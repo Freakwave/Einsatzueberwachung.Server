@@ -107,6 +107,8 @@ namespace Einsatzueberwachung.Domain.Services
                 team.StopTimer();
             }
 
+            _currentEinsatz.EinsatzEnde = DateTime.Now;
+
             var endNote = new GlobalNotesEntry
             {
                 Text = $"Einsatz beendet",
@@ -135,6 +137,11 @@ namespace Einsatzueberwachung.Domain.Services
 
         public Task RemoveTeamAsync(string teamId)
         {
+            if (IsEinsatzAktiv())
+            {
+                throw new InvalidOperationException("Teams koennen waehrend eines laufenden Einsatzes nicht geloescht werden.");
+            }
+
             var team = _teams.FirstOrDefault(t => t.TeamId == teamId);
             if (team != null)
             {
@@ -630,6 +637,12 @@ namespace Einsatzueberwachung.Domain.Services
             target.DroneType = source.DroneType;
             target.DroneId = source.DroneId;
             target.IsSupportTeam = source.IsSupportTeam;
+        }
+
+        private bool IsEinsatzAktiv()
+        {
+            return !string.IsNullOrWhiteSpace(_currentEinsatz.Einsatzort)
+                && _currentEinsatz.EinsatzEnde is null;
         }
     }
 }

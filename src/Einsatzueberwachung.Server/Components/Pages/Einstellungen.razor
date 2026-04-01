@@ -147,6 +147,10 @@
                                 <option value="beep">Signalton</option>
                                 <option value="bell">Glocke</option>
                                 <option value="alarm">Alarm</option>
+                                <option value="double">Doppelton</option>
+                                <option value="chime">Chime</option>
+                                <option value="pulse">Puls</option>
+                                <option value="siren">Sirene</option>
                             </InputSelect>
                         </div>
                         <div class="col-12 col-md-6">
@@ -160,6 +164,10 @@
                                 <option value="beep">Signalton</option>
                                 <option value="bell">Glocke</option>
                                 <option value="alarm">Alarm (Standard)</option>
+                                <option value="double">Doppelton</option>
+                                <option value="chime">Chime</option>
+                                <option value="pulse">Puls</option>
+                                <option value="siren">Sirene</option>
                             </InputSelect>
                         </div>
                         <div class="col-12 col-md-6">
@@ -178,6 +186,25 @@
                         <label class="form-label">Wiederholungs-Intervall (Sekunden)</label>
                         <InputNumber class="form-control" @bind-Value="_appSettings.RepeatWarningIntervalSeconds" />
                         <div class="form-text">Standard: 30 Sekunden</div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label">Akustik-Test</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-outline-primary" type="button" @onclick="PlayFirstWarningTestAsync">
+                                Erste Warnung testen
+                            </button>
+                            <button class="btn btn-outline-danger" type="button" @onclick="PlayCriticalWarningTestAsync">
+                                Kritische Warnung testen
+                            </button>
+                            <button class="btn btn-outline-secondary" type="button" @onclick="StopWarningTestAsync">
+                                Test stoppen
+                            </button>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(_audioTestStatus))
+                        {
+                            <div class="alert @(_audioTestError ? "alert-warning" : "alert-success") py-2 mt-2 mb-0">@_audioTestStatus</div>
+                        }
                     </div>
 
                     <hr />
@@ -212,7 +239,7 @@
                     <h2 class="h4 mb-0"><i class="bi bi-info-circle me-2"></i>System-Information</h2>
                 </div>
                 <div class="card-body">
-                    <div class="mb-2"><strong>Version:</strong> 1.0.1</div>
+                    <div class="mb-2"><strong>Version:</strong> 1.1.0</div>
                     <div class="mb-2"><strong>Framework:</strong> .NET 8 / Blazor Server</div>
                     <div class="mb-3"><strong>Plattform:</strong> Web-basiert</div>
 
@@ -312,6 +339,8 @@
     private bool _maintenanceError;
     private string _logoStatus = string.Empty;
     private bool _logoStatusIsError;
+    private string _audioTestStatus = string.Empty;
+    private bool _audioTestError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -668,5 +697,70 @@
     {
         _logoStatus = message;
         _logoStatusIsError = isError;
+    }
+
+    private async Task PlayFirstWarningTestAsync()
+    {
+        await PlayWarningTestAsync(
+            _appSettings.FirstWarningSound,
+            _appSettings.FirstWarningFrequency,
+            repeat: false,
+            repeatSeconds: 0,
+            "Test fuer erste Warnung abgespielt.");
+    }
+
+    private async Task PlayCriticalWarningTestAsync()
+    {
+        await PlayWarningTestAsync(
+            _appSettings.SecondWarningSound,
+            _appSettings.SecondWarningFrequency,
+            _appSettings.RepeatSecondWarning,
+            Math.Max(1, _appSettings.RepeatWarningIntervalSeconds),
+            "Test fuer kritische Warnung gestartet.");
+    }
+
+    private async Task StopWarningTestAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("layoutTools.stopWarningAlert");
+            SetAudioTestStatus("Akustik-Test gestoppt.", false);
+        }
+        catch (Exception ex)
+        {
+            SetAudioTestStatus($"Test konnte nicht gestoppt werden: {ex.Message}", true);
+        }
+    }
+
+    private async Task PlayWarningTestAsync(string soundType, int frequency, bool repeat, int repeatSeconds, string successMessage)
+    {
+        try
+        {
+            var started = await JS.InvokeAsync<bool>(
+                "layoutTools.playWarningAlert",
+                soundType,
+                frequency,
+                _appSettings.SoundVolume,
+                repeat,
+                repeatSeconds);
+
+            if (!started)
+            {
+                SetAudioTestStatus("Audio ist im Browser blockiert. Bitte einmal auf die Seite klicken und erneut testen.", true);
+                return;
+            }
+
+            SetAudioTestStatus(successMessage, false);
+        }
+        catch (Exception ex)
+        {
+            SetAudioTestStatus($"Akustik-Test fehlgeschlagen: {ex.Message}", true);
+        }
+    }
+
+    private void SetAudioTestStatus(string message, bool isError)
+    {
+        _audioTestStatus = message;
+        _audioTestError = isError;
     }
 }

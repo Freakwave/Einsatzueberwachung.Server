@@ -3,6 +3,8 @@ window.themeSync = (() => {
     const legacyStorageKey = "theme";
     let dotNetRef = null;
     let storageHandler = null;
+    let systemMediaQuery = null;
+    let systemThemeHandler = null;
 
     function applyTheme(isDark) {
         const value = isDark ? "dark" : "light";
@@ -78,18 +80,59 @@ window.themeSync = (() => {
         }
     }
 
+    function stopWatchingSystemTheme() {
+        if (systemMediaQuery && systemThemeHandler) {
+            systemMediaQuery.removeEventListener("change", systemThemeHandler);
+        }
+        systemMediaQuery = null;
+        systemThemeHandler = null;
+    }
+
+    function watchSystemTheme() {
+        stopWatchingSystemTheme();
+
+        systemMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+        // Apply immediately based on current OS preference
+        const isDark = systemMediaQuery.matches;
+        applyTheme(isDark);
+        localStorage.setItem(storageKey, isDark ? "dark" : "light");
+        emitThemeChanged(isDark);
+
+        if (dotNetRef) {
+            dotNetRef.invokeMethodAsync("OnThemeChangedFromStorage", isDark);
+        }
+
+        // Listen for future OS preference changes
+        systemThemeHandler = (event) => {
+            const changed = event.matches;
+            applyTheme(changed);
+            localStorage.setItem(storageKey, changed ? "dark" : "light");
+            emitThemeChanged(changed);
+
+            if (dotNetRef) {
+                dotNetRef.invokeMethodAsync("OnThemeChangedFromStorage", changed);
+            }
+        };
+
+        systemMediaQuery.addEventListener("change", systemThemeHandler);
+    }
+
     function dispose() {
         if (storageHandler) {
             window.removeEventListener("storage", storageHandler);
             storageHandler = null;
         }
 
+        stopWatchingSystemTheme();
         dotNetRef = null;
     }
 
     return {
         init,
         setTheme,
+        watchSystemTheme,
+        stopWatchingSystemTheme,
         dispose
     };
 })();

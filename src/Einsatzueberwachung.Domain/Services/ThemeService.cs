@@ -1,12 +1,14 @@
 ﻿// Einsatzüberwachung - Globaler Theme Service
 // Stellt sicher, dass Theme über alle Seiten/Komponenten synchron ist
 
-using Einsatzueberwachung.Domain.Interfaces;using Microsoft.Extensions.Logging;
+using Einsatzueberwachung.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
+
 namespace Einsatzueberwachung.Domain.Services
 {
     public class ThemeService
     {
-        private readonly IMasterDataService _masterDataService;
+        private readonly ISettingsService _settingsService;
         private readonly ILogger<ThemeService> _logger;
         private bool _isDarkMode;
         private bool _isInitialized = false;
@@ -14,9 +16,9 @@ namespace Einsatzueberwachung.Domain.Services
 
         public event Action? OnThemeChanged;
 
-        public ThemeService(IMasterDataService masterDataService, ILogger<ThemeService> logger)
+        public ThemeService(ISettingsService settingsService, ILogger<ThemeService> logger)
         {
-            _masterDataService = masterDataService;
+            _settingsService = settingsService;
             _logger = logger;
         }
 
@@ -39,8 +41,7 @@ namespace Einsatzueberwachung.Domain.Services
         {
             try
             {
-                var sessionData = await _masterDataService.LoadSessionDataAsync();
-                _isDarkMode = sessionData?.AppSettings?.IsDarkMode ?? false;
+                _isDarkMode = await _settingsService.GetIsDarkModeAsync();
                 _logger.LogInformation("Theme geladen: {Theme}", CurrentTheme);
             }
             catch (Exception ex)
@@ -56,20 +57,10 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 _isDarkMode = isDark;
 
-                // Speichere in Settings
                 try
                 {
-                    var sessionData = await _masterDataService.LoadSessionDataAsync();
-                    if (sessionData.AppSettings == null)
-                        sessionData.AppSettings = new Models.AppSettings();
-
-                    sessionData.AppSettings.IsDarkMode = isDark;
-                    sessionData.AppSettings.Theme = isDark ? "Dark" : "Light";
-                    await _masterDataService.SaveSessionDataAsync(sessionData);
-
+                    await _settingsService.SetIsDarkModeAsync(isDark);
                     _logger.LogInformation("Theme gespeichert: {Theme}", CurrentTheme);
-
-                    // Notify subscribers
                     OnThemeChanged?.Invoke();
                 }
                 catch (Exception ex)
@@ -88,12 +79,12 @@ namespace Einsatzueberwachung.Domain.Services
         {
             try
             {
-                var sessionData = await _masterDataService.LoadSessionDataAsync();
-                if (sessionData?.AppSettings?.ThemeMode == "Scheduled")
+                var appSettings = await _settingsService.GetAppSettingsAsync();
+                if (appSettings?.ThemeMode == "Scheduled")
                 {
                     var now = DateTime.Now.TimeOfDay;
-                    var start = sessionData.AppSettings.DarkModeStartTime;
-                    var end = sessionData.AppSettings.DarkModeEndTime;
+                    var start = appSettings.DarkModeStartTime;
+                    var end = appSettings.DarkModeEndTime;
 
                     bool shouldBeDark;
                     if (start < end)
@@ -113,18 +104,7 @@ namespace Einsatzueberwachung.Domain.Services
                         _logger.LogInformation("Zeitgesteuerter Theme-Wechsel zu: {Theme}", CurrentTheme);
                     }
                 }
-                else if (sessionData?.AppSettings?.ThemeMode == "Auto")
-                {
-                    // Auto-Modus basierend auf Tageszeit (vereinfacht)
-                    var hour = DateTime.Now.Hour;
-                    bool shouldBeDark = hour < 6 || hour >= 20;
-                    
-                    if (shouldBeDark != _isDarkMode)
-                    {
-                        await SetThemeAsync(shouldBeDark);
-                        _logger.LogInformation("Auto Theme-Wechsel zu: {Theme}", CurrentTheme);
-                    }
-                }
+                // "Auto" wird client-seitig via prefers-color-scheme behandelt
             }
             catch (Exception ex)
             {
@@ -134,11 +114,10 @@ namespace Einsatzueberwachung.Domain.Services
 
         private void StartScheduleTimer()
         {
-            // Prüfe jede Minute ob Theme gewechselt werden muss
+            // Prüfe jede Minute ob Theme gewechselt werden muss (nur für "Scheduled"-Modus)
             _scheduleTimer = new System.Threading.Timer(
                 _ => {
-                    // Fire and forget - läuft asynchron
-                    _ = Task.Run(async () => 
+                    _ = Task.Run(async () =>
                     {
                         try
                         {
@@ -151,13 +130,13 @@ namespace Einsatzueberwachung.Domain.Services
                     });
                 },
                 null,
-                TimeSpan.FromSeconds(30), // Erste Prüfung nach 30 Sekunden
-                TimeSpan.FromMinutes(1)   // Dann jede Minute
+                TimeSpan.FromSeconds(30),
+                TimeSpan.FromMinutes(1)
             );
-            
+
             _logger.LogInformation("Schedule-Timer gestartet - prüft alle 60 Sekunden");
         }
-        
+
         public void Dispose()
         {
             _scheduleTimer?.Dispose();

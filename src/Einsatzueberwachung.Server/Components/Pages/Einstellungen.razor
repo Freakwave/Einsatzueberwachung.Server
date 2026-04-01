@@ -93,23 +93,52 @@
                             <option value="Auto">Automatisch (Systemmodus)</option>
                             <option value="Scheduled">Geplant (Zeitfenster)</option>
                         </InputSelect>
+                        @if (_appSettings.ThemeMode == "Auto")
+                        {
+                            <div class="form-text"><i class="bi bi-info-circle me-1"></i>Das Theme folgt automatisch dem Betriebssystemmodus des Browsers.</div>
+                        }
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Design-Modus</label>
-                        <div class="settings-segmented">
-                            <button type="button"
-                                    class="btn @(_appSettings.IsDarkMode ? "btn-outline-light" : "btn-light")"
-                                    @onclick="() => SetDesignModeAsync(false)">
-                                <i class="bi bi-brightness-high me-1"></i>Hell
-                            </button>
-                            <button type="button"
-                                    class="btn @(_appSettings.IsDarkMode ? "btn-secondary" : "btn-outline-secondary")"
-                                    @onclick="() => SetDesignModeAsync(true)">
-                                <i class="bi bi-moon-stars me-1"></i>Dunkel
-                            </button>
+                    @if (_appSettings.ThemeMode == "Scheduled")
+                    {
+                        <div class="mb-3">
+                            <label class="form-label"><i class="bi bi-clock me-1"></i>Zeitfenster für Dunkel-Modus</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small text-muted mb-1">Dunkel ab</label>
+                                    <input type="time" class="form-control"
+                                           value="@_darkStartTimeStr"
+                                           @onchange="e => _darkStartTimeStr = e.Value?.ToString() ?? _darkStartTimeStr" />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-muted mb-1">Hell ab</label>
+                                    <input type="time" class="form-control"
+                                           value="@_darkEndTimeStr"
+                                           @onchange="e => _darkEndTimeStr = e.Value?.ToString() ?? _darkEndTimeStr" />
+                                </div>
+                            </div>
+                            <div class="form-text">Z.B. Dunkel ab 20:00, Hell ab 06:00 (über Mitternacht möglich).</div>
                         </div>
-                    </div>
+                    }
+
+                    @if (_appSettings.ThemeMode == "Manual")
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Design-Modus</label>
+                            <div class="settings-segmented">
+                                <button type="button"
+                                        class="btn @(_appSettings.IsDarkMode ? "btn-outline-light" : "btn-light")"
+                                        @onclick="() => SetDesignModeAsync(false)">
+                                    <i class="bi bi-brightness-high me-1"></i>Hell
+                                </button>
+                                <button type="button"
+                                        class="btn @(_appSettings.IsDarkMode ? "btn-secondary" : "btn-outline-secondary")"
+                                        @onclick="() => SetDesignModeAsync(true)">
+                                    <i class="bi bi-moon-stars me-1"></i>Dunkel
+                                </button>
+                            </div>
+                        </div>
+                    }
 
                     <hr />
 
@@ -283,7 +312,7 @@
                     <h2 class="h4 mb-0"><i class="bi bi-info-circle me-2"></i>System-Information</h2>
                 </div>
                 <div class="card-body">
-                    <div class="mb-2"><strong>Version:</strong> 1.1.3</div>
+                    <div class="mb-2"><strong>Version:</strong> 1.1.8</div>
                     <div class="mb-2"><strong>Framework:</strong> .NET 8 / Blazor Server</div>
                     <div class="mb-3"><strong>Plattform:</strong> Web-basiert</div>
 
@@ -387,6 +416,8 @@
     private bool _audioTestError;
     private UpdateRuntimeStatus _updateStatus = new();
     private string _quickNoteTemplatesText = string.Empty;
+    private string _darkStartTimeStr = "20:00";
+    private string _darkEndTimeStr = "06:00";
 
     protected override async Task OnInitializedAsync()
     {
@@ -394,6 +425,8 @@
         _appSettings = await SettingsService.GetAppSettingsAsync();
         EnsureQuickNoteTemplatesInitialized(_appSettings);
         _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
+        _darkStartTimeStr = _appSettings.DarkModeStartTime.ToString(@"hh\:mm");
+        _darkEndTimeStr = _appSettings.DarkModeEndTime.ToString(@"hh\:mm");
         _dataDirectory = AppPathResolver.GetDataDirectory();
         _reportDirectory = AppPathResolver.GetReportDirectory();
         _mobileUrl = new Uri(new Uri(Navigation.BaseUri), "mobile/").ToString();
@@ -461,10 +494,42 @@
             _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
         }
 
+        // Zeitfenster aus den Eingabefeldern übernehmen
+        if (TimeSpan.TryParse(_darkStartTimeStr, out var parsedStart))
+            _appSettings.DarkModeStartTime = parsedStart;
+        if (TimeSpan.TryParse(_darkEndTimeStr, out var parsedEnd))
+            _appSettings.DarkModeEndTime = parsedEnd;
+
         _appSettings.Theme = _appSettings.IsDarkMode ? "Dark" : "Light";
         await SettingsService.SaveStaffelSettingsAsync(_staffelSettings);
         await SettingsService.SaveAppSettingsAsync(_appSettings);
-        await JS.InvokeVoidAsync("themeSync.setTheme", _appSettings.IsDarkMode);
+
+        // Theme sofort anwenden je nach aktivem Modus
+        if (_appSettings.ThemeMode == "Auto")
+        {
+            await JS.InvokeVoidAsync("themeSync.watchSystemTheme");
+        }
+        else if (_appSettings.ThemeMode == "Scheduled")
+        {
+            await JS.InvokeVoidAsync("themeSync.stopWatchingSystemTheme");
+            // Sofort prüfen ob Dark-Modus aktiv sein soll
+            var now = DateTime.Now.TimeOfDay;
+            var start = _appSettings.DarkModeStartTime;
+            var end = _appSettings.DarkModeEndTime;
+            bool shouldBeDark = start < end
+                ? now >= start && now < end
+                : now >= start || now < end;
+            _appSettings.IsDarkMode = shouldBeDark;
+            _appSettings.Theme = shouldBeDark ? "Dark" : "Light";
+            await SettingsService.SetIsDarkModeAsync(shouldBeDark);
+            await JS.InvokeVoidAsync("themeSync.setTheme", shouldBeDark);
+        }
+        else // Manual
+        {
+            await JS.InvokeVoidAsync("themeSync.stopWatchingSystemTheme");
+            await JS.InvokeVoidAsync("themeSync.setTheme", _appSettings.IsDarkMode);
+        }
+
         _status = "Einstellungen gespeichert.";
         SetLogoStatus(string.Empty, false);
     }
@@ -533,6 +598,9 @@
 
     private async Task SetDesignModeAsync(bool darkMode)
     {
+        if (_appSettings.ThemeMode != "Manual")
+            return;
+
         _appSettings.IsDarkMode = darkMode;
         _appSettings.Theme = darkMode ? "Dark" : "Light";
         await SettingsService.SetIsDarkModeAsync(darkMode);

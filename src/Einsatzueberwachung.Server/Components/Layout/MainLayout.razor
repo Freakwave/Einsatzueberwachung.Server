@@ -41,7 +41,8 @@
             <div class="mission-topbar-actions">
                 <button class="btn btn-sm btn-outline-secondary"
                         type="button"
-                        title="Dark Mode umschalten"
+                        title="@(_appSettings.ThemeMode == "Auto" ? "Theme: Automatisch (Systemmodus)" : _appSettings.ThemeMode == "Scheduled" ? "Theme: Zeitsteuerung aktiv" : "Dark Mode umschalten")"
+                        disabled="@(_appSettings.ThemeMode != "Manual")"
                         @onclick="ToggleThemeAsync">
                     <i class="bi @( _isDarkMode ? "bi-sun" : "bi-moon-stars")"></i>
                 </button>
@@ -132,7 +133,16 @@
         _dotNetRef = DotNetObjectReference.Create(this);
 
         await JS.InvokeVoidAsync("themeSync.init", _dotNetRef, _isDarkMode);
-        await ApplyPersistedThemeAsync();
+
+        if (_appSettings.ThemeMode == "Auto")
+        {
+            await JS.InvokeVoidAsync("themeSync.watchSystemTheme");
+        }
+        else
+        {
+            await ApplyPersistedThemeAsync();
+        }
+
         await JS.InvokeVoidAsync("initializeClock");
         StateHasChanged();
     }
@@ -240,6 +250,10 @@
 
     private async Task ToggleThemeAsync()
     {
+        _appSettings = await SettingsService.GetAppSettingsAsync();
+        if (_appSettings.ThemeMode != "Manual")
+            return;
+
         _isDarkMode = !_isDarkMode;
         await SettingsService.SetIsDarkModeAsync(_isDarkMode);
         await JS.InvokeVoidAsync("themeSync.setTheme", _isDarkMode);
@@ -269,6 +283,7 @@
 
         try
         {
+            await JS.InvokeVoidAsync("themeSync.stopWatchingSystemTheme");
             await JS.InvokeVoidAsync("themeSync.dispose");
             await JS.InvokeVoidAsync("layoutTools.stopWarningAlert");
         }

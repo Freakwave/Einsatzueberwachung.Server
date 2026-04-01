@@ -1,0 +1,56 @@
+name: Release Linux Asset
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (z. B. v0.9.4)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Publish server linux-x64
+        run: dotnet publish src/Einsatzueberwachung.Server -c Release -r linux-x64 --self-contained false -o artifacts/release/linux-x64/server-${{ steps.version.outputs.version }}
+
+      - name: Create zip asset
+        shell: bash
+        run: |
+          cd artifacts/release/linux-x64/server-${{ steps.version.outputs.version }}
+          zip -r ../server-${{ steps.version.outputs.version }}.zip .
+
+      - name: Upload asset to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          files: artifacts/release/linux-x64/server-${{ steps.version.outputs.version }}.zip
+          overwrite_files: true

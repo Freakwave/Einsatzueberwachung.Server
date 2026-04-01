@@ -51,3 +51,10 @@ dotnet run --project src/Einsatzueberwachung.Mobile
 Siehe `DEPLOYMENT.md`.
 
 Fuer die End-to-End-Abnahme (Desktop + Mobile ueber `/mobile`) siehe in `DEPLOYMENT.md` den Abschnitt **10. Abnahme: Desktop + Mobile (`/mobile`)**.
+
+## Release-Automation
+
+- Bei jedem veroeffentlichten GitHub Release (`v*`) wird automatisch ein Linux-Asset gebaut und hochgeladen.
+- Workflow: `.github/workflows/release-linux-asset.yml`
+- Asset-Name: `server-<version>.zip` (z. B. `server-0.9.4.zip`)
+- Manuell nachtriggern ueber `workflow_dispatch` mit Tag-Eingabe ist moeglich.

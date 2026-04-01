@@ -40,8 +40,13 @@
                         </div>
 
                         <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold">Alarmzeit</label>
-                            <InputText class="form-control" @bind-Value="_model.Alarmiert" placeholder="dd.MM.yyyy HH:mm" />
+                            <label class="form-label fw-semibold">Timer-Start (Alarmierung)</label>
+                            <input class="form-control"
+                                   type="time"
+                                   step="60"
+                                   value="@_alarmStartTime"
+                                   @onchange="e => _alarmStartTime = e.Value?.ToString() ?? string.Empty" />
+                            <div class="form-text">Datum wird automatisch gesetzt.</div>
                         </div>
 
                         <div class="col-12 col-md-4">
@@ -140,15 +145,6 @@
 </div>
 
 @code {
-    private static readonly string[] AlarmDateFormats =
-    {
-        "dd.MM.yyyy HH:mm",
-        "dd.MM.yyyy HH:mm:ss",
-        "yyyy-MM-dd HH:mm",
-        "yyyy-MM-ddTHH:mm",
-        "yyyy-MM-ddTHH:mm:ss"
-    };
-
     private static readonly string[] AlarmTimeFormats =
     {
         "H:mm",
@@ -165,6 +161,7 @@
     };
 
     private List<PersonalEntry> _personal = new();
+    private string _alarmStartTime = DateTime.Now.ToString("HH:mm");
     private string _status = string.Empty;
     private bool _error;
     private bool _busy;
@@ -199,6 +196,9 @@
         _model.StaffelTelefon = staffelSettings.StaffelTelefon;
         _model.StaffelEmail = staffelSettings.StaffelEmail;
         _model.StaffelLogoPfad = staffelSettings.StaffelLogoPfad;
+
+        var alarmBase = _model.AlarmierungsZeit ?? DateTime.Now;
+        _alarmStartTime = alarmBase.ToString("HH:mm");
     }
 
     private void SetEinsatzleiter(string? id)
@@ -226,7 +226,7 @@
 
         if (!TryPrepareAlarmTime())
         {
-            _status = "Alarmzeit ungueltig. Bitte HH:mm oder dd.MM.yyyy HH:mm verwenden.";
+            _status = "Alarmzeit ungueltig. Bitte Format HH:mm verwenden.";
             _error = true;
             return;
         }
@@ -255,7 +255,7 @@
 
     private bool TryPrepareAlarmTime()
     {
-        if (string.IsNullOrWhiteSpace(_model.Alarmiert))
+        if (string.IsNullOrWhiteSpace(_alarmStartTime))
         {
             var now = DateTime.Now;
             _model.AlarmierungsZeit = now;
@@ -263,21 +263,15 @@
             return true;
         }
 
-        if (DateTime.TryParseExact(_model.Alarmiert.Trim(), AlarmDateFormats, System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.AssumeLocal, out var parsed)
-            || DateTime.TryParseExact(_model.Alarmiert.Trim(), AlarmTimeFormats, System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.None, out parsed)
-            || DateTime.TryParse(_model.Alarmiert.Trim(), System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.AssumeLocal, out parsed))
+        if (DateTime.TryParseExact(_alarmStartTime.Trim(), AlarmTimeFormats, System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.None, out var parsed)
+            || DateTime.TryParse(_alarmStartTime.Trim(), System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.None, out parsed))
         {
-            if (_model.Alarmiert.Contains(':')
-                && !_model.Alarmiert.Contains('.')
-                && !_model.Alarmiert.Contains('-')
-                && !_model.Alarmiert.Contains('/'))
+            var now = DateTime.Now;
+            parsed = new DateTime(now.Year, now.Month, now.Day, parsed.Hour, parsed.Minute, 0);
+
+            if (parsed > now.AddMinutes(1))
             {
-                var now = DateTime.Now;
-                parsed = new DateTime(now.Year, now.Month, now.Day, parsed.Hour, parsed.Minute, parsed.Second);
-                if (parsed > now.AddMinutes(1))
-                {
-                    parsed = parsed.AddDays(-1);
-                }
+                parsed = parsed.AddDays(-1);
             }
 
             _model.AlarmierungsZeit = parsed;

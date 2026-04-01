@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (z. B. v0.9.4)"
+        description: "Release tag (z. B. v0.9.6)"
         required: true
 
 permissions:
@@ -46,11 +46,11 @@ jobs:
         shell: bash
         run: |
           cd artifacts/release/linux-x64/server-${{ steps.version.outputs.version }}
-          zip -r ../server-${{ steps.version.outputs.version }}.zip .
+          zip -r ../linux-x64-server-${{ steps.version.outputs.version }}.zip .
 
       - name: Upload asset to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          files: artifacts/release/linux-x64/server-${{ steps.version.outputs.version }}.zip
+          files: artifacts/release/linux-x64/linux-x64-server-${{ steps.version.outputs.version }}.zip
           overwrite_files: true

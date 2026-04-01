@@ -100,7 +100,7 @@ sudo journalctl -t einsatz-health-check -f
 
 Der Updater wird ueber die Startseite (`/`) oder API aufgerufen. Das Setup hinterlegt bereits:
 
-- `EINSATZUEBERWACHUNG_UPDATE_APPLY_CMD=/opt/einsatzueberwachung/scripts/apply-update.sh "{package}" "{version}"`
+- `EINSATZUEBERWACHUNG_UPDATE_APPLY_CMD=/opt/einsatzueberwachung/scripts/apply-update.sh '{package}' '{version}'`
 - sudoers-Regel fuer den Dienstbenutzer `einsatz`, um die beiden systemd-Dienste neu zu starten
 
 Pruefen:

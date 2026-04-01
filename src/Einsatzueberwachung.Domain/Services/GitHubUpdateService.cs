@@ -626,10 +626,24 @@ namespace Einsatzueberwachung.Domain.Services
             var applyCommand = Environment.GetEnvironmentVariable("EINSATZUEBERWACHUNG_UPDATE_APPLY_CMD");
             if (!string.IsNullOrWhiteSpace(applyCommand))
             {
+                var hasPackagePlaceholder = applyCommand.Contains("{package}", StringComparison.OrdinalIgnoreCase);
+                var hasVersionPlaceholder = applyCommand.Contains("{version}", StringComparison.OrdinalIgnoreCase);
+
                 var cmd = applyCommand
                     .Replace("{stage}", stagePath, StringComparison.OrdinalIgnoreCase)
                     .Replace("{package}", packagePath, StringComparison.OrdinalIgnoreCase)
                     .Replace("{version}", targetVersion, StringComparison.OrdinalIgnoreCase);
+
+                // Backward-compatible fallback for old systemd values that only provide the script path.
+                if (!hasPackagePlaceholder)
+                {
+                    cmd = $"{cmd} {EscapeForBashSingleQuoted(packagePath)}";
+                }
+
+                if (!hasVersionPlaceholder)
+                {
+                    cmd = $"{cmd} {EscapeForBashSingleQuoted(targetVersion)}";
+                }
 
                 var info = new ProcessStartInfo
                 {
@@ -683,6 +697,11 @@ namespace Einsatzueberwachung.Domain.Services
                 InstalledVersion = targetVersion,
                 Message = "Update bereitgestellt. Fuer automatisches Anwenden bitte EINSATZUEBERWACHUNG_UPDATE_APPLY_CMD konfigurieren."
             };
+        }
+
+        private static string EscapeForBashSingleQuoted(string value)
+        {
+            return $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
         }
 
         private void SetStatus(Action<UpdateRuntimeStatus> mutate)

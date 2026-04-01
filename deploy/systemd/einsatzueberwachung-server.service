@@ -16,7 +16,7 @@ Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
 # Environment=EINSATZUEBERWACHUNG_GITHUB_TOKEN=<PAT_mit_repo_scope>
 Environment=EINSATZUEBERWACHUNG_DATA_DIR=/opt/einsatzueberwachung/data
 Environment=EINSATZUEBERWACHUNG_REPORT_DIR=/opt/einsatzueberwachung/data/berichte
-Environment=EINSATZUEBERWACHUNG_UPDATE_APPLY_CMD=/opt/einsatzueberwachung/scripts/apply-update.sh "{package}" "{version}"
+Environment="EINSATZUEBERWACHUNG_UPDATE_APPLY_CMD=/opt/einsatzueberwachung/scripts/apply-update.sh '{package}' '{version}'"
 
 [Install]
 WantedBy=multi-user.target

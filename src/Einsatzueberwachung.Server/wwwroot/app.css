@@ -2979,6 +2979,42 @@ textarea:focus {
     border-color: var(--ui-tile-border) !important;
 }
 
+.dashboard-page .home-server-status-card {
+    background: var(--ui-gradient-card-bg);
+}
+
+.dashboard-page .home-server-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+}
+
+.dashboard-page .home-server-meta-item {
+    border: 1px solid var(--ui-tile-border);
+    background: var(--ui-tile-bg);
+    border-radius: 10px;
+    padding: 0.55rem 0.65rem;
+}
+
+.dashboard-page .home-server-meta-label {
+    color: var(--ui-tile-muted-text);
+    font-size: 0.78rem;
+    margin-bottom: 0.1rem;
+}
+
+.dashboard-page .home-server-meta-value {
+    color: var(--ui-tile-strong-text);
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+@media (max-width: 768px) {
+    .dashboard-page .home-server-meta-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .start-page .start-section-card,
 .report-page .report-form-card,
 .archive-page .archive-filter-card,

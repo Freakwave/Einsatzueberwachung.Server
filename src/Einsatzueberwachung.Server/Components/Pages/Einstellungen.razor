@@ -7,6 +7,7 @@
 @inject ISettingsService SettingsService
 @inject IMasterDataService MasterDataService
 @inject IArchivService ArchivService
+@inject GitHubUpdateService UpdateService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -226,6 +227,40 @@
                         <label class="form-check-label" for="autoUpdates">Automatisch nach Updates suchen</label>
                     </div>
 
+                    <div class="card border-0 shadow-sm home-update-card mt-2">
+                        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="fw-semibold">
+                                <i class="bi bi-cloud-arrow-down me-2 text-primary"></i>Server-Updates
+                            </div>
+                            <span class="badge @( _updateStatus.UpdateAvailable ? "bg-warning text-dark" : "bg-success")">
+                                @(_updateStatus.UpdateAvailable ? "Update verfuegbar" : "Aktuell")
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2 small mb-3">
+                                <div class="col-md-3"><span class="text-muted">Installiert:</span> @_updateStatus.CurrentVersion</div>
+                                <div class="col-md-3"><span class="text-muted">Neueste:</span> @DisplayLatestVersion()</div>
+                                <div class="col-md-3"><span class="text-muted">Letzter Check:</span> @DisplayDateTime(_updateStatus.LastCheckedAt)</div>
+                                <div class="col-md-3"><span class="text-muted">Letzte Installation:</span> @DisplayDateTime(_updateStatus.LastInstalledAt)</div>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(_updateStatus.LastError))
+                            {
+                                <div class="alert alert-danger py-2 mb-3">@_updateStatus.LastError</div>
+                            }
+
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <button class="btn btn-outline-primary btn-sm" @onclick="CheckForUpdatesAsync" disabled="@(_updateStatus.IsChecking || _updateStatus.IsInstalling)">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Jetzt pruefen
+                                </button>
+                                <button class="btn btn-primary btn-sm" @onclick="InstallUpdateAsync" disabled="@(!_updateStatus.UpdateAvailable || _updateStatus.IsChecking || _updateStatus.IsInstalling)">
+                                    <i class="bi bi-download me-1"></i>Update installieren
+                                </button>
+                                <span class="text-muted small">@_updateStatus.LastMessage</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <button class="btn btn-success w-100" @onclick="SaveAsync">
                         <i class="bi bi-floppy-fill me-1"></i>Speichern
                     </button>
@@ -239,7 +274,7 @@
                     <h2 class="h4 mb-0"><i class="bi bi-info-circle me-2"></i>System-Information</h2>
                 </div>
                 <div class="card-body">
-                    <div class="mb-2"><strong>Version:</strong> 1.1.2</div>
+                    <div class="mb-2"><strong>Version:</strong> 1.1.3</div>
                     <div class="mb-2"><strong>Framework:</strong> .NET 8 / Blazor Server</div>
                     <div class="mb-3"><strong>Plattform:</strong> Web-basiert</div>
 
@@ -341,6 +376,7 @@
     private bool _logoStatusIsError;
     private string _audioTestStatus = string.Empty;
     private bool _audioTestError;
+    private UpdateRuntimeStatus _updateStatus = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -349,6 +385,59 @@
         _dataDirectory = AppPathResolver.GetDataDirectory();
         _reportDirectory = AppPathResolver.GetReportDirectory();
         _mobileUrl = new Uri(new Uri(Navigation.BaseUri), "mobile/").ToString();
+        _updateStatus = UpdateService.GetStatusSnapshot();
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        _updateStatus = UpdateService.GetStatusSnapshot();
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await UpdateService.CheckForUpdatesAsync();
+        }
+        catch (Exception ex)
+        {
+            _updateStatus.LastError = ex.Message;
+            _updateStatus.LastMessage = "Update-Pruefung fehlgeschlagen";
+        }
+        finally
+        {
+            _updateStatus = UpdateService.GetStatusSnapshot();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task InstallUpdateAsync()
+    {
+        _updateStatus = UpdateService.GetStatusSnapshot();
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await UpdateService.InstallLatestAsync();
+        }
+        catch (Exception ex)
+        {
+            _updateStatus.LastError = ex.Message;
+            _updateStatus.LastMessage = "Update fehlgeschlagen";
+        }
+        finally
+        {
+            _updateStatus = UpdateService.GetStatusSnapshot();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private string DisplayLatestVersion()
+    {
+        return string.IsNullOrWhiteSpace(_updateStatus.LatestVersion) ? "-" : _updateStatus.LatestVersion;
+    }
+
+    private static string DisplayDateTime(DateTime? value)
+    {
+        return value.HasValue ? value.Value.ToString("dd.MM.yyyy HH:mm") : "-";
     }
 
     private async Task SaveAsync()

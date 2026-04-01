@@ -2,7 +2,7 @@
 @rendermode InteractiveServer
 @inject IEinsatzService EinsatzService
 @inject IArchivService ArchivService
-@inject GitHubUpdateService UpdateService
+@inject IHttpClientFactory HttpClientFactory
 @implements IDisposable
 
 <PageTitle>Startseite — Einsatzüberwachung</PageTitle>
@@ -81,40 +81,6 @@
                     <div class="display-6 fw-bold text-info">@notes.Count</div>
                     <div class="text-muted small">Einträge gesamt</div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card border-0 shadow-sm mb-4 home-update-card">
-        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div class="fw-semibold">
-                <i class="bi bi-cloud-arrow-down me-2 text-primary"></i>Server-Updates
-            </div>
-            <span class="badge @( _updateStatus.UpdateAvailable ? "bg-warning text-dark" : "bg-success")">
-                @(_updateStatus.UpdateAvailable ? "Update verfuegbar" : "Aktuell")
-            </span>
-        </div>
-        <div class="card-body">
-            <div class="row g-2 small mb-3">
-                <div class="col-md-3"><span class="text-muted">Installiert:</span> @_updateStatus.CurrentVersion</div>
-                <div class="col-md-3"><span class="text-muted">Neueste:</span> @DisplayLatestVersion()</div>
-                <div class="col-md-3"><span class="text-muted">Letzter Check:</span> @DisplayDateTime(_updateStatus.LastCheckedAt)</div>
-                <div class="col-md-3"><span class="text-muted">Letzte Installation:</span> @DisplayDateTime(_updateStatus.LastInstalledAt)</div>
-            </div>
-
-            @if (!string.IsNullOrWhiteSpace(_updateStatus.LastError))
-            {
-                <div class="alert alert-danger py-2 mb-3">@_updateStatus.LastError</div>
-            }
-
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <button class="btn btn-outline-primary btn-sm" @onclick="CheckForUpdates" disabled="@(_updateStatus.IsChecking || _updateStatus.IsInstalling)">
-                    <i class="bi bi-arrow-clockwise me-1"></i>Jetzt pruefen
-                </button>
-                <button class="btn btn-primary btn-sm" @onclick="InstallUpdate" disabled="@(!_updateStatus.UpdateAvailable || _updateStatus.IsChecking || _updateStatus.IsInstalling)">
-                    <i class="bi bi-download me-1"></i>Update installieren
-                </button>
-                <span class="text-muted small">@_updateStatus.LastMessage</span>
             </div>
         </div>
     </div>
@@ -262,14 +228,63 @@
             </div>
         </div>
     </div>
+
+    <div class="card border-0 shadow-sm mt-4 home-update-card home-server-status-card">
+        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="fw-semibold">
+                <i class="bi bi-hdd-network me-2 text-primary"></i>Server-Status
+            </div>
+            <span class="badge @(_serverHealthy ? "bg-success" : "bg-warning text-dark")">
+                @(_serverHealthy ? "Online" : "Pruefen")
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="home-server-meta-grid mb-3">
+                <div class="home-server-meta-item">
+                    <div class="home-server-meta-label">Health</div>
+                    <div class="home-server-meta-value">@_serverHealthText</div>
+                </div>
+                <div class="home-server-meta-item">
+                    <div class="home-server-meta-label">Letzter Check</div>
+                    <div class="home-server-meta-value">@DisplayDateTime(_serverLastCheckedAt)</div>
+                </div>
+                <div class="home-server-meta-item">
+                    <div class="home-server-meta-label">Updates</div>
+                    <div class="home-server-meta-value">In Einstellungen verwalten</div>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_serverStatusError))
+            {
+                <div class="alert alert-warning py-2 mb-2">@_serverStatusError</div>
+            }
+
+            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <span class="text-muted small">
+                    <i class="bi bi-shield-check me-1"></i>Basis-Healthcheck ueber /health
+                </span>
+                <button class="btn btn-outline-primary btn-sm" @onclick="RefreshServerStatusAsync" disabled="@_serverStatusLoading">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Status aktualisieren
+                </button>
+                @if (_serverStatusLoading)
+                {
+                    <span class="text-muted small">Pruefe Serverstatus...</span>
+                }
+            </div>
+        </div>
+    </div>
 </div>
 
 @code {
-    private UpdateRuntimeStatus _updateStatus = new();
     private Action<Team>? _teamAddedHandler;
     private Action<Team>? _teamRemovedHandler;
     private Action<Team>? _teamUpdatedHandler;
     private Action<GlobalNotesEntry>? _noteAddedHandler;
+    private bool _serverHealthy;
+    private bool _serverStatusLoading;
+    private string _serverHealthText = "Unbekannt";
+    private string _serverStatusError = string.Empty;
+    private DateTime? _serverLastCheckedAt;
 
     protected override void OnInitialized()
     {
@@ -284,56 +299,36 @@
         EinsatzService.TeamUpdated += _teamUpdatedHandler;
         EinsatzService.NoteAdded += _noteAddedHandler;
 
-        _updateStatus = UpdateService.GetStatusSnapshot();
+        _ = RefreshServerStatusAsync();
     }
 
     private void Refresh() => InvokeAsync(StateHasChanged);
 
-    private async Task CheckForUpdates()
+    private async Task RefreshServerStatusAsync()
     {
-        _updateStatus = UpdateService.GetStatusSnapshot();
-        await InvokeAsync(StateHasChanged);
+        _serverStatusLoading = true;
+        _serverStatusError = string.Empty;
 
         try
         {
-            await UpdateService.CheckForUpdatesAsync();
+            var client = HttpClientFactory.CreateClient();
+            var response = await client.GetAsync("/health");
+
+            _serverHealthy = response.IsSuccessStatusCode;
+            _serverHealthText = _serverHealthy ? "OK" : $"Fehler ({(int)response.StatusCode})";
         }
         catch (Exception ex)
         {
-            _updateStatus.LastError = ex.Message;
-            _updateStatus.LastMessage = "Update-Pruefung fehlgeschlagen";
+            _serverHealthy = false;
+            _serverHealthText = "Nicht erreichbar";
+            _serverStatusError = ex.Message;
         }
         finally
         {
-            _updateStatus = UpdateService.GetStatusSnapshot();
+            _serverLastCheckedAt = DateTime.Now;
+            _serverStatusLoading = false;
             await InvokeAsync(StateHasChanged);
         }
-    }
-
-    private async Task InstallUpdate()
-    {
-        _updateStatus = UpdateService.GetStatusSnapshot();
-        await InvokeAsync(StateHasChanged);
-
-        try
-        {
-            await UpdateService.InstallLatestAsync();
-        }
-        catch (Exception ex)
-        {
-            _updateStatus.LastError = ex.Message;
-            _updateStatus.LastMessage = "Update fehlgeschlagen";
-        }
-        finally
-        {
-            _updateStatus = UpdateService.GetStatusSnapshot();
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
-    private string DisplayLatestVersion()
-    {
-        return string.IsNullOrWhiteSpace(_updateStatus.LatestVersion) ? "-" : _updateStatus.LatestVersion;
     }
 
     private static string DisplayDateTime(DateTime? value)

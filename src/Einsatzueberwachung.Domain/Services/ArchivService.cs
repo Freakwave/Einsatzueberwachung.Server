@@ -56,11 +56,41 @@ namespace Einsatzueberwachung.Domain.Services
             await File.WriteAllTextAsync(_archivFilePath, json);
         }
 
-        public async Task<ArchivedEinsatz> ArchiveEinsatzAsync(EinsatzData einsatzData, string ergebnis, string bemerkungen)
+        public async Task<ArchivedEinsatz> ArchiveEinsatzAsync(
+            EinsatzData einsatzData,
+            string ergebnis,
+            string bemerkungen,
+            List<string>? personalVorOrt = null,
+            List<string>? hundeVorOrt = null)
         {
             await EnsureLoadedAsync();
 
             var archived = ArchivedEinsatz.FromEinsatzData(einsatzData, ergebnis, bemerkungen);
+
+            if (personalVorOrt is not null)
+            {
+                archived.PersonalNamen = personalVorOrt
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(name => name.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name)
+                    .ToList();
+            }
+
+            if (hundeVorOrt is not null)
+            {
+                archived.HundeNamen = hundeVorOrt
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(name => name.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name)
+                    .ToList();
+            }
+
+            archived.AnzahlPersonal = archived.PersonalNamen.Count;
+            archived.AnzahlHunde = archived.HundeNamen.Count;
+            archived.AnzahlRessourcen = archived.AnzahlPersonal + archived.AnzahlHunde + archived.AnzahlDrohnen;
+
             _archiv.Insert(0, archived); // Neueste zuerst
             
             await SaveAsync();

@@ -92,7 +92,7 @@ namespace Einsatzueberwachung.Domain.Models
                 StaffelEmail = data.StaffelEmail,
                 StaffelLogoPfad = data.StaffelLogoPfad,
                 AlarmierungsZeit = data.AlarmierungsZeit,
-                EinsatzEnde = DateTime.Now,
+                EinsatzEnde = data.EinsatzEnde ?? DateTime.Now,
                 Ergebnis = ergebnis,
                 Bemerkungen = bemerkungen,
                 AnzahlTeams = data.Teams?.Count ?? 0,

@@ -2804,6 +2804,16 @@ textarea:focus {
     padding-bottom: 0.6rem;
 }
 
+.modal-close-mission {
+    width: min(920px, 95vw);
+}
+
+.monitor-checklist-scroll {
+    max-height: 180px;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
 .monitor-weather-card {
     border-color: var(--ui-tile-border);
 }

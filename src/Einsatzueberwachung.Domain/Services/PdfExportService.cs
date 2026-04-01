@@ -197,6 +197,7 @@ namespace Einsatzueberwachung.Domain.Services
                         columns.RelativeColumn(2);
                         columns.RelativeColumn(2);
                         columns.RelativeColumn(1.5f);
+                        columns.RelativeColumn(2);
                         columns.RelativeColumn(3);
                     });
 
@@ -206,6 +207,7 @@ namespace Einsatzueberwachung.Domain.Services
                         header.Cell().Element(CellStyle).Text("Name").Bold();
                         header.Cell().Element(CellStyle).Text("Team").Bold();
                         header.Cell().Element(CellStyle).Text("Status").Bold();
+                        header.Cell().Element(CellStyle).Text("Kartenlayout").Bold();
                         header.Cell().Element(CellStyle).Text("Notizen").Bold();
 
                         static IContainer CellStyle(IContainer container)
@@ -220,6 +222,11 @@ namespace Einsatzueberwachung.Domain.Services
                         table.Cell().Element(CellStyle).Text(area.AssignedTeamName ?? "-");
                         table.Cell().Element(CellStyle).Text(area.IsCompleted ? "Abgeschlossen" : "In Bearbeitung")
                             .FontColor(area.IsCompleted ? Colors.Green.Medium : Colors.Orange.Medium);
+                        table.Cell().Element(CellStyle).Column(col =>
+                        {
+                            col.Item().Text($"Flaeche: {area.FormattedArea}").FontSize(9);
+                            col.Item().Text($"Punkte: {area.Coordinates?.Count ?? 0}").FontSize(8).Italic();
+                        });
                         table.Cell().Element(CellStyle).Text(area.Notes ?? "-").FontSize(9);
 
                         static IContainer CellStyle(IContainer container)
@@ -446,6 +453,12 @@ namespace Einsatzueberwachung.Domain.Services
 
                             // Ergebnis
                             column.Item().PaddingVertical(10).Element(c => ComposeErgebnis(c, einsatz));
+
+                            // Vor-Ort Checklisten (Personal/Hunde)
+                            if ((einsatz.PersonalNamen?.Any() ?? false) || (einsatz.HundeNamen?.Any() ?? false))
+                            {
+                                column.Item().PaddingVertical(10).Element(c => ComposeVorOrtChecklisten(c, einsatz));
+                            }
 
                             // Teams
                             if (einsatz.Teams?.Any() == true)
@@ -859,6 +872,52 @@ namespace Einsatzueberwachung.Domain.Services
                         col.Item().Text(einsatz.Bemerkungen)
                             .FontSize(10);
                     }
+                });
+            });
+        }
+
+        private void ComposeVorOrtChecklisten(IContainer container, ArchivedEinsatz einsatz)
+        {
+            container.Column(column =>
+            {
+                column.Item().Text("Vor-Ort Erfassung")
+                    .FontSize(16)
+                    .Bold()
+                    .FontColor(Colors.Blue.Darken1);
+
+                column.Item().PaddingTop(8).Row(row =>
+                {
+                    row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten1).Padding(8).Column(col =>
+                    {
+                        col.Item().Text($"Personal vor Ort ({einsatz.PersonalNamen.Count})").Bold().FontSize(10);
+                        if (einsatz.PersonalNamen.Count == 0)
+                        {
+                            col.Item().Text("Keine Eintraege").Italic().FontSize(9);
+                        }
+                        else
+                        {
+                            foreach (var personal in einsatz.PersonalNamen)
+                            {
+                                col.Item().Text($"- {personal}").FontSize(9);
+                            }
+                        }
+                    });
+
+                    row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten1).Padding(8).Column(col =>
+                    {
+                        col.Item().Text($"Hunde vor Ort ({einsatz.HundeNamen.Count})").Bold().FontSize(10);
+                        if (einsatz.HundeNamen.Count == 0)
+                        {
+                            col.Item().Text("Keine Eintraege").Italic().FontSize(9);
+                        }
+                        else
+                        {
+                            foreach (var hund in einsatz.HundeNamen)
+                            {
+                                col.Item().Text($"- {hund}").FontSize(9);
+                            }
+                        }
+                    });
                 });
             });
         }

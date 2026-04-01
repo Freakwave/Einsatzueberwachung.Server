@@ -12,7 +12,12 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// <summary>
         /// Archiviert einen abgeschlossenen Einsatz
         /// </summary>
-        Task<ArchivedEinsatz> ArchiveEinsatzAsync(EinsatzData einsatzData, string ergebnis, string bemerkungen);
+        Task<ArchivedEinsatz> ArchiveEinsatzAsync(
+            EinsatzData einsatzData,
+            string ergebnis,
+            string bemerkungen,
+            List<string>? personalVorOrt = null,
+            List<string>? hundeVorOrt = null);
 
         /// <summary>
         /// Laedt alle archivierten Einsaetze

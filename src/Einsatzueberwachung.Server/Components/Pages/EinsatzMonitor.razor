@@ -8,6 +8,9 @@
 @inject IEinsatzService EinsatzService
 @inject IMasterDataService MasterDataService
 @inject IWeatherService WeatherService
+@inject IArchivService ArchivService
+@inject IPdfExportService PdfExportService
+@inject NavigationManager Navigation
 
 <PageTitle>Einsatz-Monitor</PageTitle>
 
@@ -29,11 +32,16 @@
             <a class="btn btn-primary btn-lg" href="/einsatz-bericht">
                 <i class="bi bi-file-earmark-text me-1"></i>Bericht
             </a>
-            <a class="btn btn-danger btn-lg" href="/einsatz-bericht">
+            <button class="btn btn-danger btn-lg" type="button" @onclick="OpenCloseMissionModal">
                 <i class="bi bi-stop-circle me-1"></i>Beenden
-            </a>
+            </button>
         </div>
     </div>
+
+    @if (!string.IsNullOrWhiteSpace(_closeMissionStatus))
+    {
+        <div class="alert @(_closeMissionStatusIsError ? "alert-warning" : "alert-success") mb-3">@_closeMissionStatus</div>
+    }
 
     <div class="row g-3 mb-4">
         <div class="col-6 col-lg-3">
@@ -273,6 +281,116 @@
             </div>
         </div>
     </div>
+
+    @if (_showCloseMissionModal)
+    {
+        <div class="modal-overlay" @onclick="CloseCloseMissionModal">
+            <div class="modal-modern modal-close-mission" @onclick:stopPropagation="true">
+                <div class="modal-modern-header bg-danger text-white">
+                    <h3 class="mb-0"><i class="bi bi-exclamation-octagon me-1"></i>Einsatz beenden und archivieren</h3>
+                    <button class="btn btn-sm btn-outline-light" @onclick="CloseCloseMissionModal" disabled="@_closingMission">X</button>
+                </div>
+                <div class="modal-modern-body">
+                    <div class="alert alert-warning py-2 mb-3">
+                        Nach dem Beenden wird der Einsatz archiviert, ein PDF erzeugt und das System fuer den naechsten Einsatz vorbereitet.
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_closeMissionModalError))
+                    {
+                        <div class="alert alert-danger py-2">@_closeMissionModalError</div>
+                    }
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-8">
+                            <label class="form-label">Ergebnis</label>
+                            <select class="form-select" @bind="_closeMissionResult">
+                                <option value="">-- Bitte waehlen --</option>
+                                @foreach (var option in _closeMissionResultOptions)
+                                {
+                                    <option value="@option">@option</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Ende-Zeit</label>
+                            <input type="time" class="form-control" @bind="_closeMissionEndTime" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Bemerkungen</label>
+                            <textarea class="form-control" rows="2" @bind="_closeMissionRemarks" placeholder="Zusatzinformationen zum Abschluss..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="border rounded p-2 mb-3">
+                        <div class="small fw-semibold mb-2">Einsatz-Zusammenfassung</div>
+                        <div class="row g-2 small text-muted">
+                            <div class="col-6 col-md-3">Teams: @EinsatzService.Teams.Count</div>
+                            <div class="col-6 col-md-3">Personal: @SelectedPersonnelNames.Count</div>
+                            <div class="col-6 col-md-3">Hunde: @SelectedDogNames.Count</div>
+                            <div class="col-6 col-md-3">Notizen/Funk: @EinsatzService.GlobalNotes.Count</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-12 col-lg-6">
+                            <div class="border rounded p-2 h-100">
+                                <div class="small fw-semibold mb-2">Welches Personal war vor Ort?</div>
+                                <div class="monitor-checklist-scroll">
+                                    @if (!ActivePersonnel.Any())
+                                    {
+                                        <div class="small text-muted">Kein aktives Personal vorhanden.</div>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var person in ActivePersonnel)
+                                        {
+                                            <label class="form-check d-block mb-1">
+                                                <input class="form-check-input" type="checkbox" checked="@_selectedPersonnelIds.Contains(person.Id)" @onchange="args => TogglePersonnelSelection(person.Id, args)" />
+                                                <span class="form-check-label">@person.FullName</span>
+                                            </label>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6">
+                            <div class="border rounded p-2 h-100">
+                                <div class="small fw-semibold mb-2">Welche Hunde waren im Einsatz?</div>
+                                <div class="monitor-checklist-scroll">
+                                    @if (!ActiveDogs.Any())
+                                    {
+                                        <div class="small text-muted">Keine aktiven Hunde vorhanden.</div>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var dog in ActiveDogs)
+                                        {
+                                            <label class="form-check d-block mb-1">
+                                                <input class="form-check-input" type="checkbox" checked="@_selectedDogIds.Contains(dog.Id)" @onchange="args => ToggleDogSelection(dog.Id, args)" />
+                                                <span class="form-check-label">@dog.Name</span>
+                                            </label>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <label class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" @bind="_closeMissionChecklistConfirmed" />
+                        <span class="form-check-label">Ich habe die eingesetzten Ressourcen und Beteiligten geprueft.</span>
+                    </label>
+                </div>
+                <div class="modal-modern-footer">
+                    <button class="btn btn-outline-secondary" @onclick="CloseCloseMissionModal" disabled="@_closingMission">Abbrechen</button>
+                    <button class="btn btn-danger" @onclick="ConfirmCloseMissionAsync" disabled="@_closingMission">
+                        @(_closingMission ? "Wird abgeschlossen..." : "Einsatz beenden & archivieren")
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 
     @if (_showTeamModal)
     {
@@ -584,10 +702,32 @@
     private string _teamFormMessage = string.Empty;
     private bool _teamFormIsError;
     private bool _showTeamModal;
+    private bool _showCloseMissionModal;
+    private bool _closeMissionChecklistConfirmed;
+    private bool _closingMission;
+    private string _closeMissionResult = string.Empty;
+    private TimeOnly? _closeMissionEndTime;
+    private string _closeMissionRemarks = string.Empty;
+    private string _closeMissionModalError = string.Empty;
+    private string _closeMissionStatus = string.Empty;
+    private bool _closeMissionStatusIsError;
 
     private List<PersonalEntry> _personalList = new();
     private List<DogEntry> _dogList = new();
     private List<DroneEntry> _droneList = new();
+    private readonly HashSet<string> _selectedPersonnelIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _selectedDogIds = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly string[] _closeMissionResultOptions =
+    {
+        "Person gefunden - lebend",
+        "Person gefunden - verstorben",
+        "Person anderweitig gefunden",
+        "Abbruch - Wetter",
+        "Abbruch - Dunkelheit",
+        "Suche erfolglos abgeschlossen",
+        "Uebung abgeschlossen"
+    };
 
     private WeatherData? _monitorWeather;
     private WeatherForecast? _monitorForecast;
@@ -628,6 +768,26 @@
         .Where(person => person.IsActive)
         .OrderBy(person => person.Nachname)
         .ThenBy(person => person.Vorname);
+
+    private IEnumerable<DogEntry> ActiveDogs => _dogList
+        .Where(dog => dog.IsActive)
+        .OrderBy(dog => dog.Name);
+
+    private List<string> SelectedPersonnelNames => ActivePersonnel
+        .Where(person => _selectedPersonnelIds.Contains(person.Id))
+        .Select(person => person.FullName)
+        .Where(name => !string.IsNullOrWhiteSpace(name))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(name => name)
+        .ToList();
+
+    private List<string> SelectedDogNames => ActiveDogs
+        .Where(dog => _selectedDogIds.Contains(dog.Id))
+        .Select(dog => dog.Name)
+        .Where(name => !string.IsNullOrWhiteSpace(name))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(name => name)
+        .ToList();
 
     private IEnumerable<PersonalEntry> HundefuehrerOptions => ActivePersonnel
         .Where(person => person.Skills.HasFlag(PersonalSkills.Hundefuehrer));
@@ -976,6 +1136,197 @@
         }
 
         return EinsatzService.CurrentEinsatz.EinsatzDatum.ToString("dd.MM.yyyy HH:mm");
+    }
+
+    private void OpenCloseMissionModal()
+    {
+        _showCloseMissionModal = true;
+        _closeMissionModalError = string.Empty;
+        _closeMissionChecklistConfirmed = false;
+        _closeMissionResult = string.Empty;
+        _closeMissionRemarks = string.Empty;
+        _closeMissionEndTime = TimeOnly.FromDateTime(DateTime.Now);
+        _closeMissionStatus = string.Empty;
+        _closeMissionStatusIsError = false;
+
+        _selectedPersonnelIds.Clear();
+        _selectedDogIds.Clear();
+        PreselectVorOrtChecklists();
+    }
+
+    private void CloseCloseMissionModal()
+    {
+        if (_closingMission)
+        {
+            return;
+        }
+
+        _showCloseMissionModal = false;
+        _closeMissionModalError = string.Empty;
+    }
+
+    private void TogglePersonnelSelection(string personalId, ChangeEventArgs args)
+    {
+        var isChecked = args.Value switch
+        {
+            bool b => b,
+            string s => string.Equals(s, "true", StringComparison.OrdinalIgnoreCase) || s == "on",
+            _ => false
+        };
+
+        if (isChecked)
+        {
+            _selectedPersonnelIds.Add(personalId);
+            return;
+        }
+
+        _selectedPersonnelIds.Remove(personalId);
+    }
+
+    private void ToggleDogSelection(string dogId, ChangeEventArgs args)
+    {
+        var isChecked = args.Value switch
+        {
+            bool b => b,
+            string s => string.Equals(s, "true", StringComparison.OrdinalIgnoreCase) || s == "on",
+            _ => false
+        };
+
+        if (isChecked)
+        {
+            _selectedDogIds.Add(dogId);
+            return;
+        }
+
+        _selectedDogIds.Remove(dogId);
+    }
+
+    private void PreselectVorOrtChecklists()
+    {
+        var personnelByName = ActivePersonnel
+            .Where(person => !string.IsNullOrWhiteSpace(person.FullName))
+            .ToDictionary(person => person.FullName.Trim(), person => person.Id, StringComparer.OrdinalIgnoreCase);
+
+        var dogsByName = ActiveDogs
+            .Where(dog => !string.IsNullOrWhiteSpace(dog.Name))
+            .ToDictionary(dog => dog.Name.Trim(), dog => dog.Id, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var team in EinsatzService.Teams)
+        {
+            if (!string.IsNullOrWhiteSpace(team.HundefuehrerName)
+                && personnelByName.TryGetValue(team.HundefuehrerName.Trim(), out var fuehrerId))
+            {
+                _selectedPersonnelIds.Add(fuehrerId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(team.HelferName)
+                && personnelByName.TryGetValue(team.HelferName.Trim(), out var helferId))
+            {
+                _selectedPersonnelIds.Add(helferId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(team.DogName)
+                && dogsByName.TryGetValue(team.DogName.Trim(), out var dogId))
+            {
+                _selectedDogIds.Add(dogId);
+            }
+        }
+    }
+
+    private async Task ConfirmCloseMissionAsync()
+    {
+        _closeMissionModalError = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_closeMissionResult))
+        {
+            _closeMissionModalError = "Bitte ein Ergebnis auswaehlen.";
+            return;
+        }
+
+        if (!_closeMissionChecklistConfirmed)
+        {
+            _closeMissionModalError = "Bitte die Pruefung der Ressourcen bestaetigen.";
+            return;
+        }
+
+        _closingMission = true;
+
+        try
+        {
+            await EinsatzService.EndEinsatzAsync();
+
+            var snapshot = BuildArchiveSnapshot();
+            snapshot.EinsatzEnde = ResolveSelectedEndTime();
+
+            var archived = await ArchivService.ArchiveEinsatzAsync(
+                snapshot,
+                _closeMissionResult,
+                _closeMissionRemarks.Trim(),
+                SelectedPersonnelNames,
+                SelectedDogNames);
+
+            var pdfExport = await PdfExportService.ExportArchivedEinsatzToPdfAsync(archived);
+
+            EinsatzService.ResetEinsatz();
+            _showCloseMissionModal = false;
+
+            _closeMissionStatusIsError = !pdfExport.Success;
+            _closeMissionStatus = pdfExport.Success
+                ? $"Einsatz abgeschlossen. Archiviert als {archived.EinsatzNummer}. PDF erzeugt: {pdfExport.FilePath}"
+                : $"Einsatz abgeschlossen und archiviert. PDF konnte nicht erzeugt werden: {pdfExport.ErrorMessage}";
+
+            Navigation.NavigateTo("/einsatz-start", forceLoad: false);
+        }
+        catch (Exception ex)
+        {
+            _closeMissionModalError = $"Abschluss fehlgeschlagen: {ex.Message}";
+            _closeMissionStatusIsError = true;
+            _closeMissionStatus = "Einsatz konnte nicht abgeschlossen werden.";
+        }
+        finally
+        {
+            _closingMission = false;
+        }
+    }
+
+    private DateTime ResolveSelectedEndTime()
+    {
+        if (_closeMissionEndTime.HasValue)
+        {
+            var baseDate = DateTime.Now.Date;
+            return baseDate.Add(_closeMissionEndTime.Value.ToTimeSpan());
+        }
+
+        return DateTime.Now;
+    }
+
+    private EinsatzData BuildArchiveSnapshot()
+    {
+        var current = EinsatzService.CurrentEinsatz;
+        return new EinsatzData
+        {
+            Einsatzleiter = current.Einsatzleiter,
+            Fuehrungsassistent = current.Fuehrungsassistent,
+            Alarmiert = current.Alarmiert,
+            Einsatzort = current.Einsatzort,
+            MapAddress = current.MapAddress,
+            ExportPfad = current.ExportPfad,
+            IstEinsatz = current.IstEinsatz,
+            AnzahlTeams = EinsatzService.Teams.Count,
+            EinsatzDatum = current.EinsatzDatum,
+            EinsatzEnde = current.EinsatzEnde,
+            EinsatzNummer = current.EinsatzNummer,
+            StaffelName = current.StaffelName,
+            StaffelAdresse = current.StaffelAdresse,
+            StaffelTelefon = current.StaffelTelefon,
+            StaffelEmail = current.StaffelEmail,
+            StaffelLogoPfad = current.StaffelLogoPfad,
+            AlarmierungsZeit = current.AlarmierungsZeit,
+            ElwPosition = current.ElwPosition,
+            Teams = EinsatzService.Teams.ToList(),
+            SearchAreas = current.SearchAreas.ToList(),
+            GlobalNotesEntries = EinsatzService.GlobalNotes.ToList()
+        };
     }
 
     private async Task StartTeamAsync(string teamId)

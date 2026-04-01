@@ -1,0 +1,401 @@
+﻿/* ========================================
+   PRINT STYLES - Karten-Druck
+   Seite 1: Karte (Querformat)
+   Seite 2: Suchgebiete-Liste
+   ======================================== */
+
+@media print {
+    /* ===============================================
+       Seitenformat - A4 Querformat für Karte
+       =============================================== */
+    @page {
+        size: A4 landscape;
+        margin: 0.5cm;
+    }
+    
+    /* ===============================================
+       LAYOUT - Verstecke Navigation und UI-Elemente
+       =============================================== */
+    .sidebar,
+    .page-header,
+    .btn,
+    button,
+    .btn-group,
+    .nav-tabs,
+    .modal-backdrop,
+    .modal,
+    .input-group,
+    .badge:not(.print-legend *):not(.print-list-page *),
+    .top-row,
+    .header-with-clock,
+    .live-datetime,
+    #live-datetime,
+    #blazor-error-ui,
+    .skip-link {
+        display: none !important;
+    }
+    
+    /* Page-Layout komplett zurücksetzen - Sidebar-Offset entfernen */
+    .page {
+        display: block !important;
+        width: 100% !important;
+        padding-left: 0 !important;
+        margin-left: 0 !important;
+    }
+    
+    /* Sidebar komplett verstecken und Layout zurücksetzen */
+    .sidebar, .nav-menu, nav.sidebar {
+        display: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        position: absolute !important;
+        left: -9999px !important;
+    }
+    
+    /* Hauptinhalt auf volle Breite */
+    main, .content, article {
+        margin: 0 !important;
+        margin-left: 0 !important;
+        padding: 0 !important;
+        padding-left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        left: 0 !important;
+    }
+    
+    /* Grid/Flex Layout überschreiben */
+    .page.sidebar-collapsed main,
+    .page main {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    /* Verstecke die normale Suchgebiete-Tabelle (nicht druckoptimiert) */
+    .map-container > .card:last-child:not(.map-page) {
+        display: none !important;
+    }
+    
+    /* Verstecke Tabellen-Header im normalen Modus */
+    .card-header {
+        display: none !important;
+    }
+    
+    .map-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+        box-sizing: border-box !important;
+    }
+    
+    body {
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    html, body {
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    /* ===============================================
+       SEITE 1: Karte (Querformat)
+       =============================================== */
+    .map-page {
+        page-break-after: always !important;
+        page-break-inside: avoid !important;
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+    }
+    
+    .map-page .card {
+        border: none !important;
+        box-shadow: none !important;
+        margin-bottom: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+    
+    .map-page .card-body {
+        padding: 0 !important;
+        position: relative !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+    }
+    
+    /* Kleine Kopfzeile auf Karten-Seite */
+    .print-map-header {
+        display: block !important;
+        visibility: visible !important;
+        text-align: center !important;
+        padding: 8px !important;
+        background: #f8f9fa !important;
+        border-bottom: 2px solid #333 !important;
+        font-weight: bold !important;
+        font-size: 12pt !important;
+        margin-bottom: 5px !important;
+    }
+    
+    .print-map-header h3 {
+        margin: 0 !important;
+        font-size: 14pt !important;
+        color: #000 !important;
+    }
+    
+    .print-map-header small {
+        font-size: 10pt !important;
+        color: #666 !important;
+        font-weight: normal !important;
+    }
+    
+    /* Karte auf volle Seite */
+    #einsatzMap {
+        height: 80vh !important;
+        width: 100% !important;
+        min-height: 500px !important;
+        border: 2px solid #333 !important;
+        position: relative !important;
+        left: 0 !important;
+        margin-left: 0 !important;
+        transform: none !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Leaflet Container korrekt anzeigen */
+    .leaflet-container {
+        width: 100% !important;
+        height: 100% !important;
+        background: white !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Leaflet Tile Layer korrekt drucken */
+    .leaflet-tile-container,
+    .leaflet-tile {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Leaflet Panes sichtbar */
+    .leaflet-pane {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Leaflet-Controls beim Drucken verstecken */
+    .leaflet-control-zoom,
+    .leaflet-draw,
+    .leaflet-control-attribution,
+    .leaflet-control-layers {
+        display: none !important;
+    }
+    
+    /* Leaflet-Marker sichtbar */
+    .leaflet-marker-icon,
+    .leaflet-marker-shadow,
+    .leaflet-overlay-pane,
+    .leaflet-pane {
+        display: block !important;
+        opacity: 1 !important;
+    }
+    
+    /* Alte print-header verstecken (wird durch print-map-header ersetzt) */
+    .print-header {
+        display: none !important;
+    }
+    
+    /* ===============================================
+       SEITE 2: Suchgebiete-Liste (Hochformat)
+       =============================================== */
+    .print-list-page {
+        display: block !important;
+        visibility: visible !important;
+        page-break-before: always !important;
+        page-break-inside: avoid !important;
+        background: white !important;
+        padding: 20px !important;
+    }
+    
+    .print-list-page .print-list-header {
+        display: block !important;
+        text-align: center !important;
+        padding: 15px !important;
+        margin-bottom: 20px !important;
+        background: #f8f9fa !important;
+        border: 2px solid #333 !important;
+        border-radius: 5px !important;
+    }
+    
+    .print-list-page .print-list-header h2 {
+        margin: 0 0 5px 0 !important;
+        font-size: 16pt !important;
+        color: #000 !important;
+    }
+    
+    .print-list-page .print-list-header p {
+        margin: 5px 0 0 0 !important;
+        font-size: 11pt !important;
+        color: #333 !important;
+    }
+    
+    /* Suchgebiete-Tabelle */
+    .print-list-page .search-areas-table {
+        display: table !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 10pt !important;
+        margin-bottom: 20px !important;
+    }
+    
+    .print-list-page .search-areas-table thead {
+        display: table-header-group !important;
+    }
+    
+    .print-list-page .search-areas-table th {
+        display: table-cell !important;
+        background: #333 !important;
+        color: white !important;
+        padding: 10px 8px !important;
+        text-align: left !important;
+        font-weight: bold !important;
+        font-size: 10pt !important;
+        border: 1px solid #333 !important;
+    }
+    
+    .print-list-page .search-areas-table tbody {
+        display: table-row-group !important;
+    }
+    
+    .print-list-page .search-areas-table tr {
+        display: table-row !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .print-list-page .search-areas-table td {
+        display: table-cell !important;
+        padding: 10px 8px !important;
+        border: 1px solid #ddd !important;
+        vertical-align: top !important;
+    }
+    
+    .print-list-page .search-areas-table tbody tr:nth-child(even) {
+        background: #f8f9fa !important;
+    }
+    
+    /* Farbquadrat */
+    .print-list-page .color-box {
+        display: inline-block !important;
+        width: 20px !important;
+        height: 20px !important;
+        border: 2px solid #333 !important;
+        border-radius: 3px !important;
+        margin-right: 8px !important;
+        vertical-align: middle !important;
+    }
+    
+    /* Status-Badges */
+    .print-list-page .status-completed {
+        display: inline-block !important;
+        background: #198754 !important;
+        color: white !important;
+        padding: 3px 8px !important;
+        border-radius: 3px !important;
+        font-size: 9pt !important;
+        font-weight: bold !important;
+    }
+    
+    .print-list-page .status-in-progress {
+        display: inline-block !important;
+        background: #ffc107 !important;
+        color: #000 !important;
+        padding: 3px 8px !important;
+        border-radius: 3px !important;
+        font-size: 9pt !important;
+        font-weight: bold !important;
+    }
+    
+    /* Team-Badge */
+    .print-list-page .team-name {
+        display: inline-block !important;
+        background: #0d6efd !important;
+        color: white !important;
+        padding: 3px 8px !important;
+        border-radius: 3px !important;
+        font-size: 9pt !important;
+    }
+    
+    /* ELW Info Box */
+    .print-list-page .elw-info {
+        display: block !important;
+        background: #fff3cd !important;
+        border: 2px solid #ff0000 !important;
+        border-radius: 5px !important;
+        padding: 12px !important;
+        margin-bottom: 20px !important;
+    }
+    
+    .print-list-page .elw-info strong {
+        font-size: 11pt !important;
+        color: #000 !important;
+    }
+    
+    /* Statistik-Box */
+    .print-list-page .statistics-box {
+        display: block !important;
+        background: #e9ecef !important;
+        border: 2px solid #333 !important;
+        border-radius: 5px !important;
+        padding: 15px !important;
+        margin-top: 20px !important;
+    }
+    
+    .print-list-page .statistics-box h4 {
+        margin: 0 0 10px 0 !important;
+        font-size: 12pt !important;
+        border-bottom: 2px solid #333 !important;
+        padding-bottom: 8px !important;
+    }
+    
+    .print-list-page .statistics-box .stat-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        padding: 5px 0 !important;
+        font-size: 10pt !important;
+    }
+    
+    .print-list-page .statistics-box .stat-value {
+        font-weight: bold !important;
+    }
+
+    /* ===============================================
+       Alte Legende ausblenden (wird durch Liste ersetzt)
+       =============================================== */
+    .print-legend,
+    .print-legend-page {
+        display: none !important;
+    }
+    
+    /* ELW-Marker Stil für Druck */
+    .elw-marker-icon {
+        filter: drop-shadow(0 0 3px rgba(0,0,0,0.5)) !important;
+    }
+}
+
+/* ========================================
+   Druck-Elemente (normalerweise versteckt)
+   ======================================== */
+.print-map-header,
+.print-header,
+.print-legend,
+.print-legend-page,
+.print-list-page {
+    display: none;
+}

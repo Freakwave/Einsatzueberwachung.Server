@@ -1,0 +1,48 @@
+﻿/* ========================================
+   LEAFLET MAP CUSTOMIZATION
+   ======================================== */
+
+/* ELW-Marker: Entferne Standard-Leaflet-Icon-Rahmen */
+.elw-marker-icon {
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Layer Control: Bessere Sichtbarkeit */
+.leaflet-control-layers {
+    background: white;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+[data-bs-theme="dark"] .leaflet-control-layers {
+    background: #2d3238;
+    color: #E0E0E0;
+}
+
+.leaflet-control-layers label {
+    margin-bottom: 5px;
+    cursor: pointer;
+}
+
+/* Leaflet Zoom Control */
+.leaflet-control-zoom {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Popup Styling */
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+    padding: 5px;
+}
+
+[data-bs-theme="dark"] .leaflet-popup-content-wrapper {
+    background: #2d3238;
+    color: #E0E0E0;
+}
+
+[data-bs-theme="dark"] .leaflet-popup-tip {
+    background: #2d3238;
+}

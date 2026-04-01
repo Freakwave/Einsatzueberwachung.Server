@@ -7,6 +7,17 @@ window.themeSync = (() => {
     function applyTheme(isDark) {
         const value = isDark ? "dark" : "light";
         document.documentElement.setAttribute("data-bs-theme", value);
+        if (document.body) {
+            document.body.setAttribute("data-bs-theme", value);
+        }
+    }
+
+    function emitThemeChanged(isDark) {
+        window.dispatchEvent(new CustomEvent("einsatz:theme-changed", {
+            detail: {
+                isDark: Boolean(isDark)
+            }
+        }));
     }
 
     function parseStoredTheme(value) {
@@ -38,6 +49,7 @@ window.themeSync = (() => {
 
         applyTheme(isDark);
         localStorage.setItem(storageKey, isDark ? "dark" : "light");
+        emitThemeChanged(isDark);
 
         storageHandler = (event) => {
             if ((event.key !== storageKey && event.key !== legacyStorageKey) || event.newValue === null) {
@@ -46,6 +58,7 @@ window.themeSync = (() => {
 
             const changedIsDark = parseStoredTheme(event.newValue);
             applyTheme(changedIsDark);
+            emitThemeChanged(changedIsDark);
 
             if (dotNetRef) {
                 dotNetRef.invokeMethodAsync("OnThemeChangedFromStorage", changedIsDark);
@@ -58,6 +71,7 @@ window.themeSync = (() => {
     function setTheme(isDark) {
         applyTheme(isDark);
         localStorage.setItem(storageKey, isDark ? "dark" : "light");
+        emitThemeChanged(isDark);
 
         if (dotNetRef) {
             dotNetRef.invokeMethodAsync("OnThemeChangedFromStorage", isDark);

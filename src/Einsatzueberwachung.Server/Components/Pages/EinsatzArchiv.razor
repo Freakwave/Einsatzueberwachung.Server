@@ -5,21 +5,37 @@
 
 <PageTitle>Einsatz-Archiv</PageTitle>
 
-<div class="container py-4">
-    <h1>Einsatz-Archiv</h1>
+<div class="container py-4 archive-page">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4 page-headline-row">
+        <div>
+            <h1 class="mb-1"><i class="bi bi-archive me-2"></i>Einsatz-Archiv</h1>
+            <p class="text-muted mb-0">Vergangene Einsaetze und Uebungen</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" @onclick="LoadAsync">Neu laden</button>
+            <a class="btn btn-outline-success" href="/downloads/einsatz-archiv.json" target="_blank" rel="noopener">Archiv als JSON exportieren</a>
+        </div>
+    </div>
 
-    <div class="row g-2 mb-3">
-        <div class="col-12 col-md-4">
-            <InputText class="form-control" @bind-Value="_search" placeholder="Suche nach Ort, Leiter, Ergebnis" />
+    <div class="card archive-filter-card mb-3">
+        <div class="card-header fw-semibold">
+            <i class="bi bi-funnel me-2"></i>Filter
         </div>
-        <div class="col-6 col-md-3">
-            <InputDate class="form-control" @bind-Value="_fromDate" />
-        </div>
-        <div class="col-6 col-md-3">
-            <InputDate class="form-control" @bind-Value="_toDate" />
-        </div>
-        <div class="col-12 col-md-2 d-grid">
-            <button class="btn btn-outline-primary" @onclick="SearchAsync">Filtern</button>
+        <div class="card-body">
+            <div class="row g-2">
+                <div class="col-12 col-md-4">
+                    <InputText class="form-control" @bind-Value="_search" placeholder="Suche nach Ort, Leiter, Ergebnis" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <InputDate class="form-control" @bind-Value="_fromDate" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <InputDate class="form-control" @bind-Value="_toDate" />
+                </div>
+                <div class="col-12 col-md-2 d-grid">
+                    <button class="btn btn-outline-primary" @onclick="SearchAsync">Filtern</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -27,24 +43,19 @@
     {
         <div class="row g-3 mb-3">
             <div class="col-6 col-md-3">
-                <div class="card"><div class="card-body"><strong>Gesamt:</strong> @_stats.GesamtAnzahl</div></div>
+                <div class="card archive-stat-card"><div class="card-body"><div class="text-muted small">Gesamt</div><div class="archive-stat-value">@_stats.GesamtAnzahl</div></div></div>
             </div>
             <div class="col-6 col-md-3">
-                <div class="card"><div class="card-body"><strong>Einsaetze:</strong> @_stats.AnzahlEinsaetze</div></div>
+                <div class="card archive-stat-card"><div class="card-body"><div class="text-muted small">Einsaetze</div><div class="archive-stat-value">@_stats.AnzahlEinsaetze</div></div></div>
             </div>
             <div class="col-6 col-md-3">
-                <div class="card"><div class="card-body"><strong>Uebungen:</strong> @_stats.AnzahlUebungen</div></div>
+                <div class="card archive-stat-card"><div class="card-body"><div class="text-muted small">Uebungen</div><div class="archive-stat-value">@_stats.AnzahlUebungen</div></div></div>
             </div>
             <div class="col-6 col-md-3">
-                <div class="card"><div class="card-body"><strong>Dauer (avg):</strong> @_stats.DurchschnittlicheDauer.ToString(@"hh\:mm")</div></div>
+                <div class="card archive-stat-card"><div class="card-body"><div class="text-muted small">Dauer (avg)</div><div class="archive-stat-value">@_stats.DurchschnittlicheDauer.ToString(@"hh\:mm")</div></div></div>
             </div>
         </div>
     }
-
-    <div class="d-flex gap-2 mb-3">
-        <button class="btn btn-outline-secondary" @onclick="LoadAsync">Neu laden</button>
-        <a class="btn btn-outline-success" href="/downloads/einsatz-archiv.json" target="_blank" rel="noopener">Archiv als JSON exportieren</a>
-    </div>
 
     @if (!string.IsNullOrWhiteSpace(_status))
     {
@@ -61,8 +72,8 @@
     }
     else
     {
-        <div class="table-responsive">
-            <table class="table table-striped">
+        <div class="table-responsive archive-table-wrap">
+            <table class="table table-striped archive-table">
                 <thead>
                     <tr>
                         <th>Datum</th>
@@ -93,7 +104,7 @@
 
         @if (_selected is not null)
         {
-            <div class="card mt-3">
+            <div class="card mt-3 archive-details-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <strong>Archivdetails: @_selected.EinsatzNummer</strong>
                     <div class="d-flex gap-2">

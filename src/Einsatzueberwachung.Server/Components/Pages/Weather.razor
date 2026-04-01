@@ -7,16 +7,30 @@
 <PageTitle>Wetter</PageTitle>
 
 <div class="container py-4">
-    <h1>Wetter</h1>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <div>
+            <h1 class="mb-1"><i class="bi bi-cloud-sun me-2"></i>Wetter & Flugwetter</h1>
+            <p class="text-muted mb-0">Daten vom Deutschen Wetterdienst (DWD)</p>
+        </div>
+    </div>
 
-    <div class="input-group mb-3">
-        <InputText class="form-control" @bind-Value="_address" placeholder="Ort eingeben" />
-        <button class="btn btn-primary" @onclick="LoadWeatherAsync">Aktualisieren</button>
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="input-group">
+                <InputText class="form-control" @bind-Value="_address" placeholder="Ort eingeben" />
+                <button class="btn btn-success" @onclick="LoadWeatherAsync">Wetter abrufen</button>
+                <button class="btn btn-outline-secondary" @onclick="LoadWeatherAsync">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Aktualisieren
+                </button>
+            </div>
+        </div>
     </div>
 
     @if (_loading)
     {
-        <p>Lade Wetterdaten...</p>
+        <div class="card">
+            <div class="card-body text-muted">Lade Wetterdaten...</div>
+        </div>
     }
     else if (!string.IsNullOrWhiteSpace(_errorMessage))
     {
@@ -38,57 +52,94 @@
         </div>
 
         <div class="row g-3">
-            <div class="col-12 col-md-4">
-                <div class="card"><div class="card-body"><strong>Temperatur:</strong> @_weather.TemperaturFormatiert</div></div>
+            <div class="col-12 col-xl-5">
+                <div class="card h-100">
+                    <div class="card-header"><i class="bi bi-thermometer-half me-2"></i>Aktuelles Wetter</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="weather-metric-tile">
+                                    <div class="weather-metric-value">@_weather.TemperaturFormatiert</div>
+                                    <div class="weather-metric-label">Temperatur</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="weather-metric-tile">
+                                    <div class="weather-metric-value">@_weather.WindFormatiert</div>
+                                    <div class="weather-metric-label">Wind</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="weather-metric-tile">
+                                    <div class="weather-metric-value">@_weather.LuftfeuchtigkeitFormatiert</div>
+                                    <div class="weather-metric-label">Luftfeuchtigkeit</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="weather-metric-tile">
+                                    <div class="weather-metric-value">@_weather.Luftdruck.ToString("0") hPa</div>
+                                    <div class="weather-metric-label">Luftdruck</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="weather-metric-tile">
+                                    <div class="weather-metric-value">@_weather.Sichtweite.ToString("0.0") km</div>
+                                    <div class="weather-metric-label">Sichtweite</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="weather-metric-tile">
+                                    <div class="weather-metric-value">@_weather.Wetterlage</div>
+                                    <div class="weather-metric-label">Wetterlage</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-12 col-md-4">
-                <div class="card"><div class="card-body"><strong>Wind:</strong> @_weather.WindFormatiert</div></div>
-            </div>
-            <div class="col-12 col-md-4">
-                <div class="card"><div class="card-body"><strong>Luftfeuchte:</strong> @_weather.LuftfeuchtigkeitFormatiert</div></div>
-            </div>
-            <div class="col-12 col-md-4">
-                <div class="card"><div class="card-body"><strong>Wetterlage:</strong> @_weather.Wetterlage</div></div>
-            </div>
-            <div class="col-12 col-md-4">
-                <div class="card"><div class="card-body"><strong>Sichtweite:</strong> @_weather.Sichtweite.ToString("0.0") km</div></div>
-            </div>
-            <div class="col-12 col-md-4">
-                <div class="card"><div class="card-body"><strong>Luftdruck:</strong> @_weather.Luftdruck.ToString("0") hPa</div></div>
+
+            <div class="col-12 col-xl-7">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-airplane-engines me-2"></i>Flugbedingungen im Detail</span>
+                        @if (_flugwetter is not null)
+                        {
+                            <span class="badge @_flugwetter.GetKategorieBadgeClass()">@_flugwetter.GetKategorieText()</span>
+                        }
+                    </div>
+                    <div class="card-body">
+                        @if (_flugwetter is null)
+                        {
+                            <p class="text-muted mb-0">Keine Flugwetterdaten verfuegbar.</p>
+                        }
+                        else
+                        {
+                            <div class="weather-detail-list">
+                                <div class="weather-detail-row"><span>Windgeschwindigkeit</span><strong>@_flugwetter.Windgeschwindigkeit.ToString("0") km/h</strong></div>
+                                <div class="weather-detail-row"><span>Windboeen</span><strong>@_flugwetter.Windboeen.ToString("0") km/h</strong></div>
+                                <div class="weather-detail-row"><span>Sichtweite</span><strong>@_flugwetter.Sichtweite.ToString("0.0") km</strong></div>
+                                <div class="weather-detail-row"><span>Wolkenuntergrenze</span><strong>@_flugwetter.WolkenuntergrenzeFuss ft</strong></div>
+                                <div class="weather-detail-row"><span>QNH</span><strong>@_flugwetter.QNH hPa</strong></div>
+                            </div>
+
+                            <div class="alert @(_flugwetter.IstDrohnenflugMoeglich ? "alert-success" : "alert-danger") mt-3 mb-0">
+                                <strong>@(_flugwetter.IstDrohnenflugMoeglich ? "Drohnenflug moeglich" : "Drohnenflug kritisch"):</strong>
+                                @_flugwetter.DrohnenflugHinweis
+                            </div>
+                        }
+                    </div>
+                </div>
             </div>
         </div>
-
-        @if (_flugwetter is not null)
-        {
-            <div class="card mt-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <strong>Flugwetter</strong>
-                    <span class="badge @_flugwetter.GetKategorieBadgeClass()">@_flugwetter.GetKategorieText()</span>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-12 col-md-4"><strong>Wind:</strong> @_flugwetter.Windgeschwindigkeit.ToString("0") km/h (@_flugwetter.WindrichtungText)</div>
-                        <div class="col-12 col-md-4"><strong>Boeen:</strong> @_flugwetter.Windboeen.ToString("0") km/h</div>
-                        <div class="col-12 col-md-4"><strong>Sicht:</strong> @_flugwetter.Sichtweite.ToString("0.0") km</div>
-                        <div class="col-12 col-md-4"><strong>Wolkenuntergrenze:</strong> @_flugwetter.WolkenuntergrenzeFuss ft</div>
-                        <div class="col-12 col-md-4"><strong>QNH:</strong> @_flugwetter.QNH hPa</div>
-                    </div>
-                    <div class="alert @(_flugwetter.IstDrohnenflugMoeglich ? "alert-success" : "alert-danger") mt-3 mb-0">
-                        <strong>@(_flugwetter.IstDrohnenflugMoeglich ? "Drohnenflug moeglich" : "Drohnenflug kritisch"):</strong>
-                        @_flugwetter.DrohnenflugHinweis
-                    </div>
-                </div>
-            </div>
-        }
 
         @if (_forecast?.StundenVorhersage?.Length > 0)
         {
             <div class="card mt-4">
                 <div class="card-header">
-                    <strong>Vorhersage (naechste Stunden)</strong>
+                    <strong>Stundenvorhersage</strong>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-sm table-striped mb-0 align-middle">
+                    <table class="table table-sm mb-0 align-middle weather-hourly-table">
                         <thead>
                             <tr>
                                 <th>Zeit</th>

@@ -57,12 +57,6 @@ builder.Services.AddResponseCaching();
 
 // HttpClient für externe API-Calls
 builder.Services.AddHttpClient();
-builder.Services.AddSingleton<GitHubUpdateService>(sp =>
-{
-    var factory = sp.GetRequiredService<IHttpClientFactory>();
-    var logger = sp.GetRequiredService<ILogger<GitHubUpdateService>>();
-    return new GitHubUpdateService(factory.CreateClient(nameof(GitHubUpdateService)), logger);
-});
 
 // SignalR für Echtzeit-Updates
 builder.Services.AddSignalR(options =>
@@ -101,6 +95,14 @@ builder.Services.AddSingleton<IExcelExportService, ExcelExportService>();
 builder.Services.AddSingleton<IArchivService, ArchivService>();
 builder.Services.AddSingleton<ToastService>();
 builder.Services.AddSingleton<ThemeService>();
+
+builder.Services.AddSingleton<GitHubUpdateService>(sp =>
+{
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    var logger = sp.GetRequiredService<ILogger<GitHubUpdateService>>();
+    var settingsService = sp.GetRequiredService<ISettingsService>();
+    return new GitHubUpdateService(factory.CreateClient(nameof(GitHubUpdateService)), logger, settingsService);
+});
 
 // Wetter-Service (DWD via BrightSky API)
 builder.Services.AddHttpClient<IWeatherService, DwdWeatherService>();
@@ -226,6 +228,12 @@ app.MapGet("/downloads/stammdaten.xlsx", async (IExcelExportService excelExportS
 {
     var bytes = await excelExportService.ExportStammdatenAsync();
     return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "stammdaten.xlsx");
+});
+
+app.MapGet("/downloads/stammdaten-template.xlsx", async (IExcelExportService excelExportService) =>
+{
+    var bytes = await excelExportService.CreateImportTemplateAsync();
+    return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "stammdaten-template.xlsx");
 });
 
 app.MapGet("/downloads/data-backup.zip", () =>

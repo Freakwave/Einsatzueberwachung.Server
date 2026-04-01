@@ -12,40 +12,53 @@
 
 <PageTitle>Einstellungen</PageTitle>
 
-<div class="container py-4">
-    <h1>Einstellungen</h1>
+<div class="container py-4 settings-page">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <div>
+            <h1 class="mb-1"><i class="bi bi-gear-fill me-2"></i>Einstellungen</h1>
+            <p class="text-muted mb-0">Staffel-Daten und App-Konfiguration</p>
+        </div>
+    </div>
 
     <div class="row g-4">
         <div class="col-12 col-xl-6">
             <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="h4 mb-0"><i class="bi bi-building me-2"></i>Staffel-Informationen</h2>
+                </div>
                 <div class="card-body">
-                    <h2 class="h4 mb-3">Staffel</h2>
-
                     <div class="mb-3">
-                        <label class="form-label">Staffelname</label>
-                        <InputText class="form-control" @bind-Value="_staffelSettings.StaffelName" />
+                        <label class="form-label">Staffel-Name</label>
+                        <InputText class="form-control" placeholder="z.B. RHS Speyer" @bind-Value="_staffelSettings.StaffelName" />
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Adresse</label>
-                        <InputText class="form-control" @bind-Value="_staffelSettings.StaffelAdresse" />
+                        <InputText class="form-control" placeholder="Straße, PLZ Ort" @bind-Value="_staffelSettings.StaffelAdresse" />
                     </div>
 
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
                             <label class="form-label">Telefon</label>
-                            <InputText class="form-control" @bind-Value="_staffelSettings.StaffelTelefon" />
+                            <InputText class="form-control" placeholder="+49 123 456789" @bind-Value="_staffelSettings.StaffelTelefon" />
                         </div>
 
                         <div class="col-12 col-md-6">
                             <label class="form-label">E-Mail</label>
-                            <InputText class="form-control" @bind-Value="_staffelSettings.StaffelEmail" />
+                            <InputText class="form-control" placeholder="kontakt@staffel.de" @bind-Value="_staffelSettings.StaffelEmail" />
                         </div>
                     </div>
 
                     <div class="mt-3">
                         <label class="form-label">Logo-Pfad</label>
-                        <InputText class="form-control" @bind-Value="_staffelSettings.StaffelLogoPfad" />
+                        <InputText class="form-control" placeholder="Pfad zum Logo" @bind-Value="_staffelSettings.StaffelLogoPfad" />
+                        <div class="form-text">Pfad zu einer Bilddatei für den PDF-Export</div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button class="btn btn-success w-100" @onclick="SaveAsync">
+                            <i class="bi bi-floppy-fill me-1"></i>Speichern
+                        </button>
                     </div>
                 </div>
             </div>
@@ -53,53 +66,134 @@
 
         <div class="col-12 col-xl-6">
             <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="h4 mb-0"><i class="bi bi-palette-fill me-2"></i>Darstellung</h2>
+                </div>
                 <div class="card-body">
-                    <h2 class="h4 mb-3">Anwendung</h2>
+                    <div class="mb-3">
+                        <label class="form-label">Theme-Modus</label>
+                        <InputSelect class="form-select" @bind-Value="_appSettings.ThemeMode">
+                            <option value="Manual">Manuell (per Button umschalten)</option>
+                            <option value="Auto">Automatisch (Systemmodus)</option>
+                            <option value="Scheduled">Geplant (Zeitfenster)</option>
+                        </InputSelect>
+                    </div>
 
-                    <div class="form-check form-switch mb-3">
-                        <InputCheckbox class="form-check-input" id="darkMode" @bind-Value="_appSettings.IsDarkMode" />
-                        <label class="form-check-label" for="darkMode">Dark Mode aktiv</label>
+                    <div class="mb-3">
+                        <label class="form-label">Design-Modus</label>
+                        <div class="settings-segmented">
+                            <button type="button"
+                                    class="btn @(_appSettings.IsDarkMode ? "btn-outline-light" : "btn-light")"
+                                    @onclick="() => SetDesignMode(false)">
+                                <i class="bi bi-brightness-high me-1"></i>Hell
+                            </button>
+                            <button type="button"
+                                    class="btn @(_appSettings.IsDarkMode ? "btn-secondary" : "btn-outline-secondary")"
+                                    @onclick="() => SetDesignMode(true)">
+                                <i class="bi bi-moon-stars me-1"></i>Dunkel
+                            </button>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h3 class="h5 mb-3"><i class="bi bi-alarm me-1"></i>Timer-Warnungen (Standard)</h3>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Erste Warnung (Minuten)</label>
+                            <InputNumber class="form-control" @bind-Value="_appSettings.DefaultFirstWarningMinutes" />
+                            <div class="form-text">Standard: 45 Minuten</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Zweite Warnung (Minuten)</label>
+                            <InputNumber class="form-control" @bind-Value="_appSettings.DefaultSecondWarningMinutes" />
+                            <div class="form-text">Standard: 60 Minuten</div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h3 class="h5 mb-3"><i class="bi bi-volume-up me-1"></i>Sound-Warnungen</h3>
+                    <div class="form-check form-switch mb-2">
+                        <InputCheckbox class="form-check-input" id="soundAlerts" @bind-Value="_appSettings.SoundAlertsEnabled" />
+                        <label class="form-check-label" for="soundAlerts">Akustische Warnungen aktiviert</label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Lautstärke: @_appSettings.SoundVolume%</label>
+                        <input class="form-range" type="range" min="0" max="100" @bind="_appSettings.SoundVolume" />
                     </div>
 
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Erste Warnung (Minuten)</label>
-                            <InputNumber class="form-control" @bind-Value="_appSettings.DefaultFirstWarningMinutes" />
+                            <label class="form-label">Erste Warnung - Sound</label>
+                            <InputSelect class="form-select" @bind-Value="_appSettings.FirstWarningSound">
+                                <option value="beep">Signalton</option>
+                                <option value="bell">Glocke</option>
+                                <option value="alarm">Alarm</option>
+                            </InputSelect>
                         </div>
-
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Zweite Warnung (Minuten)</label>
-                            <InputNumber class="form-control" @bind-Value="_appSettings.DefaultSecondWarningMinutes" />
+                            <label class="form-label">Frequenz (Hz)</label>
+                            <InputNumber class="form-control" @bind-Value="_appSettings.FirstWarningFrequency" />
+                            <div class="form-text">Standard: 800 Hz</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Kritische Warnung - Sound</label>
+                            <InputSelect class="form-select" @bind-Value="_appSettings.SecondWarningSound">
+                                <option value="beep">Signalton</option>
+                                <option value="bell">Glocke</option>
+                                <option value="alarm">Alarm (Standard)</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Frequenz (Hz)</label>
+                            <InputNumber class="form-control" @bind-Value="_appSettings.SecondWarningFrequency" />
+                            <div class="form-text">Standard: 1200 Hz</div>
                         </div>
                     </div>
 
-                    <div class="mt-3">
+                    <div class="form-check form-switch mt-3">
+                        <InputCheckbox class="form-check-input" id="repeatSecondWarning" @bind-Value="_appSettings.RepeatSecondWarning" />
+                        <label class="form-check-label" for="repeatSecondWarning">Kritische Warnung wiederholen</label>
+                    </div>
+
+                    <div class="mt-2">
+                        <label class="form-label">Wiederholungs-Intervall (Sekunden)</label>
+                        <InputNumber class="form-control" @bind-Value="_appSettings.RepeatWarningIntervalSeconds" />
+                        <div class="form-text">Standard: 30 Sekunden</div>
+                    </div>
+
+                    <hr />
+
+                    <h3 class="h5 mb-3"><i class="bi bi-arrow-repeat me-1"></i>Updates</h3>
+                    <div class="mb-2">
                         <label class="form-label">Update-URL</label>
-                        <InputText class="form-control" @bind-Value="_appSettings.UpdateUrl" />
+                        <InputText class="form-control" placeholder="https://..." @bind-Value="_appSettings.UpdateUrl" />
                     </div>
 
-                    <div class="form-check mt-3">
+                    <div class="form-check mb-3">
                         <InputCheckbox class="form-check-input" id="autoUpdates" @bind-Value="_appSettings.AutoCheckUpdates" />
-                        <label class="form-check-label" for="autoUpdates">Updates automatisch pruefen</label>
+                        <label class="form-check-label" for="autoUpdates">Automatisch nach Updates suchen</label>
                     </div>
 
-                    <div class="form-check mt-2">
-                        <InputCheckbox class="form-check-input" id="soundAlerts" @bind-Value="_appSettings.SoundAlertsEnabled" />
-                        <label class="form-check-label" for="soundAlerts">Sound-Warnungen aktiv</label>
-                    </div>
-
-                    <div class="mt-3">
-                        <label class="form-label">Lautstaerke</label>
-                        <InputNumber class="form-control" @bind-Value="_appSettings.SoundVolume" />
-                    </div>
+                    <button class="btn btn-success w-100" @onclick="SaveAsync">
+                        <i class="bi bi-floppy-fill me-1"></i>Speichern
+                    </button>
                 </div>
             </div>
         </div>
 
         <div class="col-12 col-xl-6">
             <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="h4 mb-0"><i class="bi bi-info-circle me-2"></i>System-Information</h2>
+                </div>
                 <div class="card-body">
-                    <h2 class="h4 mb-3">Dateien und Speicherorte</h2>
+                    <div class="mb-2"><strong>Version:</strong> 4.3.5</div>
+                    <div class="mb-2"><strong>Framework:</strong> .NET 8 / Blazor Server</div>
+                    <div class="mb-3"><strong>Plattform:</strong> Web-basiert</div>
 
                     <dl class="row mb-0">
                         <dt class="col-sm-4">Datenpfad</dt>
@@ -122,25 +216,12 @@
             </div>
         </div>
 
-        <div class="col-12 col-xl-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h2 class="h4 mb-3">System</h2>
-                    <p class="text-muted mb-3">Die Einstellungen werden serverseitig gespeichert und beim naechsten Start weiterverwendet.</p>
-
-                    <div class="d-flex flex-wrap gap-2">
-                        <button class="btn btn-primary" @onclick="SaveAsync">Einstellungen speichern</button>
-                        <a class="btn btn-outline-primary" href="@GetDownloadUrl("/mobile-connect")">Mobile Verbindung</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="col-12">
             <div class="card">
+                <div class="card-header">
+                    <h2 class="h4 mb-0"><i class="bi bi-database-gear me-2"></i>Wartung und Datenverwaltung</h2>
+                </div>
                 <div class="card-body">
-                    <h2 class="h4 mb-3">Wartung und Datenverwaltung</h2>
-
                     <div class="d-flex flex-wrap gap-2 mb-3">
                         <a class="btn btn-outline-success" href="@GetDownloadUrl("/downloads/data-backup.zip")">Daten-Backup herunterladen (ZIP)</a>
                         <button class="btn btn-outline-danger" @onclick="ConfirmResetDataAsync">Daten auf Standard zuruecksetzen</button>
@@ -224,6 +305,11 @@
         await SettingsService.SaveStaffelSettingsAsync(_staffelSettings);
         await SettingsService.SaveAppSettingsAsync(_appSettings);
         _status = "Einstellungen gespeichert.";
+    }
+
+    private void SetDesignMode(bool darkMode)
+    {
+        _appSettings.IsDarkMode = darkMode;
     }
 
     private async Task ResetDataAsync()

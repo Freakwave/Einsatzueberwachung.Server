@@ -1,59 +1,91 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="/">Einsatzueberwachung</a>
+﻿<div class="top-row navbar navbar-dark">
+    <div class="container-fluid nav-brand-row">
+        <a class="navbar-brand" href="/" title="Startseite">
+            <i class="bi bi-radar brand-icon"></i>
+            <span class="brand-text">Einsatzüberwachung</span>
+        </a>
+        <button class="btn-sidebar-toggle" type="button" title="Sidebar ein-/ausblenden" @onclick="() => OnToggleSidebar.InvokeAsync()">
+            <i class="bi bi-chevron-left toggle-icon"></i>
+        </button>
     </div>
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">Startseite</NavLink>
+<div class="nav-scrollable">
+    <nav class="nav flex-column nav-wrapper">
+        <div class="nav-item px-2">
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+                <span class="nav-icon"><i class="bi bi-house-door-fill"></i></span>
+                <span class="nav-text">Home</span>
+            </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/einsatz-start">EinsatzStart</NavLink>
+        <div class="nav-section-header">EINSATZ</div>
+
+        <div class="nav-item px-2">
+            <NavLink class="nav-link" href="/einsatz-start">
+                <span class="nav-icon"><i class="bi bi-alarm"></i></span>
+                <span class="nav-text">Neuer Einsatz</span>
+            </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/einsatz-monitor">EinsatzMonitor</NavLink>
+        <div class="nav-item px-2">
+            <NavLink class="nav-link" href="/einsatz-monitor">
+                <span class="nav-icon"><i class="bi bi-bar-chart-fill"></i></span>
+                <span class="nav-text">Monitor</span>
+            </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/einsatz-karte">EinsatzKarte</NavLink>
+        <div class="nav-item px-2">
+            <NavLink class="nav-link" href="/einsatz-karte">
+                <span class="nav-icon"><i class="bi bi-map-fill"></i></span>
+                <span class="nav-text">Karte</span>
+            </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/einsatz-bericht">EinsatzBericht</NavLink>
+        <div class="nav-item px-2">
+            <NavLink class="nav-link" href="/einsatz-bericht">
+                <span class="nav-icon"><i class="bi bi-file-earmark-text-fill"></i></span>
+                <span class="nav-text">Bericht</span>
+            </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/einsatz-archiv">EinsatzArchiv</NavLink>
+        <div class="nav-item px-2">
+            <NavLink class="nav-link" href="/mobile-connect">
+                <span class="nav-icon"><i class="bi bi-qr-code"></i></span>
+                <span class="nav-text">Mobile QR-Code</span>
+            </NavLink>
+        </div>
+        <div class="nav-item px-2">
+            <NavLink class="nav-link" href="/einsatz-archiv">
+                <span class="nav-icon"><i class="bi bi-archive-fill"></i></span>
+                <span class="nav-text">Archiv</span>
+            </NavLink>
+        </div>
+        <div class="nav-item px-2">
+            <NavLink class="nav-link" href="/wetter">
+                <span class="nav-icon"><i class="bi bi-cloud-sun-fill"></i></span>
+                <span class="nav-text">Wetter</span>
+            </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/stammdaten">Stammdaten</NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/einstellungen">Einstellungen</NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/wetter">Wetter</NavLink>
-        </div>
+        <div class="nav-section-header">VERWALTUNG</div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/popout-notes">PopoutNotes</NavLink>
+        <div class="nav-item px-2">
+            <NavLink class="nav-link" href="/stammdaten">
+                <span class="nav-icon"><i class="bi bi-journal-medical"></i></span>
+                <span class="nav-text">Stammdaten</span>
+            </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/popout-teams">PopoutTeams</NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/mobile-connect">MobileConnect</NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/mobile-dashboard">MobileDashboard</NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/mobile-karte">MobileKarte</NavLink>
+        <div class="nav-item px-2">
+            <NavLink class="nav-link" href="/einstellungen">
+                <span class="nav-icon"><i class="bi bi-gear-fill"></i></span>
+                <span class="nav-text">Einstellungen</span>
+            </NavLink>
         </div>
     </nav>
 </div>
+
+@code {
+    [Parameter]
+    public bool IsCollapsed { get; set; }
+
+    [Parameter]
+    public EventCallback OnToggleSidebar { get; set; }
+}
 

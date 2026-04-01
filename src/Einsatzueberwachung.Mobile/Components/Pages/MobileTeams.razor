@@ -7,9 +7,9 @@
 <PageTitle>Teams</PageTitle>
 
 <section class="mobile-card">
-    <h1>Team-Uebersicht</h1>
+    <h1><i class="bi bi-people me-2"></i>Team-Uebersicht</h1>
     <p class="subline">Aktive Teams mit Status und Laufzeit</p>
-    <button class="btn btn-outline-secondary mobile-btn mb-2" @onclick="RefreshTeamsAsync">Aktualisieren</button>
+    <button class="btn btn-outline-secondary mobile-btn mb-2" @onclick="RefreshTeamsAsync"><i class="bi bi-arrow-clockwise me-1"></i>Aktualisieren</button>
 
     <PullToRefreshPanel OnRefresh="RefreshTeamsAsync">
         @if (_teams.Count == 0)

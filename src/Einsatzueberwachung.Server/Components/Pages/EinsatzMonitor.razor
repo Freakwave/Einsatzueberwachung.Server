@@ -10,8 +10,52 @@
 
 <PageTitle>Einsatz-Monitor</PageTitle>
 
-<div class="container py-4">
-    <h1>Einsatz-Monitor</h1>
+<div class="container py-4 monitor-page">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <div>
+            <h1 class="mb-1"><i class="bi bi-broadcast-pin me-2"></i>Einsatzmonitor</h1>
+            <p class="text-muted mb-0">Live-Status von Teams, Notizen und Funkspruechen</p>
+        </div>
+
+        <div class="monitor-quick-actions">
+            <a class="btn btn-info" href="/einsatz-karte">
+                <i class="bi bi-map me-1"></i>Karte
+            </a>
+            <a class="btn btn-primary" href="/einsatz-bericht">
+                <i class="bi bi-file-earmark-text me-1"></i>Bericht
+            </a>
+            <a class="btn btn-danger" href="/einsatz-bericht">
+                <i class="bi bi-stop-circle me-1"></i>Beenden
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="monitor-stat-card">
+                <div class="monitor-stat-label">Aktive Teams</div>
+                <div class="monitor-stat-value">@EinsatzService.Teams.Count</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="monitor-stat-card">
+                <div class="monitor-stat-label">Laufend</div>
+                <div class="monitor-stat-value">@EinsatzService.Teams.Count(t => t.IsRunning)</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="monitor-stat-card monitor-stat-warning">
+                <div class="monitor-stat-label">Warnstufe Rot</div>
+                <div class="monitor-stat-value">@EinsatzService.Teams.Count(t => t.IsSecondWarning)</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="monitor-stat-card">
+                <div class="monitor-stat-label">Notizen/Funk</div>
+                <div class="monitor-stat-value">@EinsatzService.GlobalNotes.Count</div>
+            </div>
+        </div>
+    </div>
 
     <div class="row g-3 mb-4">
         <div class="col-12 col-xl-4">
@@ -260,7 +304,7 @@
     <div class="row g-3 mb-4">
         <div class="col-12 col-lg-5">
             <div class="card">
-                <div class="card-header">Notizen und Funk</div>
+                <div class="card-header"><i class="bi bi-chat-left-text me-1"></i>Notizen und Funk</div>
                 <div class="card-body">
                     <div class="input-group mb-3">
                         <input class="form-control" placeholder="Neue Notiz/Funk" @bind="_newNoteText" />
@@ -345,7 +389,7 @@
 
         <div class="col-12 col-lg-7">
             <div class="card">
-                <div class="card-header">Einsatzlage</div>
+                <div class="card-header"><i class="bi bi-geo-alt me-1"></i>Einsatzlage</div>
                 <div class="card-body">
                     <dl class="row mb-0">
                         <dt class="col-sm-4">Einsatztyp</dt>

@@ -2,12 +2,14 @@
 @rendermode InteractiveServer
 
 @inject IMasterDataService MasterDataService
+@inject IExcelExportService ExcelExportService
 @inject NavigationManager Navigation
 
 <PageTitle>Stammdaten</PageTitle>
 
 <div class="container py-4">
-    <h1>Stammdaten</h1>
+    <h1 class="mb-1">Stammdaten-Verwaltung</h1>
+    <p class="text-muted mb-4">Personal, Hunde und Drohnen verwalten</p>
 
     <div class="row g-3 mb-3">
         <div class="col-12 col-md-4">
@@ -21,13 +23,29 @@
         </div>
     </div>
 
-    <div class="d-flex flex-wrap gap-2 mb-4">
-        <a class="btn btn-outline-primary" href="@GetDownloadUrl("/downloads/stammdaten.xlsx")">Excel Export herunterladen</a>
-        <button class="btn btn-outline-secondary" @onclick="RefreshAsync">Neu laden</button>
+    <div class="stammdaten-toolbar d-flex flex-wrap gap-2 mb-4 align-items-center">
+        <a class="btn btn-outline-primary" href="@GetDownloadUrl("/downloads/stammdaten.xlsx")">
+            <i class="bi bi-file-earmark-excel me-1"></i>Exportieren
+        </a>
+        <a class="btn btn-outline-secondary" href="@GetDownloadUrl("/downloads/stammdaten-template.xlsx")">
+            <i class="bi bi-download me-1"></i>Vorlage
+        </a>
+        <div class="stammdaten-import-picker">
+            <InputFile OnChange="HandleImportAsync" accept=".xlsx" disabled="@_isImporting" />
+        </div>
+        <button class="btn btn-outline-secondary" @onclick="RefreshAsync" disabled="@_isImporting">
+            <i class="bi bi-arrow-clockwise me-1"></i>Neu laden
+        </button>
+    </div>
+
+    <div class="stammdaten-tabs mb-3">
+        <button class="btn @GetTabButtonClass("personal")" @onclick='() => SetActiveTab("personal")'>Personal</button>
+        <button class="btn @GetTabButtonClass("dogs")" @onclick='() => SetActiveTab("dogs")'>Hunde</button>
+        <button class="btn @GetTabButtonClass("drones")" @onclick='() => SetActiveTab("drones")'>Drohnen</button>
     </div>
 
     <div class="row g-4">
-        <div class="col-12">
+        <div class="col-12 @GetTabPaneClass("personal")">
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -119,7 +137,7 @@
             </div>
         </div>
 
-        <div class="col-12">
+        <div class="col-12 @GetTabPaneClass("dogs")">
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -228,7 +246,7 @@
             </div>
         </div>
 
-        <div class="col-12">
+        <div class="col-12 @GetTabPaneClass("drones")">
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -344,7 +362,9 @@
     private int _personalCount;
     private int _dogCount;
     private int _droneCount;
+    private bool _isImporting;
     private string _status = string.Empty;
+    private string _activeTab = "personal";
     private List<PersonalEntry> _personal = new();
     private List<DogEntry> _dogs = new();
     private List<DroneEntry> _drones = new();
@@ -369,6 +389,54 @@
         _personalCount = _personal.Count;
         _dogCount = _dogs.Count;
         _droneCount = _drones.Count;
+    }
+
+    private async Task HandleImportAsync(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (file is null)
+        {
+            _status = "Keine Datei ausgewaehlt.";
+            return;
+        }
+
+        if (!file.Name.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            _status = "Bitte eine .xlsx Datei auswaehlen.";
+            return;
+        }
+
+        _isImporting = true;
+        _status = "Import laeuft...";
+
+        try
+        {
+            await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+
+            var importResult = await ExcelExportService.ImportStammdatenAsync(memory.ToArray());
+            if (!importResult.Success)
+            {
+                _status = importResult.Message;
+                return;
+            }
+
+            var warningInfo = importResult.Warnings.Count > 0
+                ? $" Warnungen: {importResult.Warnings.Count}."
+                : string.Empty;
+
+            _status = $"Import abgeschlossen: {importResult.TotalImported} importiert, {importResult.TotalSkipped} uebersprungen.{warningInfo}";
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            _status = $"Fehler beim Import: {ex.Message}";
+        }
+        finally
+        {
+            _isImporting = false;
+        }
     }
 
     private async Task SavePersonalAsync()
@@ -542,6 +610,21 @@
     private string GetDownloadUrl(string relativePath)
     {
         return new Uri(new Uri(Navigation.BaseUri), relativePath.TrimStart('/')).ToString();
+    }
+
+    private void SetActiveTab(string tab)
+    {
+        _activeTab = tab;
+    }
+
+    private string GetTabButtonClass(string tab)
+    {
+        return _activeTab == tab ? "btn-primary" : "btn-outline-secondary";
+    }
+
+    private string GetTabPaneClass(string tab)
+    {
+        return _activeTab == tab ? string.Empty : "d-none";
     }
 
     private static PersonalEntry ClonePersonal(PersonalEntry source)

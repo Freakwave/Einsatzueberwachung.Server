@@ -6,8 +6,8 @@
 
 <PageTitle>Popout Notizen</PageTitle>
 
-<div class="container py-3">
-    <h1>Popout Notizen</h1>
+<div class="container py-3 popout-page">
+    <h1 class="mb-1"><i class="bi bi-chat-left-text me-2"></i>Notizen & Funksprueche</h1>
     <p class="text-muted">Separates Fenster fuer Notizen und Funksprueche.</p>
 
     <div class="d-flex gap-2 mb-3">
@@ -27,7 +27,7 @@
     {
         @foreach (var note in _notes)
         {
-            <div class="card mb-2">
+            <div class="card mb-2 popout-entry-card">
                 <div class="card-body py-2">
                     <div class="d-flex justify-content-between">
                         <strong>@(string.IsNullOrWhiteSpace(note.SourceTeamName) ? "System" : note.SourceTeamName)</strong>
@@ -52,7 +52,7 @@
                         }
                         else
                         {
-                            <div class="small border rounded p-2 mb-2 bg-light-subtle">
+                            <div class="small border rounded p-2 mb-2 popout-history-box">
                                 @foreach (var history in historyEntries)
                                 {
                                     <div class="mb-1">

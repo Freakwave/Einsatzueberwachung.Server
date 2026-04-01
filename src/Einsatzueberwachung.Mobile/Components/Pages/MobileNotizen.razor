@@ -6,15 +6,15 @@
 <PageTitle>Notizen</PageTitle>
 
 <section class="mobile-card">
-    <h1>Notizen</h1>
-    <button class="btn btn-outline-secondary mobile-btn mb-2" @onclick="RefreshNotesAsync">Aktualisieren</button>
+    <h1><i class="bi bi-journal-text me-2"></i>Notizen</h1>
+    <button class="btn btn-outline-secondary mobile-btn mb-2" @onclick="RefreshNotesAsync"><i class="bi bi-arrow-clockwise me-1"></i>Aktualisieren</button>
 
     <EditForm OnSubmit="AddNoteAsync">
         <div class="mobile-field">
             <label for="noteText">Neue Notiz</label>
             <InputTextArea id="noteText" class="form-control" @bind-Value="_text" />
         </div>
-        <button class="btn btn-primary mobile-btn" type="submit">Senden</button>
+        <button class="btn btn-primary mobile-btn" type="submit"><i class="bi bi-send me-1"></i>Senden</button>
     </EditForm>
 
     <PullToRefreshPanel OnRefresh="RefreshNotesAsync">

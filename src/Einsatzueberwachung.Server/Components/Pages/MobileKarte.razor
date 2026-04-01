@@ -6,9 +6,9 @@
 
 <PageTitle>Mobile Karte</PageTitle>
 
-<div style="display:flex;flex-direction:column;height:calc(100vh - 60px);">
+<div class="mobile-map-page" style="display:flex;flex-direction:column;height:calc(100vh - 60px);">
     <!-- Toolbar -->
-    <div class="d-flex align-items-center gap-2 p-2 border-bottom bg-body flex-wrap">
+    <div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap mobile-map-toolbar">
         <span class="fw-semibold small me-auto"><i class="bi bi-map me-1 text-primary"></i>Einsatzkarte (Lesemodus)</span>
         <button class="btn btn-sm btn-outline-secondary" @onclick="CenterMapAsync">
             <i class="bi bi-geo-alt"></i> Zentrieren
@@ -30,6 +30,7 @@
 
 @code {
     private bool _mapInit;
+    private Action<Team>? _teamUpdatedHandler;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -40,8 +41,9 @@
             await RenderAreasAsync(areas);
             _mapInit = true;
 
+            _teamUpdatedHandler = _ => OnChanged();
             EinsatzService.EinsatzChanged += OnChanged;
-            EinsatzService.TeamUpdated += _ => OnChanged();
+            EinsatzService.TeamUpdated += _teamUpdatedHandler;
         }
     }
 
@@ -76,6 +78,9 @@
     public void Dispose()
     {
         EinsatzService.EinsatzChanged -= OnChanged;
-        EinsatzService.TeamUpdated -= _ => OnChanged();
+        if (_teamUpdatedHandler is not null)
+        {
+            EinsatzService.TeamUpdated -= _teamUpdatedHandler;
+        }
     }
 }

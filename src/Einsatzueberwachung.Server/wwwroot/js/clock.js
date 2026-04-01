@@ -1,5 +1,11 @@
 // Live-Uhr Initialisierung und Update
+let clockIntervalId = null;
+
 function initializeClock() {
+    if (clockIntervalId !== null) {
+        return;
+    }
+
     function updateClock() {
         const now = new Date();
         const timeEl = document.getElementById('live-time');
@@ -24,5 +30,11 @@ function initializeClock() {
     updateClock();
     
     // Update every second
-    setInterval(updateClock, 1000);
+    clockIntervalId = setInterval(updateClock, 1000);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeClock);
+} else {
+    initializeClock();
 }

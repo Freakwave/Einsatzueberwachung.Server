@@ -3,24 +3,29 @@
 
 <PageTitle>Error</PageTitle>
 
-<h1 class="text-danger">Fehler.</h1>
-<h2 class="text-danger">Bei der Verarbeitung ist ein Fehler aufgetreten.</h2>
+<div class="container py-4">
+    <div class="card error-page-card">
+        <div class="card-header">
+            <h1 class="h4 mb-0 text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Fehler</h1>
+        </div>
+        <div class="card-body">
+            <p class="mb-3">Bei der Verarbeitung ist ein Fehler aufgetreten.</p>
 
-@if (ShowRequestId)
-{
-    <p>
-        <strong>Request-ID:</strong> <code>@RequestId</code>
-    </p>
-}
+            @if (ShowRequestId)
+            {
+                <p>
+                    <strong>Request-ID:</strong> <code>@RequestId</code>
+                </p>
+            }
 
-<h3>Entwicklungsmodus</h3>
-<p>
-    Im Modus <strong>Development</strong> werden detaillierte Fehlerinformationen angezeigt.
-</p>
-<p>
-    <strong>Im produktiven Betrieb sollte Development nicht aktiv sein.</strong>
-    Dadurch koennen sensible Informationen sichtbar werden.
-</p>
+            <h2 class="h5">Hinweis zum Entwicklungsmodus</h2>
+            <p class="mb-0">
+                Im Modus <strong>Development</strong> werden detaillierte Fehlerinformationen angezeigt.
+                Im produktiven Betrieb sollte Development nicht aktiv sein, um sensible Informationen zu schuetzen.
+            </p>
+        </div>
+    </div>
+</div>
 
 @code{
     [CascadingParameter]

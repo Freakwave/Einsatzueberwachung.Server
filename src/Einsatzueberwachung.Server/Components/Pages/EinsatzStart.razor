@@ -7,96 +7,125 @@
 
 <PageTitle>Einsatz anlegen</PageTitle>
 
-<div class="container py-4" style="max-width:780px;">
-    <h1 class="h3 mb-1"><i class="bi bi-plus-circle me-2 text-primary"></i>Einsatz anlegen</h1>
-    <p class="text-muted mb-4">Neuen Einsatz oder Übung erfassen.</p>
+<div class="container py-4 start-page" style="max-width:1150px;">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4 page-headline-row">
+        <div>
+            <h1 class="mb-1"><i class="bi bi-alarm me-2"></i>Neuen Einsatz starten</h1>
+            <p class="text-muted mb-0">Bitte alle wichtigen Einsatzinformationen eingeben.</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="/">
+            <i class="bi bi-arrow-left me-1"></i>Zurueck
+        </a>
+    </div>
 
     <EditForm Model="_model" OnValidSubmit="StartAsync" class="row g-3">
         <DataAnnotationsValidator />
 
-        <!-- Typ und Datum -->
-        <div class="col-12 col-md-4">
-            <label class="form-label fw-semibold">Typ</label>
-            <InputSelect class="form-select" @bind-Value="_model.IstEinsatz">
-                <option value="true">Einsatz</option>
-                <option value="false">Übung</option>
-            </InputSelect>
-        </div>
+        <div class="col-12 col-lg-7">
+            <div class="card h-100 start-section-card">
+                <div class="card-header fw-semibold">
+                    <i class="bi bi-info-circle me-2"></i>Einsatzinformationen
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Typ</label>
+                            <InputSelect class="form-select" @bind-Value="_model.IstEinsatz">
+                                <option value="true">Einsatz</option>
+                                <option value="false">Uebung</option>
+                            </InputSelect>
+                        </div>
 
-        <div class="col-12 col-md-4">
-            <label class="form-label fw-semibold">Alarmzeit</label>
-            <InputText class="form-control" @bind-Value="_model.Alarmiert" placeholder="dd.MM.yyyy HH:mm" />
-        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Alarmzeit</label>
+                            <InputText class="form-control" @bind-Value="_model.Alarmiert" placeholder="dd.MM.yyyy HH:mm" />
+                        </div>
 
-        <div class="col-12 col-md-4">
-            <label class="form-label fw-semibold">Einsatznummer</label>
-            <InputText class="form-control" @bind-Value="_model.EinsatzNummer" placeholder="optional" />
-        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Einsatznummer</label>
+                            <InputText class="form-control" @bind-Value="_model.EinsatzNummer" placeholder="optional" />
+                        </div>
 
-        <!-- Ort -->
-        <div class="col-12 col-md-6">
-            <label class="form-label fw-semibold">Einsatzort <span class="text-danger">*</span></label>
-            <InputText class="form-control" @bind-Value="_model.Einsatzort" placeholder="Straße, Ort oder Koordinate" />
-            <ValidationMessage For="() => _model.Einsatzort" />
-        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Einsatzort <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="_model.Einsatzort" placeholder="Strasse, Ort oder Koordinate" />
+                            <ValidationMessage For="() => _model.Einsatzort" />
+                        </div>
 
-        <div class="col-12 col-md-6">
-            <label class="form-label fw-semibold">Karten-Adresse</label>
-            <InputText class="form-control" @bind-Value="_model.MapAddress" placeholder="für Leaflet-Suche (optional)" />
-        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Karten-Adresse</label>
+                            <InputText class="form-control" @bind-Value="_model.MapAddress" placeholder="fuer Leaflet-Suche (optional)" />
+                        </div>
 
-        <!-- Personal aus Stammdaten -->
-        <div class="col-12 col-md-6">
-            <label class="form-label fw-semibold">Einsatzleiter</label>
-            <div class="input-group">
-                <select class="form-select" @onchange="e => SetEinsatzleiter(e.Value?.ToString())">
-                    <option value="">— aus Stammdaten wählen —</option>
-                    @foreach (var p in _personal)
-                    {
-                        <option value="@p.Id">@p.FullName</option>
-                    }
-                </select>
-                <InputText class="form-control" @bind-Value="_model.Einsatzleiter" placeholder="oder freitext" />
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Melder</label>
+                            <InputText class="form-control" @bind-Value="_model.StaffelName" placeholder="wer hat alarmiert?" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Anzahl Teams (geplant)</label>
+                            <InputNumber class="form-control" @bind-Value="_model.AnzahlTeams" min="1" max="50" />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Bemerkungen</label>
+                            <InputTextArea class="form-control" @bind-Value="_model.ExportPfad" rows="2" placeholder="Lagebeschreibung, Anfahrt, sonstige Hinweise..." />
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="col-12 col-md-6">
-            <label class="form-label fw-semibold">Führungsassistent</label>
-            <div class="input-group">
-                <select class="form-select" @onchange="e => SetFuehrungsassistent(e.Value?.ToString())">
-                    <option value="">— aus Stammdaten wählen —</option>
-                    @foreach (var p in _personal)
-                    {
-                        <option value="@p.Id">@p.FullName</option>
-                    }
-                </select>
-                <InputText class="form-control" @bind-Value="_model.Fuehrungsassistent" placeholder="oder freitext" />
+        <div class="col-12 col-lg-5">
+            <div class="card start-section-card mb-3">
+                <div class="card-header fw-semibold">
+                    <i class="bi bi-people me-2"></i>Fuehrungspersonal
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Einsatzleiter</label>
+                        <div class="input-group">
+                            <select class="form-select" @onchange="e => SetEinsatzleiter(e.Value?.ToString())">
+                                <option value="">- aus Stammdaten waehlen -</option>
+                                @foreach (var p in _personal)
+                                {
+                                    <option value="@p.Id">@p.FullName</option>
+                                }
+                            </select>
+                            <InputText class="form-control" @bind-Value="_model.Einsatzleiter" placeholder="oder Freitext" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label fw-semibold">Fuehrungsassistent</label>
+                        <div class="input-group">
+                            <select class="form-select" @onchange="e => SetFuehrungsassistent(e.Value?.ToString())">
+                                <option value="">- aus Stammdaten waehlen -</option>
+                                @foreach (var p in _personal)
+                                {
+                                    <option value="@p.Id">@p.FullName</option>
+                                }
+                            </select>
+                            <InputText class="form-control" @bind-Value="_model.Fuehrungsassistent" placeholder="oder Freitext" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card start-section-card">
+                <div class="card-header fw-semibold">
+                    <i class="bi bi-play-circle me-2"></i>Aktionen
+                </div>
+                <div class="card-body d-grid gap-2">
+                    <button class="btn btn-primary" type="submit" disabled="@_busy">
+                        @if (_busy) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                        <i class="bi bi-play-fill me-1"></i>Einsatz starten
+                    </button>
+                    <a class="btn btn-outline-secondary" href="/">Abbrechen</a>
+                </div>
             </div>
         </div>
 
-        <!-- Melder / Bemerkungen -->
-        <div class="col-12 col-md-6">
-            <label class="form-label fw-semibold">Melder</label>
-            <InputText class="form-control" @bind-Value="_model.StaffelName" placeholder="wer hat alarmiert?" />
-        </div>
-
-        <div class="col-12 col-md-6">
-            <label class="form-label fw-semibold">Anzahl Teams (geplant)</label>
-            <InputNumber class="form-control" @bind-Value="_model.AnzahlTeams" min="1" max="50" />
-        </div>
-
-        <div class="col-12">
-            <label class="form-label fw-semibold">Bemerkungen</label>
-            <InputTextArea class="form-control" @bind-Value="_model.ExportPfad" rows="2" placeholder="Lagebeschreibung, Anfahrt, sonstige Hinweise..." />
-        </div>
-
-        <div class="col-12 d-flex gap-2 align-items-center flex-wrap">
-            <button class="btn btn-primary" type="submit" disabled="@_busy">
-                @if (_busy) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                <i class="bi bi-play-fill me-1"></i>Einsatz starten
-            </button>
-            <a class="btn btn-outline-secondary" href="/">Abbrechen</a>
-        </div>
     </EditForm>
 
     @if (!string.IsNullOrWhiteSpace(_status))

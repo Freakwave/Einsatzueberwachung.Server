@@ -21,33 +21,38 @@
     bool aktiv = !string.IsNullOrWhiteSpace(e.Einsatzort);
 }
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4 dashboard-page">
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4 page-headline-row">
         <div>
             <h1 class="h3 mb-1">
                 <i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard
             </h1>
-            <p class="text-muted mb-0">@DateTime.Now.ToString("dddd, dd. MMMM yyyy")</p>
+            <p class="text-muted mb-0">Lageuebersicht fuer @DateTime.Now.ToString("dddd, dd. MMMM yyyy")</p>
         </div>
-        @if (aktiv)
-        {
-            <span class="badge bg-success fs-6 align-self-center px-3 py-2">
-                <i class="bi bi-record-circle me-1"></i>Einsatz aktiv
-            </span>
-        }
-        else
-        {
-            <span class="badge bg-secondary fs-6 align-self-center px-3 py-2">
-                <i class="bi bi-pause-circle me-1"></i>Kein Einsatz
-            </span>
-        }
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            @if (aktiv)
+            {
+                <span class="badge bg-success fs-6 align-self-center px-3 py-2">
+                    <i class="bi bi-record-circle me-1"></i>Einsatz aktiv
+                </span>
+            }
+            else
+            {
+                <span class="badge bg-secondary fs-6 align-self-center px-3 py-2">
+                    <i class="bi bi-pause-circle me-1"></i>Kein Einsatz
+                </span>
+            }
+            <a class="btn btn-outline-secondary btn-sm" href="/einsatz-bericht">
+                <i class="bi bi-file-earmark-text me-1"></i>Bericht
+            </a>
+        </div>
     </div>
 
     <!-- Kennzahlen -->
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
-            <div class="card h-100 border-0 shadow-sm">
+            <div class="card h-100 border-0 shadow-sm home-stat-card">
                 <div class="card-body text-center">
                     <div class="display-6 fw-bold text-primary">@teams.Count</div>
                     <div class="text-muted small">Teams gesamt</div>
@@ -55,7 +60,7 @@
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card h-100 border-0 shadow-sm">
+            <div class="card h-100 border-0 shadow-sm home-stat-card">
                 <div class="card-body text-center">
                     <div class="display-6 fw-bold text-success">@laufend.Count</div>
                     <div class="text-muted small">Teams im Einsatz</div>
@@ -63,7 +68,7 @@
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card h-100 border-0 shadow-sm @(warnung.Count > 0 ? "border-danger" : "")">
+            <div class="card h-100 border-0 shadow-sm home-stat-card @(warnung.Count > 0 ? "border-danger" : "")">
                 <div class="card-body text-center">
                     <div class="display-6 fw-bold @(warnung.Count > 0 ? "text-danger" : "text-muted")">@warnung.Count</div>
                     <div class="text-muted small">Kritische Teams</div>
@@ -71,7 +76,7 @@
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card h-100 border-0 shadow-sm">
+            <div class="card h-100 border-0 shadow-sm home-stat-card">
                 <div class="card-body text-center">
                     <div class="display-6 fw-bold text-info">@notes.Count</div>
                     <div class="text-muted small">Einträge gesamt</div>
@@ -80,7 +85,7 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="card border-0 shadow-sm mb-4 home-update-card">
         <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div class="fw-semibold">
                 <i class="bi bi-cloud-arrow-down me-2 text-primary"></i>Server-Updates
@@ -261,14 +266,23 @@
 
 @code {
     private UpdateRuntimeStatus _updateStatus = new();
+    private Action<Team>? _teamAddedHandler;
+    private Action<Team>? _teamRemovedHandler;
+    private Action<Team>? _teamUpdatedHandler;
+    private Action<GlobalNotesEntry>? _noteAddedHandler;
 
     protected override void OnInitialized()
     {
+        _teamAddedHandler = _ => Refresh();
+        _teamRemovedHandler = _ => Refresh();
+        _teamUpdatedHandler = _ => Refresh();
+        _noteAddedHandler = _ => Refresh();
+
         EinsatzService.EinsatzChanged += Refresh;
-        EinsatzService.TeamAdded += _ => Refresh();
-        EinsatzService.TeamRemoved += _ => Refresh();
-        EinsatzService.TeamUpdated += _ => Refresh();
-        EinsatzService.NoteAdded += _ => Refresh();
+        EinsatzService.TeamAdded += _teamAddedHandler;
+        EinsatzService.TeamRemoved += _teamRemovedHandler;
+        EinsatzService.TeamUpdated += _teamUpdatedHandler;
+        EinsatzService.NoteAdded += _noteAddedHandler;
 
         _updateStatus = UpdateService.GetStatusSnapshot();
     }
@@ -302,9 +316,9 @@
     public void Dispose()
     {
         EinsatzService.EinsatzChanged -= Refresh;
-        EinsatzService.TeamAdded -= _ => Refresh();
-        EinsatzService.TeamRemoved -= _ => Refresh();
-        EinsatzService.TeamUpdated -= _ => Refresh();
-        EinsatzService.NoteAdded -= _ => Refresh();
+        if (_teamAddedHandler is not null) EinsatzService.TeamAdded -= _teamAddedHandler;
+        if (_teamRemovedHandler is not null) EinsatzService.TeamRemoved -= _teamRemovedHandler;
+        if (_teamUpdatedHandler is not null) EinsatzService.TeamUpdated -= _teamUpdatedHandler;
+        if (_noteAddedHandler is not null) EinsatzService.NoteAdded -= _noteAddedHandler;
     }
 }

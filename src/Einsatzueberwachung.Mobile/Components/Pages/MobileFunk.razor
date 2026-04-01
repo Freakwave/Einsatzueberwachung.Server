@@ -6,8 +6,8 @@
 <PageTitle>Funk</PageTitle>
 
 <section class="mobile-card">
-    <h1>Funksprueche</h1>
-    <button class="btn btn-outline-secondary mobile-btn mb-2" @onclick="RefreshMessagesAsync">Aktualisieren</button>
+    <h1><i class="bi bi-broadcast me-2"></i>Funksprueche</h1>
+    <button class="btn btn-outline-secondary mobile-btn mb-2" @onclick="RefreshMessagesAsync"><i class="bi bi-arrow-clockwise me-1"></i>Aktualisieren</button>
 
     <div class="mobile-field">
         <label for="filter">Filter</label>
@@ -23,7 +23,7 @@
             <label for="funkText">Neuer Eintrag</label>
             <InputTextArea id="funkText" class="form-control" @bind-Value="_text" />
         </div>
-        <button class="btn btn-primary mobile-btn" type="submit">Senden</button>
+        <button class="btn btn-primary mobile-btn" type="submit"><i class="bi bi-send me-1"></i>Senden</button>
     </EditForm>
 
     <PullToRefreshPanel OnRefresh="RefreshMessagesAsync">

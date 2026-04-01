@@ -1,16 +1,28 @@
 :root {
-    --mobile-accent: #0b2c4e;
-    --mobile-highlight: #f5b700;
-    --mobile-text: #122033;
-    --mobile-muted: #4f6275;
+    --mobile-accent: #66b5f5;
+    --mobile-accent-2: #2dc6dd;
+    --mobile-bg: #05070c;
+    --mobile-surface: #1a1d24;
+    --mobile-surface-2: #222733;
+    --mobile-border: #323843;
+    --mobile-text: #e8edf6;
+    --mobile-muted: #9aa4b5;
 }
 
 html,
 body {
     margin: 0;
     padding: 0;
+    min-height: 100%;
+    background: var(--mobile-bg);
     color: var(--mobile-text);
     font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+#app,
+.mobile-shell {
+    min-height: 100dvh;
+    background: var(--mobile-bg);
 }
 
 a,
@@ -19,9 +31,10 @@ a,
 }
 
 .btn-primary {
-    color: #fff;
+    color: #0d1723;
     background-color: var(--mobile-accent);
     border-color: var(--mobile-accent);
+    font-weight: 600;
 }
 
 .form-control,
@@ -32,6 +45,26 @@ input,
 select {
     min-height: 48px;
     border-radius: 10px;
+}
+
+.form-control,
+.form-select,
+textarea,
+input,
+select {
+    background: #262a31;
+    border: 1px solid #3b414d;
+    color: var(--mobile-text);
+}
+
+.form-control:focus,
+.form-select:focus,
+textarea:focus,
+input:focus,
+select:focus {
+    background: #2a2f38;
+    border-color: var(--mobile-accent);
+    color: #f2f7ff;
 }
 
 .btn:focus,
@@ -73,4 +106,158 @@ h1:focus {
 .form-floating > .form-control-plaintext::placeholder,
 .form-floating > .form-control::placeholder {
     color: var(--mobile-muted);
+}
+
+.mobile-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    min-height: 52px;
+    background: #4a4b4f;
+    border-bottom: 1px solid #5a5d62;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.9rem;
+}
+
+.mobile-topbar-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: #f4f6fb;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.mobile-topbar-brand i {
+    color: #7a66ff;
+}
+
+.mobile-topbar-action {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid #69707d;
+    background: #2f3238;
+    color: #e1e6ee;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.mobile-content {
+    padding: 0.9rem 0.9rem 5.4rem;
+}
+
+.mobile-card {
+    background: var(--mobile-surface);
+    border: 1px solid var(--mobile-border);
+    border-radius: 12px;
+    padding: 0.95rem;
+    margin-bottom: 0.85rem;
+}
+
+.mobile-card h1 {
+    color: var(--mobile-accent);
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+}
+
+.subline {
+    color: var(--mobile-muted);
+    margin-bottom: 0.9rem;
+}
+
+.mobile-field {
+    margin-bottom: 0.7rem;
+}
+
+.mobile-field label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+    color: #d9e1ee;
+}
+
+.mobile-btn {
+    min-height: 48px;
+}
+
+.mobile-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    background: #171b24;
+    border-top: 1px solid #333b49;
+    padding: 0.45rem 0.5rem calc(0.45rem + env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.35rem;
+}
+
+.mobile-tab {
+    text-decoration: none;
+    min-height: 54px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    color: #d7deea;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.mobile-tab i {
+    font-size: 1rem;
+}
+
+.mobile-tab.active {
+    background: #304357;
+    border-color: #3e5570;
+    color: #eef5ff;
+}
+
+.team-item,
+.message-item {
+    background: var(--mobile-surface-2);
+    border: 1px solid #38404f;
+    border-radius: 10px;
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.55rem;
+}
+
+.team-item header,
+.message-item header {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+}
+
+.team-item p,
+.message-item p,
+.empty-state,
+.status-line {
+    color: #d9e1ee;
+    margin-bottom: 0.3rem;
+}
+
+.status-ok {
+    border-left: 4px solid #67c66d;
+}
+
+.status-warning {
+    border-left: 4px solid #f0b429;
+}
+
+.status-critical {
+    border-left: 4px solid #e26d72;
 }

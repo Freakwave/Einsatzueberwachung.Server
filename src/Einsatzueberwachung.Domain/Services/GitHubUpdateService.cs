@@ -6,8 +6,10 @@ using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Einsatzueberwachung.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace Einsatzueberwachung.Domain.Services
@@ -22,6 +24,7 @@ namespace Einsatzueberwachung.Domain.Services
         private readonly ILogger<GitHubUpdateService> _logger;
         private readonly SemaphoreSlim _updateGate = new(1, 1);
         private readonly object _statusLock = new();
+        private readonly ISettingsService _settingsService;
         
         // GitHub API Konfiguration
         private const string GITHUB_OWNER = "Elemirus1996";
@@ -32,10 +35,14 @@ namespace Einsatzueberwachung.Domain.Services
         public UpdateCheckResult? LastCheckResult { get; set; }
         public UpdateRuntimeStatus RuntimeStatus { get; }
 
-        public GitHubUpdateService(HttpClient httpClient, ILogger<GitHubUpdateService> logger)
+        public GitHubUpdateService(
+            HttpClient httpClient,
+            ILogger<GitHubUpdateService> logger,
+            ISettingsService settingsService)
         {
             _httpClient = httpClient;
             _logger = logger;
+            _settingsService = settingsService;
             RuntimeStatus = new UpdateRuntimeStatus
             {
                 CurrentVersion = CurrentVersion,
@@ -70,7 +77,7 @@ namespace Einsatzueberwachung.Domain.Services
 
             try
             {
-                var url = string.Format(GITHUB_API_URL, GITHUB_OWNER, GITHUB_REPO);
+                var url = await ResolveReleaseApiUrlAsync();
                 _logger.LogInformation("Prüfe GitHub auf Updates: {Url}", url);
 
                 var response = await _httpClient.GetAsync(url);
@@ -91,7 +98,7 @@ namespace Einsatzueberwachung.Domain.Services
                 var root = document.RootElement;
 
                 var tagName = root.GetProperty("tag_name").GetString() ?? "unknown";
-                var version = tagName.TrimStart('v');
+                var version = NormalizeVersion(tagName);
                 var downloadUrl = root.GetProperty("html_url").GetString() ?? string.Empty;
                 var releaseNotes = root.GetProperty("body").GetString() ?? string.Empty;
 
@@ -101,17 +108,16 @@ namespace Einsatzueberwachung.Domain.Services
                 foreach (var asset in assets.EnumerateArray())
                 {
                     var name = asset.GetProperty("name").GetString() ?? "";
-                    if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-                        name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
-                        name.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) ||
-                        name.Contains("installer", StringComparison.OrdinalIgnoreCase) ||
-                        name.Contains("linux", StringComparison.OrdinalIgnoreCase))
+                    if (IsLinuxX64Asset(name))
                     {
                         installerUrl = asset.GetProperty("browser_download_url").GetString();
                         break;
                     }
                 }
 
+                var hasVersion = !string.IsNullOrWhiteSpace(version);
+                var hasInstaller = !string.IsNullOrWhiteSpace(installerUrl);
+                var updateAvailable = hasVersion && hasInstaller && IsNewerVersion(version, CurrentVersion);
                 var result = new UpdateCheckResult
                 {
                     Success = true,
@@ -121,7 +127,7 @@ namespace Einsatzueberwachung.Domain.Services
                     InstallerUrl = installerUrl,
                     ReleaseNotes = releaseNotes,
                     CheckedAt = DateTime.Now,
-                    UpdateAvailable = IsNewerVersion(version, CurrentVersion)
+                    UpdateAvailable = updateAvailable
                 };
 
                 LastCheckResult = result;
@@ -168,6 +174,59 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 SetStatus(status => status.IsChecking = false);
             }
+        }
+
+        private async Task<string> ResolveReleaseApiUrlAsync()
+        {
+            var defaultUrl = string.Format(GITHUB_API_URL, GITHUB_OWNER, GITHUB_REPO);
+            var appSettings = await _settingsService.GetAppSettingsAsync();
+            var configured = appSettings.UpdateUrl?.Trim();
+            if (string.IsNullOrWhiteSpace(configured))
+            {
+                return defaultUrl;
+            }
+
+            if (configured.StartsWith("https://api.github.com/", StringComparison.OrdinalIgnoreCase))
+            {
+                return configured;
+            }
+
+            if (!Uri.TryCreate(configured, UriKind.Absolute, out var parsedUri))
+            {
+                return defaultUrl;
+            }
+
+            var host = parsedUri.Host.ToLowerInvariant();
+            if (host is not "github.com")
+            {
+                return defaultUrl;
+            }
+
+            var segments = parsedUri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length < 4)
+            {
+                return defaultUrl;
+            }
+
+            var owner = segments[0];
+            var repo = segments[1];
+            if (!segments[2].Equals("releases", StringComparison.OrdinalIgnoreCase))
+            {
+                return defaultUrl;
+            }
+
+            if (segments[3].Equals("latest", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"https://api.github.com/repos/{owner}/{repo}/releases/latest";
+            }
+
+            if (segments[3].Equals("tag", StringComparison.OrdinalIgnoreCase) && segments.Length >= 5)
+            {
+                var tag = Uri.EscapeDataString(segments[4]);
+                return $"https://api.github.com/repos/{owner}/{repo}/releases/tags/{tag}";
+            }
+
+            return defaultUrl;
         }
 
         public async Task<UpdateInstallResult> InstallLatestAsync(CancellationToken cancellationToken = default)
@@ -303,14 +362,63 @@ namespace Einsatzueberwachung.Domain.Services
         {
             try
             {
-                var latest = Version.Parse(latestVersion);
-                var current = Version.Parse(currentVersion);
+                var latest = ParseVersionOrDefault(latestVersion);
+                var current = ParseVersionOrDefault(currentVersion);
                 return latest > current;
             }
             catch
             {
                 return false;
             }
+        }
+
+        private static bool IsLinuxX64Asset(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return false;
+            }
+
+            var lower = fileName.ToLowerInvariant();
+            var archive = lower.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+                       || lower.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase);
+
+            if (!archive)
+            {
+                return false;
+            }
+
+            var linux = lower.Contains("linux");
+            var x64 = lower.Contains("x64") || lower.Contains("amd64");
+            return linux && x64;
+        }
+
+        private static Version ParseVersionOrDefault(string version)
+        {
+            var normalized = NormalizeVersion(version);
+            return Version.TryParse(normalized, out var parsed)
+                ? parsed
+                : new Version(0, 0, 0);
+        }
+
+        private static string NormalizeVersion(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return string.Empty;
+            }
+
+            var trimmed = raw.Trim().TrimStart('v', 'V');
+            var match = Regex.Match(trimmed, @"^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:\.(\d+))?");
+            if (!match.Success)
+            {
+                return string.Empty;
+            }
+
+            var major = match.Groups[1].Value;
+            var minor = match.Groups[2].Success ? match.Groups[2].Value : "0";
+            var patch = match.Groups[3].Success ? match.Groups[3].Value : "0";
+            return $"{major}.{minor}.{patch}";
         }
 
         /// <summary>

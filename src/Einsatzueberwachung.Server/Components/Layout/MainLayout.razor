@@ -2,24 +2,45 @@
 @implements IAsyncDisposable
 @inject Einsatzueberwachung.Domain.Interfaces.ISettingsService SettingsService
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
 
-<div class="page">
+<div class="page @(_sidebarCollapsed ? "sidebar-collapsed" : string.Empty)">
     <div class="sidebar">
-        <NavMenu />
+        <NavMenu IsCollapsed="_sidebarCollapsed" OnToggleSidebar="ToggleSidebar" />
     </div>
 
     <main>
-        <div class="top-row px-4">
-            <span class="text-muted">Desktop Leitstelle</span>
-            <button class="btn btn-sm btn-outline-secondary ms-auto"
+        <div class="mission-topbar">
+            <button class="mission-topbar-close"
                     type="button"
-                    title="Dark Mode umschalten"
-                    @onclick="ToggleThemeAsync">
-                @(_isDarkMode ? "Hell" : "Dunkel")
+                    title="Zur Startseite"
+                    @onclick="GoHome">
+                <i class="bi bi-x-lg"></i>
             </button>
+
+            <div class="mission-topbar-clock" aria-live="polite">
+                <span id="live-time">00:00:00</span>
+                <span id="live-date">01.01.2000</span>
+            </div>
+
+            <div class="mission-topbar-actions">
+                <button class="btn btn-sm btn-outline-secondary"
+                        type="button"
+                        title="Dark Mode umschalten"
+                        @onclick="ToggleThemeAsync">
+                    <i class="bi @( _isDarkMode ? "bi-sun" : "bi-moon-stars")"></i>
+                </button>
+
+                <button class="btn btn-sm btn-outline-secondary"
+                        type="button"
+                        title="Vollbild umschalten"
+                        @onclick="ToggleFullscreenAsync">
+                    <i class="bi bi-arrows-fullscreen"></i>
+                </button>
+            </div>
         </div>
 
-        <article class="content px-4">
+        <article class="content app-content">
             @Body
         </article>
     </main>
@@ -33,6 +54,7 @@
 
 @code {
     private bool _isDarkMode;
+    private bool _sidebarCollapsed;
     private DotNetObjectReference<MainLayout>? _dotNetRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -46,7 +68,18 @@
         _dotNetRef = DotNetObjectReference.Create(this);
 
         await JS.InvokeVoidAsync("themeSync.init", _dotNetRef, _isDarkMode);
+        await JS.InvokeVoidAsync("initializeClock");
         StateHasChanged();
+    }
+
+    private void ToggleSidebar()
+    {
+        _sidebarCollapsed = !_sidebarCollapsed;
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo("/");
     }
 
     private async Task ToggleThemeAsync()
@@ -54,6 +87,11 @@
         _isDarkMode = !_isDarkMode;
         await SettingsService.SetIsDarkModeAsync(_isDarkMode);
         await JS.InvokeVoidAsync("themeSync.setTheme", _isDarkMode);
+    }
+
+    private async Task ToggleFullscreenAsync()
+    {
+        await JS.InvokeVoidAsync("layoutTools.toggleFullscreen");
     }
 
     [JSInvokable]

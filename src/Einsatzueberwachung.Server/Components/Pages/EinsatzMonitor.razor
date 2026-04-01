@@ -10,6 +10,7 @@
 @inject IWeatherService WeatherService
 @inject IArchivService ArchivService
 @inject IPdfExportService PdfExportService
+@inject ISettingsService SettingsService
 @inject NavigationManager Navigation
 
 <PageTitle>Einsatz-Monitor</PageTitle>
@@ -589,6 +590,16 @@
                         <button class="btn btn-primary" @onclick="AddGlobalNoteAsync" disabled="@(string.IsNullOrWhiteSpace(_newNoteText) || string.IsNullOrWhiteSpace(_newNoteSourceId))">Senden</button>
                     </div>
 
+                    <div class="mb-3">
+                        <div class="small text-muted mb-2">Schnell-Notiz (mit Zeitstempel)</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var quickTemplate in _quickNoteTemplates)
+                            {
+                                <button class="btn btn-sm btn-outline-success" @onclick="() => AddQuickNoteAsync(quickTemplate)">@quickTemplate</button>
+                            }
+                        </div>
+                    </div>
+
                     @if (EinsatzService.GlobalNotes.Count == 0)
                     {
                         <p class="text-muted mb-0">Noch keine Eintraege.</p>
@@ -734,6 +745,8 @@
         "Uebung abgeschlossen"
     };
 
+    private List<string> _quickNoteTemplates = new();
+
     private WeatherData? _monitorWeather;
     private WeatherForecast? _monitorForecast;
     private DateTime _monitorWeatherLoadedAtLocal;
@@ -756,6 +769,7 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadMasterDataAsync();
+        await LoadQuickNoteTemplatesAsync();
         await RefreshMonitorWeatherAsync(forceGeocoding: true);
         StartWeatherRefreshTimer();
         StartDurationRefreshTimer();
@@ -820,6 +834,30 @@
         _personalList = await MasterDataService.GetPersonalListAsync();
         _dogList = await MasterDataService.GetDogListAsync();
         _droneList = await MasterDataService.GetDroneListAsync();
+    }
+
+    private async Task LoadQuickNoteTemplatesAsync()
+    {
+        var settings = await SettingsService.GetAppSettingsAsync();
+        _quickNoteTemplates = settings.QuickNoteTemplates?
+            .Where(text => !string.IsNullOrWhiteSpace(text))
+            .Select(text => text.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()
+            ?? new List<string>();
+
+        if (_quickNoteTemplates.Count == 0)
+        {
+            _quickNoteTemplates = new List<string>
+            {
+                "ELW Ankunft Einsatzstelle",
+                "ELW verlaesst Einsatzstelle",
+                "Team vor Ort eingetroffen",
+                "Lagemeldung an Leitstelle",
+                "Suche gestartet",
+                "Suche beendet"
+            };
+        }
     }
 
     private void OnEinsatzChanged()
@@ -1652,6 +1690,26 @@
             createdBy);
 
         _newNoteText = string.Empty;
+    }
+
+    private async Task AddQuickNoteAsync(string shortText)
+    {
+        if (string.IsNullOrWhiteSpace(shortText))
+        {
+            return;
+        }
+
+        var selectedSource = string.IsNullOrWhiteSpace(_newNoteSourceId) ? "einsatzleitung" : _newNoteSourceId;
+        var (sourceId, sourceName, createdBy) = ResolveSelectedSource(selectedSource);
+        var noteText = $"[{DateTime.Now:HH:mm}] {shortText.Trim()}";
+
+        await EinsatzService.AddGlobalNoteWithSourceAsync(
+            noteText,
+            sourceId,
+            sourceName,
+            "Notiz",
+            GlobalNotesEntryType.Manual,
+            createdBy);
     }
 
     private async Task AddReplyAsync(string noteId)

@@ -67,6 +67,14 @@
         "yyyy-MM-ddTHH:mm:ss"
     };
 
+    private static readonly string[] AlarmTimeFormats =
+    {
+        "H:mm",
+        "HH:mm",
+        "H:mm:ss",
+        "HH:mm:ss"
+    };
+
     private readonly Einsatzueberwachung.Domain.Models.EinsatzData _einsatz = new()
     {
         IstEinsatz = true,
@@ -88,7 +96,7 @@
 
         if (!TryPrepareAlarmTime())
         {
-            _status = "Alarmzeit ungueltig. Bitte Format dd.MM.yyyy HH:mm verwenden.";
+            _status = "Alarmzeit ungueltig. Bitte HH:mm oder dd.MM.yyyy HH:mm verwenden.";
             return;
         }
 
@@ -121,8 +129,22 @@
         }
 
         if (DateTime.TryParseExact(_einsatz.Alarmiert.Trim(), AlarmDateFormats, System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.AssumeLocal, out var parsed)
+            || DateTime.TryParseExact(_einsatz.Alarmiert.Trim(), AlarmTimeFormats, System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.None, out parsed)
             || DateTime.TryParse(_einsatz.Alarmiert.Trim(), System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.AssumeLocal, out parsed))
         {
+            if (_einsatz.Alarmiert.Contains(':')
+                && !_einsatz.Alarmiert.Contains('.')
+                && !_einsatz.Alarmiert.Contains('-')
+                && !_einsatz.Alarmiert.Contains('/'))
+            {
+                var now = DateTime.Now;
+                parsed = new DateTime(now.Year, now.Month, now.Day, parsed.Hour, parsed.Minute, parsed.Second);
+                if (parsed > now.AddMinutes(1))
+                {
+                    parsed = parsed.AddDays(-1);
+                }
+            }
+
             _einsatz.AlarmierungsZeit = parsed;
             _einsatz.Alarmiert = parsed.ToString("dd.MM.yyyy HH:mm");
             return true;

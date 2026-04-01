@@ -83,6 +83,22 @@ public class EinsatzServiceTests
         Assert.False(string.IsNullOrWhiteSpace(svc.CurrentEinsatz.Alarmiert));
     }
 
+    [Fact]
+    public async Task StartEinsatz_TimeOnlyAlarm_BackCalculatesDuration()
+    {
+        var svc = CreateService();
+        var alarmTimeOnly = DateTime.Now.AddMinutes(-9).ToString("HH:mm");
+
+        await svc.StartEinsatzAsync(new EinsatzData
+        {
+            Einsatzort = "Rueckrechnung",
+            Alarmiert = alarmTimeOnly
+        });
+
+        Assert.True(svc.CurrentEinsatz.Dauer.HasValue);
+        Assert.InRange(svc.CurrentEinsatz.Dauer!.Value.TotalMinutes, 8, 10);
+    }
+
     // --- Team-Management ---
 
     [Fact]

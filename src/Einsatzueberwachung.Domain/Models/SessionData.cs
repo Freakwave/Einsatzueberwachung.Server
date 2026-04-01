@@ -63,6 +63,7 @@ namespace Einsatzueberwachung.Domain.Models
         public int SecondWarningFrequency { get; set; }
         public bool RepeatSecondWarning { get; set; } // Wiederhole kritische Warnung
         public int RepeatWarningIntervalSeconds { get; set; }
+        public List<string> QuickNoteTemplates { get; set; }
 
         public AppSettings()
         {
@@ -86,6 +87,15 @@ namespace Einsatzueberwachung.Domain.Models
             SecondWarningFrequency = 1200;
             RepeatSecondWarning = true;
             RepeatWarningIntervalSeconds = 30;
+            QuickNoteTemplates = new List<string>
+            {
+                "ELW Ankunft Einsatzstelle",
+                "ELW verlaesst Einsatzstelle",
+                "Team vor Ort eingetroffen",
+                "Lagemeldung an Leitstelle",
+                "Suche gestartet",
+                "Suche beendet"
+            };
         }
     }
 }

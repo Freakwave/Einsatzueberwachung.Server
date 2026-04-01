@@ -113,6 +113,15 @@
 
                     <hr />
 
+                    <h3 class="h5 mb-3"><i class="bi bi-journal-text me-1"></i>Schnell-Notizen</h3>
+                    <div class="mb-3">
+                        <label class="form-label">Vorlagen (eine Zeile pro Eintrag)</label>
+                        <InputTextArea class="form-control" rows="6" @bind-Value="_quickNoteTemplatesText" />
+                        <div class="form-text">Diese Liste wird im Einsatzmonitor als Schnell-Notiz-Buttons angezeigt.</div>
+                    </div>
+
+                    <hr />
+
                     <h3 class="h5 mb-3"><i class="bi bi-alarm me-1"></i>Timer-Warnungen (Standard)</h3>
                     <div class="row g-3">
                         <div class="col-12">
@@ -377,11 +386,14 @@
     private string _audioTestStatus = string.Empty;
     private bool _audioTestError;
     private UpdateRuntimeStatus _updateStatus = new();
+    private string _quickNoteTemplatesText = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         _staffelSettings = await SettingsService.GetStaffelSettingsAsync();
         _appSettings = await SettingsService.GetAppSettingsAsync();
+        EnsureQuickNoteTemplatesInitialized(_appSettings);
+        _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
         _dataDirectory = AppPathResolver.GetDataDirectory();
         _reportDirectory = AppPathResolver.GetReportDirectory();
         _mobileUrl = new Uri(new Uri(Navigation.BaseUri), "mobile/").ToString();
@@ -442,6 +454,13 @@
 
     private async Task SaveAsync()
     {
+        _appSettings.QuickNoteTemplates = ParseQuickNoteTemplates(_quickNoteTemplatesText);
+        if (_appSettings.QuickNoteTemplates.Count == 0)
+        {
+            _appSettings.QuickNoteTemplates = GetDefaultQuickNoteTemplates();
+            _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
+        }
+
         _appSettings.Theme = _appSettings.IsDarkMode ? "Dark" : "Light";
         await SettingsService.SaveStaffelSettingsAsync(_staffelSettings);
         await SettingsService.SaveAppSettingsAsync(_appSettings);
@@ -528,6 +547,8 @@
 
         _staffelSettings = await SettingsService.GetStaffelSettingsAsync();
         _appSettings = await SettingsService.GetAppSettingsAsync();
+        EnsureQuickNoteTemplatesInitialized(_appSettings);
+        _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
         _sessionImportJson = string.Empty;
         SetMaintenanceStatus("Daten wurden auf Standard zurueckgesetzt.", false);
     }
@@ -604,6 +625,8 @@
 
             await SettingsService.SaveAppSettingsAsync(imported);
             _appSettings = await SettingsService.GetAppSettingsAsync();
+            EnsureQuickNoteTemplatesInitialized(_appSettings);
+            _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
             SetMaintenanceStatus("AppSettings wurden importiert.", false);
         }
         catch (Exception ex)
@@ -729,6 +752,8 @@
 
             _staffelSettings = await SettingsService.GetStaffelSettingsAsync();
             _appSettings = await SettingsService.GetAppSettingsAsync();
+            EnsureQuickNoteTemplatesInitialized(_appSettings);
+            _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
 
             if (importedCount == 0)
             {
@@ -786,6 +811,39 @@
     {
         _logoStatus = message;
         _logoStatusIsError = isError;
+    }
+
+    private static void EnsureQuickNoteTemplatesInitialized(AppSettings settings)
+    {
+        settings.QuickNoteTemplates ??= GetDefaultQuickNoteTemplates();
+
+        if (settings.QuickNoteTemplates.Count == 0)
+        {
+            settings.QuickNoteTemplates = GetDefaultQuickNoteTemplates();
+        }
+    }
+
+    private static List<string> ParseQuickNoteTemplates(string raw)
+    {
+        return raw
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static List<string> GetDefaultQuickNoteTemplates()
+    {
+        return new List<string>
+        {
+            "ELW Ankunft Einsatzstelle",
+            "ELW verlaesst Einsatzstelle",
+            "Team vor Ort eingetroffen",
+            "Lagemeldung an Leitstelle",
+            "Suche gestartet",
+            "Suche beendet"
+        };
     }
 
     private async Task PlayFirstWarningTestAsync()

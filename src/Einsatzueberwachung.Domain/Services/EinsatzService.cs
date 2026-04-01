@@ -24,6 +24,14 @@ namespace Einsatzueberwachung.Domain.Services
             "yyyy-MM-ddTHH:mm:ss"
         };
 
+        private static readonly string[] AlarmTimeFormats =
+        {
+            "H:mm",
+            "HH:mm",
+            "H:mm:ss",
+            "HH:mm:ss"
+        };
+
         private readonly ISettingsService? _settingsService;
         private EinsatzData _currentEinsatz;
         private readonly List<Team> _teams;
@@ -102,9 +110,30 @@ namespace Einsatzueberwachung.Domain.Services
                 return false;
             }
 
-            return DateTime.TryParseExact(alarmText.Trim(), AlarmDateFormats, DeCulture, DateTimeStyles.AssumeLocal, out parsed)
-                || DateTime.TryParse(alarmText.Trim(), DeCulture, DateTimeStyles.AssumeLocal, out parsed)
-                || DateTime.TryParse(alarmText.Trim(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out parsed);
+            var input = alarmText.Trim();
+
+            if (DateTime.TryParseExact(input, AlarmDateFormats, DeCulture, DateTimeStyles.AssumeLocal, out parsed))
+            {
+                return true;
+            }
+
+            if (DateTime.TryParseExact(input, AlarmTimeFormats, DeCulture, DateTimeStyles.None, out var parsedTimeOnly))
+            {
+                var now = GetServerNowLocal();
+                parsed = new DateTime(now.Year, now.Month, now.Day, parsedTimeOnly.Hour, parsedTimeOnly.Minute, parsedTimeOnly.Second, DateTimeKind.Local);
+
+                // Wenn nur Uhrzeit eingegeben wurde und diese in der Zukunft liegt,
+                // wird der letzte passende Zeitpunkt angenommen (Vortag).
+                if (parsed > now.AddMinutes(1))
+                {
+                    parsed = parsed.AddDays(-1);
+                }
+
+                return true;
+            }
+
+            return DateTime.TryParse(input, DeCulture, DateTimeStyles.AssumeLocal, out parsed)
+                || DateTime.TryParse(input, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out parsed);
         }
 
         private async Task ApplyStaffelFallbackAsync(EinsatzData einsatzData)

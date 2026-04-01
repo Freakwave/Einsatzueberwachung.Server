@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Net.Http.Headers;
 using Einsatzueberwachung.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -25,6 +26,7 @@ namespace Einsatzueberwachung.Domain.Services
         private readonly SemaphoreSlim _updateGate = new(1, 1);
         private readonly object _statusLock = new();
         private readonly ISettingsService _settingsService;
+        private readonly string? _githubToken;
         
         // GitHub API Konfiguration
         private const string GITHUB_OWNER = "Elemirus1996";
@@ -43,6 +45,7 @@ namespace Einsatzueberwachung.Domain.Services
             _httpClient = httpClient;
             _logger = logger;
             _settingsService = settingsService;
+            _githubToken = ResolveGitHubToken();
             RuntimeStatus = new UpdateRuntimeStatus
             {
                 CurrentVersion = CurrentVersion,
@@ -53,6 +56,11 @@ namespace Einsatzueberwachung.Domain.Services
             if (!_httpClient.DefaultRequestHeaders.UserAgent.Any())
             {
                 _httpClient.DefaultRequestHeaders.Add("User-Agent", "Einsatzueberwachung-Update-Checker");
+            }
+
+            if (!_httpClient.DefaultRequestHeaders.Accept.Any())
+            {
+                _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
             }
         }
 
@@ -80,15 +88,34 @@ namespace Einsatzueberwachung.Domain.Services
                 var url = await ResolveReleaseApiUrlAsync();
                 _logger.LogInformation("Prüfe GitHub auf Updates: {Url}", url);
 
-                var response = await _httpClient.GetAsync(url);
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
+
+                if (!string.IsNullOrWhiteSpace(_githubToken))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _githubToken);
+                }
+
+                var response = await _httpClient.SendAsync(request);
                 
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogWarning("GitHub API Fehler: {StatusCode}", response.StatusCode);
+
+                    var responseBody = await response.Content.ReadAsStringAsync();
+                    var message = response.StatusCode == System.Net.HttpStatusCode.NotFound
+                        ? "GitHub API Fehler: NotFound (Repository privat? Bitte GitHub Token konfigurieren)"
+                        : $"GitHub API Fehler: {response.StatusCode}";
+
+                    if (!string.IsNullOrWhiteSpace(responseBody))
+                    {
+                        _logger.LogDebug("GitHub API Response: {Body}", responseBody);
+                    }
+
                     return new UpdateCheckResult
                     {
                         Success = false,
-                        ErrorMessage = $"GitHub API Fehler: {response.StatusCode}",
+                        ErrorMessage = message,
                         CheckedAt = DateTime.Now
                     };
                 }
@@ -117,7 +144,7 @@ namespace Einsatzueberwachung.Domain.Services
 
                 var hasVersion = !string.IsNullOrWhiteSpace(version);
                 var hasInstaller = !string.IsNullOrWhiteSpace(installerUrl);
-                var updateAvailable = hasVersion && hasInstaller && IsNewerVersion(version, CurrentVersion);
+                var newerVersionAvailable = hasVersion && IsNewerVersion(version, CurrentVersion);
                 var result = new UpdateCheckResult
                 {
                     Success = true,
@@ -127,7 +154,8 @@ namespace Einsatzueberwachung.Domain.Services
                     InstallerUrl = installerUrl,
                     ReleaseNotes = releaseNotes,
                     CheckedAt = DateTime.Now,
-                    UpdateAvailable = updateAvailable
+                    UpdateAvailable = newerVersionAvailable,
+                    IsInstallable = hasInstaller
                 };
 
                 LastCheckResult = result;
@@ -138,14 +166,22 @@ namespace Einsatzueberwachung.Domain.Services
                     status.LastCheckedAt = result.CheckedAt;
                     status.UpdateAvailable = result.UpdateAvailable;
                     status.LastMessage = result.UpdateAvailable
-                        ? $"Update verfuegbar: {CurrentVersion} -> {result.LatestVersion}"
+                        ? (result.IsInstallable
+                            ? $"Update verfuegbar: {CurrentVersion} -> {result.LatestVersion}"
+                            : $"Neue Version erkannt ({result.LatestVersion}), aber kein Linux-Installer im Release")
                         : "System ist aktuell";
                 });
                 
                 if (result.UpdateAvailable)
                 {
-                    _logger.LogInformation("Update verfügbar: {Current} → {Latest}", 
-                        CurrentVersion, version);
+                    if (result.IsInstallable)
+                    {
+                        _logger.LogInformation("Update verfügbar: {Current} -> {Latest}", CurrentVersion, version);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Neue Version {Latest} erkannt, aber kein Linux-x64-Asset vorhanden", version);
+                    }
                 }
                 else
                 {
@@ -203,7 +239,7 @@ namespace Einsatzueberwachung.Domain.Services
             }
 
             var segments = parsedUri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length < 4)
+            if (segments.Length < 3)
             {
                 return defaultUrl;
             }
@@ -213,6 +249,11 @@ namespace Einsatzueberwachung.Domain.Services
             if (!segments[2].Equals("releases", StringComparison.OrdinalIgnoreCase))
             {
                 return defaultUrl;
+            }
+
+            if (segments.Length == 3)
+            {
+                return $"https://api.github.com/repos/{owner}/{repo}/releases/latest";
             }
 
             if (segments[3].Equals("latest", StringComparison.OrdinalIgnoreCase))
@@ -274,7 +315,7 @@ namespace Einsatzueberwachung.Domain.Services
                     return new UpdateInstallResult
                     {
                         Success = false,
-                        Message = "Kein passendes Linux-Release-Asset gefunden."
+                        Message = "Neue Version gefunden, aber kein passendes Linux-Release-Asset gefunden."
                     };
                 }
 
@@ -461,6 +502,18 @@ namespace Einsatzueberwachung.Domain.Services
             return ".bin";
         }
 
+        private static string? ResolveGitHubToken()
+        {
+            var token = Environment.GetEnvironmentVariable("EINSATZUEBERWACHUNG_GITHUB_TOKEN");
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                return token.Trim();
+            }
+
+            token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+            return string.IsNullOrWhiteSpace(token) ? null : token.Trim();
+        }
+
         private async Task ExtractPackageAsync(string packagePath, string stagePath, CancellationToken cancellationToken)
         {
             if (packagePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
@@ -585,6 +638,7 @@ namespace Einsatzueberwachung.Domain.Services
         public string LatestVersion { get; set; } = string.Empty;
         public string ReleaseUrl { get; set; } = string.Empty;
         public string? InstallerUrl { get; set; }
+        public bool IsInstallable { get; set; }
         public string ReleaseNotes { get; set; } = string.Empty;
         public DateTime CheckedAt { get; set; }
         public bool UpdateAvailable { get; set; }

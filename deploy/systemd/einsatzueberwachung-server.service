@@ -12,6 +12,8 @@ User=einsatz
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://127.0.0.1:5000
 Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+# Optional: erforderlich bei privatem GitHub-Repository fuer Update-Pruefung
+# Environment=EINSATZUEBERWACHUNG_GITHUB_TOKEN=<PAT_mit_repo_scope>
 Environment=EINSATZUEBERWACHUNG_DATA_DIR=/opt/einsatzueberwachung/data
 Environment=EINSATZUEBERWACHUNG_REPORT_DIR=/opt/einsatzueberwachung/data/berichte
 Environment=EINSATZUEBERWACHUNG_UPDATE_APPLY_CMD=/opt/einsatzueberwachung/scripts/apply-update.sh "{package}" "{version}"

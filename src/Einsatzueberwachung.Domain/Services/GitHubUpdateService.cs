@@ -652,13 +652,19 @@ namespace Einsatzueberwachung.Domain.Services
                 }
 
                 await process.WaitForExitAsync(cancellationToken);
+                var stdout = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+                var stderr = await process.StandardError.ReadToEndAsync(cancellationToken);
+
                 if (process.ExitCode != 0)
                 {
-                    var error = await process.StandardError.ReadToEndAsync(cancellationToken);
+                    var details = string.IsNullOrWhiteSpace(stderr)
+                        ? stdout
+                        : $"STDERR: {stderr}\nSTDOUT: {stdout}";
+
                     return new UpdateInstallResult
                     {
                         Success = false,
-                        Message = $"Update-Kommando fehlgeschlagen: {error}"
+                        Message = $"Update-Kommando fehlgeschlagen (ExitCode {process.ExitCode}): {details}".Trim()
                     };
                 }
 

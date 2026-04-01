@@ -13,19 +13,19 @@ BACKUP_DIR="$UPDATE_ROOT/backup-$TARGET_VERSION"
 LOCK_FILE="$UPDATE_ROOT/update.lock"
 
 if [[ -z "$PACKAGE_PATH" ]]; then
-  echo "Usage: $0 <package-path> [version]"
+  echo "Usage: $0 <package-path> [version]" >&2
   exit 2
 fi
 
 if [[ ! -f "$PACKAGE_PATH" ]]; then
-  echo "Package not found: $PACKAGE_PATH"
+  echo "Package not found: $PACKAGE_PATH" >&2
   exit 2
 fi
 
 mkdir -p "$UPDATE_ROOT"
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
-  echo "Another update process is running"
+  echo "Another update process is running" >&2
   exit 3
 fi
 
@@ -37,7 +37,7 @@ if [[ "$PACKAGE_PATH" == *.zip ]]; then
 elif [[ "$PACKAGE_PATH" == *.tar.gz ]]; then
   tar -xzf "$PACKAGE_PATH" -C "$WORK_DIR"
 else
-  echo "Unsupported package format: $PACKAGE_PATH"
+  echo "Unsupported package format: $PACKAGE_PATH" >&2
   exit 4
 fi
 
@@ -68,20 +68,29 @@ mkdir -p "$UPDATE_ROOT"
 echo "$TARGET_VERSION" > "$UPDATE_ROOT/current-version.txt"
 cp "$PACKAGE_PATH" "$UPDATE_ROOT/last-package$(basename "$PACKAGE_PATH" | sed 's/.*\(\.[^.]*\)$/\1/')"
 
+restart_if_exists() {
+  local unit="$1"
+  if /bin/systemctl list-unit-files --type=service --no-legend | awk '{print $1}' | grep -Fxq "$unit"; then
+    sudo /bin/systemctl restart "$unit"
+  else
+    echo "Service not installed, skipping restart: $unit"
+  fi
+}
+
 # Restart services (requires sudoers rule for user 'einsatz').
-sudo /bin/systemctl restart einsatzueberwachung-server.service
-sudo /bin/systemctl restart einsatzueberwachung-mobile.service
+restart_if_exists "einsatzueberwachung-server.service"
+restart_if_exists "einsatzueberwachung-mobile.service"
 
 # health probe after restart
 sleep 4
 if ! curl -fsS "http://127.0.0.1:5000/health" >/dev/null; then
-  echo "Server health check failed, rolling back"
+  echo "Server health check failed, rolling back" >&2
   rsync -a --delete "$BACKUP_DIR/server/" "$SERVER_DIR/"
   if [[ -d "$BACKUP_DIR/mobile" ]]; then
     rsync -a --delete "$BACKUP_DIR/mobile/" "$MOBILE_DIR/"
   fi
-  sudo /bin/systemctl restart einsatzueberwachung-server.service
-  sudo /bin/systemctl restart einsatzueberwachung-mobile.service
+  restart_if_exists "einsatzueberwachung-server.service"
+  restart_if_exists "einsatzueberwachung-mobile.service"
   exit 5
 fi
 

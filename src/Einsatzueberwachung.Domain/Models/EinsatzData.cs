@@ -63,5 +63,35 @@ namespace Einsatzueberwachung.Domain.Models
         }
 
         public string EinsatzTyp => IstEinsatz ? "Einsatz" : "Übung";
+
+        /// <summary>
+        /// Berechnet die Dauer des Einsatzes zwischen Alarmierung und Ende (oder Jetzt, wenn noch laufend)
+        /// </summary>
+        public TimeSpan? Dauer
+        {
+            get
+            {
+                if (!AlarmierungsZeit.HasValue)
+                    return null;
+
+                var endTime = EinsatzEnde ?? DateTime.Now;
+                return endTime - AlarmierungsZeit.Value;
+            }
+        }
+
+        /// <summary>
+        /// Formatierte Darstellung der Einsatzdauer (z.B. "2h 45min")
+        /// </summary>
+        public string DauerFormatiert
+        {
+            get
+            {
+                if (!Dauer.HasValue)
+                    return "-- : --";
+
+                var d = Dauer.Value;
+                return $"{(int)d.TotalHours}h {d.Minutes}min";
+            }
+        }
     }
 }

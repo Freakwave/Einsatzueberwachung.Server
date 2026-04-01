@@ -45,6 +45,10 @@ window.themeSync = (() => {
     function setTheme(isDark) {
         applyTheme(isDark);
         localStorage.setItem(storageKey, isDark ? "dark" : "light");
+
+        if (dotNetRef) {
+            dotNetRef.invokeMethodAsync("OnThemeChangedFromStorage", isDark);
+        }
     }
 
     function dispose() {

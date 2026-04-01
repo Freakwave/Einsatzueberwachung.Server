@@ -1,5 +1,7 @@
 using Einsatzueberwachung.Server.Data;
 using Einsatzueberwachung.Server.Hubs;
+using Einsatzueberwachung.Domain.Interfaces;
+using Einsatzueberwachung.Domain.Models.Enums;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,11 +11,16 @@ public sealed class RadioService : IRadioService
 {
     private readonly IDbContextFactory<RuntimeDbContext> _dbContextFactory;
     private readonly IHubContext<EinsatzHub> _hubContext;
+    private readonly IEinsatzService _einsatzService;
 
-    public RadioService(IDbContextFactory<RuntimeDbContext> dbContextFactory, IHubContext<EinsatzHub> hubContext)
+    public RadioService(
+        IDbContextFactory<RuntimeDbContext> dbContextFactory,
+        IHubContext<EinsatzHub> hubContext,
+        IEinsatzService einsatzService)
     {
         _dbContextFactory = dbContextFactory;
         _hubContext = hubContext;
+        _einsatzService = einsatzService;
     }
 
     public async Task<IReadOnlyList<RadioMessageDto>> GetMessagesAsync(CancellationToken cancellationToken = default)
@@ -47,6 +54,14 @@ public sealed class RadioService : IRadioService
         await db.SaveChangesAsync(cancellationToken);
 
         var dto = ToDto(entity);
+        // Legacy desktop pages still consume GlobalNotes for Funk entries.
+        await _einsatzService.AddGlobalNoteWithSourceAsync(
+            request.Text,
+            request.SourceTeamId,
+            request.SourceTeamName,
+            "Funk",
+            GlobalNotesEntryType.Manual,
+            request.CreatedBy);
         await PublishAsync("radio.added", dto);
         return dto;
     }

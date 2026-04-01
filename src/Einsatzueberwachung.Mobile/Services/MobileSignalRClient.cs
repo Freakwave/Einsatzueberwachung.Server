@@ -8,14 +8,23 @@ public sealed class MobileSignalRClient : IAsyncDisposable
 {
     private readonly NavigationManager _navigationManager;
     private readonly ILogger<MobileSignalRClient> _logger;
+    private readonly Uri _hubUri;
     private HubConnection? _connection;
 
     public event Action<string, string>? UpdateReceived;
 
-    public MobileSignalRClient(NavigationManager navigationManager, ILogger<MobileSignalRClient> logger)
+    public MobileSignalRClient(
+        NavigationManager navigationManager,
+        IConfiguration configuration,
+        ILogger<MobileSignalRClient> logger)
     {
         _navigationManager = navigationManager;
         _logger = logger;
+
+        var configuredBaseUrl = configuration["ServerApiBaseUrl"]?.TrimEnd('/');
+        var runtimeBaseUrl = new Uri(navigationManager.BaseUri).GetLeftPart(UriPartial.Authority);
+        var effectiveBase = string.IsNullOrWhiteSpace(configuredBaseUrl) ? runtimeBaseUrl : configuredBaseUrl;
+        _hubUri = new Uri(new Uri(effectiveBase), "/hubs/einsatz");
     }
 
     public async Task EnsureConnectedAsync()
@@ -28,7 +37,7 @@ public sealed class MobileSignalRClient : IAsyncDisposable
         if (_connection is null)
         {
             _connection = new HubConnectionBuilder()
-                .WithUrl(_navigationManager.ToAbsoluteUri("/hubs/einsatz"))
+                .WithUrl(_hubUri)
                 .WithAutomaticReconnect()
                 .Build();
 

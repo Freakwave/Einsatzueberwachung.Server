@@ -111,6 +111,13 @@ namespace Einsatzueberwachung.Domain.Services
                         _logger.LogDebug("GitHub API Response: {Body}", responseBody);
                     }
 
+                    SetStatus(status =>
+                    {
+                        status.LastCheckedAt = DateTime.Now;
+                        status.LastError = message;
+                        status.LastMessage = "Update-Pruefung fehlgeschlagen";
+                    });
+
                     return new UpdateCheckResult
                     {
                         Success = false,
@@ -164,6 +171,7 @@ namespace Einsatzueberwachung.Domain.Services
                     status.LatestVersion = result.LatestVersion;
                     status.LastCheckedAt = result.CheckedAt;
                     status.UpdateAvailable = result.UpdateAvailable;
+                    status.LastError = null;
                     status.LastMessage = result.UpdateAvailable
                         ? (result.IsInstallable
                             ? $"Update verfuegbar: {CurrentVersion} -> {result.LatestVersion}"
@@ -292,15 +300,29 @@ namespace Einsatzueberwachung.Domain.Services
                 var check = await CheckForUpdatesAsync();
                 if (!check.Success)
                 {
+                    var message = check.ErrorMessage ?? "Update-Pruefung fehlgeschlagen.";
+                    SetStatus(status =>
+                    {
+                        status.LastError = message;
+                        status.LastMessage = message;
+                    });
+
                     return new UpdateInstallResult
                     {
                         Success = false,
-                        Message = check.ErrorMessage ?? "Update-Pruefung fehlgeschlagen."
+                        Message = message
                     };
                 }
 
                 if (!check.UpdateAvailable)
                 {
+                    SetStatus(status =>
+                    {
+                        status.UpdateAvailable = false;
+                        status.LastError = null;
+                        status.LastMessage = "Es ist bereits die neueste Version installiert.";
+                    });
+
                     return new UpdateInstallResult
                     {
                         Success = true,
@@ -311,10 +333,17 @@ namespace Einsatzueberwachung.Domain.Services
 
                 if (string.IsNullOrWhiteSpace(check.InstallerUrl))
                 {
+                    const string message = "Neue Version gefunden, aber kein passendes Linux-Release-Asset gefunden.";
+                    SetStatus(status =>
+                    {
+                        status.LastError = message;
+                        status.LastMessage = message;
+                    });
+
                     return new UpdateInstallResult
                     {
                         Success = false,
-                        Message = "Neue Version gefunden, aber kein passendes Linux-Release-Asset gefunden."
+                        Message = message
                     };
                 }
 
@@ -328,10 +357,17 @@ namespace Einsatzueberwachung.Domain.Services
                 var packageBytes = await DownloadInstallerAsync(check.InstallerUrl);
                 if (packageBytes is null || packageBytes.Length == 0)
                 {
+                    const string message = "Download des Update-Pakets fehlgeschlagen.";
+                    SetStatus(status =>
+                    {
+                        status.LastError = message;
+                        status.LastMessage = message;
+                    });
+
                     return new UpdateInstallResult
                     {
                         Success = false,
-                        Message = "Download des Update-Pakets fehlgeschlagen."
+                        Message = message
                     };
                 }
 

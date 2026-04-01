@@ -291,16 +291,44 @@
 
     private async Task CheckForUpdates()
     {
-        await UpdateService.CheckForUpdatesAsync();
         _updateStatus = UpdateService.GetStatusSnapshot();
         await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await UpdateService.CheckForUpdatesAsync();
+        }
+        catch (Exception ex)
+        {
+            _updateStatus.LastError = ex.Message;
+            _updateStatus.LastMessage = "Update-Pruefung fehlgeschlagen";
+        }
+        finally
+        {
+            _updateStatus = UpdateService.GetStatusSnapshot();
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task InstallUpdate()
     {
-        await UpdateService.InstallLatestAsync();
         _updateStatus = UpdateService.GetStatusSnapshot();
         await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await UpdateService.InstallLatestAsync();
+        }
+        catch (Exception ex)
+        {
+            _updateStatus.LastError = ex.Message;
+            _updateStatus.LastMessage = "Update fehlgeschlagen";
+        }
+        finally
+        {
+            _updateStatus = UpdateService.GetStatusSnapshot();
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private string DisplayLatestVersion()

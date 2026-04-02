@@ -17,9 +17,8 @@ namespace Einsatzueberwachung.Domain.Services
     {
         private readonly string _dataPath;
         private SessionData? _sessionData;
-        private Timer? _debounceTimer;
+        private readonly SemaphoreSlim _writeLock = new SemaphoreSlim(1, 1);
         private static readonly JsonSerializerOptions _writeOptions = new JsonSerializerOptions { WriteIndented = true };
-        private const int SaveDelayMs = 500;
 
         public MasterDataService()
         {
@@ -53,39 +52,32 @@ namespace Einsatzueberwachung.Domain.Services
             return _sessionData;
         }
 
-        public Task SaveSessionDataAsync(SessionData sessionData)
+        public async Task SaveSessionDataAsync(SessionData sessionData)
         {
             _sessionData = sessionData;
-            ScheduleSave();
-            return Task.CompletedTask;
+            await WriteToDiskAsync(sessionData);
         }
 
-        // Schreibt sofort auf Disk (z.B. beim App-Shutdown oder explizitem Flush)
+        // Rückwärtskompatibilität (z.B. beim App-Shutdown)
         public async Task FlushAsync()
         {
-            _debounceTimer?.Dispose();
-            _debounceTimer = null;
             if (_sessionData != null)
                 await WriteToDiskAsync(_sessionData);
         }
 
-        private void ScheduleSave()
-        {
-            // Timer-Debounce: bei jedem Aufruf wird der Timer zurückgesetzt.
-            // Nach 500ms Inaktivität wird tatsächlich auf Disk geschrieben.
-            _debounceTimer?.Dispose();
-            _debounceTimer = new Timer(
-                async _ => await WriteToDiskAsync(_sessionData!),
-                null,
-                SaveDelayMs,
-                Timeout.Infinite);
-        }
-
         private async Task WriteToDiskAsync(SessionData sessionData)
         {
-            var filePath = Path.Combine(_dataPath, "SessionData.json");
-            var json = JsonSerializer.Serialize(sessionData, _writeOptions);
-            await File.WriteAllTextAsync(filePath, json);
+            await _writeLock.WaitAsync();
+            try
+            {
+                var filePath = Path.Combine(_dataPath, "SessionData.json");
+                var json = JsonSerializer.Serialize(sessionData, _writeOptions);
+                await File.WriteAllTextAsync(filePath, json);
+            }
+            finally
+            {
+                _writeLock.Release();
+            }
         }
 
         public async Task<List<PersonalEntry>> GetPersonalListAsync()

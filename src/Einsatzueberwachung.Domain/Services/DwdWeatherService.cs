@@ -15,6 +15,7 @@ namespace Einsatzueberwachung.Domain.Services
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<DwdWeatherService>? _logger;
+        private readonly ITimeService? _timeService;
         private const string BrightSkyBaseUrl = "https://api.brightsky.dev";
         private const string NominatimBaseUrl = "https://nominatim.openstreetmap.org/search";
         
@@ -24,18 +25,21 @@ namespace Einsatzueberwachung.Domain.Services
         private (double lat, double lon) _cachedPosition;
         private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
-        public DwdWeatherService(HttpClient httpClient, ILogger<DwdWeatherService>? logger = null)
+        public DwdWeatherService(HttpClient httpClient, ILogger<DwdWeatherService>? logger = null, ITimeService? timeService = null)
         {
             _httpClient = httpClient;
             _logger = logger;
+            _timeService = timeService;
             _httpClient.Timeout = TimeSpan.FromSeconds(10);
         }
+
+        private DateTime Now => _timeService?.Now ?? DateTime.Now;
 
         public async Task<WeatherData?> GetCurrentWeatherAsync(double latitude, double longitude)
         {
             // Cache pruefen
             if (_cachedWeather != null && 
-                DateTime.Now - _cacheTime < CacheDuration &&
+                Now - _cacheTime < CacheDuration &&
                 Math.Abs(_cachedPosition.lat - latitude) < 0.01 &&
                 Math.Abs(_cachedPosition.lon - longitude) < 0.01)
             {
@@ -80,7 +84,7 @@ namespace Einsatzueberwachung.Domain.Services
                 
                 // Cache aktualisieren
                 _cachedWeather = weather;
-                _cacheTime = DateTime.Now;
+                _cacheTime = Now;
                 _cachedPosition = (latitude, longitude);
 
                 return weather;
@@ -218,7 +222,7 @@ namespace Einsatzueberwachung.Domain.Services
 
                 var flugwetter = new FlugwetterData
                 {
-                    Zeitpunkt = data.Timestamp ?? DateTime.Now,
+                    Zeitpunkt = data.Timestamp ?? Now,
                     StationsName = source?.StationName ?? "Unbekannte Station",
                     StationsId = source?.Id?.ToString() ?? "",
                     Entfernung = 0, // BrightSky liefert keine Entfernung
@@ -432,7 +436,7 @@ namespace Einsatzueberwachung.Domain.Services
 
                 var forecast = new WeatherForecast
                 {
-                    LetzteAktualisierung = DateTime.Now,
+                    LetzteAktualisierung = Now,
                     StundenVorhersage = new WeatherData[Math.Min(24, weatherResponse.Weather.Length)]
                 };
 
@@ -456,7 +460,7 @@ namespace Einsatzueberwachung.Domain.Services
             
             var weather = new WeatherData
             {
-                Zeitpunkt = data.Timestamp ?? DateTime.Now,
+                Zeitpunkt = data.Timestamp ?? Now,
                 Temperatur = data.Temperature ?? 0,
                 Luftfeuchtigkeit = (int)(data.RelativeHumidity ?? 0),
                 Windgeschwindigkeit = windSpeed,

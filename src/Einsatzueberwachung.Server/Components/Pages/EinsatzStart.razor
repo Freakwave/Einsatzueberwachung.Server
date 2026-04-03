@@ -67,6 +67,11 @@
                         </div>
 
                         <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Alarmiert durch (Melder)</label>
+                            <InputText class="form-control" @bind-Value="_model.Alarmiert" placeholder="z.B. Polizei, Leitstelle, Angehoerige" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold">Staffel-Name</label>
                             <InputText class="form-control" @bind-Value="_model.StaffelName" placeholder="z.B. RHS Musterstadt" />
                         </div>
@@ -157,7 +162,6 @@
     private EinsatzData _model = new()
     {
         EinsatzDatum = DateTime.Now,
-        Alarmiert = DateTime.Now.ToString("dd.MM.yyyy HH:mm"),
         AnzahlTeams = 1
     };
 
@@ -227,7 +231,6 @@
             var now = _clientNow.Value;
             _alarmStartTime = now.ToString("HH:mm");
             _model.AlarmierungsZeit = now;
-            _model.Alarmiert = now.ToString("dd.MM.yyyy HH:mm");
             _model.EinsatzDatum = now;
             await InvokeAsync(StateHasChanged);
         }
@@ -307,7 +310,6 @@
         if (string.IsNullOrWhiteSpace(_alarmStartTime))
         {
             _model.AlarmierungsZeit = now;
-            _model.Alarmiert = now.ToString("dd.MM.yyyy HH:mm");
             return true;
         }
 
@@ -322,7 +324,6 @@
             }
 
             _model.AlarmierungsZeit = parsed;
-            _model.Alarmiert = parsed.ToString("dd.MM.yyyy HH:mm");
             return true;
         }
 

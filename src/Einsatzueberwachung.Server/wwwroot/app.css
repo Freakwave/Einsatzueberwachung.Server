@@ -1486,6 +1486,13 @@ a {
     padding: 1.5rem;
 }
 
+/* Classic 2-column monitor layout (original style) */
+.monitor-container-classic {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
 .monitor-header {
     background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
     border-radius: 16px;

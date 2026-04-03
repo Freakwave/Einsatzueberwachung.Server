@@ -9,6 +9,7 @@ namespace Einsatzueberwachung.Domain.Services
     public class ThemeService
     {
         private readonly ISettingsService _settingsService;
+        private readonly ITimeService? _timeService;
         private readonly ILogger<ThemeService> _logger;
         private bool _isDarkMode;
         private bool _isInitialized = false;
@@ -16,9 +17,10 @@ namespace Einsatzueberwachung.Domain.Services
 
         public event Action? OnThemeChanged;
 
-        public ThemeService(ISettingsService settingsService, ILogger<ThemeService> logger)
+        public ThemeService(ISettingsService settingsService, ILogger<ThemeService> logger, ITimeService? timeService = null)
         {
             _settingsService = settingsService;
+            _timeService = timeService;
             _logger = logger;
         }
 
@@ -82,7 +84,7 @@ namespace Einsatzueberwachung.Domain.Services
                 var appSettings = await _settingsService.GetAppSettingsAsync();
                 if (appSettings?.ThemeMode == "Scheduled")
                 {
-                    var now = DateTime.Now.TimeOfDay;
+                    var now = (_timeService?.Now ?? DateTime.Now).TimeOfDay;
                     var start = appSettings.DarkModeStartTime;
                     var end = appSettings.DarkModeEndTime;
 

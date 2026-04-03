@@ -18,13 +18,17 @@ namespace Einsatzueberwachung.Domain.Services
     public class PdfExportService : IPdfExportService
     {
         private readonly ISettingsService? _settingsService;
+        private readonly ITimeService? _timeService;
 
-        public PdfExportService(ISettingsService? settingsService = null)
+        public PdfExportService(ISettingsService? settingsService = null, ITimeService? timeService = null)
         {
             _settingsService = settingsService;
+            _timeService = timeService;
             // QuestPDF Lizenz-Konfiguration (Community License für nicht-kommerzielle Nutzung)
             QuestPDF.Settings.License = LicenseType.Community;
         }
+
+        private DateTime Now => _timeService?.Now ?? DateTime.Now;
 
         public async Task<PdfExportResult> ExportEinsatzToPdfAsync(EinsatzData einsatzData, List<Team> teams, List<GlobalNotesEntry> notes)
         {
@@ -61,10 +65,7 @@ namespace Einsatzueberwachung.Domain.Services
         {
             container.Column(column =>
             {
-                column.Item().Text("Grunddaten")
-                    .FontSize(16)
-                    .Bold()
-                    .FontColor(Colors.Blue.Darken1);
+                column.Item().Element(c => ComposeSectionHeader(c, "Grunddaten"));
 
                 column.Item().PaddingTop(10).Table(table =>
                 {
@@ -95,87 +96,79 @@ namespace Einsatzueberwachung.Domain.Services
         {
             container.Column(column =>
             {
-                column.Item().Text($"Teams ({teams.Count})")
-                    .FontSize(16)
-                    .Bold()
-                    .FontColor(Colors.Blue.Darken1);
+                column.Item().Element(c => ComposeSectionHeader(c, $"Teams ({teams.Count})"));
 
                 column.Item().PaddingTop(10).Table(table =>
                 {
                     table.ColumnsDefinition(columns =>
                     {
-                        columns.RelativeColumn(2);
-                        columns.RelativeColumn(2);
-                        columns.RelativeColumn(2);
-                        columns.RelativeColumn(1.5f);
-                        columns.RelativeColumn(1.5f);
+                        columns.RelativeColumn(2);      // Team
+                        columns.RelativeColumn(2);      // Hund/Drohne
+                        columns.RelativeColumn(2);      // Personal
+                        columns.RelativeColumn(1.5f);   // Suchgebiet
+                        columns.ConstantColumn(55);     // Ausrücken
+                        columns.ConstantColumn(60);     // Einsatzzeit
                     });
 
                     // Header
                     table.Header(header =>
                     {
-                        header.Cell().Element(CellStyle).Text("Team").Bold();
-                        header.Cell().Element(CellStyle).Text("Hund/Drohne").Bold();
-                        header.Cell().Element(CellStyle).Text("Personal").Bold();
-                        header.Cell().Element(CellStyle).Text("Suchgebiet").Bold();
-                        header.Cell().Element(CellStyle).Text("Einsatzzeit").Bold();
+                        header.Cell().Element(CellStyleHeader).Text("Team").Bold();
+                        header.Cell().Element(CellStyleHeader).Text("Hund / Drohne").Bold();
+                        header.Cell().Element(CellStyleHeader).Text("Personal").Bold();
+                        header.Cell().Element(CellStyleHeader).Text("Suchgebiet").Bold();
+                        header.Cell().Element(CellStyleHeader).AlignCenter().Text("Ausrücken").Bold();
+                        header.Cell().Element(CellStyleHeader).AlignCenter().Text("Einsatzzeit").Bold();
 
-                        static IContainer CellStyle(IContainer container)
-                        {
-                            return container.Background(Colors.Blue.Lighten3).Padding(5);
-                        }
+                        static IContainer CellStyleHeader(IContainer c) =>
+                            c.Background(Colors.Blue.Darken1).Padding(5);
                     });
 
                     // Rows
+                    var rowIndex = 0;
                     foreach (var team in teams)
                     {
-                        table.Cell().Element(CellStyle).Text(team.TeamName);
-                        
-                        table.Cell().Element(CellStyle).Column(col =>
+                        var bg = rowIndex++ % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
+
+                        table.Cell().Element(c => CellStyle(c, bg)).Text(team.TeamName);
+
+                        table.Cell().Element(c => CellStyle(c, bg)).Column(col =>
                         {
                             if (team.IsDroneTeam)
-                            {
                                 col.Item().Text($"Drohne: {team.DroneType}").FontSize(9);
-                            }
                             else if (!string.IsNullOrEmpty(team.DogName))
                             {
                                 col.Item().Text(team.DogName).FontSize(9);
                                 col.Item().Text($"({team.DogSpecialization.GetShortName()})").FontSize(8).Italic();
                             }
                             else
-                            {
                                 col.Item().Text("Support").FontSize(9).Italic();
-                            }
                         });
 
-                        table.Cell().Element(CellStyle).Column(col =>
+                        table.Cell().Element(c => CellStyle(c, bg)).Column(col =>
                         {
                             col.Item().Text(team.HundefuehrerName).FontSize(9);
                             if (!string.IsNullOrEmpty(team.HelferName))
-                            {
                                 col.Item().Text($"Helfer: {team.HelferName}").FontSize(8).Italic();
-                            }
                         });
 
-                        table.Cell().Element(CellStyle).Text(team.SearchAreaName ?? "-").FontSize(9);
-                        
-                        table.Cell().Element(CellStyle).Column(col =>
+                        table.Cell().Element(c => CellStyle(c, bg)).Text(team.SearchAreaName ?? "-").FontSize(9);
+
+                        // Ausrücken – StartTime ist default(DateTime) wenn Timer noch nicht gestartet
+                        var ausrueckText = team.StartTime != default ? team.StartTime.ToString("HH:mm") : "-";
+                        table.Cell().Element(c => CellStyle(c, bg)).AlignCenter().Text(ausrueckText).FontSize(9);
+
+                        table.Cell().Element(c => CellStyle(c, bg)).AlignCenter().Column(col =>
                         {
                             col.Item().Text(FormatTimeSpan(team.ElapsedTime)).FontSize(9);
                             if (team.IsSecondWarning)
-                            {
-                                col.Item().Text("KRITISCH").FontSize(8).Bold().FontColor(Colors.Red.Medium);
-                            }
+                                col.Item().Text("KRITISCH").FontSize(7).Bold().FontColor(Colors.Red.Medium);
                             else if (team.IsFirstWarning)
-                            {
-                                col.Item().Text("Warnung").FontSize(8).FontColor(Colors.Orange.Medium);
-                            }
+                                col.Item().Text("Warnung").FontSize(7).FontColor(Colors.Orange.Medium);
                         });
 
-                        static IContainer CellStyle(IContainer container)
-                        {
-                            return container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
-                        }
+                        static IContainer CellStyle(IContainer c, string bg) =>
+                            c.Background(bg).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
                     }
                 });
             });
@@ -185,10 +178,7 @@ namespace Einsatzueberwachung.Domain.Services
         {
             container.Column(column =>
             {
-                column.Item().Text($"Suchgebiete ({searchAreas.Count})")
-                    .FontSize(16)
-                    .Bold()
-                    .FontColor(Colors.Blue.Darken1);
+                column.Item().Element(c => ComposeSectionHeader(c, $"Suchgebiete ({searchAreas.Count})"));
 
                 column.Item().PaddingTop(10).Table(table =>
                 {
@@ -204,35 +194,35 @@ namespace Einsatzueberwachung.Domain.Services
                     // Header
                     table.Header(header =>
                     {
-                        header.Cell().Element(CellStyle).Text("Name").Bold();
-                        header.Cell().Element(CellStyle).Text("Team").Bold();
-                        header.Cell().Element(CellStyle).Text("Status").Bold();
-                        header.Cell().Element(CellStyle).Text("Kartenlayout").Bold();
-                        header.Cell().Element(CellStyle).Text("Notizen").Bold();
+                        header.Cell().Element(CellStyleHeader).Text("Name").Bold();
+                        header.Cell().Element(CellStyleHeader).Text("Team").Bold();
+                        header.Cell().Element(CellStyleHeader).Text("Status").Bold();
+                        header.Cell().Element(CellStyleHeader).Text("Kartenlayout").Bold();
+                        header.Cell().Element(CellStyleHeader).Text("Notizen").Bold();
 
-                        static IContainer CellStyle(IContainer container)
-                        {
-                            return container.Background(Colors.Blue.Lighten3).Padding(5);
-                        }
+                        static IContainer CellStyleHeader(IContainer c) =>
+                            c.Background(Colors.Blue.Darken1).Padding(5);
                     });
 
+                    var rowIndex = 0;
                     foreach (var area in searchAreas)
                     {
-                        table.Cell().Element(CellStyle).Text(area.Name);
-                        table.Cell().Element(CellStyle).Text(area.AssignedTeamName ?? "-");
-                        table.Cell().Element(CellStyle).Text(area.IsCompleted ? "Abgeschlossen" : "In Bearbeitung")
+                        var bg = rowIndex++ % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
+
+                        table.Cell().Element(c => CellStyle(c, bg)).Text(area.Name);
+                        table.Cell().Element(c => CellStyle(c, bg)).Text(area.AssignedTeamName ?? "-");
+                        table.Cell().Element(c => CellStyle(c, bg))
+                            .Text(area.IsCompleted ? "Abgeschlossen" : "In Bearbeitung")
                             .FontColor(area.IsCompleted ? Colors.Green.Medium : Colors.Orange.Medium);
-                        table.Cell().Element(CellStyle).Column(col =>
+                        table.Cell().Element(c => CellStyle(c, bg)).Column(col =>
                         {
-                            col.Item().Text($"Flaeche: {area.FormattedArea}").FontSize(9);
+                            col.Item().Text($"Fläche: {area.FormattedArea}").FontSize(9);
                             col.Item().Text($"Punkte: {area.Coordinates?.Count ?? 0}").FontSize(8).Italic();
                         });
-                        table.Cell().Element(CellStyle).Text(area.Notes ?? "-").FontSize(9);
+                        table.Cell().Element(c => CellStyle(c, bg)).Text(area.Notes ?? "-").FontSize(9);
 
-                        static IContainer CellStyle(IContainer container)
-                        {
-                            return container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
-                        }
+                        static IContainer CellStyle(IContainer c, string bg) =>
+                            c.Background(bg).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
                     }
                 });
             });
@@ -242,39 +232,55 @@ namespace Einsatzueberwachung.Domain.Services
         {
             container.Column(column =>
             {
-                column.Item().Text($"Funksprüche & Notizen ({notes.Count})")
-                    .FontSize(16)
-                    .Bold()
-                    .FontColor(Colors.Blue.Darken1);
+                column.Item().Element(c => ComposeSectionHeader(c, $"Funksprüche & Notizen ({notes.Count})"));
 
-                column.Item().PaddingTop(10).Column(col =>
+                column.Item().PaddingTop(10).Table(table =>
                 {
+                    table.ColumnsDefinition(columns =>
+                    {
+                        columns.ConstantColumn(96);    // Zeit
+                        columns.ConstantColumn(80);    // Typ
+                        columns.ConstantColumn(90);    // Team/Quelle
+                        columns.RelativeColumn();      // Text
+                    });
+
+                    // Header
+                    table.Header(header =>
+                    {
+                        header.Cell().Element(HdrStyle).Text("Zeit").Bold();
+                        header.Cell().Element(HdrStyle).Text("Typ").Bold();
+                        header.Cell().Element(HdrStyle).Text("Quelle").Bold();
+                        header.Cell().Element(HdrStyle).Text("Text").Bold();
+
+                        static IContainer HdrStyle(IContainer c) =>
+                            c.Background(Colors.Blue.Darken1).Padding(5);
+                    });
+
+                    var rowIndex = 0;
                     foreach (var note in notes.OrderBy(n => n.Timestamp))
                     {
-                        col.Item().PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Column(noteCol =>
-                        {
-                            noteCol.Item().Row(row =>
-                            {
-                                row.AutoItem().Text($"[{note.Timestamp:dd.MM.yyyy HH:mm:ss}]")
-                                    .FontSize(9)
-                                    .Bold()
-                                    .FontColor(Colors.Grey.Darken1);
+                        var bg = rowIndex++ % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
+                        var typeColor = GetNoteTypeColor(note.Type);
 
-                                row.AutoItem().PaddingLeft(10).Text($"[{note.Type}]")
-                                    .FontSize(9)
-                                    .Bold()
-                                    .FontColor(GetNoteTypeColor(note.Type));
+                        // Zeit
+                        table.Cell().Element(c => RowCell(c, bg))
+                            .AlignCenter().Text($"{note.Timestamp:dd.MM.\nHH:mm}").FontSize(8);
 
-                                if (!string.IsNullOrEmpty(note.SourceTeamName))
-                                {
-                                    row.AutoItem().PaddingLeft(10).Text($"[{note.SourceTeamName}]")
-                                        .FontSize(9)
-                                        .FontColor(Colors.Blue.Medium);
-                                }
-                            });
+                        // Typ als farbige Pille
+                        table.Cell().Element(c => c.Background(bg).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(4))
+                            .Background(typeColor).Padding(3).AlignCenter()
+                            .Text(GetNoteTypeLabel(note.Type)).FontSize(8).Bold().FontColor(Colors.White);
 
-                            noteCol.Item().PaddingTop(3).Text(note.Text).FontSize(10);
-                        });
+                        // Quelle/Team
+                        table.Cell().Element(c => RowCell(c, bg))
+                            .AlignCenter().Text(note.SourceTeamName ?? "-").FontSize(8).Italic();
+
+                        // Text
+                        table.Cell().Element(c => RowCell(c, bg))
+                            .Text(note.Text).FontSize(9);
+
+                        static IContainer RowCell(IContainer c, string bg) =>
+                            c.Background(bg).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
                     }
                 });
             });
@@ -302,6 +308,21 @@ namespace Einsatzueberwachung.Domain.Services
                 GlobalNotesEntryType.EinsatzUpdate => Colors.Blue.Darken1,
                 GlobalNotesEntryType.System => Colors.Grey.Darken1,
                 _ => Colors.Grey.Darken1
+            };
+        }
+
+        private static string GetNoteTypeLabel(GlobalNotesEntryType type)
+        {
+            return type switch
+            {
+                GlobalNotesEntryType.TeamStart => "Ausrücken",
+                GlobalNotesEntryType.TeamStop => "Einrücken",
+                GlobalNotesEntryType.TeamWarning => "Warnung",
+                GlobalNotesEntryType.TeamReset => "Reset",
+                GlobalNotesEntryType.EinsatzUpdate => "Einsatz",
+                GlobalNotesEntryType.System => "System",
+                GlobalNotesEntryType.Manual => "Notiz",
+                _ => type.ToString()
             };
         }
 
@@ -375,6 +396,23 @@ namespace Einsatzueberwachung.Domain.Services
         {
             return Document.Create(container =>
             {
+                // ─── Deckblatt ───────────────────────────────────────────────
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(0);
+                    page.PageColor(Colors.White);
+                    page.Content().Element(c => ComposeCoverPage(c, einsatzData.IstEinsatz ? "EINSATZBERICHT" : "ÜBUNGSBERICHT",
+                        einsatzData.IstEinsatz ? Colors.Red.Darken2 : Colors.Blue.Darken2,
+                        einsatzData.IstEinsatz ? Colors.Red.Lighten3 : Colors.Blue.Lighten3,
+                        staffelInfo,
+                        einsatzData.EinsatzNummer,
+                        einsatzData.EinsatzDatum,
+                        einsatzData.Einsatzort,
+                        einsatzData.EinsatzTyp));
+                });
+
+                // ─── Hauptbericht ────────────────────────────────────────────
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
@@ -383,28 +421,27 @@ namespace Einsatzueberwachung.Domain.Services
                     page.DefaultTextStyle(x => x.FontSize(11));
 
                     page.Header()
-                        .Background(Colors.Blue.Lighten3)
+                        .Background(einsatzData.IstEinsatz ? Colors.Red.Lighten3 : Colors.Blue.Lighten3)
                         .Padding(20)
-                        .Element(container => ComposeReportHeader(container, "EINSATZBERICHT", Colors.Blue.Darken2, staffelInfo));
+                        .Element(c => ComposeReportHeader(c, einsatzData.IstEinsatz ? "EINSATZBERICHT" : "ÜBUNGSBERICHT",
+                            einsatzData.IstEinsatz ? Colors.Red.Darken2 : Colors.Blue.Darken2, staffelInfo));
 
                     page.Content()
                         .Column(column =>
                         {
-                            // Grunddaten
-                            column.Item().PaddingVertical(10).Element(container => ComposeGrunddaten(container, einsatzData));
-
-                            // Teams
-                            column.Item().PaddingVertical(10).Element(container => ComposeTeams(container, teams));
-
-                            // Suchgebiete
+                            column.Item().PaddingVertical(10).Element(c => ComposeGrunddaten(c, einsatzData));
+                            column.Item().PaddingVertical(10).Element(c => ComposeZusammenfassung(c, teams.Count,
+                                einsatzData.SearchAreas.Count, notes.Count,
+                                FormatTimeSpan(teams.Aggregate(TimeSpan.Zero, (a, t) => a + t.ElapsedTime)),
+                                null));
+                            column.Item().PaddingVertical(10).Element(c => ComposeTeams(c, teams));
                             if (einsatzData.SearchAreas.Any())
+                                column.Item().PaddingVertical(10).Element(c => ComposeSuchgebiete(c, einsatzData.SearchAreas.ToList()));
+                            if (notes.Any())
                             {
-                                column.Item().PaddingVertical(10).Element(container => ComposeSuchgebiete(container, einsatzData.SearchAreas.ToList()));
+                                column.Item().PageBreak();
+                                column.Item().PaddingVertical(10).Element(c => ComposeNotizen(c, notes));
                             }
-
-                            // Notizen
-                            column.Item().PageBreak();
-                            column.Item().PaddingVertical(10).Element(container => ComposeNotizen(container, notes));
                         });
 
                     page.Footer()
@@ -412,7 +449,7 @@ namespace Einsatzueberwachung.Domain.Services
                         .Text(text =>
                         {
                             text.Span("Erstellt am: ");
-                            text.Span($"{DateTime.Now:dd.MM.yyyy HH:mm:ss}").Bold();
+                            text.Span($"{Now:dd.MM.yyyy HH:mm:ss}").Bold();
                             text.Span(" | Seite ");
                             text.CurrentPageNumber();
                             text.Span(" von ");
@@ -429,6 +466,24 @@ namespace Einsatzueberwachung.Domain.Services
         {
             return Document.Create(container =>
             {
+                // ─── Deckblatt ───────────────────────────────────────────────
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(0);
+                    page.PageColor(Colors.White);
+                    page.Content().Element(c => ComposeCoverPage(c,
+                        einsatz.IstEinsatz ? "EINSATZBERICHT" : "ÜBUNGSBERICHT",
+                        einsatz.IstEinsatz ? Colors.Red.Darken2 : Colors.Blue.Darken2,
+                        einsatz.IstEinsatz ? Colors.Red.Lighten3 : Colors.Blue.Lighten3,
+                        staffelInfo,
+                        einsatz.EinsatzNummer,
+                        einsatz.EinsatzDatum,
+                        einsatz.Einsatzort,
+                        einsatz.EinsatzTyp));
+                });
+
+                // ─── Hauptbericht ────────────────────────────────────────────
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
@@ -439,40 +494,27 @@ namespace Einsatzueberwachung.Domain.Services
                     page.Header()
                         .Background(einsatz.IstEinsatz ? Colors.Red.Lighten3 : Colors.Blue.Lighten3)
                         .Padding(20)
-                        .Element(container => ComposeReportHeader(
-                            container,
-                            einsatz.IstEinsatz ? "EINSATZBERICHT" : "UEBUNGSBERICHT",
+                        .Element(c => ComposeReportHeader(c,
+                            einsatz.IstEinsatz ? "EINSATZBERICHT" : "ÜBUNGSBERICHT",
                             einsatz.IstEinsatz ? Colors.Red.Darken2 : Colors.Blue.Darken2,
                             staffelInfo));
 
                     page.Content()
                         .Column(column =>
                         {
-                            // Grunddaten
                             column.Item().PaddingVertical(10).Element(c => ComposeArchivedGrunddaten(c, einsatz));
-
-                            // Ergebnis
+                            column.Item().PaddingVertical(10).Element(c => ComposeZusammenfassung(c,
+                                einsatz.AnzahlTeams, einsatz.SearchAreas?.Count ?? 0,
+                                einsatz.GlobalNotesEntries?.Count ?? 0,
+                                einsatz.DauerFormatiert,
+                                einsatz.Ergebnis));
                             column.Item().PaddingVertical(10).Element(c => ComposeErgebnis(c, einsatz));
-
-                            // Vor-Ort Checklisten (Personal/Hunde)
                             if ((einsatz.PersonalNamen?.Any() ?? false) || (einsatz.HundeNamen?.Any() ?? false))
-                            {
                                 column.Item().PaddingVertical(10).Element(c => ComposeVorOrtChecklisten(c, einsatz));
-                            }
-
-                            // Teams
                             if (einsatz.Teams?.Any() == true)
-                            {
                                 column.Item().PaddingVertical(10).Element(c => ComposeArchivedTeams(c, einsatz.Teams));
-                            }
-
-                            // Suchgebiete
                             if (einsatz.SearchAreas?.Any() == true)
-                            {
                                 column.Item().PaddingVertical(10).Element(c => ComposeSuchgebiete(c, einsatz.SearchAreas));
-                            }
-
-                            // Notizen
                             if (einsatz.GlobalNotesEntries?.Any() == true)
                             {
                                 column.Item().PageBreak();
@@ -487,7 +529,7 @@ namespace Einsatzueberwachung.Domain.Services
                             text.Span("Archiviert am: ");
                             text.Span($"{einsatz.ArchivedAt:dd.MM.yyyy HH:mm}").Bold();
                             text.Span(" | Erstellt am: ");
-                            text.Span($"{DateTime.Now:dd.MM.yyyy HH:mm}");
+                            text.Span($"{Now:dd.MM.yyyy HH:mm}");
                             text.Span(" | Seite ");
                             text.CurrentPageNumber();
                             text.Span(" von ");
@@ -497,8 +539,125 @@ namespace Einsatzueberwachung.Domain.Services
             });
         }
 
-        private void ComposeReportHeader(IContainer container, string title, string titleColor, StaffelInfo staffelInfo)
+        // ─────────────────────────────────────────────────────────────────────────
+        // Deckblatt
+        // ─────────────────────────────────────────────────────────────────────────
+
+        private void ComposeCoverPage(IContainer container, string title, string titleColor,
+            string bgColor, StaffelInfo staffelInfo, string einsatzNummer,
+            DateTime einsatzDatum, string einsatzort, string einsatzTyp)
         {
+            container.Column(column =>
+            {
+                // Farbiger Streifen oben
+                column.Item().Height(180).Background(bgColor).Padding(40).Column(col =>
+                {
+                    col.Item().PaddingTop(20).Text(title)
+                        .FontSize(36).Bold().FontColor(titleColor);
+                    if (!string.IsNullOrWhiteSpace(staffelInfo.Name))
+                        col.Item().Text(staffelInfo.Name).FontSize(18).FontColor(Colors.Grey.Darken2);
+                    col.Item().Text("Rettungshundestaffel").FontSize(13).FontColor(Colors.Grey.Darken1);
+                });
+
+                // Einsatzdetails zentriert
+                column.Item().Padding(40).AlignCenter().Column(col =>
+                {
+                    col.Spacing(12);
+
+                    col.Item().AlignCenter().Row(row =>
+                    {
+                        if (TryLoadLogoBytes(staffelInfo.LogoPath, out var logoBytes))
+                        {
+                            row.ConstantItem(120).Height(120).AlignCenter()
+                                .Border(1).BorderColor(Colors.Grey.Lighten2)
+                                .Background(Colors.White).Padding(8)
+                                .Image(logoBytes).FitArea();
+                        }
+                    });
+
+                    col.Item().PaddingTop(20).AlignCenter()
+                        .Background(Colors.Grey.Lighten4).Padding(20).Column(box =>
+                        {
+                            box.Spacing(8);
+                            box.Item().AlignCenter().Text($"Einsatznummer: {einsatzNummer}")
+                                .FontSize(16).Bold();
+                            box.Item().AlignCenter().Text($"Datum: {einsatzDatum:dd.MM.yyyy}")
+                                .FontSize(14);
+                            box.Item().AlignCenter().Text($"Einsatzort: {einsatzort}")
+                                .FontSize(13).FontColor(Colors.Grey.Darken1);
+                            box.Item().AlignCenter().Text($"Typ: {einsatzTyp}")
+                                .FontSize(12).FontColor(Colors.Grey.Darken1);
+                        });
+
+                    if (!string.IsNullOrWhiteSpace(staffelInfo.Address))
+                        col.Item().PaddingTop(20).AlignCenter().Text(staffelInfo.Address)
+                            .FontSize(10).FontColor(Colors.Grey.Darken1);
+
+                    var kontakt = BuildKontaktLine(staffelInfo);
+                    if (!string.IsNullOrWhiteSpace(kontakt))
+                        col.Item().AlignCenter().Text(kontakt)
+                            .FontSize(10).FontColor(Colors.Grey.Darken1);
+                });
+
+                // Unterer Streifen
+                column.Item().Extend().AlignBottom()
+                    .Background(bgColor).Padding(15).AlignCenter()
+                    .Text($"Erstellt am {Now:dd.MM.yyyy HH:mm} Uhr")
+                    .FontSize(10).FontColor(titleColor);
+            });
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // Zusammenfassungs-Box
+        // ─────────────────────────────────────────────────────────────────────────
+
+        private static void ComposeZusammenfassung(IContainer container,
+            int anzahlTeams, int anzahlSuchgebiete, int anzahlNotizen,
+            string gesamtdauer, string? ergebnis)
+        {
+            container.Background(Colors.Grey.Lighten4).Padding(12).Column(col =>
+            {
+                col.Item().Text("Zusammenfassung").FontSize(11).Bold().FontColor(Colors.Grey.Darken2);
+                col.Item().PaddingTop(8).Row(row =>
+                {
+                    StatBox(row.RelativeItem(), $"{anzahlTeams}", "Teams", Colors.Blue.Lighten3);
+                    row.ConstantItem(6);
+                    StatBox(row.RelativeItem(), $"{anzahlSuchgebiete}", "Suchgebiete", Colors.Teal.Lighten3);
+                    row.ConstantItem(6);
+                    StatBox(row.RelativeItem(), $"{anzahlNotizen}", "Notizen / Funk", Colors.Purple.Lighten3);
+                    row.ConstantItem(6);
+                    StatBox(row.RelativeItem(),
+                        !string.IsNullOrWhiteSpace(ergebnis) ? ergebnis! : gesamtdauer,
+                        !string.IsNullOrWhiteSpace(ergebnis) ? "Ergebnis" : "Gesamtdauer",
+                        Colors.Orange.Lighten3);
+                });
+            });
+
+            static void StatBox(IContainer c, string value, string label, string bg)
+            {
+                c.Background(bg).Border(1).BorderColor(Colors.White).Padding(10).Column(inner =>
+                {
+                    inner.Item().AlignCenter().Text(value).FontSize(18).Bold();
+                    inner.Item().AlignCenter().Text(label).FontSize(9).FontColor(Colors.Grey.Darken2);
+                });
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
+        // Farbcodierter Abschnittsheader
+        // ─────────────────────────────────────────────────────────────────────────
+
+        private static void ComposeSectionHeader(IContainer container, string title, string? iconText = null)
+        {
+            container.Background(Colors.Blue.Darken1).Padding(8).Row(row =>
+            {
+                if (!string.IsNullOrWhiteSpace(iconText))
+                    row.AutoItem().PaddingRight(8).Text(iconText).FontSize(13).FontColor(Colors.White).Bold();
+                row.RelativeItem().Text(title).FontSize(13).Bold().FontColor(Colors.White);
+            });
+        }
+
+        private void ComposeReportHeader(IContainer container, string title, string titleColor, StaffelInfo staffelInfo)        {
             container.Row(row =>
             {
                 row.RelativeItem().Column(column =>
@@ -678,85 +837,81 @@ namespace Einsatzueberwachung.Domain.Services
         {
             container.Column(column =>
             {
-                column.Item().Text($"Teams ({teams.Count})")
-                    .FontSize(16)
-                    .Bold()
-                    .FontColor(Colors.Blue.Darken1);
+                column.Item().Element(c => ComposeSectionHeader(c, $"Teams ({teams.Count})"));
 
                 column.Item().PaddingTop(10).Table(table =>
                 {
                     table.ColumnsDefinition(columns =>
                     {
-                        columns.RelativeColumn(2);
-                        columns.RelativeColumn(2);
-                        columns.RelativeColumn(3);
-                        columns.RelativeColumn(2);
+                        columns.RelativeColumn(2);    // Team
+                        columns.RelativeColumn(2);    // Hund/Drohne
+                        columns.RelativeColumn(2.5f); // Personal
+                        columns.ConstantColumn(55);   // Ausrücken
+                        columns.ConstantColumn(55);   // Einrücken
+                        columns.ConstantColumn(60);   // Dauer
+                        columns.RelativeColumn(1.5f); // Status
                     });
 
                     // Header
                     table.Header(header =>
                     {
-                        header.Cell().Element(CellStyle).Text("Team").Bold();
-                        header.Cell().Element(CellStyle).Text("Hund/Drohne").Bold();
-                        header.Cell().Element(CellStyle).Text("Personal").Bold();
-                        header.Cell().Element(CellStyle).Text("Status").Bold();
+                        header.Cell().Element(HdrStyle).Text("Team").Bold();
+                        header.Cell().Element(HdrStyle).Text("Hund/Drohne").Bold();
+                        header.Cell().Element(HdrStyle).Text("Personal").Bold();
+                        header.Cell().Element(HdrStyle).AlignCenter().Text("Ausrücken").Bold();
+                        header.Cell().Element(HdrStyle).AlignCenter().Text("Einrücken").Bold();
+                        header.Cell().Element(HdrStyle).AlignCenter().Text("Dauer").Bold();
+                        header.Cell().Element(HdrStyle).Text("Status").Bold();
 
-                        static IContainer CellStyle(IContainer container)
-                        {
-                            return container.Background(Colors.Blue.Lighten3).Padding(5);
-                        }
+                        static IContainer HdrStyle(IContainer c) =>
+                            c.Background(Colors.Blue.Darken1).Padding(5);
                     });
 
-                    // Rows
+                    var rowIndex = 0;
                     foreach (var team in teams)
                     {
-                        table.Cell().Element(CellStyle).Text(team.TeamName);
-                        
-                        table.Cell().Element(CellStyle).Column(col =>
+                        var bg = rowIndex++ % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
+
+                        table.Cell().Element(c => RowCell(c, bg)).Text(team.TeamName);
+
+                        table.Cell().Element(c => RowCell(c, bg)).Column(col =>
                         {
                             if (!string.IsNullOrEmpty(team.DroneName))
-                            {
                                 col.Item().Text($"Drohne: {team.DroneName}").FontSize(9);
-                            }
                             else if (!string.IsNullOrEmpty(team.DogName))
-                            {
                                 col.Item().Text(team.DogName).FontSize(9);
-                            }
                             else
-                            {
                                 col.Item().Text("-").FontSize(9);
-                            }
                         });
 
-                        table.Cell().Element(CellStyle).Column(col =>
+                        table.Cell().Element(c => RowCell(c, bg)).Column(col =>
                         {
-                            foreach (var member in team.MemberNames)
-                            {
-                                col.Item().Text(member).FontSize(9);
-                            }
-                            if (!team.MemberNames.Any())
-                            {
+                            if (team.MemberNames.Any())
+                                foreach (var member in team.MemberNames)
+                                    col.Item().Text(member).FontSize(9);
+                            else
                                 col.Item().Text("-").FontSize(9);
-                            }
                         });
 
-                        table.Cell().Element(CellStyle).Column(col =>
-                        {
-                            col.Item().Text(team.Status).FontSize(9);
-                            if (team.AusrueckZeit.HasValue)
-                            {
-                                col.Item().Text($"Ausrück: {team.AusrueckZeit.Value:HH:mm}").FontSize(8).Italic();
-                            }
-                            if (team.EinrueckZeit.HasValue)
-                            {
-                                col.Item().Text($"Einrück: {team.EinrueckZeit.Value:HH:mm}").FontSize(8).Italic();
-                            }
-                        });
+                        table.Cell().Element(c => RowCell(c, bg)).AlignCenter()
+                            .Text(team.AusrueckZeit.HasValue ? team.AusrueckZeit.Value.ToString("HH:mm") : "-").FontSize(9);
 
-                        static IContainer CellStyle(IContainer container)
+                        table.Cell().Element(c => RowCell(c, bg)).AlignCenter()
+                            .Text(team.EinrueckZeit.HasValue ? team.EinrueckZeit.Value.ToString("HH:mm") : "-").FontSize(9);
+
+                        // Einsatzdauer berechnen wenn beide Zeiten vorhanden
+                        var dauer = "-";
+                        if (team.AusrueckZeit.HasValue && team.EinrueckZeit.HasValue)
                         {
-                            return container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
+                            var diff = team.EinrueckZeit.Value - team.AusrueckZeit.Value;
+                            dauer = FormatTimeSpan(diff < TimeSpan.Zero ? TimeSpan.Zero : diff);
                         }
+                        table.Cell().Element(c => RowCell(c, bg)).AlignCenter().Text(dauer).FontSize(9);
+
+                        table.Cell().Element(c => RowCell(c, bg)).Text(team.Status).FontSize(9);
+
+                        static IContainer RowCell(IContainer c, string bg) =>
+                            c.Background(bg).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
                     }
                 });
             });
@@ -769,10 +924,7 @@ namespace Einsatzueberwachung.Domain.Services
         {
             container.Column(column =>
             {
-                column.Item().Text("Grunddaten")
-                    .FontSize(16)
-                    .Bold()
-                    .FontColor(Colors.Blue.Darken1);
+                column.Item().Element(c => ComposeSectionHeader(c, "Grunddaten"));
 
                 column.Item().PaddingTop(10).Table(table =>
                 {
@@ -852,10 +1004,7 @@ namespace Einsatzueberwachung.Domain.Services
 
             container.Column(column =>
             {
-                column.Item().Text("Ergebnis")
-                    .FontSize(16)
-                    .Bold()
-                    .FontColor(Colors.Blue.Darken1);
+                column.Item().Element(c => ComposeSectionHeader(c, "Ergebnis"));
 
                 column.Item().PaddingTop(10).Background(bgColor).Padding(15).Column(col =>
                 {
@@ -880,10 +1029,7 @@ namespace Einsatzueberwachung.Domain.Services
         {
             container.Column(column =>
             {
-                column.Item().Text("Vor-Ort Erfassung")
-                    .FontSize(16)
-                    .Bold()
-                    .FontColor(Colors.Blue.Darken1);
+                column.Item().Element(c => ComposeSectionHeader(c, "Vor-Ort Erfassung"));
 
                 column.Item().PaddingTop(8).Row(row =>
                 {

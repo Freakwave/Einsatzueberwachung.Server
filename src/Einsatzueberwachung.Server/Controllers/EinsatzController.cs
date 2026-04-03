@@ -10,11 +10,13 @@ namespace Einsatzueberwachung.Server.Controllers;
 public class EinsatzController : ControllerBase
 {
     private readonly IEinsatzService _einsatzService;
+    private readonly ITimeService _timeService;
     private readonly ILogger<EinsatzController> _logger;
 
-    public EinsatzController(IEinsatzService einsatzService, ILogger<EinsatzController> logger)
+    public EinsatzController(IEinsatzService einsatzService, ITimeService timeService, ILogger<EinsatzController> logger)
     {
         _einsatzService = einsatzService;
+        _timeService = timeService;
         _logger = logger;
     }
 
@@ -54,7 +56,7 @@ public class EinsatzController : ControllerBase
 
         try
         {
-            var now = DateTime.Now;
+            var now = _timeService.Now;
             var einsatz = new EinsatzData
             {
                 EinsatzNummer = string.IsNullOrWhiteSpace(request.EinsatzNummer)

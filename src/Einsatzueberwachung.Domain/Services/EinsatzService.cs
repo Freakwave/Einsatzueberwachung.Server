@@ -252,7 +252,7 @@ namespace Einsatzueberwachung.Domain.Services
         public async Task StartTeamTimerAsync(string teamId)
         {
             var team = await GetTeamByIdAsync(teamId);
-            team?.StartTimer();
+            team?.StartTimer(_timeService?.Now ?? DateTime.Now);
         }
 
         public async Task StopTeamTimerAsync(string teamId)
@@ -615,7 +615,7 @@ namespace Einsatzueberwachung.Domain.Services
             // Einsatz-Daten zuruecksetzen
             _currentEinsatz = new EinsatzData
             {
-                EinsatzDatum = DateTime.Now,
+                EinsatzDatum = _timeService?.Now ?? DateTime.Now,
                 IstEinsatz = true
             };
 

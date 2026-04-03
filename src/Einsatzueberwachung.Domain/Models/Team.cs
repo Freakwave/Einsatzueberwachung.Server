@@ -93,11 +93,12 @@ namespace Einsatzueberwachung.Domain.Models
             RequiredPauseMinutes = 0;
         }
 
-        public void StartTimer()
+        public void StartTimer(DateTime? now = null)
         {
             if (!IsRunning)
             {
-                StartTime = DateTime.Now - ElapsedTime;
+                var t = now ?? DateTime.Now;
+                StartTime = t - ElapsedTime;
                 IsRunning = true;
                 TimerStarted?.Invoke(this);
             }
@@ -130,11 +131,11 @@ namespace Einsatzueberwachung.Domain.Models
             TimerReset?.Invoke(this);
         }
 
-        public void EnterPauseMode()
+        public void EnterPauseMode(DateTime? now = null)
         {
             RunTimeBeforePause = ElapsedTime;
             RequiredPauseMinutes = ElapsedTime.TotalMinutes <= 20 ? 60 : 180;
-            PauseStartTime = DateTime.Now;
+            PauseStartTime = now ?? DateTime.Now;
             IsPausing = true;
         }
 

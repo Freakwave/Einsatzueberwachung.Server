@@ -74,10 +74,12 @@ namespace Einsatzueberwachung.Domain.Models
         /// <summary>
         /// Erstellt ein ArchivedEinsatz aus aktuellen EinsatzData
         /// </summary>
-        public static ArchivedEinsatz FromEinsatzData(EinsatzData data, string ergebnis = "", string bemerkungen = "")
+        public static ArchivedEinsatz FromEinsatzData(EinsatzData data, string ergebnis = "", string bemerkungen = "", DateTime? now = null)
         {
+            var _now = now ?? DateTime.Now;
             var archived = new ArchivedEinsatz
             {
+                ArchivedAt = _now,
                 Einsatzleiter = data.Einsatzleiter,
                 Fuehrungsassistent = data.Fuehrungsassistent,
                 Alarmiert = data.Alarmiert,
@@ -92,7 +94,7 @@ namespace Einsatzueberwachung.Domain.Models
                 StaffelEmail = data.StaffelEmail,
                 StaffelLogoPfad = data.StaffelLogoPfad,
                 AlarmierungsZeit = data.AlarmierungsZeit,
-                EinsatzEnde = data.EinsatzEnde ?? DateTime.Now,
+                EinsatzEnde = data.EinsatzEnde ?? _now,
                 Ergebnis = ergebnis,
                 Bemerkungen = bemerkungen,
                 AnzahlTeams = data.Teams?.Count ?? 0,

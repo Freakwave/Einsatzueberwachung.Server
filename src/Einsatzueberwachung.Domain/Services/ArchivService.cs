@@ -15,6 +15,7 @@ namespace Einsatzueberwachung.Domain.Services
     {
         private readonly string _archivDirectory;
         private readonly string _archivFilePath;
+        private readonly ITimeService? _timeService;
         private List<ArchivedEinsatz> _archiv = new();
         private bool _isLoaded = false;
 
@@ -24,11 +25,14 @@ namespace Einsatzueberwachung.Domain.Services
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
-        public ArchivService()
+        public ArchivService(ITimeService? timeService = null)
         {
+            _timeService = timeService;
             _archivDirectory = AppPathResolver.GetArchiveDirectory();
             _archivFilePath = Path.Combine(_archivDirectory, "einsatz_archiv.json");
         }
+
+        private DateTime Now => _timeService?.Now ?? DateTime.Now;
 
         private async Task EnsureLoadedAsync()
         {
@@ -65,7 +69,7 @@ namespace Einsatzueberwachung.Domain.Services
         {
             await EnsureLoadedAsync();
 
-            var archived = ArchivedEinsatz.FromEinsatzData(einsatzData, ergebnis, bemerkungen);
+            var archived = ArchivedEinsatz.FromEinsatzData(einsatzData, ergebnis, bemerkungen, Now);
 
             if (personalVorOrt is not null)
             {
@@ -179,7 +183,7 @@ namespace Einsatzueberwachung.Domain.Services
 
             var exportData = new
             {
-                ExportDatum = DateTime.Now,
+                ExportDatum = Now,
                 Version = "3.12.0",
                 AnzahlEinsaetze = _archiv.Count,
                 Einsaetze = _archiv
@@ -249,10 +253,10 @@ namespace Einsatzueberwachung.Domain.Services
                 GesamtAnzahl = _archiv.Count,
                 AnzahlEinsaetze = _archiv.Count(e => e.IstEinsatz),
                 AnzahlUebungen = _archiv.Count(e => !e.IstEinsatz),
-                AnzahlDiesesJahr = _archiv.Count(e => e.EinsatzDatum.Year == DateTime.Now.Year),
+                AnzahlDiesesJahr = _archiv.Count(e => e.EinsatzDatum.Year == Now.Year),
                 AnzahlDiesenMonat = _archiv.Count(e => 
-                    e.EinsatzDatum.Year == DateTime.Now.Year && 
-                    e.EinsatzDatum.Month == DateTime.Now.Month),
+                    e.EinsatzDatum.Year == Now.Year && 
+                    e.EinsatzDatum.Month == Now.Month),
                 GesamtPersonalEinsaetze = _archiv.Sum(e => e.AnzahlPersonal),
                 GesamtHundeEinsaetze = _archiv.Sum(e => e.AnzahlHunde)
             };
@@ -278,7 +282,7 @@ namespace Einsatzueberwachung.Domain.Services
             }
 
             // Einsaetze pro Monat (letztes Jahr)
-            var letzteJahr = DateTime.Now.AddYears(-1);
+            var letzteJahr = Now.AddYears(-1);
             var proMonat = _archiv
                 .Where(e => e.EinsatzDatum >= letzteJahr)
                 .GroupBy(e => e.EinsatzDatum.ToString("yyyy-MM"))

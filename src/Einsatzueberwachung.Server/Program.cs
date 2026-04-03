@@ -96,8 +96,9 @@ builder.Services.AddCors(options =>
 });
 // Registriere Domain-Services als Singletons (für den laufenden Einsatz)
 builder.Services.AddSingleton<IMasterDataService, MasterDataService>();
-builder.Services.AddSingleton<IEinsatzService, EinsatzService>();
 builder.Services.AddSingleton<ISettingsService, SettingsService>();
+builder.Services.AddSingleton<ITimeService, AppTimeService>();
+builder.Services.AddSingleton<IEinsatzService, EinsatzService>();
 builder.Services.AddSingleton<IPdfExportService, PdfExportService>();
 builder.Services.AddSingleton<IExcelExportService, ExcelExportService>();
 builder.Services.AddSingleton<IArchivService, ArchivService>();

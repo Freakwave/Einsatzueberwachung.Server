@@ -33,6 +33,7 @@ namespace Einsatzueberwachung.Domain.Services
         };
 
         private readonly ISettingsService? _settingsService;
+        private readonly ITimeService? _timeService;
         private EinsatzData _currentEinsatz;
         private readonly List<Team> _teams;
         private readonly List<GlobalNotesEntry> _globalNotes;
@@ -49,9 +50,10 @@ namespace Einsatzueberwachung.Domain.Services
         public event Action<GlobalNotesEntry>? NoteAdded;
         public event Action<Team, bool>? TeamWarningTriggered;
 
-        public EinsatzService(ISettingsService? settingsService = null)
+        public EinsatzService(ISettingsService? settingsService = null, ITimeService? timeService = null)
         {
             _settingsService = settingsService;
+            _timeService = timeService;
             _currentEinsatz = new EinsatzData();
             _teams = new List<Team>();
             _globalNotes = new List<GlobalNotesEntry>();
@@ -75,7 +77,7 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 Text = $"Einsatz gestartet: {einsatzData.EinsatzTyp} - {einsatzData.Einsatzort}",
                 Type = GlobalNotesEntryType.EinsatzUpdate,
-                Timestamp = DateTime.Now
+                Timestamp = _timeService?.Now ?? DateTime.Now
             };
             _globalNotes.Add(startNote);
 
@@ -85,9 +87,9 @@ namespace Einsatzueberwachung.Domain.Services
             return;
         }
 
-        private static DateTime GetServerNowLocal() => DateTimeOffset.Now.LocalDateTime;
+        private DateTime GetServerNowLocal() => _timeService?.Now ?? DateTimeOffset.Now.LocalDateTime;
 
-        private static void EnsureAlarmTime(EinsatzData einsatzData)
+        private void EnsureAlarmTime(EinsatzData einsatzData)
         {
             if (!einsatzData.AlarmierungsZeit.HasValue && TryParseAlarmText(einsatzData.Alarmiert, out var parsedAlarm))
             {
@@ -102,7 +104,7 @@ namespace Einsatzueberwachung.Domain.Services
             einsatzData.Alarmiert = einsatzData.AlarmierungsZeit.Value.ToString("dd.MM.yyyy HH:mm", DeCulture);
         }
 
-        private static bool TryParseAlarmText(string? alarmText, out DateTime parsed)
+        private bool TryParseAlarmText(string? alarmText, out DateTime parsed)
         {
             parsed = default;
             if (string.IsNullOrWhiteSpace(alarmText))
@@ -178,13 +180,13 @@ namespace Einsatzueberwachung.Domain.Services
                 team.StopTimer();
             }
 
-            _currentEinsatz.EinsatzEnde = DateTime.Now;
+            _currentEinsatz.EinsatzEnde = _timeService?.Now ?? DateTime.Now;
 
             var endNote = new GlobalNotesEntry
             {
                 Text = $"Einsatz beendet",
                 Type = GlobalNotesEntryType.EinsatzUpdate,
-                Timestamp = DateTime.Now
+                Timestamp = _timeService?.Now ?? DateTime.Now
             };
             _globalNotes.Add(endNote);
             NoteAdded?.Invoke(endNote);
@@ -194,6 +196,10 @@ namespace Einsatzueberwachung.Domain.Services
 
         public Task<Team> AddTeamAsync(Team team)
         {
+            // Erstellungszeit in der konfigurierten Zeitzone setzen
+            if (_timeService is not null)
+                team.CreatedAt = _timeService.Now;
+
             _teams.Add(team);
 
             team.TimerStarted += Team_TimerStarted;
@@ -268,7 +274,7 @@ namespace Einsatzueberwachung.Domain.Services
                 Text = text,
                 Type = type,
                 SourceTeamId = teamId,
-                Timestamp = DateTime.Now
+                Timestamp = _timeService?.Now ?? DateTime.Now
             };
 
             if (!string.IsNullOrEmpty(teamId))
@@ -449,7 +455,7 @@ namespace Einsatzueberwachung.Domain.Services
                 SourceTeamId = sourceTeamId,
                 SourceTeamName = sourceTeamName,
                 SourceType = sourceType,
-                Timestamp = DateTime.Now,
+                Timestamp = _timeService?.Now ?? DateTime.Now,
                 CreatedBy = createdBy,
                 Replies = new List<GlobalNotesReply>()
             };
@@ -475,13 +481,13 @@ namespace Einsatzueberwachung.Domain.Services
                 NoteId = noteId,
                 OldText = note.Text,
                 NewText = newText,
-                ChangedAt = DateTime.Now,
+                ChangedAt = _timeService?.Now ?? DateTime.Now,
                 ChangedBy = updatedBy
             };
             _noteHistory.Add(history);
 
             note.Text = newText;
-            note.UpdatedAt = DateTime.Now;
+            note.UpdatedAt = _timeService?.Now ?? DateTime.Now;
             note.UpdatedBy = updatedBy;
 
             EinsatzChanged?.Invoke();
@@ -528,7 +534,7 @@ namespace Einsatzueberwachung.Domain.Services
                 Text = text,
                 SourceTeamId = sourceTeamId,
                 SourceTeamName = sourceTeamName,
-                Timestamp = DateTime.Now,
+                Timestamp = _timeService?.Now ?? DateTime.Now,
                 CreatedBy = createdBy
             };
 
@@ -554,7 +560,7 @@ namespace Einsatzueberwachung.Domain.Services
             }
 
             reply.Text = newText;
-            reply.UpdatedAt = DateTime.Now;
+            reply.UpdatedAt = _timeService?.Now ?? DateTime.Now;
             reply.UpdatedBy = updatedBy;
 
             EinsatzChanged?.Invoke();

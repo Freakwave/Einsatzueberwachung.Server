@@ -65,6 +65,9 @@ namespace Einsatzueberwachung.Domain.Models
         public int RepeatWarningIntervalSeconds { get; set; }
         public List<string> QuickNoteTemplates { get; set; }
 
+        // Zeitzone für Server-seitige Zeitstempel (IANA-ID, z.B. "Europe/Berlin")
+        public string TimeZoneId { get; set; }
+
         public AppSettings()
         {
             Theme = "Light";
@@ -87,6 +90,7 @@ namespace Einsatzueberwachung.Domain.Models
             SecondWarningFrequency = 1200;
             RepeatSecondWarning = true;
             RepeatWarningIntervalSeconds = 30;
+            TimeZoneId = "Europe/Berlin";
             QuickNoteTemplates = new List<string>
             {
                 "ELW Ankunft Einsatzstelle",

@@ -9,6 +9,7 @@
 @inject IArchivService ArchivService
 @inject GitHubUpdateService UpdateService
 @inject Einsatzueberwachung.Server.Services.BrowserPreferencesService BrowserPrefs
+@inject ITimeService TimeService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -148,6 +149,31 @@
                         <label class="form-label">Vorlagen (eine Zeile pro Eintrag)</label>
                         <InputTextArea class="form-control" rows="6" @bind-Value="_quickNoteTemplatesText" />
                         <div class="form-text">Diese Liste wird im Einsatzmonitor als Schnell-Notiz-Buttons angezeigt.</div>
+                    </div>
+
+                    <hr />
+
+                    <h3 class="h5 mb-3"><i class="bi bi-clock-history me-1"></i>Datum &amp; Uhrzeit</h3>
+                    <div class="mb-3">
+                        <label class="form-label">Server-Zeitzone</label>
+                        <InputSelect class="form-select" @bind-Value="_appSettings.TimeZoneId">
+                            <option value="Europe/Berlin">Europa/Berlin (Deutschland, Österreich)</option>
+                            <option value="Europe/Vienna">Europa/Wien (Österreich)</option>
+                            <option value="Europe/Zurich">Europa/Zürich (Schweiz)</option>
+                            <option value="Europe/Paris">Europa/Paris (Frankreich)</option>
+                            <option value="Europe/London">Europa/London (Vereinigtes Königreich)</option>
+                            <option value="Europe/Amsterdam">Europa/Amsterdam (Niederlande)</option>
+                            <option value="Europe/Brussels">Europa/Brüssel (Belgien)</option>
+                            <option value="Europe/Warsaw">Europa/Warschau (Polen)</option>
+                            <option value="Europe/Prague">Europa/Prag (Tschechien)</option>
+                            <option value="Europe/Budapest">Europa/Budapest (Ungarn)</option>
+                            <option value="UTC">UTC (Koordinierte Weltzeit)</option>
+                        </InputSelect>
+                        <div class="form-text">
+                            Bestimmt die Zeitzone für alle Zeitstempel (Notizen, Funksprüche, Team-Erstellung).
+                            Muss mit der Uhr im Header übereinstimmen. Aktuelle Serverzeit in gewählter Zeitzone:
+                            <strong>@_currentServerTime</strong>
+                        </div>
                     </div>
 
                     <hr />
@@ -325,7 +351,7 @@
                     <h2 class="h4 mb-0"><i class="bi bi-info-circle me-2"></i>System-Information</h2>
                 </div>
                 <div class="card-body">
-                    <div class="mb-2"><strong>Version:</strong> 1.2.1</div>
+                    <div class="mb-2"><strong>Version:</strong> 1.2.2</div>
                     <div class="mb-2"><strong>Framework:</strong> .NET 8 / Blazor Server</div>
                     <div class="mb-3"><strong>Plattform:</strong> Web-basiert</div>
 
@@ -417,6 +443,7 @@
     private StaffelSettings _staffelSettings = new();
     private AppSettings _appSettings = new();
     private string _status = string.Empty;
+    private string _currentServerTime = string.Empty;
     private string _dataDirectory = string.Empty;
     private string _reportDirectory = string.Empty;
     private string _mobileUrl = string.Empty;
@@ -436,6 +463,7 @@
         _appSettings = await SettingsService.GetAppSettingsAsync();
         EnsureQuickNoteTemplatesInitialized(_appSettings);
         _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
+        _currentServerTime = TimeService.Now.ToString("dd.MM.yyyy HH:mm:ss");
         _dataDirectory = AppPathResolver.GetDataDirectory();
         _reportDirectory = AppPathResolver.GetReportDirectory();
         _mobileUrl = new Uri(new Uri(Navigation.BaseUri), "mobile/").ToString();
@@ -514,6 +542,10 @@
 
         await SettingsService.SaveStaffelSettingsAsync(_staffelSettings);
         await SettingsService.SaveAppSettingsAsync(_appSettings);
+
+        // Zeitzone sofort neu laden, damit neue Zeitstempel korrekt sind
+        TimeService.Refresh();
+        _currentServerTime = TimeService.Now.ToString("dd.MM.yyyy HH:mm:ss");
 
         // --- Browser-lokale Einstellungen (Theme + Sound) ---
         var prefs = BrowserPrefs.Preferences;

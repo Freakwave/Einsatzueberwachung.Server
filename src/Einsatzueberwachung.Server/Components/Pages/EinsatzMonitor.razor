@@ -11,6 +11,7 @@
 @inject IArchivService ArchivService
 @inject IPdfExportService PdfExportService
 @inject ISettingsService SettingsService
+@inject ITimeService TimeService
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 
@@ -1229,7 +1230,7 @@
         _closeMissionChecklistConfirmed = false;
         _closeMissionResult = string.Empty;
         _closeMissionRemarks = string.Empty;
-        _closeMissionEndTime = TimeOnly.FromDateTime(DateTime.Now);
+        _closeMissionEndTime = TimeOnly.FromDateTime(TimeService.Now);
         _closeMissionStatus = string.Empty;
         _closeMissionStatusIsError = false;
 
@@ -1377,11 +1378,11 @@
     {
         if (_closeMissionEndTime.HasValue)
         {
-            var baseDate = DateTime.Now.Date;
+            var baseDate = TimeService.Now.Date;
             return baseDate.Add(_closeMissionEndTime.Value.ToTimeSpan());
         }
 
-        return DateTime.Now;
+        return TimeService.Now;
     }
 
     private EinsatzData BuildArchiveSnapshot()

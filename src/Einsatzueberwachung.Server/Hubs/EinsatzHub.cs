@@ -60,7 +60,6 @@ public class EinsatzHub : Hub
 
     public async Task StartEinsatzFromMobile(EinsatzData einsatzData, string? initialNote)
     {
-        einsatzData.Alarmiert = einsatzData.EinsatzDatum.ToString("dd.MM.yyyy HH:mm");
         await _einsatzService.StartEinsatzAsync(einsatzData);
 
         if (!string.IsNullOrWhiteSpace(initialNote))

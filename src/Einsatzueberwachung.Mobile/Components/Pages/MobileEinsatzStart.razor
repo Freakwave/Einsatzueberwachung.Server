@@ -37,8 +37,15 @@
         </div>
 
         <div class="mobile-field">
-            <label for="alarmiert">Alarmiert (Text)</label>
-            <InputText id="alarmiert" class="form-control" @bind-Value="_einsatz.Alarmiert" />
+            <label for="alarmzeit">Alarmzeit (HH:mm)</label>
+            <input id="alarmzeit" type="time" step="60" class="form-control"
+                   value="@_alarmTime"
+                   @onchange="e => _alarmTime = e.Value?.ToString() ?? string.Empty" />
+        </div>
+
+        <div class="mobile-field">
+            <label for="alarmiert">Alarmiert durch (Melder)</label>
+            <InputText id="alarmiert" class="form-control" @bind-Value="_einsatz.Alarmiert" placeholder="z.B. Polizei, Leitstelle" />
         </div>
 
         <div class="mobile-field">
@@ -78,9 +85,10 @@
     private readonly Einsatzueberwachung.Domain.Models.EinsatzData _einsatz = new()
     {
         IstEinsatz = true,
-        EinsatzDatum = DateTime.Now,
-        Alarmiert = DateTime.Now.ToString("dd.MM.yyyy HH:mm")
+        EinsatzDatum = DateTime.Now
     };
+
+    private string _alarmTime = DateTime.Now.ToString("HH:mm");
 
     private string _bemerkung = string.Empty;
     private string _status = string.Empty;
@@ -120,33 +128,24 @@
 
     private bool TryPrepareAlarmTime()
     {
-        if (string.IsNullOrWhiteSpace(_einsatz.Alarmiert))
+        if (string.IsNullOrWhiteSpace(_alarmTime))
         {
             var now = DateTime.Now;
             _einsatz.AlarmierungsZeit = now;
-            _einsatz.Alarmiert = now.ToString("dd.MM.yyyy HH:mm");
             return true;
         }
 
-        if (DateTime.TryParseExact(_einsatz.Alarmiert.Trim(), AlarmDateFormats, System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.AssumeLocal, out var parsed)
-            || DateTime.TryParseExact(_einsatz.Alarmiert.Trim(), AlarmTimeFormats, System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.None, out parsed)
-            || DateTime.TryParse(_einsatz.Alarmiert.Trim(), System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.AssumeLocal, out parsed))
+        if (DateTime.TryParseExact(_alarmTime.Trim(), AlarmTimeFormats, System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.None, out var parsed)
+            || DateTime.TryParse(_alarmTime.Trim(), System.Globalization.CultureInfo.GetCultureInfo("de-DE"), System.Globalization.DateTimeStyles.None, out parsed))
         {
-            if (_einsatz.Alarmiert.Contains(':')
-                && !_einsatz.Alarmiert.Contains('.')
-                && !_einsatz.Alarmiert.Contains('-')
-                && !_einsatz.Alarmiert.Contains('/'))
+            var now = DateTime.Now;
+            parsed = new DateTime(now.Year, now.Month, now.Day, parsed.Hour, parsed.Minute, 0);
+            if (parsed > now.AddMinutes(1))
             {
-                var now = DateTime.Now;
-                parsed = new DateTime(now.Year, now.Month, now.Day, parsed.Hour, parsed.Minute, parsed.Second);
-                if (parsed > now.AddMinutes(1))
-                {
-                    parsed = parsed.AddDays(-1);
-                }
+                parsed = parsed.AddDays(-1);
             }
 
             _einsatz.AlarmierungsZeit = parsed;
-            _einsatz.Alarmiert = parsed.ToString("dd.MM.yyyy HH:mm");
             return true;
         }
 

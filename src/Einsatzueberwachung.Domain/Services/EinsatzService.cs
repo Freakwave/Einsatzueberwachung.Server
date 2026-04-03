@@ -100,8 +100,6 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 einsatzData.AlarmierungsZeit = GetServerNowLocal();
             }
-
-            einsatzData.Alarmiert = einsatzData.AlarmierungsZeit.Value.ToString("dd.MM.yyyy HH:mm", DeCulture);
         }
 
         private bool TryParseAlarmText(string? alarmText, out DateTime parsed)

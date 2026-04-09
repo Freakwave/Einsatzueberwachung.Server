@@ -71,60 +71,93 @@
     <!-- Main Content: Sidebar + Map -->
     <div class="map-content">
         <!-- Sidebar: Suchgebiete -->
-        <aside class="map-sidebar">
+        <aside class="map-sidebar @(_sidebarMinimized ? "minimized" : "")">
             <div class="sidebar-header">
-                <h3>Suchgebiete</h3>
-                <div class="sidebar-header-right">
-                    <span class="badge bg-primary">@_searchAreas.Count</span>
-                    <button class="btn btn-circle btn-primary" 
+                @if (!_sidebarMinimized)
+                {
+                    <h3>Suchgebiete</h3>
+                }
+                <div class="sidebar-header-right @(_sidebarMinimized ? "w-100 justify-content-between" : "")">
+                    @if (!_sidebarMinimized)
+                    {
+                        <span class="badge bg-primary">@_searchAreas.Count</span>
+                    }
+                    <button class="btn btn-circle btn-primary"
                             @onclick="ActivateDrawPolygon"
                             title="Neues Suchgebiet zeichnen">
                         <i class="bi bi-plus-lg"></i>
                     </button>
+                    <button class="btn btn-circle btn-outline-secondary"
+                            @onclick="ToggleSidebar"
+                            title="@(_sidebarMinimized ? "Sidebar erweitern" : "Sidebar minimieren")">
+                        <i class="bi @(_sidebarMinimized ? "bi-chevron-right" : "bi-chevron-left")"></i>
+                    </button>
                 </div>
             </div>
 
-            @if (_searchAreas.Any())
+            @if (_sidebarMinimized)
             {
-                <div class="sidebar-list">
+                <!-- Minimierte Ansicht: nur Farbe + Name -->
+                <div class="sidebar-mini-list">
                     @foreach (var area in _searchAreas)
                     {
-                        <div class="search-area-item">
-                            <div class="area-header">
-                                <span class="color-box" style="background-color: @area.Color;"></span>
-                                <span class="area-name">@area.Name</span>
-                            </div>
-                            <div class="area-info">
-                                <small>@area.FormattedArea</small>
-                                @if (!string.IsNullOrEmpty(area.AssignedTeamName))
-                                {
-                                    <small class="text-primary">@area.AssignedTeamName</small>
-                                }
-                                @if (area.IsCompleted)
-                                {
-                                    <small class="text-success">✓</small>
-                                }
-                            </div>
-                            <div class="area-actions">
-                                <button class="btn btn-xs btn-link" @onclick="() => ZoomToArea(area)" title="Zoomen">
-                                    <i class="bi bi-zoom-in"></i>
-                                </button>
-                                <button class="btn btn-xs btn-link" @onclick="() => EditSearchArea(area)" title="Bearbeiten">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-xs btn-link text-danger" @onclick="() => DeleteSearchArea(area)" title="Löschen">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
+                        <div class="sidebar-mini-item" @onclick="() => ExpandAndZoom(area)" title="@area.Name">
+                            <span class="color-box" style="background-color: @area.Color;"></span>
+                            <span class="mini-area-name">@area.Name</span>
+                        </div>
+                    }
+                    @if (!_searchAreas.Any())
+                    {
+                        <div class="sidebar-mini-empty">
+                            <i class="bi bi-inbox"></i>
                         </div>
                     }
                 </div>
             }
             else
             {
-                <div class="sidebar-empty">
-                    <p><i class="bi bi-inbox"></i><br>Keine Suchgebiete</p>
-                </div>
+                @if (_searchAreas.Any())
+                {
+                    <div class="sidebar-list">
+                        @foreach (var area in _searchAreas)
+                        {
+                            <div class="search-area-item">
+                                <div class="area-header">
+                                    <span class="color-box" style="background-color: @area.Color;"></span>
+                                    <span class="area-name">@area.Name</span>
+                                </div>
+                                <div class="area-info">
+                                    <small>@area.FormattedArea</small>
+                                    @if (!string.IsNullOrEmpty(area.AssignedTeamName))
+                                    {
+                                        <small class="text-primary">@area.AssignedTeamName</small>
+                                    }
+                                    @if (area.IsCompleted)
+                                    {
+                                        <small class="text-success">✓</small>
+                                    }
+                                </div>
+                                <div class="area-actions">
+                                    <button class="btn btn-xs btn-link" @onclick="() => ZoomToArea(area)" title="Zoomen">
+                                        <i class="bi bi-zoom-in"></i>
+                                    </button>
+                                    <button class="btn btn-xs btn-link" @onclick="() => EditSearchArea(area)" title="Bearbeiten">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-xs btn-link text-danger" @onclick="() => DeleteSearchArea(area)" title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="sidebar-empty">
+                        <p><i class="bi bi-inbox"></i><br>Keine Suchgebiete</p>
+                    </div>
+                }
             }
         </aside>
 
@@ -295,6 +328,7 @@
     // ELW-Position
     private bool _hasElwPosition = false;
     private string _currentMapLayer = "streets";
+    private bool _sidebarMinimized = false;
 
     protected override void OnInitialized()
     {
@@ -498,6 +532,17 @@
             await JSRuntime.InvokeVoidAsync("LeafletMap.centerMap", 
                 "einsatzMap", center.Latitude, center.Longitude, 15);
         }
+    }
+
+    private void ToggleSidebar()
+    {
+        _sidebarMinimized = !_sidebarMinimized;
+    }
+
+    private async Task ExpandAndZoom(SearchArea area)
+    {
+        _sidebarMinimized = false;
+        await ZoomToArea(area);
     }
 
     private async Task CloseDialog()

@@ -594,8 +594,8 @@
                 
                 if (success)
                 {
-                    // Speichere Position im Einsatz
-                    EinsatzService.CurrentEinsatz.ElwPosition = (center.Lat, center.Lng);
+                    // Speichere Position im Einsatz (löst EinsatzChanged aus)
+                    await EinsatzService.SetElwPositionAsync(center.Lat, center.Lng);
                     _hasElwPosition = true;
                     _searchMessage = $"? ELW-Position wurde gesetzt und gespeichert (Lat: {center.Lat:F5}, Lng: {center.Lng:F5})";
                     StateHasChanged();
@@ -737,10 +737,10 @@
     {
         Console.WriteLine($"ELW moved to: {lat}, {lng}");
         
-        // Speichere neue Position
+        // Speichere neue Position (löst EinsatzChanged aus → Persistierung)
+        await EinsatzService.SetElwPositionAsync(lat, lng);
         await InvokeAsync(() =>
         {
-            EinsatzService.CurrentEinsatz.ElwPosition = (lat, lng);
             _searchMessage = $"? ELW verschoben zu (Lat: {lat:F5}, Lng: {lng:F5})";
             StateHasChanged();
         });

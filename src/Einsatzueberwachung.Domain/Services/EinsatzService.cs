@@ -410,6 +410,20 @@ namespace Einsatzueberwachung.Domain.Services
             return Task.CompletedTask;
         }
 
+        public Task SetElwPositionAsync(double latitude, double longitude)
+        {
+            _currentEinsatz.ElwPosition = (latitude, longitude);
+            EinsatzChanged?.Invoke();
+            return Task.CompletedTask;
+        }
+
+        public Task ClearElwPositionAsync()
+        {
+            _currentEinsatz.ElwPosition = null;
+            EinsatzChanged?.Invoke();
+            return Task.CompletedTask;
+        }
+
         private void Team_TimerStarted(Team team)
         {
             _ = AddGlobalNoteAsync($"Timer gestartet", GlobalNotesEntryType.TeamStart, team.TeamId);

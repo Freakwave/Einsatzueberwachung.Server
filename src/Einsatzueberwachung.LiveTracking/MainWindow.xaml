@@ -7,6 +7,9 @@
         mc:Ignorable="d"
         Title="Einsatzüberwachung – Garmin Live Tracking" Height="700" Width="900"
         Closing="Window_Closing">
+    <Window.Resources>
+        <local:InverseBoolConverter x:Key="InverseBoolConverter"/>
+    </Window.Resources>
     <Window.DataContext>
         <local:MainViewModel/>
     </Window.DataContext>
@@ -167,8 +170,4 @@
             </GroupBox>
         </Grid>
     </DockPanel>
-
-    <Window.Resources>
-        <local:InverseBoolConverter x:Key="InverseBoolConverter"/>
-    </Window.Resources>
 </Window>

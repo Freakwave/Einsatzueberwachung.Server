@@ -2182,10 +2182,25 @@ a {
    MAP PAGE LAYOUT - Sauberes 2-Spalten Design
    ======================================== */
 
+/* Wenn die Karteseite aktiv ist: main darf nicht scrollen und app-content hat kein Padding */
+main:has(.map-page-layout) {
+    overflow: hidden;
+}
+
+.app-content:has(.map-page-layout) {
+    padding: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .map-page-layout {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    flex: 1;
+    min-height: 0;
     width: 100%;
     overflow: hidden;
     position: relative;
@@ -2532,6 +2547,80 @@ a {
 
 .marker-cluster-large {
     background-color: rgba(244, 67, 54, 0.6);
+}
+
+/* ========================================
+   DARK MODE – Karteseite UI
+   ======================================== */
+
+[data-bs-theme="dark"] .map-header {
+    background: var(--ui-surface);
+    border-bottom-color: var(--ui-border);
+    color: var(--ui-text);
+}
+
+[data-bs-theme="dark"] .map-header h1 {
+    color: var(--ui-text);
+}
+
+[data-bs-theme="dark"] .map-sidebar {
+    background: var(--ui-surface-2);
+    border-right-color: var(--ui-border);
+}
+
+[data-bs-theme="dark"] .map-sidebar .sidebar-header {
+    background: var(--ui-surface);
+    border-bottom-color: var(--ui-border);
+    color: var(--ui-text);
+}
+
+[data-bs-theme="dark"] .map-sidebar .sidebar-header h3 {
+    color: var(--ui-text);
+}
+
+[data-bs-theme="dark"] .map-sidebar .sidebar-empty {
+    color: var(--ui-muted);
+}
+
+[data-bs-theme="dark"] .sidebar-mini-empty {
+    color: var(--ui-muted);
+}
+
+[data-bs-theme="dark"] .sidebar-mini-item {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+}
+
+[data-bs-theme="dark"] .sidebar-mini-item:hover {
+    background: rgba(74, 168, 255, 0.08);
+    border-color: var(--ui-blue);
+}
+
+[data-bs-theme="dark"] .search-area-item {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+}
+
+[data-bs-theme="dark"] .search-area-item:hover {
+    background: rgba(74, 168, 255, 0.08);
+    border-color: var(--ui-blue);
+    box-shadow: 0 2px 6px rgba(74, 168, 255, 0.15);
+}
+
+[data-bs-theme="dark"] .search-area-item .area-name {
+    color: var(--ui-text);
+}
+
+[data-bs-theme="dark"] .search-area-item .area-info small {
+    color: var(--ui-muted);
+}
+
+[data-bs-theme="dark"] .search-message {
+    background: #1a2535;
+    border-bottom-color: #2c3d52;
+    color: #7db5d8;
 }
 
 /* ========================================

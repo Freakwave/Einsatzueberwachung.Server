@@ -24,6 +24,7 @@ namespace Einsatzueberwachung.Domain.Services
         private string _baseUrl = "https://app.divera247.com/api/v2";
         private bool _enabled;
         private bool _configLoaded;
+        private TimeZoneInfo _appTimeZone = TimeZoneInfo.Local;
 
         // Cache fuer PullAll-Antwort — Dauer haengt davon ab ob Alarme aktiv sind
         private DiveraPullResponse? _cachedPull;
@@ -105,6 +106,7 @@ namespace Einsatzueberwachung.Domain.Services
                 ? "https://app.divera247.com/api/v2"
                 : settings.DiveraBaseUrl.TrimEnd('/');
             _enabled = settings.DiveraEnabled;
+            _appTimeZone = FindTimeZone(settings.TimeZoneId);
             _pollIntervalIdleSeconds = settings.DiveraPollIntervalIdleSeconds > 0
                 ? settings.DiveraPollIntervalIdleSeconds : 600;
             _pollIntervalActiveSeconds = settings.DiveraPollIntervalActiveSeconds > 0
@@ -274,7 +276,7 @@ namespace Einsatzueberwachung.Domain.Services
                     Lat = alarmEl.TryGetProperty("lat", out var latEl) && latEl.ValueKind == JsonValueKind.Number ? latEl.GetDouble() : null,
                     Lng = alarmEl.TryGetProperty("lng", out var lngEl) && lngEl.ValueKind == JsonValueKind.Number ? lngEl.GetDouble() : null,
                     Date = alarmEl.TryGetProperty("date", out var dateEl) && dateEl.ValueKind == JsonValueKind.Number
-                        ? DateTimeOffset.FromUnixTimeSeconds(dateEl.GetInt64()).LocalDateTime
+                        ? ConvertUnixToAppTime(dateEl.GetInt64())
                         : DateTime.MinValue,
                     Closed = false,
                     Priority = alarmEl.TryGetProperty("priority", out var prioEl) && prioEl.ValueKind == JsonValueKind.True,
@@ -565,7 +567,7 @@ namespace Einsatzueberwachung.Domain.Services
                             Lat = obj.TryGetProperty("lat", out var latEl) && latEl.ValueKind == JsonValueKind.Number ? latEl.GetDouble() : null,
                             Lng = obj.TryGetProperty("lng", out var lngEl) && lngEl.ValueKind == JsonValueKind.Number ? lngEl.GetDouble() : null,
                             Date = obj.TryGetProperty("date", out var dateEl) && dateEl.ValueKind == JsonValueKind.Number
-                                ? DateTimeOffset.FromUnixTimeSeconds(dateEl.GetInt64()).LocalDateTime
+                                ? ConvertUnixToAppTime(dateEl.GetInt64())
                                 : DateTime.MinValue,
                             // closed: Boolean ODER Integer (0=offen, 1=geschlossen)
                             Closed = obj.TryGetProperty("closed", out var closedEl) &&
@@ -661,6 +663,35 @@ namespace Einsatzueberwachung.Domain.Services
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Konvertiert Unix-Zeitstempel (UTC) in die konfigurierte App-Zeitzone (z.B. Europe/Berlin).
+        /// </summary>
+        private DateTime ConvertUnixToAppTime(long unixSeconds)
+        {
+            var utc = DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime;
+            return TimeZoneInfo.ConvertTimeFromUtc(utc, _appTimeZone);
+        }
+
+        private static TimeZoneInfo FindTimeZone(string? tzId)
+        {
+            if (string.IsNullOrWhiteSpace(tzId))
+                return TimeZoneInfo.Local;
+
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(tzId);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                if (TimeZoneInfo.TryConvertIanaIdToWindowsId(tzId, out var windowsId))
+                {
+                    try { return TimeZoneInfo.FindSystemTimeZoneById(windowsId); }
+                    catch { /* ignore */ }
+                }
+                return TimeZoneInfo.Local;
+            }
         }
     }
 }

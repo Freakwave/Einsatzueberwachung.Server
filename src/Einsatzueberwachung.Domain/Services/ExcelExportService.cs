@@ -51,12 +51,13 @@ namespace Einsatzueberwachung.Domain.Services
             // Header
             ws.Cell(1, 1).Value = "Vorname";
             ws.Cell(1, 2).Value = "Nachname";
-            ws.Cell(1, 3).Value = "Qualifikationen";
-            ws.Cell(1, 4).Value = "Notizen";
-            ws.Cell(1, 5).Value = "Aktiv";
+            ws.Cell(1, 3).Value = "Divera Benutzer-ID";
+            ws.Cell(1, 4).Value = "Qualifikationen";
+            ws.Cell(1, 5).Value = "Notizen";
+            ws.Cell(1, 6).Value = "Aktiv";
 
             // Header-Formatierung
-            var headerRange = ws.Range(1, 1, 1, 5);
+            var headerRange = ws.Range(1, 1, 1, 6);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
             headerRange.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
@@ -67,9 +68,10 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 ws.Cell(row, 1).Value = person.Vorname;
                 ws.Cell(row, 2).Value = person.Nachname;
-                ws.Cell(row, 3).Value = GetSkillsString(person.Skills);
-                ws.Cell(row, 4).Value = person.Notizen;
-                ws.Cell(row, 5).Value = person.IsActive ? "Ja" : "Nein";
+                ws.Cell(row, 3).Value = person.DiveraUserId?.ToString() ?? string.Empty;
+                ws.Cell(row, 4).Value = GetSkillsString(person.Skills);
+                ws.Cell(row, 5).Value = person.Notizen;
+                ws.Cell(row, 6).Value = person.IsActive ? "Ja" : "Nein";
                 row++;
             }
 
@@ -208,12 +210,20 @@ namespace Einsatzueberwachung.Domain.Services
             var existingPersonal = await _masterDataService.GetPersonalListAsync();
             var rows = ws.RowsUsed().Skip(1); // Header überspringen
 
+            // Header-basierte Zuordnung (abwärtskompatibel zu alten Vorlagen)
+            var colVorname = GetColumnIndexByHeader(ws, "Vorname") ?? 1;
+            var colNachname = GetColumnIndexByHeader(ws, "Nachname") ?? 2;
+            var colDiveraId = GetColumnIndexByHeader(ws, "Divera Benutzer-ID", "Divera ID", "DiveraUserId");
+            var colSkills = GetColumnIndexByHeader(ws, "Qualifikationen") ?? (colDiveraId.HasValue ? 4 : 3);
+            var colNotizen = GetColumnIndexByHeader(ws, "Notizen") ?? (colDiveraId.HasValue ? 5 : 4);
+            var colAktiv = GetColumnIndexByHeader(ws, "Aktiv") ?? (colDiveraId.HasValue ? 6 : 5);
+
             foreach (var row in rows)
             {
                 try
                 {
-                    var vorname = row.Cell(1).GetString().Trim();
-                    var nachname = row.Cell(2).GetString().Trim();
+                    var vorname = row.Cell(colVorname).GetString().Trim();
+                    var nachname = row.Cell(colNachname).GetString().Trim();
 
                     if (string.IsNullOrEmpty(vorname) && string.IsNullOrEmpty(nachname))
                         continue; // Leere Zeile überspringen
@@ -234,9 +244,10 @@ namespace Einsatzueberwachung.Domain.Services
                     {
                         Vorname = vorname,
                         Nachname = nachname,
-                        Skills = ParseSkills(row.Cell(3).GetString()),
-                        Notizen = row.Cell(4).GetString().Trim(),
-                        IsActive = ParseBool(row.Cell(5).GetString())
+                        DiveraUserId = colDiveraId.HasValue ? ParseNullableInt(row.Cell(colDiveraId.Value).GetString()) : null,
+                        Skills = ParseSkills(row.Cell(colSkills).GetString()),
+                        Notizen = row.Cell(colNotizen).GetString().Trim(),
+                        IsActive = ParseBool(row.Cell(colAktiv).GetString())
                     };
 
                     await _masterDataService.AddPersonalAsync(person);
@@ -366,25 +377,30 @@ namespace Einsatzueberwachung.Domain.Services
             var wsPersonal = workbook.Worksheets.Add("Personal");
             wsPersonal.Cell(1, 1).Value = "Vorname";
             wsPersonal.Cell(1, 2).Value = "Nachname";
-            wsPersonal.Cell(1, 3).Value = "Qualifikationen";
-            wsPersonal.Cell(1, 4).Value = "Notizen";
-            wsPersonal.Cell(1, 5).Value = "Aktiv";
+            wsPersonal.Cell(1, 3).Value = "Divera Benutzer-ID";
+            wsPersonal.Cell(1, 4).Value = "Qualifikationen";
+            wsPersonal.Cell(1, 5).Value = "Notizen";
+            wsPersonal.Cell(1, 6).Value = "Aktiv";
 
-            var personalHeader = wsPersonal.Range(1, 1, 1, 5);
+            var personalHeader = wsPersonal.Range(1, 1, 1, 6);
             personalHeader.Style.Font.Bold = true;
             personalHeader.Style.Fill.BackgroundColor = XLColor.LightBlue;
 
             // Beispielzeile
             wsPersonal.Cell(2, 1).Value = "Max";
             wsPersonal.Cell(2, 2).Value = "Mustermann";
-            wsPersonal.Cell(2, 3).Value = "Hundeführer, Helfer";
-            wsPersonal.Cell(2, 4).Value = "Beispiel-Notiz";
-            wsPersonal.Cell(2, 5).Value = "Ja";
+            wsPersonal.Cell(2, 3).Value = "681743";
+            wsPersonal.Cell(2, 4).Value = "Hundeführer, Helfer";
+            wsPersonal.Cell(2, 5).Value = "Beispiel-Notiz";
+            wsPersonal.Cell(2, 6).Value = "Ja";
 
             // Hinweis zu Qualifikationen
             wsPersonal.Cell(4, 1).Value = "Mögliche Qualifikationen:";
             wsPersonal.Cell(4, 1).Style.Font.Bold = true;
             wsPersonal.Cell(5, 1).Value = "Hundeführer, Helfer, Führungsassistent, Gruppenführer, Zugführer, Verbandsführer, Drohnenpilot, Einsatzleiter";
+            wsPersonal.Cell(7, 1).Value = "Hinweis Divera Benutzer-ID:";
+            wsPersonal.Cell(7, 1).Style.Font.Bold = true;
+            wsPersonal.Cell(8, 1).Value = "Numerische Divera-ID (z.B. 681743). Optional, aber empfohlen für Namensauflösung bei Rückmeldungen.";
             
             wsPersonal.Columns().AdjustToContents();
 
@@ -591,6 +607,33 @@ namespace Einsatzueberwachung.Domain.Services
                 return 0;
 
             return int.TryParse(value.Trim(), out var result) ? result : 0;
+        }
+
+        private int? ParseNullableInt(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            var normalized = value.Trim().TrimStart('#');
+            return int.TryParse(normalized, out var result) ? result : null;
+        }
+
+        private int? GetColumnIndexByHeader(IXLWorksheet ws, params string[] headerNames)
+        {
+            var headerRow = ws.Row(1);
+            var usedCells = headerRow.CellsUsed();
+
+            foreach (var cell in usedCells)
+            {
+                var current = cell.GetString().Trim();
+                foreach (var name in headerNames)
+                {
+                    if (current.Equals(name, StringComparison.OrdinalIgnoreCase))
+                        return cell.Address.ColumnNumber;
+                }
+            }
+
+            return null;
         }
 
         #endregion

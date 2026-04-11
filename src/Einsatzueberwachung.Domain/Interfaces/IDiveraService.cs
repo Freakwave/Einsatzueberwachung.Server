@@ -22,6 +22,8 @@ namespace Einsatzueberwachung.Domain.Interfaces
         Task<List<DiveraMember>> GetAvailableMembersAsync();
         Task<DiveraPullResponse?> PullAllAsync();
         Task<bool> TestConnectionAsync();
+        /// <summary>Ruft die rohen JSON-Antworten beider Endpunkte ab (zur Diagnose).</summary>
+        Task<Dictionary<string, string>> GetRawDiagnosticAsync();
 
         /// <summary>
         /// Wird aufgerufen wenn sich die Konfiguration aendert (z.B. API-Key geaendert).

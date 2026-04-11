@@ -340,11 +340,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (DiveraService.IsConfigured)
-        {
-            await PollDiveraAsync();
-            ScheduleDiveraTimer();
-        }
+        // IsConfigured-Guard NICHT verwenden — DiveraService ist frisch (transient),
+        // Konfiguration wird erst in GetActiveAlarmsAsync lazy geladen
+        await PollDiveraAsync();
     }
 
     private void ScheduleDiveraTimer()

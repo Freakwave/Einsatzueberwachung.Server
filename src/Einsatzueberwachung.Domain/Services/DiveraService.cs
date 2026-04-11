@@ -310,7 +310,19 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 var lastAlarm = await GetLastAlarmAsync();
                 if (lastAlarm != null)
+                {
+                    // UCR-Namen aus pull/all-Members aufloesen (falls Members geladen wurden)
+                    if (pull?.Members?.Count > 0)
+                    {
+                        var memberLookup = pull.Members.ToDictionary(m => m.Id, m => m.FullName);
+                        foreach (var ucrEntry in lastAlarm.UcrDetails)
+                        {
+                            if (memberLookup.TryGetValue(ucrEntry.MemberId, out var name))
+                                ucrEntry.MemberName = name;
+                        }
+                    }
                     alarms.Add(lastAlarm);
+                }
             }
 
             return alarms;
@@ -540,6 +552,53 @@ namespace Einsatzueberwachung.Domain.Services
                 _logger.LogError(ex, "Fehler beim Parsen der Divera PullAll-Antwort");
                 return null;
             }
+        }
+
+        /// <summary>Holt rohe JSON-Antworten beider Endpunkte fuer Diagnose-Zwecke.</summary>
+        public async Task<Dictionary<string, string>> GetRawDiagnosticAsync()
+        {
+            await LoadConfigIfNeededAsync();
+
+            var result = new Dictionary<string, string>();
+
+            if (!IsConfigured)
+            {
+                result["error"] = "Divera nicht konfiguriert (DiveraEnabled=false oder kein API-Key).";
+                return result;
+            }
+
+            // pull/all
+            try
+            {
+                var pullUrl = $"{_baseUrl}/pull/all?accesskey={_accessKey}";
+                var pullResp = await _httpClient.GetAsync(pullUrl);
+                var pullJson = await pullResp.Content.ReadAsStringAsync();
+                // JSON kuerzen wenn zu lang, aber Struktur sichtbar lassen
+                result["pull_all_status"] = ((int)pullResp.StatusCode).ToString();
+                result["pull_all_url"] = $"{_baseUrl}/pull/all";
+                result["pull_all_json"] = pullJson.Length > 4000 ? pullJson[..4000] + "\n…(gekuerzt)" : pullJson;
+            }
+            catch (Exception ex)
+            {
+                result["pull_all_error"] = ex.Message;
+            }
+
+            // last-alarm
+            try
+            {
+                var lastUrl = $"{GetApiHostUrl()}/api/last-alarm?accesskey={_accessKey}";
+                var lastResp = await _httpClient.GetAsync(lastUrl);
+                var lastJson = await lastResp.Content.ReadAsStringAsync();
+                result["last_alarm_status"] = ((int)lastResp.StatusCode).ToString();
+                result["last_alarm_url"] = $"{GetApiHostUrl()}/api/last-alarm";
+                result["last_alarm_json"] = lastJson.Length > 4000 ? lastJson[..4000] + "\n…(gekuerzt)" : lastJson;
+            }
+            catch (Exception ex)
+            {
+                result["last_alarm_error"] = ex.Message;
+            }
+
+            return result;
         }
     }
 }

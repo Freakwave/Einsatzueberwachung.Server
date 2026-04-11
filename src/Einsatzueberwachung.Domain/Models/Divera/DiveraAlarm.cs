@@ -7,6 +7,8 @@ namespace Einsatzueberwachung.Domain.Models.Divera
     public class DiveraAlarm
     {
         public int Id { get; set; }
+        /// <summary>Einsatznummer/Fremdschluessel aus Divera (z.B. "2024-001")</summary>
+        public string ForeignId { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Text { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
@@ -15,6 +17,10 @@ namespace Einsatzueberwachung.Domain.Models.Divera
         public DateTime Date { get; set; }
         public bool Closed { get; set; }
         public bool Priority { get; set; }
+        /// <summary>Angaben zur meldenden Person (Melder)</summary>
+        public string Caller { get; set; } = string.Empty;
+        /// <summary>Bemerkungen/Hinweise fuer die Einsatzkraefte</summary>
+        public string Remark { get; set; } = string.Empty;
 
         /// <summary>Key = MemberId, Value = UCR-Status (0=keine, 1=komme, 2=komme nicht, 3=spaeter)</summary>
         public Dictionary<int, int> Ucr { get; set; } = new();

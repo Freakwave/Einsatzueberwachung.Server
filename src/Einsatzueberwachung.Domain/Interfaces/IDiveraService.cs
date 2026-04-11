@@ -16,6 +16,8 @@ namespace Einsatzueberwachung.Domain.Interfaces
         int PollIntervalActiveSeconds { get; }
         Task<List<DiveraAlarm>> GetActiveAlarmsAsync();
         Task<DiveraAlarm?> GetAlarmByIdAsync(int alarmId);
+        /// <summary>Ruft den letzten aktiven Alarm ueber /api/last-alarm ab (zuverlaessig mit Staffel-API-Key).</summary>
+        Task<DiveraAlarm?> GetLastAlarmAsync();
         Task<List<DiveraMember>> GetMembersWithStatusAsync();
         Task<List<DiveraMember>> GetAvailableMembersAsync();
         Task<DiveraPullResponse?> PullAllAsync();

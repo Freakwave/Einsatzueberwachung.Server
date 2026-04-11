@@ -29,6 +29,10 @@ namespace Einsatzueberwachung.Domain.Services
         private DiveraPullResponse? _cachedPull;
         private DateTime _cacheTime = DateTime.MinValue;
 
+        // Cache fuer last-alarm Endpunkt (Fallback fuer Staffel-API-Key)
+        private DiveraAlarm? _cachedLastAlarm;
+        private DateTime _lastAlarmCacheTime = DateTime.MinValue;
+
         // Konfigurierbare Poll-Intervalle (in Sekunden)
         private int _pollIntervalIdleSeconds = 600;   // 10 Minuten bei Ruhe
         private int _pollIntervalActiveSeconds = 60;  // 1 Minute bei aktivem Alarm
@@ -46,7 +50,9 @@ namespace Einsatzueberwachung.Domain.Services
         public int PollIntervalActiveSeconds => _pollIntervalActiveSeconds;
 
         /// <summary>Gibt an ob aktuell mindestens ein offener Alarm vorliegt</summary>
-        public bool HasActiveAlarms => _cachedPull?.Alarms.Any(a => !a.Closed) == true;
+        public bool HasActiveAlarms =>
+            (_cachedPull?.Alarms.Any(a => !a.Closed) == true) ||
+            (_cachedLastAlarm != null && !_cachedLastAlarm.Closed && _cachedLastAlarm.Id > 0);
 
         public event Action? DataChanged;
 
@@ -64,9 +70,11 @@ namespace Einsatzueberwachung.Domain.Services
         public async Task RefreshConfigurationAsync()
         {
             _configLoaded = false;
-            // Cache invalidieren bei Konfig-Aenderung
+            // Beide Caches invalidieren bei Konfig-Aenderung
             _cachedPull = null;
             _cacheTime = DateTime.MinValue;
+            _cachedLastAlarm = null;
+            _lastAlarmCacheTime = DateTime.MinValue;
             await LoadConfigAsync();
         }
 
@@ -145,13 +153,167 @@ namespace Einsatzueberwachung.Domain.Services
             }
         }
 
+        /// <summary>Leitet die Host-URL aus der konfigurierten Basis-URL ab (ohne /api/v2 oder /api Suffix).</summary>
+        private string GetApiHostUrl()
+        {
+            var url = _baseUrl.TrimEnd('/');
+            foreach (var suffix in new[] { "/api/v2", "/api" })
+            {
+                if (url.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    return url[..^suffix.Length];
+            }
+            return url;
+        }
+
+        /// <summary>
+        /// Ruft den letzten aktiven Alarm ueber /api/last-alarm ab.
+        /// Dieser Endpunkt ist explizit fuer Web-API-Accesskey der Einheit (Staffel-API) dokumentiert
+        /// und zuverlaessiger als pull/all fuer reine Alarm-Pruefungen.
+        /// </summary>
+        public async Task<DiveraAlarm?> GetLastAlarmAsync()
+        {
+            await LoadConfigIfNeededAsync();
+            if (!IsConfigured) return null;
+
+            // Cache pruefen
+            if (_cachedLastAlarm != null && DateTime.UtcNow - _lastAlarmCacheTime < CurrentCacheDuration)
+                return _cachedLastAlarm.Id > 0 && !_cachedLastAlarm.Closed ? _cachedLastAlarm : null;
+
+            try
+            {
+                var url = $"{GetApiHostUrl()}/api/last-alarm?accesskey={_accessKey}";
+                _logger.LogInformation("Divera LastAlarm: GET {BaseUrl}/api/last-alarm", GetApiHostUrl());
+
+                var response = await _httpClient.GetAsync(url);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Divera LastAlarm fehlgeschlagen: HTTP {StatusCode}", response.StatusCode);
+                    return null;
+                }
+
+                var json = await response.Content.ReadAsStringAsync();
+                _logger.LogDebug("Divera LastAlarm Antwort: {Json}", json.Length > 1000 ? json[..1000] + "\u2026" : json);
+
+                var alarm = ParseLastAlarmResponse(json);
+
+                // Auch "kein aktiver Alarm" cachen um unnoetige API-Calls zu vermeiden
+                _cachedLastAlarm = alarm ?? new DiveraAlarm { Closed = true };
+                _lastAlarmCacheTime = DateTime.UtcNow;
+
+                if (alarm != null)
+                    DataChanged?.Invoke();
+
+                return alarm;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Fehler beim Abrufen von Divera LastAlarm");
+                return null;
+            }
+        }
+
+        private DiveraAlarm? ParseLastAlarmResponse(string json)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                if (!root.TryGetProperty("success", out var successEl) || !successEl.GetBoolean())
+                    return null;
+
+                if (!root.TryGetProperty("data", out var dataEl))
+                    return null;
+
+                // data ist null wenn kein aktiver Alarm vorhanden
+                if (dataEl.ValueKind == JsonValueKind.Null || dataEl.ValueKind == JsonValueKind.Undefined)
+                    return null;
+
+                // Alarm-Felder koennen direkt in data liegen (v1) oder in data.alarm (v2-Stil)
+                var alarmEl = dataEl;
+                if (dataEl.TryGetProperty("alarm", out var innerEl) && innerEl.ValueKind == JsonValueKind.Object)
+                    alarmEl = innerEl;
+
+                if (alarmEl.ValueKind != JsonValueKind.Object)
+                    return null;
+
+                if (!alarmEl.TryGetProperty("id", out var idEl) || idEl.GetInt32() == 0)
+                    return null;
+
+                // closed: sowohl als Boolean als auch als Integer (0 = offen, 1 = geschlossen)
+                bool closed = false;
+                if (alarmEl.TryGetProperty("closed", out var closedEl))
+                {
+                    closed = closedEl.ValueKind == JsonValueKind.True ||
+                             (closedEl.ValueKind == JsonValueKind.Number && closedEl.GetInt64() != 0);
+                }
+
+                if (closed) return null;
+
+                var alarm = new DiveraAlarm
+                {
+                    Id = idEl.GetInt32(),
+                    ForeignId = alarmEl.TryGetProperty("foreign_id", out var fidEl) ? fidEl.GetString() ?? string.Empty : string.Empty,
+                    Title = alarmEl.TryGetProperty("title", out var titleEl) ? titleEl.GetString() ?? string.Empty : string.Empty,
+                    Text = alarmEl.TryGetProperty("text", out var textEl) ? textEl.GetString() ?? string.Empty : string.Empty,
+                    Address = alarmEl.TryGetProperty("address", out var addrEl) ? addrEl.GetString() ?? string.Empty : string.Empty,
+                    Lat = alarmEl.TryGetProperty("lat", out var latEl) && latEl.ValueKind == JsonValueKind.Number ? latEl.GetDouble() : null,
+                    Lng = alarmEl.TryGetProperty("lng", out var lngEl) && lngEl.ValueKind == JsonValueKind.Number ? lngEl.GetDouble() : null,
+                    Date = alarmEl.TryGetProperty("date", out var dateEl) && dateEl.ValueKind == JsonValueKind.Number
+                        ? DateTimeOffset.FromUnixTimeSeconds(dateEl.GetInt64()).LocalDateTime
+                        : DateTime.MinValue,
+                    Closed = false,
+                    Priority = alarmEl.TryGetProperty("priority", out var prioEl) && prioEl.ValueKind == JsonValueKind.True,
+                    Caller = alarmEl.TryGetProperty("caller", out var callerEl) ? callerEl.GetString() ?? string.Empty : string.Empty,
+                    Remark = alarmEl.TryGetProperty("remark", out var remarkEl) ? remarkEl.GetString() ?? string.Empty : string.Empty,
+                };
+
+                // UCR: ucr_answered ist ein Array von user_cluster_relation_ids
+                if (alarmEl.TryGetProperty("ucr_answered", out var answeredEl) && answeredEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var uid in answeredEl.EnumerateArray())
+                    {
+                        if (uid.ValueKind != JsonValueKind.Number) continue;
+                        var userId = uid.GetInt32();
+                        alarm.Ucr[userId] = 1; // 1 = hat geantwortet (Status unbekannt bei last-alarm)
+                        alarm.UcrDetails.Add(new DiveraUcrEntry
+                        {
+                            MemberId = userId,
+                            MemberName = $"User #{userId}",
+                            Status = 1
+                        });
+                    }
+                }
+
+                _logger.LogInformation("Divera LastAlarm geparst: ID={Id}, Titel='{Title}', UCR-Antworten={Count}",
+                    alarm.Id, alarm.Title, alarm.UcrDetails.Count);
+
+                return alarm;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Fehler beim Parsen der Divera LastAlarm-Antwort");
+                return null;
+            }
+        }
+
         public async Task<List<DiveraAlarm>> GetActiveAlarmsAsync()
         {
+            // Primaer: Alarme aus pull/all (enthalten UCR mit Status-Details)
             var pull = await PullAllAsync();
-            if (pull == null)
-                return new List<DiveraAlarm>();
+            var alarms = pull?.Alarms.Where(a => !a.Closed).ToList() ?? new List<DiveraAlarm>();
 
-            return pull.Alarms.Where(a => !a.Closed).ToList();
+            // Fallback: Wenn pull/all keine Alarme liefert, last-alarm Endpunkt probieren.
+            // Wichtig fuer Staffel-API-Keys bei denen pull/all ggf. andere Datenstruktur liefert.
+            if (!alarms.Any())
+            {
+                var lastAlarm = await GetLastAlarmAsync();
+                if (lastAlarm != null)
+                    alarms.Add(lastAlarm);
+            }
+
+            return alarms;
         }
 
         public async Task<DiveraAlarm?> GetAlarmByIdAsync(int alarmId)
@@ -223,6 +385,9 @@ namespace Einsatzueberwachung.Domain.Services
                     _logger.LogWarning("Divera API: Kein 'data'-Feld in der Antwort");
                     return null;
                 }
+
+                _logger.LogDebug("Divera PullAll: Data-Schluessel: {Keys}",
+                    string.Join(", ", dataElement.EnumerateObject().Select(p => p.Name)));
 
                 var result = new DiveraPullResponse
                 {
@@ -319,6 +484,7 @@ namespace Einsatzueberwachung.Domain.Services
                         var alarm = new DiveraAlarm
                         {
                             Id = obj.TryGetProperty("id", out var idEl) ? idEl.GetInt32() : 0,
+                            ForeignId = obj.TryGetProperty("foreign_id", out var fidEl2) ? fidEl2.GetString() ?? string.Empty : string.Empty,
                             Title = obj.TryGetProperty("title", out var titleEl) ? titleEl.GetString() ?? string.Empty : string.Empty,
                             Text = obj.TryGetProperty("text", out var textEl) ? textEl.GetString() ?? string.Empty : string.Empty,
                             Address = obj.TryGetProperty("address", out var addrEl) ? addrEl.GetString() ?? string.Empty : string.Empty,
@@ -327,8 +493,13 @@ namespace Einsatzueberwachung.Domain.Services
                             Date = obj.TryGetProperty("date", out var dateEl) && dateEl.ValueKind == JsonValueKind.Number
                                 ? DateTimeOffset.FromUnixTimeSeconds(dateEl.GetInt64()).LocalDateTime
                                 : DateTime.MinValue,
-                            Closed = obj.TryGetProperty("closed", out var closedEl) && closedEl.ValueKind == JsonValueKind.True,
+                            // closed: Boolean ODER Integer (0=offen, 1=geschlossen)
+                            Closed = obj.TryGetProperty("closed", out var closedEl) &&
+                                     (closedEl.ValueKind == JsonValueKind.True ||
+                                      (closedEl.ValueKind == JsonValueKind.Number && closedEl.GetInt64() != 0)),
                             Priority = obj.TryGetProperty("priority", out var prioEl) && prioEl.ValueKind == JsonValueKind.True,
+                            Caller = obj.TryGetProperty("caller", out var callerEl2) ? callerEl2.GetString() ?? string.Empty : string.Empty,
+                            Remark = obj.TryGetProperty("remark", out var remarkEl2) ? remarkEl2.GetString() ?? string.Empty : string.Empty,
                         };
 
                         // UCR-Rueckmeldungen parsen

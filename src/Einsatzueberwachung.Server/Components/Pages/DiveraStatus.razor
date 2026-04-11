@@ -235,24 +235,29 @@
 
         try
         {
-            var pull = await DiveraService.PullAllAsync();
-            if (pull == null)
+            // GetActiveAlarmsAsync hat den last-alarm Fallback — daher statt pull.Alarms direkt verwenden
+            var alarmsTask = DiveraService.GetActiveAlarmsAsync();
+            var pullTask = DiveraService.PullAllAsync();
+            await Task.WhenAll(alarmsTask, pullTask);
+
+            var alarms = await alarmsTask;
+            var pull = await pullTask;
+
+            // Verbindung gilt als OK wenn mindestens einer der Calls etwas zurueckgab
+            _connectionOk = alarms.Any() || pull != null;
+
+            if (!_connectionOk && DiveraService.IsConfigured)
             {
-                _connectionOk = false;
-                // Nur Fehler anzeigen wenn konfiguriert — sonst ist es kein Fehler, nur nicht eingerichtet
-                if (DiveraService.IsConfigured)
-                    _errorMessage = "Keine Antwort von Divera erhalten. Bitte Verbindung und API-Key prüfen.";
-                return;
+                _errorMessage = "Keine Antwort von Divera erhalten. Bitte Verbindung und API-Key prüfen.";
             }
 
-            _connectionOk = true;
-            _alarms = pull.Alarms.Where(a => !a.Closed).ToList();
-            _members = pull.Members
+            _alarms = alarms;
+            _members = pull?.Members
                 .OrderBy(m => m.StatusId == 0 ? 99 : m.StatusId)
                 .ThenBy(m => m.Lastname)
                 .ThenBy(m => m.Firstname)
-                .ToList();
-            _lastUpdated = pull.LastUpdated;
+                .ToList() ?? new();
+            _lastUpdated = pull?.LastUpdated ?? (alarms.Any() ? DateTime.Now : null);
         }
         catch (Exception ex)
         {

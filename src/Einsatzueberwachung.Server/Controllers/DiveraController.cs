@@ -141,9 +141,25 @@ public class DiveraController : ControllerBase
     }
 
     /// <summary>
-    /// Alarm als neuen Einsatz importieren.
-    /// Befuellt EinsatzData aus Divera-Alarmdaten und startet den Einsatz.
+    /// Diagnose: Gibt die rohen JSON-Antworten beider Divera-Endpunkte zurueck.
+    /// Aufruf: GET /api/divera/debug — zeigt was Divera tatsaechlich sendet.
     /// </summary>
+    [HttpGet("debug")]
+    public async Task<IActionResult> GetDebug()
+    {
+        try
+        {
+            var raw = await _diveraService.GetRawDiagnosticAsync();
+            return Ok(raw);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Alarm als neuen Einsatz importieren.
     [HttpPost("import/{alarmId:int}")]
     public async Task<IActionResult> ImportAlarmAsEinsatz(int alarmId)
     {

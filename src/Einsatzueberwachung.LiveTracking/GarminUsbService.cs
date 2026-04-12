@@ -58,44 +58,59 @@ namespace Einsatzueberwachung.LiveTracking
             public async Task StartAsync()
             {
                 if (_isProcessing) return;
-                bool connectionSuccess = false;
+                _isProcessing = true;
 
-                do
+                bool wasConnected = false;
+                try
                 {
-                    _isProcessing = true;
+                    // Dispose the previous token source before creating a new one.
+                    _cts?.Dispose();
                     _cts = new CancellationTokenSource();
+
                     StatusMessageChanged?.Invoke("Attempting to connect to Garmin device...");
 
-                    await Task.Run(() =>
+                    bool connected = await Task.Run(() => _garminDevice.Connect(), _cts.Token);
+
+                    if (connected)
                     {
-                        if (_garminDevice.Connect()) // Connect now also sends StartSession internally
-                        {
-                            Application.Current.Dispatcher.Invoke(() => IsConnectedChanged?.Invoke(true));
-                            StatusMessageChanged?.Invoke("Device connected. Starting listener...");
-                            connectionSuccess = true;
-                            _garminDevice.StartListening();
-                        }
-                        else
-                        {
-                            StatusMessageChanged?.Invoke("Could not connect to Garmin device.");
-                            Application.Current.Dispatcher.Invoke(() => IsConnectedChanged?.Invoke(false));
-                            _isProcessing = false;
-                            Thread.Sleep(500);
-                        }
-                    }, _cts.Token);
+                        Application.Current.Dispatcher.Invoke(() => IsConnectedChanged?.Invoke(true));
+                        StatusMessageChanged?.Invoke("Device connected. Starting listener...");
+                        wasConnected = true;
+                        // StartListening blocks until the device disconnects or Stop() cancels it.
+                        await Task.Run(() => _garminDevice.StartListening(), _cts.Token);
+                    }
+                    else
+                    {
+                        StatusMessageChanged?.Invoke("Could not connect to Garmin device.");
+                    }
                 }
-                while (connectionSuccess == false);
+                catch (OperationCanceledException)
+                {
+                    StatusMessageChanged?.Invoke("Garmin connection cancelled.");
+                }
+                catch (Exception ex)
+                {
+                    StatusMessageChanged?.Invoke($"Garmin error: {ex.Message}");
+                }
+                finally
+                {
+                    // Always notify disconnection if we were connected, and always release the
+                    // processing flag so the timer can trigger a new attempt.
+                    if (wasConnected)
+                    {
+                        Application.Current.Dispatcher.Invoke(() => IsConnectedChanged?.Invoke(false));
+                        StatusMessageChanged?.Invoke("USB listening stopped.");
+                    }
+                    _isProcessing = false;
+                }
             }
 
             public void Stop()
             {
-                if (!_isProcessing) return;
-                StatusMessageChanged?.Invoke("Stopping USB listening...");
+                // Cancel the token so the Task.Run inside StartAsync finishes.
+                // StartAsync's finally block will reset _isProcessing and fire IsConnectedChanged(false).
                 _cts?.Cancel();
-                _garminDevice.StopListening(); // Ensure this call effectively stops the background thread
-                Application.Current.Dispatcher.Invoke(() => IsConnectedChanged?.Invoke(false));
-                _isProcessing = false;
-                StatusMessageChanged?.Invoke("USB listening stopped.");
+                _garminDevice.StopListening();
             }
 
             public void Dispose()

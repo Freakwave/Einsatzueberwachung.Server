@@ -68,7 +68,19 @@ namespace Einsatzueberwachung.LiveTracking
             if (!IsGarminConnected && !_garminService.IsProcessing)
             {
                 AddLog("Garmin-Gerät nicht verbunden. Starte Verbindungsversuch...");
-                _ = _garminService.StartAsync();
+                _ = TryStartGarminAsync();
+            }
+        }
+
+        private async Task TryStartGarminAsync()
+        {
+            try
+            {
+                await _garminService.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                AddLog($"Unerwarteter Garmin-Fehler: {ex.Message}");
             }
         }
 

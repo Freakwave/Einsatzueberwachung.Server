@@ -10,10 +10,14 @@ namespace Einsatzueberwachung.LiveTracking
         public class GarminUsbService : IDisposable
         {
             private readonly GarminUsbDevice _garminDevice;
-            private CancellationTokenSource _cts;
-            private bool _isProcessing = false;
+            private readonly object _lock = new();
+            private CancellationTokenSource? _cts;
+            private bool _isProcessing;
 
-            public bool IsProcessing => _isProcessing;
+            public bool IsProcessing
+            {
+                get { lock (_lock) { return _isProcessing; } }
+            }
 
             public event Action<PvtDataD800> MainDevicePvtUpdated;
             public event Action<DogCollarData> DogDataUpdated;
@@ -57,19 +61,24 @@ namespace Einsatzueberwachung.LiveTracking
 
             public async Task StartAsync()
             {
-                if (_isProcessing) return;
-                _isProcessing = true;
+                CancellationToken token;
+                lock (_lock)
+                {
+                    if (_isProcessing) return;
+                    _isProcessing = true;
+
+                    // Dispose the previous token source and create a new one atomically.
+                    _cts?.Dispose();
+                    _cts = new CancellationTokenSource();
+                    token = _cts.Token;
+                }
 
                 bool wasConnected = false;
                 try
                 {
-                    // Dispose the previous token source before creating a new one.
-                    _cts?.Dispose();
-                    _cts = new CancellationTokenSource();
-
                     StatusMessageChanged?.Invoke("Attempting to connect to Garmin device...");
 
-                    bool connected = await Task.Run(() => _garminDevice.Connect(), _cts.Token);
+                    bool connected = await Task.Run(() => _garminDevice.Connect(), token);
 
                     if (connected)
                     {
@@ -77,7 +86,7 @@ namespace Einsatzueberwachung.LiveTracking
                         StatusMessageChanged?.Invoke("Device connected. Starting listener...");
                         wasConnected = true;
                         // StartListening blocks until the device disconnects or Stop() cancels it.
-                        await Task.Run(() => _garminDevice.StartListening(), _cts.Token);
+                        await Task.Run(() => _garminDevice.StartListening(), token);
                     }
                     else
                     {
@@ -101,15 +110,23 @@ namespace Einsatzueberwachung.LiveTracking
                         Application.Current.Dispatcher.Invoke(() => IsConnectedChanged?.Invoke(false));
                         StatusMessageChanged?.Invoke("USB listening stopped.");
                     }
-                    _isProcessing = false;
+                    lock (_lock) { _isProcessing = false; }
                 }
             }
 
             public void Stop()
             {
+                CancellationTokenSource? cts;
+                lock (_lock)
+                {
+                    cts = _cts;
+                }
                 // Cancel the token so the Task.Run inside StartAsync finishes.
                 // StartAsync's finally block will reset _isProcessing and fire IsConnectedChanged(false).
-                _cts?.Cancel();
+                // The CTS may have been disposed by a concurrent StartAsync initialisation;
+                // in that case the old token is irrelevant (a new one has replaced it).
+                try { cts?.Cancel(); }
+                catch (ObjectDisposedException) { }
                 _garminDevice.StopListening();
             }
 

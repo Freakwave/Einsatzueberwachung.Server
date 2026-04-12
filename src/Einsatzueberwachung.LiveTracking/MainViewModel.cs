@@ -17,6 +17,8 @@ namespace Einsatzueberwachung.LiveTracking
         private readonly ServerApiClient _serverApiClient;
         private readonly Dictionary<int, DogTrackInfo> _dogTrackMap = new();
         private readonly Timer _garminCheckTimer;
+        private readonly object _connectLock = new();
+        private Task? _connectTask;
 
         [ObservableProperty]
         private string _statusMessage = "Bereit. Warte auf Garmin-Gerät...";
@@ -65,10 +67,17 @@ namespace Einsatzueberwachung.LiveTracking
 
         private void OnGarminCheckTimerTick(object? state)
         {
-            if (!IsGarminConnected && !_garminService.IsProcessing)
+            lock (_connectLock)
             {
-                AddLog("Garmin-Gerät nicht verbunden. Starte Verbindungsversuch...");
-                _ = TryStartGarminAsync();
+                // Skip if a previous attempt is still in flight.
+                if (_connectTask != null && !_connectTask.IsCompleted)
+                    return;
+
+                if (!IsGarminConnected && !_garminService.IsProcessing)
+                {
+                    AddLog("Garmin-Gerät nicht verbunden. Starte Verbindungsversuch...");
+                    _connectTask = TryStartGarminAsync();
+                }
             }
         }
 
@@ -232,7 +241,13 @@ namespace Einsatzueberwachung.LiveTracking
 
         public void Dispose()
         {
-            _garminCheckTimer.Dispose();
+            // Wait for any in-flight timer callback to finish before disposing
+            // the services it depends on.
+            using (var timerDone = new ManualResetEvent(false))
+            {
+                _garminCheckTimer.Dispose(timerDone);
+                timerDone.WaitOne();
+            }
             _garminService.Dispose();
             _serverApiClient.Dispose();
         }

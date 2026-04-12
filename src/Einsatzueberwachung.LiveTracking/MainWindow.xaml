@@ -7,9 +7,6 @@
         mc:Ignorable="d"
         Title="Einsatzüberwachung – Garmin Live Tracking" Height="700" Width="900"
         Closing="Window_Closing">
-    <Window.Resources>
-        <local:InverseBoolConverter x:Key="InverseBoolConverter"/>
-    </Window.Resources>
     <Window.DataContext>
         <local:MainViewModel/>
     </Window.DataContext>
@@ -72,39 +69,17 @@
             </Grid.RowDefinitions>
 
             <!-- Connection Panel -->
-            <GroupBox Grid.Row="0" Header="Verbindungen" Margin="0,0,0,10" Padding="10">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="10"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Garmin Connection -->
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Text="Garmin USB-Gerät" FontWeight="Bold" Margin="0,0,0,5"/>
-                        <StackPanel Orientation="Horizontal">
-                            <Button Content="Verbinden" Command="{Binding ConnectGarminCommand}" 
-                                    Padding="15,5" Margin="0,0,5,0"
-                                    IsEnabled="{Binding IsGarminConnected, Converter={StaticResource InverseBoolConverter}}"/>
-                            <Button Content="Trennen" Command="{Binding DisconnectGarminCommand}" 
-                                    Padding="15,5"
-                                    IsEnabled="{Binding IsGarminConnected}"/>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <!-- Server Connection -->
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="Einsatzüberwachung Server" FontWeight="Bold" Margin="0,0,0,5"/>
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Content="Verbinden" 
-                                    Command="{Binding ConnectServerCommand}" 
-                                    Padding="15,5" Margin="5,0,0,0"/>
-                            <TextBox Text="{Binding ServerUrl, UpdateSourceTrigger=PropertyChanged}" 
-                                     VerticalContentAlignment="Center" Padding="5,3"/>
-                        </DockPanel>
-                    </StackPanel>
-                </Grid>
+            <GroupBox Grid.Row="0" Header="Server-Verbindung" Margin="0,0,0,10" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="Einsatzüberwachung Server" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Verbinden"
+                                Command="{Binding ConnectServerCommand}"
+                                Padding="15,5" Margin="5,0,0,0"/>
+                        <TextBox Text="{Binding ServerUrl, UpdateSourceTrigger=PropertyChanged}"
+                                 VerticalContentAlignment="Center" Padding="5,3"/>
+                    </DockPanel>
+                </StackPanel>
             </GroupBox>
 
             <!-- Main Device Info -->

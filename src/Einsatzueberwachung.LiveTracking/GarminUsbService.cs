@@ -13,6 +13,8 @@ namespace Einsatzueberwachung.LiveTracking
             private CancellationTokenSource _cts;
             private bool _isProcessing = false;
 
+            public bool IsProcessing => _isProcessing;
+
             public event Action<PvtDataD800> MainDevicePvtUpdated;
             public event Action<DogCollarData> DogDataUpdated;
             // public event Action<List<TrackedEntityData>> MultiPersonDataUpdated; // If using packet 0x72

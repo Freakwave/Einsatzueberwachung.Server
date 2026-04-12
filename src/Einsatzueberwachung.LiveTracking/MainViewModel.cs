@@ -5,6 +5,7 @@ using Einsatzueberwachung.LiveTracking.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -15,6 +16,7 @@ namespace Einsatzueberwachung.LiveTracking
         private readonly GarminUsbService _garminService;
         private readonly ServerApiClient _serverApiClient;
         private readonly Dictionary<int, DogTrackInfo> _dogTrackMap = new();
+        private readonly Timer _garminCheckTimer;
 
         [ObservableProperty]
         private string _statusMessage = "Bereit. Warte auf Garmin-Gerät...";
@@ -56,22 +58,18 @@ namespace Einsatzueberwachung.LiveTracking
             _garminService.IsConnectedChanged += OnGarminConnectionChanged;
             _garminService.MainDevicePvtUpdated += OnMainDevicePvtUpdated;
             _garminService.DogDataUpdated += OnDogDataUpdated;
+
+            // Start checking for the Garmin device immediately, then every 5 seconds.
+            _garminCheckTimer = new Timer(OnGarminCheckTimerTick, null, TimeSpan.Zero, TimeSpan.FromSeconds(5));
         }
 
-        [RelayCommand]
-        private async Task ConnectGarminAsync()
+        private void OnGarminCheckTimerTick(object? state)
         {
-            if (IsGarminConnected) return;
-            StatusMessage = "Verbinde mit Garmin-Gerät...";
-            AddLog("Starte Garmin USB-Verbindung...");
-            await _garminService.StartAsync();
-        }
-
-        [RelayCommand]
-        private void DisconnectGarmin()
-        {
-            _garminService.Stop();
-            AddLog("Garmin-Verbindung getrennt.");
+            if (!IsGarminConnected && !_garminService.IsProcessing)
+            {
+                AddLog("Garmin-Gerät nicht verbunden. Starte Verbindungsversuch...");
+                _ = _garminService.StartAsync();
+            }
         }
 
         [RelayCommand]
@@ -222,8 +220,10 @@ namespace Einsatzueberwachung.LiveTracking
 
         public void Dispose()
         {
+            _garminCheckTimer.Dispose();
             _garminService.Dispose();
             _serverApiClient.Dispose();
         }
     }
 }
+

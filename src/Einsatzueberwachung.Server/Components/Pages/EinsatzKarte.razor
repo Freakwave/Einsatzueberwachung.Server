@@ -150,6 +150,9 @@
                                     <button class="btn btn-xs btn-link" @onclick="() => EditSearchArea(area)" title="Bearbeiten">
                                         <i class="bi bi-pencil"></i>
                                     </button>
+                                    <button class="btn btn-xs btn-link" @onclick="() => DownloadGpx(area)" title="GPX herunterladen">
+                                        <i class="bi bi-download"></i>
+                                    </button>
                                     <button class="btn btn-xs btn-link text-danger" @onclick="() => DeleteSearchArea(area)" title="Löschen">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -608,6 +611,68 @@
         await EinsatzService.DeleteSearchAreaAsync(area.Id);
         await JSRuntime.InvokeVoidAsync("LeafletMap.removeSearchArea", "einsatzMap", area.Id);
         _searchAreas = EinsatzService.CurrentEinsatz.SearchAreas.ToList();
+    }
+
+    private async Task DownloadGpx(SearchArea area)
+    {
+        if (area.Coordinates == null || area.Coordinates.Count < 2)
+        {
+            _searchMessage = "Suchgebiet hat nicht genügend Koordinaten für einen GPX-Track.";
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            var timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var safeName = area.Name.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+
+            // Build GPX track as closed polygon (repeat first point at end)
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+            sb.AppendLine("<gpx version=\"1.1\" creator=\"Einsatzueberwachung.Server\"");
+            sb.AppendLine("     xmlns=\"http://www.topografix.com/GPX/1/1\"");
+            sb.AppendLine("     xmlns:gpxx=\"http://www.garmin.com/xmlschemas/GpxExtensions/v3\"");
+            sb.AppendLine("     xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"");
+            sb.AppendLine("     xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">");
+            sb.AppendLine($"  <trk>");
+            sb.AppendLine($"    <name>{safeName}</name>");
+            sb.AppendLine($"    <desc>Suchgebiet: {safeName}</desc>");
+            sb.AppendLine("    <extensions>");
+            sb.AppendLine("      <gpxx:TrackExtension>");
+            sb.AppendLine("        <gpxx:DisplayColor>Magenta</gpxx:DisplayColor>");
+            sb.AppendLine("      </gpxx:TrackExtension>");
+            sb.AppendLine("    </extensions>");
+            sb.AppendLine("    <trkseg>");
+
+            foreach (var coord in area.Coordinates)
+            {
+                sb.AppendLine($"      <trkpt lat=\"{coord.Latitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture)}\" lon=\"{coord.Longitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture)}\">");
+                sb.AppendLine($"        <time>{timestamp}</time>");
+                sb.AppendLine("      </trkpt>");
+            }
+
+            // Close the polygon by repeating the first point
+            var first = area.Coordinates[0];
+            sb.AppendLine($"      <trkpt lat=\"{first.Latitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture)}\" lon=\"{first.Longitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture)}\">");
+            sb.AppendLine($"        <time>{timestamp}</time>");
+            sb.AppendLine("      </trkpt>");
+
+            sb.AppendLine("    </trkseg>");
+            sb.AppendLine("  </trk>");
+            sb.AppendLine("</gpx>");
+
+            var gpxContent = sb.ToString();
+            var fileName = $"{area.Name.Replace(" ", "_")}.gpx";
+
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, gpxContent, "application/gpx+xml");
+        }
+        catch (Exception ex)
+        {
+            _searchMessage = $"Fehler beim GPX-Export: {ex.Message}";
+            Console.WriteLine($"GPX-Export Fehler: {ex.Message}");
+            StateHasChanged();
+        }
     }
 
     private async Task ZoomToArea(SearchArea area)

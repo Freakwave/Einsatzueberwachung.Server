@@ -1543,6 +1543,47 @@
 
     private async Task StopTeamAsync(string teamId)
     {
+        // GPS-Track sichern bevor der Timer gestoppt wird
+        var team = EinsatzService.Teams.FirstOrDefault(t => t.TeamId == teamId);
+        if (team?.CollarId != null)
+        {
+            var history = CollarTrackingService.GetLocationHistory(team.CollarId);
+            if (history.Count > 0)
+            {
+                // Farbe und Koordinaten des Suchgebiets ermitteln
+                var searchArea = EinsatzService.CurrentEinsatz.SearchAreas
+                    .FirstOrDefault(a => a.Id == team.SearchAreaId);
+                var color = searchArea?.Color ?? "#FF4444";
+
+                var snapshot = new TeamTrackSnapshot
+                {
+                    CollarId = team.CollarId,
+                    CollarName = team.CollarName ?? team.CollarId,
+                    TeamId = team.TeamId,
+                    TeamName = team.TeamName,
+                    SearchAreaName = team.SearchAreaName,
+                    Color = color,
+                    CapturedAt = DateTime.Now,
+                    Points = history.Select(loc => new TrackPoint
+                    {
+                        Latitude = loc.Latitude,
+                        Longitude = loc.Longitude,
+                        Timestamp = loc.Timestamp
+                    }).ToList()
+                };
+
+                // Suchgebiet-Koordinaten für PDF-Darstellung speichern
+                if (searchArea?.Coordinates != null && searchArea.Coordinates.Count >= 3)
+                {
+                    snapshot.SearchAreaCoordinates = new List<(double, double)>(searchArea.Coordinates);
+                    snapshot.SearchAreaColor = searchArea.Color;
+                }
+
+                team.TrackSnapshots.Add(snapshot);
+                EinsatzService.CurrentEinsatz.TrackSnapshots.Add(snapshot);
+            }
+        }
+
         await EinsatzService.StopTeamTimerAsync(teamId);
     }
 

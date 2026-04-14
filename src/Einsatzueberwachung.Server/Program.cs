@@ -107,6 +107,15 @@ builder.Services.AddSingleton<ToastService>();
 builder.Services.AddScoped<BrowserPreferencesService>();
 builder.Services.AddScoped<IRadioService, RadioService>();
 
+// Statische Karten-Renderer (Carto-Tiles für PDF-Export)
+builder.Services.AddHttpClient("OsmTiles", client =>
+{
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Einsatzueberwachung/1.2 (+https://github.com/Elemirus1996/Einsatzueberwachung.Server)");
+    client.DefaultRequestHeaders.Referrer = new Uri("https://github.com/Elemirus1996/Einsatzueberwachung.Server");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+builder.Services.AddSingleton<IStaticMapRenderer, OsmStaticMapRenderer>();
+
 builder.Services.AddSingleton<GitHubUpdateService>(sp =>
 {
     var factory = sp.GetRequiredService<IHttpClientFactory>();

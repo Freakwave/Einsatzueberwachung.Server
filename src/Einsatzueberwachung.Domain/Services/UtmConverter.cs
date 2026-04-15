@@ -8,7 +8,6 @@ namespace Einsatzueberwachung.Domain.Services
     public static class UtmConverter
     {
         private const double A = 6378137.0;           // WGS84 semi-major axis
-        private const double F = 1 / 298.257223563;   // WGS84 flattening
         private const double E = 0.0818191908426;      // WGS84 eccentricity
         private const double E2 = E * E;
         private const double K0 = 0.9996;              // UTM scale factor

@@ -1008,7 +1008,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
 
             const marker = L.marker([lat, lng], {
                 icon: icon,
-                title: label || 'Koordinaten-Marker'
+                title: label || 'Koordinaten-Marker',
+                draggable: true
             }).addTo(mapData.map);
 
             // Popup mit Koordinaten-Info
@@ -1021,6 +1022,25 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 <small><strong>UTM:</strong> ${utmInfo}</small>
             </div>`;
             marker.bindPopup(popupHtml);
+
+            // Drag-Handler: aktualisiere Popup und informiere Blazor
+            marker.on('dragend', (e) => {
+                const newPos = e.target.getLatLng();
+                const newUtmInfo = window.LeafletMap._latLngToUtmString(newPos.lat, newPos.lng);
+                const updatedPopup = `<div class="coord-marker-popup">
+                    <strong>${label || 'Punkt'}</strong>
+                    ${description ? '<br><small>' + description + '</small>' : ''}
+                    <hr style="margin: 4px 0;">
+                    <small><strong>Lat/Long:</strong> ${newPos.lat.toFixed(6)}° / ${newPos.lng.toFixed(6)}°</small><br>
+                    <small><strong>UTM:</strong> ${newUtmInfo}</small>
+                </div>`;
+                marker.setPopupContent(updatedPopup);
+
+                if (mapData.dotNetReference) {
+                    mapData.dotNetReference.invokeMethodAsync('OnCoordinateMarkerDragged', markerId, newPos.lat, newPos.lng)
+                        .catch(err => error('Fehler beim Callback OnCoordinateMarkerDragged:', err));
+                }
+            });
 
             mapData.markers[coordMarkerId] = marker;
             return true;

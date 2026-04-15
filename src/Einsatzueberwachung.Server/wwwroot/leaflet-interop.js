@@ -1068,7 +1068,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
 
                 // Callback an Blazor
                 if (mapData.dotNetReference) {
-                    mapData.dotNetReference.invokeMethodAsync('OnCoordinateMarkerClicked', lat, lng);
+                    mapData.dotNetReference.invokeMethodAsync('OnCoordinateMarkerClicked', lat, lng)
+                        .catch(err => error('Fehler beim Callback OnCoordinateMarkerClicked:', err));
                 }
             };
 

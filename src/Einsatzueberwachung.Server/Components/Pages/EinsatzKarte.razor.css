@@ -203,9 +203,3 @@
     text-align: center;
     padding: 8px;
 }
-
-/* Koordinaten-Marker Icon: kein Standard-Leaflet-Styling */
-::deep .coordinate-marker-icon {
-    background: transparent !important;
-    border: none !important;
-}

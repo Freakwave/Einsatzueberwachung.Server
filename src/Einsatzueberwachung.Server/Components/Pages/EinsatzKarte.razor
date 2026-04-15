@@ -1108,12 +1108,8 @@
     {
         _markerMessage = "";
         
-        if (!double.TryParse(_inputLatitude?.Replace(",", "."), 
-            System.Globalization.NumberStyles.Float, 
-            System.Globalization.CultureInfo.InvariantCulture, out var lat) ||
-            !double.TryParse(_inputLongitude?.Replace(",", "."), 
-            System.Globalization.NumberStyles.Float, 
-            System.Globalization.CultureInfo.InvariantCulture, out var lng))
+        if (!TryParseDecimalInput(_inputLatitude, out var lat) ||
+            !TryParseDecimalInput(_inputLongitude, out var lng))
         {
             _markerMessage = "Ungültige Koordinaten. Bitte Dezimalgrad eingeben (z.B. 49.31880 / 8.43120).";
             _markerMessageType = "alert-danger";
@@ -1222,6 +1218,15 @@
     private async Task ZoomToMarker(MapMarker marker)
     {
         await JSRuntime.InvokeVoidAsync("LeafletMap.zoomToCoordinateMarker", "einsatzMap", marker.Id);
+    }
+
+    private static bool TryParseDecimalInput(string? input, out double result)
+    {
+        result = 0;
+        if (string.IsNullOrWhiteSpace(input)) return false;
+        return double.TryParse(input.Replace(",", "."),
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out result);
     }
 
     [JSInvokable]

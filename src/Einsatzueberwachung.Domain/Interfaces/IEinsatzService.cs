@@ -57,6 +57,12 @@ namespace Einsatzueberwachung.Domain.Interfaces
         Task SetElwPositionAsync(double latitude, double longitude);
         Task ClearElwPositionAsync();
 
+        // Koordinaten-Marker (Punkte auf der Karte)
+        Task<MapMarker> AddMapMarkerAsync(MapMarker marker);
+        Task<MapMarker?> UpdateMapMarkerAsync(string markerId, string? label = null, double? latitude = null, double? longitude = null);
+        Task RemoveMapMarkerAsync(string markerId);
+        Task<List<MapMarker>> GetMapMarkersAsync();
+
         EinsatzRuntimeSnapshot ExportRuntimeSnapshot();
         Task ImportRuntimeSnapshotAsync(EinsatzRuntimeSnapshot snapshot);
         

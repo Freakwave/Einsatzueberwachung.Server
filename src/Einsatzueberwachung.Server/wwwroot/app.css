@@ -2496,6 +2496,50 @@ main:has(.map-page-layout) {
     min-width: 50px;
 }
 
+/* Live-Flächen-Anzeige: Leaflet-Tooltip, zentriert im Polygon */
+.leaflet-tooltip.live-area-tooltip {
+    background: rgba(20, 20, 30, 0.88);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 5px 14px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    white-space: nowrap;
+    pointer-events: none;
+}
+.leaflet-tooltip.live-area-tooltip::before {
+    display: none;
+}
+
+/* Polygon-Bearbeitungsmodus Overlay */
+.polygon-edit-overlay {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: rgba(20, 20, 30, 0.92);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    max-width: 90vw;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.polygon-edit-hint {
+    font-size: 0.85rem;
+    opacity: 0.9;
+    white-space: normal;
+}
+
 /* Responsive */
 @media (max-width: 992px) {
     .map-sidebar {

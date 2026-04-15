@@ -184,7 +184,69 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             },
             currentLayer: osmLayer
         };
-            
+
+        // ---- Live-Flächen-Anzeige als Leaflet-Tooltip (zentriert im Polygon) ----
+        // Hilfsfunktion: flaches LatLng-Array aus Polygon-getLatLngs() (kann [[...]] sein)
+        const getFlat = (latLngs) => {
+            if (!latLngs || latLngs.length === 0) return [];
+            return (latLngs[0] && latLngs[0].lat === undefined) ? latLngs[0] : latLngs;
+        };
+        // Hilfsfunktion: geometrischer Schwerpunkt (Mittelwert) der Koordinaten
+        const calcCentroid = (latLngs) => {
+            let lat = 0, lng = 0;
+            const n = latLngs.length;
+            for (let i = 0; i < n; i++) { lat += latLngs[i].lat; lng += latLngs[i].lng; }
+            return L.latLng(lat / n, lng / n);
+        };
+
+        const liveAreaTooltip = L.tooltip({ permanent: true, direction: 'center', className: 'live-area-tooltip' });
+
+        const updateLiveArea = (rawLatLngs) => {
+            const flat = getFlat(rawLatLngs);
+            if (!flat || flat.length < 3) return;
+            const area = window.LeafletMap.calcGeodesicArea(flat);
+            liveAreaTooltip.setLatLng(calcCentroid(flat))
+                           .setContent('\u{1F4D0} ' + window.LeafletMap.formatArea(area));
+            if (!map.hasLayer(liveAreaTooltip)) liveAreaTooltip.addTo(map);
+        };
+        const hideLiveArea = () => {
+            if (map.hasLayer(liveAreaTooltip)) liveAreaTooltip.remove();
+        };
+
+        let drawModeActive = false;
+
+        // Draw-Modus: Vertex gesetzt → Fläche der bestätigten Punkte anzeigen
+        map.on('draw:drawvertex', function() {
+            const polyMode = drawControl._toolbars.draw._modes.polygon;
+            if (!polyMode || !polyMode.handler._poly) return;
+            updateLiveArea(polyMode.handler._poly.getLatLngs());
+        });
+
+        // Draw-Modus: Mausbewegung → vorläufige Fläche mit Cursor-Position anzeigen
+        map.on('mousemove', function(e) {
+            if (!drawModeActive) return;
+            const polyMode = drawControl._toolbars.draw._modes.polygon;
+            if (!polyMode || !polyMode.handler._enabled || !polyMode.handler._poly) return;
+            const existing = polyMode.handler._poly.getLatLngs();
+            if (existing.length < 2) return; // mindestens 2 Punkte + Cursor = 3 Ecken nötig
+            updateLiveArea(existing.concat([e.latlng]));
+        });
+
+        // Draw aktiviert / deaktiviert
+        map.on('draw:drawstart', function() { drawModeActive = true; });
+        map.on('draw:drawstop', function() {
+            drawModeActive = false;
+            hideLiveArea();
+        });
+
+        // Edit beendet (Speichern oder Abbrechen) → ausblenden
+        map.on('draw:editstop', function() { hideLiveArea(); });
+        // ---- Ende Live-Flächen-Anzeige ----
+
+        // Live-Flächen-Hilfsfunktionen für Nutzung in startPolygonEdit speichern
+        this.maps[mapId].updateLiveArea = updateLiveArea;
+        this.maps[mapId].hideLiveArea = hideLiveArea;
+
         return true;
     } catch (error) {
         error('Fehler beim Initialisieren der Karte:', error);
@@ -701,6 +763,184 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         }
     },
     
+    // Aktiviert den Bearbeitungsmodus für ein bestehendes Suchgebiet
+    startPolygonEdit: function(mapId, areaId) {
+        const mapData = this.maps[mapId];
+        if (!mapData) {
+            console.error('Karte nicht gefunden:', mapId);
+            return false;
+        }
+
+        try {
+            const outerLayer = mapData.markers[areaId];
+            if (!outerLayer) {
+                console.error('Layer nicht gefunden für Area:', areaId);
+                return false;
+            }
+
+            // Äußere GeoJSON-Gruppe aus savedAreas entfernen
+            if (mapData.savedAreas.hasLayer(outerLayer)) {
+                mapData.savedAreas.removeLayer(outerLayer);
+            }
+
+            // Inneren Polygon-Layer extrahieren
+            let innerLayer = null;
+            let innerLayerCount = 0;
+            outerLayer.eachLayer(function(l) {
+                innerLayerCount++;
+                if (!innerLayer) innerLayer = l;
+            });
+
+            if (!innerLayer) {
+                console.error('Kein innerer Layer gefunden für Area:', areaId);
+                mapData.savedAreas.addLayer(outerLayer);
+                return false;
+            }
+
+            if (innerLayerCount > 1) {
+                console.warn('Mehrere innere Layer gefunden für Area:', areaId, '- nur der erste wird bearbeitet');
+            }
+
+            // Metadaten auf innerem Layer sicherstellen
+            window.LeafletMap.setSearchAreaMetadata(innerLayer, areaId);
+
+            // In drawnItems verschieben (wird von Leaflet.draw bearbeitet)
+            mapData.drawnItems.addLayer(innerLayer);
+
+            // Bearbeitungszustand speichern
+            mapData.editingAreaId = areaId;
+            mapData.editingOuterLayer = outerLayer;
+            mapData.editingInnerLayer = innerLayer;
+
+            // Live-Flächen-Anzeige: editdrag-Listener für Echtzeit-Updates beim Vertex-Ziehen
+            if (mapData.updateLiveArea) {
+                const onEditDrag = function() {
+                    mapData.updateLiveArea(innerLayer.getLatLngs());
+                };
+                innerLayer.on('editdrag', onEditDrag);
+                mapData._editDragHandler = { layer: innerLayer, fn: onEditDrag };
+                // Fläche sofort beim Start der Bearbeitung anzeigen
+                mapData.updateLiveArea(innerLayer.getLatLngs());
+            }
+
+            // Leaflet.draw Bearbeitungsmodus aktivieren
+            const editHandler = mapData.drawControl._toolbars.edit._modes.edit.handler;
+            editHandler.enable();
+
+            console.log('Polygon-Bearbeitung gestartet für Area:', areaId);
+            return true;
+        } catch (e) {
+            console.error('Fehler beim Starten des Polygon-Edits:', e);
+            return false;
+        }
+    },
+
+    // Speichert die Änderungen der Polygon-Bearbeitung
+    savePolygonEdit: function(mapId) {
+        const mapData = this.maps[mapId];
+        if (!mapData) {
+            console.error('Karte nicht gefunden:', mapId);
+            return false;
+        }
+
+        try {
+            const editHandler = mapData.drawControl._toolbars.edit._modes.edit.handler;
+            // save() feuert L.Draw.Event.EDITED
+            editHandler.save();
+
+            // Inneren Layer aus drawnItems entfernen (OnShapeEdited fügt ihn über addSearchArea neu hinzu)
+            if (mapData.editingInnerLayer && mapData.drawnItems.hasLayer(mapData.editingInnerLayer)) {
+                mapData.drawnItems.removeLayer(mapData.editingInnerLayer);
+            }
+
+            // Bearbeitungszustand zurücksetzen
+            mapData.editingAreaId = null;
+            mapData.editingOuterLayer = null;
+            mapData.editingInnerLayer = null;
+
+            // Editdrag-Listener entfernen
+            if (mapData._editDragHandler) {
+                mapData._editDragHandler.layer.off('editdrag', mapData._editDragHandler.fn);
+                mapData._editDragHandler = null;
+            }
+
+            // Edit-Modus beenden (feuert draw:editstop → blendet Flächen-Anzeige aus)
+            editHandler.disable();
+
+            return true;
+        } catch (e) {
+            console.error('Fehler beim Speichern des Polygon-Edits:', e);
+            return false;
+        }
+    },
+
+    // Bricht die Polygon-Bearbeitung ab und stellt den Originalzustand wieder her
+    cancelPolygonEdit: function(mapId) {
+        const mapData = this.maps[mapId];
+        if (!mapData) {
+            console.error('Karte nicht gefunden:', mapId);
+            return false;
+        }
+
+        try {
+            // Editdrag-Listener entfernen (vor revertLayers/disable)
+            if (mapData._editDragHandler) {
+                mapData._editDragHandler.layer.off('editdrag', mapData._editDragHandler.fn);
+                mapData._editDragHandler = null;
+            }
+
+            const editHandler = mapData.drawControl._toolbars.edit._modes.edit.handler;
+            editHandler.revertLayers();
+            editHandler.disable();
+
+            // Inneren Layer aus drawnItems entfernen und äußeren Layer wiederherstellen
+            if (mapData.editingInnerLayer && mapData.drawnItems.hasLayer(mapData.editingInnerLayer)) {
+                mapData.drawnItems.removeLayer(mapData.editingInnerLayer);
+            }
+
+            if (mapData.editingOuterLayer) {
+                mapData.savedAreas.addLayer(mapData.editingOuterLayer);
+            }
+
+            // Bearbeitungszustand zurücksetzen
+            mapData.editingAreaId = null;
+            mapData.editingOuterLayer = null;
+            mapData.editingInnerLayer = null;
+
+            return true;
+        } catch (e) {
+            console.error('Fehler beim Abbrechen des Polygon-Edits:', e);
+            return false;
+        }
+    },
+
+    // Berechnet geodätische Fläche (m²) aus einem flachen Array von {lat, lng} Objekten.
+    // Verwendet dieselbe sphärische Formel wie die C#-Klasse SearchArea.CalculatePolygonArea.
+    calcGeodesicArea: function(latLngs) {
+        if (!latLngs || latLngs.length < 3) return 0;
+        const R = 6371000.0;
+        let area = 0;
+        const n = latLngs.length;
+        for (let i = 0; i < n; i++) {
+            const p1 = latLngs[i];
+            const p2 = latLngs[(i + 1) % n];
+            const lat1 = p1.lat * Math.PI / 180;
+            const lat2 = p2.lat * Math.PI / 180;
+            const lon1 = p1.lng * Math.PI / 180;
+            const lon2 = p2.lng * Math.PI / 180;
+            area += (lon2 - lon1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+        }
+        return Math.abs(area * R * R / 2.0);
+    },
+
+    // Formatiert Fläche in m²/ha/km² (gleiche Schwellwerte wie C# FormattedArea).
+    formatArea: function(sqm) {
+        if (sqm < 1) return '< 1 m²';
+        if (sqm < 50000) return Math.round(sqm).toLocaleString('de-DE') + ' m²';
+        if (sqm < 1000000) return (sqm / 10000).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ha';
+        return (sqm / 1000000).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' km²';
+    },
+
     // Löscht alle Zeichnungen von der Karte
     clearAllDrawings: function(mapId) {
         try {

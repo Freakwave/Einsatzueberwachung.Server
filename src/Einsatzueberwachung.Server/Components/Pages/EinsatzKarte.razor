@@ -617,6 +617,8 @@
 }
 
 @code {
+    private const double CoordinateEpsilon = 0.0000001;
+    
     private List<SearchArea> _searchAreas = new();
     private List<Team> _teams = new();
     private bool _showDialog = false;
@@ -1240,8 +1242,16 @@
 
     private async Task PlaceMarkerAtPosition(double lat, double lng, string? label = null)
     {
-        _markerCounter++;
-        var markerLabel = !string.IsNullOrWhiteSpace(label) ? label.Trim() : $"P{_markerCounter}";
+        string markerLabel;
+        if (!string.IsNullOrWhiteSpace(label))
+        {
+            markerLabel = label.Trim();
+        }
+        else
+        {
+            _markerCounter++;
+            markerLabel = $"P{_markerCounter}";
+        }
 
         // UTM berechnen
         var (utmZone, utmBand, utmEasting, utmNorthing) = Domain.Services.UtmConverter.LatLongToUtm(lat, lng);
@@ -1378,7 +1388,7 @@
         }
 
         var oldLabel = _editingMarker.Label;
-        var positionChanged = Math.Abs(_editingMarker.Latitude - lat) > 0.0000001 || Math.Abs(_editingMarker.Longitude - lng) > 0.0000001;
+        var positionChanged = Math.Abs(_editingMarker.Latitude - lat) > CoordinateEpsilon || Math.Abs(_editingMarker.Longitude - lng) > CoordinateEpsilon;
         var labelChanged = oldLabel != newLabel;
 
         // Update im Service

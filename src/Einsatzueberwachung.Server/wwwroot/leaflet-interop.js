@@ -991,7 +991,7 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             const markerColor = color || '#E74C3C';
 
             // SVG Pin-Icon mit Label-Nummer/Buchstabe
-            const shortLabel = (label || '?').substring(0, 2);
+            const shortLabel = ((label && label.trim()) || '?').substring(0, 2);
             const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42">
                 <path fill="${markerColor}" stroke="#333" stroke-width="1.5" d="M15 0 C7 0 0 6.5 0 15 C0 26 15 42 15 42 C15 42 30 26 30 15 C30 6.5 23 0 15 0 Z"/>
                 <circle cx="15" cy="15" r="9" fill="white"/>

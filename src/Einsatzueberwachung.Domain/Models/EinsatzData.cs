@@ -30,6 +30,7 @@ namespace Einsatzueberwachung.Domain.Models
 
         public List<GlobalNotesEntry> GlobalNotesEntries { get; set; }
         public List<SearchArea> SearchAreas { get; set; }
+        public List<MapMarker> MapMarkers { get; set; }
         public List<Team> Teams { get; set; }
 
         public (double Latitude, double Longitude)? ElwPosition { get; set; }
@@ -63,6 +64,7 @@ namespace Einsatzueberwachung.Domain.Models
             AlarmierungsZeit = null;
             GlobalNotesEntries = new List<GlobalNotesEntry>();
             SearchAreas = new List<SearchArea>();
+            MapMarkers = new List<MapMarker>();
             Teams = new List<Team>();
             ElwPosition = null;
             TrackSnapshots = new List<TeamTrackSnapshot>();

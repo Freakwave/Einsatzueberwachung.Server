@@ -68,3 +68,24 @@
 [data-bs-theme="dark"] .leaflet-popup-tip {
     background: #2d3238;
 }
+
+/* ========================================
+   COORDINATE MARKER STYLES
+   ======================================== */
+
+/* Koordinaten-Marker Icon: kein Leaflet-Hintergrund */
+.coordinate-marker-icon {
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Popup für Koordinaten-Marker */
+.coord-marker-popup {
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.coord-marker-popup hr {
+    margin: 4px 0;
+    border-color: var(--bs-border-color, #dee2e6);
+}

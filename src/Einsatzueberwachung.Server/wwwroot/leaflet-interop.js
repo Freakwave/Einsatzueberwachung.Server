@@ -966,5 +966,217 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             error('Fehler beim Löschen der Zeichnungen:', err);
             return false;
         }
+    },
+
+    // ========================================
+    // Koordinaten-Marker Funktionen
+    // ========================================
+
+    // Setzt einen Koordinaten-Marker auf der Karte (Punkt mit Label)
+    setCoordinateMarker: function(mapId, markerId, lat, lng, label, description, color) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) {
+                error('Karte nicht gefunden:', mapId);
+                return false;
+            }
+
+            // Alten Marker entfernen falls vorhanden
+            const coordMarkerId = 'coord_' + markerId;
+            if (mapData.markers[coordMarkerId]) {
+                mapData.map.removeLayer(mapData.markers[coordMarkerId]);
+                delete mapData.markers[coordMarkerId];
+            }
+
+            const markerColor = color || '#E74C3C';
+
+            // SVG Pin-Icon mit Label-Nummer/Buchstabe
+            const shortLabel = (label || '?').substring(0, 2);
+            const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42">
+                <path fill="${markerColor}" stroke="#333" stroke-width="1.5" d="M15 0 C7 0 0 6.5 0 15 C0 26 15 42 15 42 C15 42 30 26 30 15 C30 6.5 23 0 15 0 Z"/>
+                <circle cx="15" cy="15" r="9" fill="white"/>
+                <text x="15" y="20" font-size="12" font-weight="bold" text-anchor="middle" fill="${markerColor}" font-family="Arial">${shortLabel}</text>
+            </svg>`;
+
+            const icon = L.divIcon({
+                html: svgIcon,
+                iconSize: [30, 42],
+                iconAnchor: [15, 42],
+                popupAnchor: [0, -42],
+                className: 'coordinate-marker-icon'
+            });
+
+            const marker = L.marker([lat, lng], {
+                icon: icon,
+                title: label || 'Koordinaten-Marker'
+            }).addTo(mapData.map);
+
+            // Popup mit Koordinaten-Info
+            const utmInfo = this._latLngToUtmString(lat, lng);
+            const popupHtml = `<div class="coord-marker-popup">
+                <strong>${label || 'Punkt'}</strong>
+                ${description ? '<br><small>' + description + '</small>' : ''}
+                <hr style="margin: 4px 0;">
+                <small><strong>Lat/Long:</strong> ${lat.toFixed(6)}° / ${lng.toFixed(6)}°</small><br>
+                <small><strong>UTM:</strong> ${utmInfo}</small>
+            </div>`;
+            marker.bindPopup(popupHtml);
+
+            mapData.markers[coordMarkerId] = marker;
+            return true;
+        } catch (err) {
+            error('Fehler beim Setzen des Koordinaten-Markers:', err);
+            return false;
+        }
+    },
+
+    // Entfernt einen Koordinaten-Marker
+    removeCoordinateMarker: function(mapId, markerId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return false;
+
+            const coordMarkerId = 'coord_' + markerId;
+            if (mapData.markers[coordMarkerId]) {
+                mapData.map.removeLayer(mapData.markers[coordMarkerId]);
+                delete mapData.markers[coordMarkerId];
+                return true;
+            }
+            return false;
+        } catch (err) {
+            error('Fehler beim Entfernen des Koordinaten-Markers:', err);
+            return false;
+        }
+    },
+
+    // Aktiviert den Klick-Modus zum Setzen eines Koordinaten-Markers
+    enableCoordinateClickMode: function(mapId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return false;
+
+            // Cursor ändern
+            mapData.map.getContainer().style.cursor = 'crosshair';
+
+            // Einmaliger Klick-Handler
+            const clickHandler = (e) => {
+                const lat = e.latlng.lat;
+                const lng = e.latlng.lng;
+
+                // Cursor zurücksetzen
+                mapData.map.getContainer().style.cursor = '';
+
+                // Callback an Blazor
+                if (mapData.dotNetReference) {
+                    mapData.dotNetReference.invokeMethodAsync('OnCoordinateMarkerClicked', lat, lng);
+                }
+            };
+
+            // Vorherigen Handler entfernen falls vorhanden
+            if (mapData._coordClickHandler) {
+                mapData.map.off('click', mapData._coordClickHandler);
+            }
+            mapData._coordClickHandler = clickHandler;
+            mapData.map.once('click', clickHandler);
+
+            return true;
+        } catch (err) {
+            error('Fehler beim Aktivieren des Klick-Modus:', err);
+            return false;
+        }
+    },
+
+    // Deaktiviert den Klick-Modus
+    disableCoordinateClickMode: function(mapId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return false;
+
+            mapData.map.getContainer().style.cursor = '';
+            if (mapData._coordClickHandler) {
+                mapData.map.off('click', mapData._coordClickHandler);
+                mapData._coordClickHandler = null;
+            }
+
+            return true;
+        } catch (err) {
+            error('Fehler beim Deaktivieren des Klick-Modus:', err);
+            return false;
+        }
+    },
+
+    // Zentriert die Karte auf einen Koordinaten-Marker
+    zoomToCoordinateMarker: function(mapId, markerId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return false;
+
+            const coordMarkerId = 'coord_' + markerId;
+            const marker = mapData.markers[coordMarkerId];
+            if (marker) {
+                const pos = marker.getLatLng();
+                mapData.map.setView([pos.lat, pos.lng], 16);
+                marker.openPopup();
+                return true;
+            }
+            return false;
+        } catch (err) {
+            error('Fehler beim Zoomen zum Marker:', err);
+            return false;
+        }
+    },
+
+    // Hilfs-Funktion: Lat/Long zu UTM-String (vereinfachte JS-Implementierung)
+    _latLngToUtmString: function(lat, lng) {
+        try {
+            const zone = Math.floor((lng + 180) / 6) + 1;
+            const bands = 'CDEFGHJKLMNPQRSTUVWX';
+            let bandIndex = Math.floor((lat + 80) / 8);
+            if (bandIndex < 0) bandIndex = 0;
+            if (bandIndex >= bands.length) bandIndex = bands.length - 1;
+            const band = bands[bandIndex];
+
+            // Vereinfachte UTM-Berechnung
+            const a = 6378137.0;
+            const e2 = 0.00669437999014;
+            const k0 = 0.9996;
+            const lonOrigin = (zone - 1) * 6 - 180 + 3;
+
+            const latRad = lat * Math.PI / 180;
+            const lonRad = lng * Math.PI / 180;
+            const lonOriginRad = lonOrigin * Math.PI / 180;
+
+            const ePrime2 = e2 / (1 - e2);
+            const n = a / Math.sqrt(1 - e2 * Math.sin(latRad) * Math.sin(latRad));
+            const t = Math.tan(latRad) * Math.tan(latRad);
+            const c = ePrime2 * Math.cos(latRad) * Math.cos(latRad);
+            const aa = Math.cos(latRad) * (lonRad - lonOriginRad);
+
+            const m = a * (
+                (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256) * latRad
+                - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 * e2 * e2 / 1024) * Math.sin(2 * latRad)
+                + (15 * e2 * e2 / 256 + 45 * e2 * e2 * e2 / 1024) * Math.sin(4 * latRad)
+                - (35 * e2 * e2 * e2 / 3072) * Math.sin(6 * latRad)
+            );
+
+            let easting = k0 * n * (
+                aa + (1 - t + c) * aa * aa * aa / 6
+                + (5 - 18 * t + t * t + 72 * c - 58 * ePrime2) * aa * aa * aa * aa * aa / 120
+            ) + 500000;
+
+            let northing = k0 * (
+                m + n * Math.tan(latRad) * (
+                    aa * aa / 2
+                    + (5 - t + 9 * c + 4 * c * c) * aa * aa * aa * aa / 24
+                    + (61 - 58 * t + t * t + 600 * c - 330 * ePrime2) * aa * aa * aa * aa * aa * aa / 720
+                )
+            );
+
+            if (lat < 0) northing += 10000000;
+
+            return `${zone}${band} ${Math.round(easting)} E / ${Math.round(northing)} N`;
+        } catch (err) {
+            return 'N/A';
+        }
     }
 };

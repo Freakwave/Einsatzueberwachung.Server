@@ -58,6 +58,11 @@
                     title="@(_hasElwPosition ? "ELW verschieben" : "ELW setzen")">
                 <i class="bi bi-geo-fill"></i> @(_hasElwPosition ? "ELW verschieben" : "ELW setzen")
             </button>
+            <button class="btn btn-sm @(_markerPanelVisible ? "btn-info" : "btn-outline-info")" 
+                    @onclick="ToggleMarkerPanel" 
+                    title="Koordinaten-Marker">
+                <i class="bi bi-pin-map-fill"></i> Punkte
+            </button>
             <button class="btn btn-sm btn-outline-warning" @onclick="PrintMap" title="Drucken">
                 <i class="bi bi-printer"></i>
             </button>
@@ -189,6 +194,145 @@
                     <button class="btn btn-secondary btn-sm" @onclick="CancelPolygonEdit">
                         <i class="bi bi-x-lg"></i> Abbrechen
                     </button>
+                </div>
+            }
+
+            @* Koordinaten-Marker Panel (schwebt über der Karte, links) *@
+            @if (_markerPanelVisible)
+            {
+                <div class="coordinate-marker-panel">
+                    <div class="marker-panel-header">
+                        <h6><i class="bi bi-pin-map-fill"></i> Koordinaten-Marker</h6>
+                        <button class="btn btn-sm btn-outline-secondary p-0 px-1" @onclick="ToggleMarkerPanel" title="Schließen">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+
+                    @* Eingabe-Bereich *@
+                    <div class="marker-input-section">
+                        <div class="marker-input-tabs">
+                            <button class="btn btn-xs @(_coordInputMode == "click" ? "btn-primary" : "btn-outline-primary")" 
+                                    @onclick="ActivateClickToPlaceMode"
+                                    title="Punkt per Mausklick auf Karte setzen">
+                                <i class="bi bi-cursor-fill"></i> Klick
+                            </button>
+                            <button class="btn btn-xs @(_coordInputMode == "latlong" ? "btn-primary" : "btn-outline-primary")" 
+                                    @onclick='@(() => SetCoordInputMode("latlong"))'>
+                                <i class="bi bi-geo"></i> Lat/Long
+                            </button>
+                            <button class="btn btn-xs @(_coordInputMode == "utm" ? "btn-primary" : "btn-outline-primary")" 
+                                    @onclick='@(() => SetCoordInputMode("utm"))'>
+                                <i class="bi bi-grid-3x3"></i> UTM
+                            </button>
+                        </div>
+
+                        @if (_coordInputMode == "click")
+                        {
+                            <div class="marker-click-hint mt-2">
+                                @if (_clickToPlaceActive)
+                                {
+                                    <div class="alert alert-info py-1 px-2 mb-0">
+                                        <small><i class="bi bi-cursor-fill"></i> Klicken Sie auf die Karte, um einen Punkt zu setzen.</small>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <small class="text-muted">Klicken Sie "Klick" um den Modus zu aktivieren.</small>
+                                }
+                            </div>
+                        }
+                        else if (_coordInputMode == "latlong")
+                        {
+                            <div class="marker-coord-input mt-2">
+                                <div class="input-group input-group-sm mb-1">
+                                    <span class="input-group-text" style="min-width: 35px;">Lat</span>
+                                    <input type="text" class="form-control" @bind="_inputLatitude" @bind:event="oninput"
+                                           placeholder="z.B. 49.31880" />
+                                </div>
+                                <div class="input-group input-group-sm mb-1">
+                                    <span class="input-group-text" style="min-width: 35px;">Lng</span>
+                                    <input type="text" class="form-control" @bind="_inputLongitude" @bind:event="oninput"
+                                           placeholder="z.B. 8.43120" />
+                                </div>
+                                <div class="input-group input-group-sm mb-1">
+                                    <span class="input-group-text" style="min-width: 35px;"><i class="bi bi-tag"></i></span>
+                                    <input type="text" class="form-control" @bind="_inputMarkerLabel" @bind:event="oninput"
+                                           placeholder="Bezeichnung (optional)" />
+                                </div>
+                                <button class="btn btn-sm btn-success w-100" @onclick="PlaceMarkerFromLatLong">
+                                    <i class="bi bi-pin-map"></i> Punkt setzen
+                                </button>
+                            </div>
+                        }
+                        else if (_coordInputMode == "utm")
+                        {
+                            <div class="marker-coord-input mt-2">
+                                <div class="input-group input-group-sm mb-1">
+                                    <span class="input-group-text" style="min-width: 50px;">UTM</span>
+                                    <input type="text" class="form-control" @bind="_inputUtm" @bind:event="oninput"
+                                           placeholder="z.B. 32U 461344 5481745" />
+                                </div>
+                                <div class="input-group input-group-sm mb-1">
+                                    <span class="input-group-text" style="min-width: 50px;"><i class="bi bi-tag"></i></span>
+                                    <input type="text" class="form-control" @bind="_inputMarkerLabel" @bind:event="oninput"
+                                           placeholder="Bezeichnung (optional)" />
+                                </div>
+                                <button class="btn btn-sm btn-success w-100" @onclick="PlaceMarkerFromUtm">
+                                    <i class="bi bi-pin-map"></i> Punkt setzen
+                                </button>
+                                <small class="text-muted mt-1 d-block">Format: Zone+Band Easting Northing<br/>z.B. 32U 461344 5481745</small>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(_markerMessage))
+                        {
+                            <div class="alert @(_markerMessageType) py-1 px-2 mt-2 mb-0">
+                                <small>@_markerMessage</small>
+                            </div>
+                        }
+                    </div>
+
+                    @* Liste der Marker *@
+                    <div class="marker-list-section">
+                        <div class="marker-list-header">
+                            <small class="fw-bold">Gesetzte Punkte (@_mapMarkers.Count)</small>
+                        </div>
+                        @if (_mapMarkers.Any())
+                        {
+                            <div class="marker-list">
+                                @foreach (var marker in _mapMarkers.OrderByDescending(m => m.CreatedAt))
+                                {
+                                    <div class="marker-list-item">
+                                        <div class="marker-list-info" @onclick="() => ZoomToMarker(marker)" title="Zum Punkt zoomen">
+                                            <span class="marker-list-label">
+                                                <i class="bi bi-pin-map-fill" style="color: @marker.Color;"></i>
+                                                @(string.IsNullOrEmpty(marker.Label) ? $"Punkt {marker.FormattedTimestamp}" : marker.Label)
+                                            </span>
+                                            <span class="marker-list-coords text-muted">
+                                                @marker.FormattedLatLng
+                                            </span>
+                                            @if (!string.IsNullOrEmpty(marker.FormattedUtm))
+                                            {
+                                                <span class="marker-list-coords text-muted">
+                                                    @marker.FormattedUtm
+                                                </span>
+                                            }
+                                        </div>
+                                        <button class="btn btn-xs btn-link text-danger p-0" 
+                                                @onclick="() => RemoveMarker(marker)" title="Entfernen">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="marker-list-empty">
+                                <small class="text-muted">Keine Punkte gesetzt</small>
+                            </div>
+                        }
+                    </div>
                 </div>
             }
 
@@ -423,11 +567,26 @@
     private bool _trackingVisible = false;
     private Dictionary<string, string> _oobWarnings = new();
 
+    // Koordinaten-Marker
+    private List<MapMarker> _mapMarkers = new();
+    private bool _markerPanelVisible = false;
+    private string _coordInputMode = "click"; // "click", "latlong", "utm"
+    private bool _clickToPlaceActive = false;
+    private string _inputLatitude = "";
+    private string _inputLongitude = "";
+    private string _inputUtm = "";
+    private string _inputMarkerLabel = "";
+    private string _markerMessage = "";
+    private string _markerMessageType = "alert-info";
+    private int _markerCounter = 0;
+
     protected override void OnInitialized()
     {
         _searchAreas = EinsatzService.CurrentEinsatz.SearchAreas.ToList();
         _teams = EinsatzService.Teams;
         _collars = CollarTrackingService.Collars.ToList();
+        _mapMarkers = EinsatzService.CurrentEinsatz.MapMarkers.ToList();
+        _markerCounter = _mapMarkers.Count;
         
         // DotNetObjectReference für Callbacks erstellen
         _dotNetReference = DotNetObjectReference.Create(this);
@@ -503,6 +662,14 @@
                         }
                     }
                     StateHasChanged();
+                }
+
+                // Bestehende Koordinaten-Marker auf der Karte wiederherstellen
+                foreach (var marker in _mapMarkers)
+                {
+                    await JSRuntime.InvokeVoidAsync("LeafletMap.setCoordinateMarker",
+                        "einsatzMap", marker.Id, marker.Latitude, marker.Longitude, 
+                        marker.Label, marker.Description, marker.Color);
                 }
             }
             catch (Exception ex)
@@ -885,6 +1052,188 @@
         var colors = new[] { "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E2" };
         var random = new Random();
         return colors[random.Next(colors.Length)];
+    }
+
+    // --- Koordinaten-Marker Methoden ---
+
+    private void ToggleMarkerPanel()
+    {
+        _markerPanelVisible = !_markerPanelVisible;
+        if (!_markerPanelVisible && _clickToPlaceActive)
+        {
+            _ = DeactivateClickToPlaceMode();
+        }
+    }
+
+    private void SetCoordInputMode(string mode)
+    {
+        _coordInputMode = mode;
+        _markerMessage = "";
+        if (_clickToPlaceActive)
+        {
+            _ = DeactivateClickToPlaceMode();
+        }
+    }
+
+    private async Task ActivateClickToPlaceMode()
+    {
+        _coordInputMode = "click";
+        _clickToPlaceActive = true;
+        _markerMessage = "";
+        
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("LeafletMap.enableCoordinateClickMode", "einsatzMap");
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _markerMessage = $"Fehler: {ex.Message}";
+            _markerMessageType = "alert-danger";
+            _clickToPlaceActive = false;
+        }
+    }
+
+    private async Task DeactivateClickToPlaceMode()
+    {
+        _clickToPlaceActive = false;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("LeafletMap.disableCoordinateClickMode", "einsatzMap");
+        }
+        catch { /* ignore */ }
+    }
+
+    private async Task PlaceMarkerFromLatLong()
+    {
+        _markerMessage = "";
+        
+        if (!double.TryParse(_inputLatitude?.Replace(",", "."), 
+            System.Globalization.NumberStyles.Float, 
+            System.Globalization.CultureInfo.InvariantCulture, out var lat) ||
+            !double.TryParse(_inputLongitude?.Replace(",", "."), 
+            System.Globalization.NumberStyles.Float, 
+            System.Globalization.CultureInfo.InvariantCulture, out var lng))
+        {
+            _markerMessage = "Ungültige Koordinaten. Bitte Dezimalgrad eingeben (z.B. 49.31880 / 8.43120).";
+            _markerMessageType = "alert-danger";
+            return;
+        }
+
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180)
+        {
+            _markerMessage = "Koordinaten außerhalb des gültigen Bereichs.";
+            _markerMessageType = "alert-danger";
+            return;
+        }
+
+        await PlaceMarkerAtPosition(lat, lng, _inputMarkerLabel);
+        _inputLatitude = "";
+        _inputLongitude = "";
+        _inputMarkerLabel = "";
+    }
+
+    private async Task PlaceMarkerFromUtm()
+    {
+        _markerMessage = "";
+
+        if (!Domain.Services.UtmConverter.TryParseUtm(_inputUtm ?? "", out int zone, out char band, out double easting, out double northing))
+        {
+            _markerMessage = "Ungültiges UTM-Format. Bitte z.B. \"32U 461344 5481745\" eingeben.";
+            _markerMessageType = "alert-danger";
+            return;
+        }
+
+        var (lat, lng) = Domain.Services.UtmConverter.UtmToLatLong(zone, band, easting, northing);
+
+        await PlaceMarkerAtPosition(lat, lng, _inputMarkerLabel);
+        _inputUtm = "";
+        _inputMarkerLabel = "";
+    }
+
+    private async Task PlaceMarkerAtPosition(double lat, double lng, string? label = null)
+    {
+        _markerCounter++;
+        var markerLabel = !string.IsNullOrWhiteSpace(label) ? label.Trim() : $"P{_markerCounter}";
+
+        // UTM berechnen
+        var (utmZone, utmBand, utmEasting, utmNorthing) = Domain.Services.UtmConverter.LatLongToUtm(lat, lng);
+
+        var marker = new MapMarker
+        {
+            Label = markerLabel,
+            Latitude = lat,
+            Longitude = lng,
+            UtmZone = Domain.Services.UtmConverter.FormatUtmZone(utmZone, utmBand),
+            UtmEasting = utmEasting,
+            UtmNorthing = utmNorthing,
+            CreatedAt = DateTime.Now
+        };
+
+        // Im Service speichern
+        await EinsatzService.AddMapMarkerAsync(marker);
+        _mapMarkers = EinsatzService.CurrentEinsatz.MapMarkers.ToList();
+
+        // Auf Karte anzeigen
+        await JSRuntime.InvokeVoidAsync("LeafletMap.setCoordinateMarker",
+            "einsatzMap", marker.Id, lat, lng, markerLabel, "", marker.Color);
+
+        // Zur Position zoomen
+        await JSRuntime.InvokeVoidAsync("LeafletMap.centerMap", "einsatzMap", lat, lng, 16);
+
+        // Protokolleintrag: Funkspruch / Notiz automatisch erstellen
+        var noteText = $"📍 Koordinaten-Marker \"{markerLabel}\" gesetzt: {lat:F6}° / {lng:F6}° (UTM: {marker.FormattedUtm})";
+        await EinsatzService.AddGlobalNoteWithSourceAsync(
+            noteText,
+            "system",
+            "Einsatzleitung",
+            "Notiz",
+            Domain.Models.Enums.GlobalNotesEntryType.EinsatzUpdate,
+            "Karte");
+
+        _markerMessage = $"✓ Punkt \"{markerLabel}\" gesetzt ({lat:F6}° / {lng:F6}°)";
+        _markerMessageType = "alert-success";
+
+        StateHasChanged();
+    }
+
+    private async Task RemoveMarker(MapMarker marker)
+    {
+        await EinsatzService.RemoveMapMarkerAsync(marker.Id);
+        _mapMarkers = EinsatzService.CurrentEinsatz.MapMarkers.ToList();
+
+        await JSRuntime.InvokeVoidAsync("LeafletMap.removeCoordinateMarker", "einsatzMap", marker.Id);
+
+        // Protokolleintrag
+        var noteText = $"📍 Koordinaten-Marker \"{marker.Label}\" entfernt ({marker.FormattedLatLng})";
+        await EinsatzService.AddGlobalNoteWithSourceAsync(
+            noteText,
+            "system",
+            "Einsatzleitung",
+            "Notiz",
+            Domain.Models.Enums.GlobalNotesEntryType.EinsatzUpdate,
+            "Karte");
+
+        _markerMessage = $"Punkt \"{marker.Label}\" entfernt.";
+        _markerMessageType = "alert-info";
+        StateHasChanged();
+    }
+
+    private async Task ZoomToMarker(MapMarker marker)
+    {
+        await JSRuntime.InvokeVoidAsync("LeafletMap.zoomToCoordinateMarker", "einsatzMap", marker.Id);
+    }
+
+    [JSInvokable]
+    public async Task OnCoordinateMarkerClicked(double lat, double lng)
+    {
+        _clickToPlaceActive = false;
+        await InvokeAsync(async () =>
+        {
+            await PlaceMarkerAtPosition(lat, lng, _inputMarkerLabel);
+            _inputMarkerLabel = "";
+            StateHasChanged();
+        });
     }
 
     // --- Collar-Tracking Methoden ---

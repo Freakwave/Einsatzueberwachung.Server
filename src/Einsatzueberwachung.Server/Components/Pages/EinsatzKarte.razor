@@ -190,7 +190,7 @@
                     @* Eingabe-Bereich *@
                     <div class="marker-input-section">
                         <div class="marker-input-tabs">
-                            <button class="btn btn-xs @(_coordInputMode == "click" ? "btn-primary" : "btn-outline-primary")" 
+                            <button class="btn btn-xs @(_clickToPlaceActive ? "btn-primary" : "btn-outline-primary")" 
                                     @onclick="ActivateClickToPlaceMode"
                                     title="Punkt per Mausklick auf Karte setzen">
                                 <i class="bi bi-cursor-fill"></i> Klick
@@ -213,16 +213,6 @@
                                     <input type="text" class="form-control" @bind="_inputMarkerLabel" @bind:event="oninput"
                                            placeholder="Bezeichnung (optional)" />
                                 </div>
-                                @if (_clickToPlaceActive)
-                                {
-                                    <div class="alert alert-info py-1 px-2 mb-0">
-                                        <small><i class="bi bi-cursor-fill"></i> Klicken Sie auf die Karte, um einen Punkt zu setzen.</small>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <small class="text-muted">Klicken Sie "Klick" um den Modus zu aktivieren.</small>
-                                }
                             </div>
                         }
                         else if (_coordInputMode == "latlong")
@@ -264,7 +254,6 @@
                                 <button class="btn btn-sm btn-success w-100" @onclick="PlaceMarkerFromUtm">
                                     <i class="bi bi-pin-map"></i> Punkt setzen
                                 </button>
-                                <small class="text-muted mt-1 d-block">Format: Zone+Band Easting Northing<br/>z.B. 32U 461344 5481745</small>
                             </div>
                         }
 

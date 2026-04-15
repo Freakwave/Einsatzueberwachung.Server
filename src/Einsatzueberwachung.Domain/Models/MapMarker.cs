@@ -35,7 +35,7 @@ namespace Einsatzueberwachung.Domain.Models
             Id = Guid.NewGuid().ToString();
             Label = string.Empty;
             Description = string.Empty;
-            Color = "#E74C3C";
+            Color = "#2196F3";
             CreatedAt = DateTime.Now;
             UtmZone = string.Empty;
         }

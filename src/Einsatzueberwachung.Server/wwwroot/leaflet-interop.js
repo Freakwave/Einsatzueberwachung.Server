@@ -185,28 +185,41 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             currentLayer: osmLayer
         };
 
-        // ---- Live-Flächen-Anzeige: DOM-Element im Karten-Container ----
-        const liveAreaEl = document.createElement('div');
-        liveAreaEl.className = 'live-area-display';
-        liveAreaEl.style.display = 'none';
-        map.getContainer().appendChild(liveAreaEl);
-        this.maps[mapId].liveAreaEl = liveAreaEl;
+        // ---- Live-Flächen-Anzeige als Leaflet-Tooltip (zentriert im Polygon) ----
+        // Hilfsfunktion: flaches LatLng-Array aus Polygon-getLatLngs() (kann [[...]] sein)
+        const getFlat = (latLngs) => {
+            if (!latLngs || latLngs.length === 0) return [];
+            return (latLngs[0] && latLngs[0].lat === undefined) ? latLngs[0] : latLngs;
+        };
+        // Hilfsfunktion: geometrischer Schwerpunkt (Mittelwert) der Koordinaten
+        const calcCentroid = (latLngs) => {
+            let lat = 0, lng = 0;
+            const n = latLngs.length;
+            for (let i = 0; i < n; i++) { lat += latLngs[i].lat; lng += latLngs[i].lng; }
+            return L.latLng(lat / n, lng / n);
+        };
+
+        const liveAreaTooltip = L.tooltip({ permanent: true, direction: 'center', className: 'live-area-tooltip' });
+
+        const updateLiveArea = (rawLatLngs) => {
+            const flat = getFlat(rawLatLngs);
+            if (!flat || flat.length < 3) return;
+            const area = window.LeafletMap.calcGeodesicArea(flat);
+            liveAreaTooltip.setLatLng(calcCentroid(flat))
+                           .setContent('\u{1F4D0} ' + window.LeafletMap.formatArea(area));
+            if (!map.hasLayer(liveAreaTooltip)) liveAreaTooltip.addTo(map);
+        };
+        const hideLiveArea = () => {
+            if (map.hasLayer(liveAreaTooltip)) liveAreaTooltip.remove();
+        };
 
         let drawModeActive = false;
-
-        // Hilfsfunktion: Fläche berechnen und anzeigen
-        const showLiveArea = (latLngs) => {
-            if (!latLngs || latLngs.length < 3) return;
-            const area = window.LeafletMap.calcGeodesicArea(latLngs);
-            liveAreaEl.textContent = '\u{1F4D0} ' + window.LeafletMap.formatArea(area);
-            liveAreaEl.style.display = 'block';
-        };
 
         // Draw-Modus: Vertex gesetzt → Fläche der bestätigten Punkte anzeigen
         map.on('draw:drawvertex', function() {
             const polyMode = drawControl._toolbars.draw._modes.polygon;
             if (!polyMode || !polyMode.handler._poly) return;
-            showLiveArea(polyMode.handler._poly.getLatLngs());
+            updateLiveArea(polyMode.handler._poly.getLatLngs());
         });
 
         // Draw-Modus: Mausbewegung → vorläufige Fläche mit Cursor-Position anzeigen
@@ -216,30 +229,23 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             if (!polyMode || !polyMode.handler._enabled || !polyMode.handler._poly) return;
             const existing = polyMode.handler._poly.getLatLngs();
             if (existing.length < 2) return; // mindestens 2 Punkte + Cursor = 3 Ecken nötig
-            showLiveArea(existing.concat([e.latlng]));
-        });
-
-        // Edit-Modus: Vertex gezogen → Fläche live aktualisieren
-        map.on('draw:editvertex', function(e) {
-            if (!e.poly) return;
-            const rings = e.poly.getLatLngs();
-            // getLatLngs() liefert [[LatLng,...]] für Polygone → äußeren Ring nehmen
-            const flat = (rings.length > 0 && rings[0].lat === undefined) ? rings[0] : rings;
-            showLiveArea(flat);
+            updateLiveArea(existing.concat([e.latlng]));
         });
 
         // Draw aktiviert / deaktiviert
         map.on('draw:drawstart', function() { drawModeActive = true; });
         map.on('draw:drawstop', function() {
             drawModeActive = false;
-            liveAreaEl.style.display = 'none';
+            hideLiveArea();
         });
 
-        // Edit beendet → ausblenden
-        map.on('draw:editstop', function() {
-            liveAreaEl.style.display = 'none';
-        });
+        // Edit beendet (Speichern oder Abbrechen) → ausblenden
+        map.on('draw:editstop', function() { hideLiveArea(); });
         // ---- Ende Live-Flächen-Anzeige ----
+
+        // Live-Flächen-Hilfsfunktionen für Nutzung in startPolygonEdit speichern
+        this.maps[mapId].updateLiveArea = updateLiveArea;
+        this.maps[mapId].hideLiveArea = hideLiveArea;
 
         return true;
     } catch (error) {
@@ -806,6 +812,17 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             mapData.editingOuterLayer = outerLayer;
             mapData.editingInnerLayer = innerLayer;
 
+            // Live-Flächen-Anzeige: editdrag-Listener für Echtzeit-Updates beim Vertex-Ziehen
+            if (mapData.updateLiveArea) {
+                const onEditDrag = function() {
+                    mapData.updateLiveArea(innerLayer.getLatLngs());
+                };
+                innerLayer.on('editdrag', onEditDrag);
+                mapData._editDragHandler = { layer: innerLayer, fn: onEditDrag };
+                // Fläche sofort beim Start der Bearbeitung anzeigen
+                mapData.updateLiveArea(innerLayer.getLatLngs());
+            }
+
             // Leaflet.draw Bearbeitungsmodus aktivieren
             const editHandler = mapData.drawControl._toolbars.edit._modes.edit.handler;
             editHandler.enable();
@@ -828,7 +845,7 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
 
         try {
             const editHandler = mapData.drawControl._toolbars.edit._modes.edit.handler;
-            // save() feuert L.Draw.Event.EDITED und deaktiviert danach den Edit-Modus
+            // save() feuert L.Draw.Event.EDITED
             editHandler.save();
 
             // Inneren Layer aus drawnItems entfernen (OnShapeEdited fügt ihn über addSearchArea neu hinzu)
@@ -840,6 +857,15 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             mapData.editingAreaId = null;
             mapData.editingOuterLayer = null;
             mapData.editingInnerLayer = null;
+
+            // Editdrag-Listener entfernen
+            if (mapData._editDragHandler) {
+                mapData._editDragHandler.layer.off('editdrag', mapData._editDragHandler.fn);
+                mapData._editDragHandler = null;
+            }
+
+            // Edit-Modus beenden (feuert draw:editstop → blendet Flächen-Anzeige aus)
+            editHandler.disable();
 
             return true;
         } catch (e) {
@@ -857,6 +883,12 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         }
 
         try {
+            // Editdrag-Listener entfernen (vor revertLayers/disable)
+            if (mapData._editDragHandler) {
+                mapData._editDragHandler.layer.off('editdrag', mapData._editDragHandler.fn);
+                mapData._editDragHandler = null;
+            }
+
             const editHandler = mapData.drawControl._toolbars.edit._modes.edit.handler;
             editHandler.revertLayers();
             editHandler.disable();

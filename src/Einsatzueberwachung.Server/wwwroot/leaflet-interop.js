@@ -988,7 +988,7 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 delete mapData.markers[coordMarkerId];
             }
 
-            const markerColor = color || '#E74C3C';
+            const markerColor = color || '#2196F3';
 
             // SVG Pin-Icon mit Label-Nummer/Buchstabe
             const shortLabel = ((label && label.trim()) || '?').substring(0, 2);
@@ -1059,6 +1059,24 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             // Cursor ändern
             mapData.map.getContainer().style.cursor = 'crosshair';
 
+            // Suchgebiete temporär nicht-interaktiv machen, damit der Klick durchkommt
+            if (mapData.savedAreas) {
+                mapData.savedAreas.eachLayer(function(layer) {
+                    if (layer.eachLayer) {
+                        layer.eachLayer(function(subLayer) {
+                            if (subLayer.getElement) {
+                                const el = subLayer.getElement();
+                                if (el) el.style.pointerEvents = 'none';
+                            }
+                        });
+                    }
+                    if (layer.getElement) {
+                        const el = layer.getElement();
+                        if (el) el.style.pointerEvents = 'none';
+                    }
+                });
+            }
+
             // Einmaliger Klick-Handler
             const clickHandler = (e) => {
                 const lat = e.latlng.lat;
@@ -1066,6 +1084,24 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
 
                 // Cursor zurücksetzen
                 mapData.map.getContainer().style.cursor = '';
+
+                // Suchgebiete wieder interaktiv machen
+                if (mapData.savedAreas) {
+                    mapData.savedAreas.eachLayer(function(layer) {
+                        if (layer.eachLayer) {
+                            layer.eachLayer(function(subLayer) {
+                                if (subLayer.getElement) {
+                                    const el = subLayer.getElement();
+                                    if (el) el.style.pointerEvents = '';
+                                }
+                            });
+                        }
+                        if (layer.getElement) {
+                            const el = layer.getElement();
+                            if (el) el.style.pointerEvents = '';
+                        }
+                    });
+                }
 
                 // Callback an Blazor
                 if (mapData.dotNetReference) {
@@ -1098,6 +1134,24 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             if (mapData._coordClickHandler) {
                 mapData.map.off('click', mapData._coordClickHandler);
                 mapData._coordClickHandler = null;
+            }
+
+            // Suchgebiete wieder interaktiv machen
+            if (mapData.savedAreas) {
+                mapData.savedAreas.eachLayer(function(layer) {
+                    if (layer.eachLayer) {
+                        layer.eachLayer(function(subLayer) {
+                            if (subLayer.getElement) {
+                                const el = subLayer.getElement();
+                                if (el) el.style.pointerEvents = '';
+                            }
+                        });
+                    }
+                    if (layer.getElement) {
+                        const el = layer.getElement();
+                        if (el) el.style.pointerEvents = '';
+                    }
+                });
             }
 
             return true;

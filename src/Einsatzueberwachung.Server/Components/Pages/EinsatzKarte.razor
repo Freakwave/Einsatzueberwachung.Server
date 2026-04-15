@@ -33,27 +33,6 @@
         </div>
         
         <div class="header-right">
-            <div class="btn-group btn-group-sm" role="group">
-                <button type="button" 
-                        class="btn btn-outline-primary @(_currentMapLayer == "streets" ? "active" : "")" 
-                        @onclick="@(() => ChangeMapLayer("streets"))"
-                        title="Straßenkarte">
-                    <i class="bi bi-map"></i>
-                </button>
-                <button type="button" 
-                        class="btn btn-outline-primary @(_currentMapLayer == "satellite" ? "active" : "")" 
-                        @onclick="@(() => ChangeMapLayer("satellite"))"
-                        title="Satellit">
-                    <i class="bi bi-globe"></i>
-                </button>
-                <button type="button" 
-                        class="btn btn-outline-primary @(_currentMapLayer == "hybrid" ? "active" : "")" 
-                        @onclick="@(() => ChangeMapLayer("hybrid"))"
-                        title="Hybrid">
-                    <i class="bi bi-layers"></i>
-                </button>
-            </div>
-            
             <button class="btn btn-sm btn-outline-info btn-elw" @onclick="SetElwPosition" 
                     title="@(_hasElwPosition ? "ELW verschieben" : "ELW setzen")">
                 <i class="bi bi-geo-fill"></i> @(_hasElwPosition ? "ELW verschieben" : "ELW setzen")
@@ -61,7 +40,7 @@
             <button class="btn btn-sm @(_markerPanelVisible ? "btn-info" : "btn-outline-info")" 
                     @onclick="ToggleMarkerPanel" 
                     title="Koordinaten-Marker">
-                <i class="bi bi-pin-map-fill"></i> Punkte
+                <i class="bi bi-crosshair"></i> Punkte
             </button>
             <button class="btn btn-sm btn-outline-warning" @onclick="PrintMap" title="Drucken">
                 <i class="bi bi-printer"></i>
@@ -202,7 +181,7 @@
             {
                 <div class="coordinate-marker-panel">
                     <div class="marker-panel-header">
-                        <h6><i class="bi bi-pin-map-fill"></i> Koordinaten-Marker</h6>
+                        <h6><i class="bi bi-crosshair"></i> Koordinaten-Marker</h6>
                         <button class="btn btn-sm btn-outline-secondary p-0 px-1" @onclick="ToggleMarkerPanel" title="Schließen">
                             <i class="bi bi-x"></i>
                         </button>
@@ -644,7 +623,6 @@
     
     // ELW-Position
     private bool _hasElwPosition = false;
-    private string _currentMapLayer = "streets";
     private bool _sidebarMinimized = false;
 
     // Collar-Tracking
@@ -1109,20 +1087,6 @@
         {
             _searchMessage = $"Fehler beim Drucken: {ex.Message}";
             Console.WriteLine($"Druck-Fehler: {ex.Message}");
-        }
-    }
-    
-    private async Task ChangeMapLayer(string layerType)
-    {
-        try
-        {
-            _currentMapLayer = layerType;
-            await JSRuntime.InvokeVoidAsync("LeafletMap.changeBaseLayer", "einsatzMap", layerType);
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            _searchMessage = $"Fehler beim Wechseln der Kartenansicht: {ex.Message}";
         }
     }
 

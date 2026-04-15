@@ -982,24 +982,36 @@
         }
     }
 
+    private static string EscapeXml(string text)
+        => text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+
+    private static System.Text.StringBuilder BuildGpxHeader()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        sb.AppendLine("<gpx version=\"1.1\" creator=\"Einsatzueberwachung.Server\"");
+        sb.AppendLine("     xmlns=\"http://www.topografix.com/GPX/1/1\"");
+        sb.AppendLine("     xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"");
+        sb.AppendLine("     xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">");
+        return sb;
+    }
+
+    private static void AppendWaypoint(System.Text.StringBuilder sb, MapMarker marker)
+    {
+        var timestamp = marker.CreatedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
+        var displayName = string.IsNullOrEmpty(marker.Label) ? $"Punkt {marker.FormattedTimestamp}" : marker.Label;
+        sb.AppendLine($"  <wpt lat=\"{marker.Latitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture)}\" lon=\"{marker.Longitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture)}\">");
+        sb.AppendLine($"    <name>{EscapeXml(displayName)}</name>");
+        sb.AppendLine($"    <time>{timestamp}</time>");
+        sb.AppendLine("  </wpt>");
+    }
+
     private async Task DownloadMarkerGpx(MapMarker marker)
     {
         try
         {
-            var timestamp = marker.CreatedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
-            var displayName = string.IsNullOrEmpty(marker.Label) ? $"Punkt {marker.FormattedTimestamp}" : marker.Label;
-            var safeName = displayName.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
-
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-            sb.AppendLine("<gpx version=\"1.1\" creator=\"Einsatzueberwachung.Server\"");
-            sb.AppendLine("     xmlns=\"http://www.topografix.com/GPX/1/1\"");
-            sb.AppendLine("     xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"");
-            sb.AppendLine("     xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">");
-            sb.AppendLine($"  <wpt lat=\"{marker.Latitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture)}\" lon=\"{marker.Longitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture)}\">");
-            sb.AppendLine($"    <name>{safeName}</name>");
-            sb.AppendLine($"    <time>{timestamp}</time>");
-            sb.AppendLine("  </wpt>");
+            var sb = BuildGpxHeader();
+            AppendWaypoint(sb, marker);
             sb.AppendLine("</gpx>");
 
             var safeFileName = (string.IsNullOrEmpty(marker.Label) ? $"Punkt_{marker.FormattedTimestamp}" : marker.Label)
@@ -1022,24 +1034,9 @@
 
         try
         {
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-            sb.AppendLine("<gpx version=\"1.1\" creator=\"Einsatzueberwachung.Server\"");
-            sb.AppendLine("     xmlns=\"http://www.topografix.com/GPX/1/1\"");
-            sb.AppendLine("     xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"");
-            sb.AppendLine("     xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">");
-
+            var sb = BuildGpxHeader();
             foreach (var marker in _mapMarkers.OrderBy(m => m.CreatedAt))
-            {
-                var timestamp = marker.CreatedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
-                var displayName = string.IsNullOrEmpty(marker.Label) ? $"Punkt {marker.FormattedTimestamp}" : marker.Label;
-                var safeName = displayName.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
-                sb.AppendLine($"  <wpt lat=\"{marker.Latitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture)}\" lon=\"{marker.Longitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture)}\">");
-                sb.AppendLine($"    <name>{safeName}</name>");
-                sb.AppendLine($"    <time>{timestamp}</time>");
-                sb.AppendLine("  </wpt>");
-            }
-
+                AppendWaypoint(sb, marker);
             sb.AppendLine("</gpx>");
 
             var dateStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");

@@ -441,6 +441,63 @@ namespace Einsatzueberwachung.Domain.Services
             return Task.CompletedTask;
         }
 
+        public Task<MapMarker> AddMapMarkerAsync(MapMarker marker)
+        {
+            // UTM-Koordinaten berechnen falls noch nicht gesetzt
+            if (string.IsNullOrEmpty(marker.UtmZone))
+            {
+                var (zone, band, easting, northing) = UtmConverter.LatLongToUtm(marker.Latitude, marker.Longitude);
+                marker.UtmZone = UtmConverter.FormatUtmZone(zone, band);
+                marker.UtmEasting = easting;
+                marker.UtmNorthing = northing;
+            }
+
+            _currentEinsatz.MapMarkers.Add(marker);
+            EinsatzChanged?.Invoke();
+            return Task.FromResult(marker);
+        }
+
+        public Task<MapMarker?> UpdateMapMarkerAsync(string markerId, string? label = null, double? latitude = null, double? longitude = null)
+        {
+            var marker = _currentEinsatz.MapMarkers.FirstOrDefault(m => m.Id == markerId);
+            if (marker == null)
+                return Task.FromResult<MapMarker?>(null);
+
+            if (label != null)
+                marker.Label = label;
+
+            if (latitude.HasValue && longitude.HasValue)
+            {
+                marker.Latitude = latitude.Value;
+                marker.Longitude = longitude.Value;
+
+                // UTM neu berechnen
+                var (zone, band, easting, northing) = UtmConverter.LatLongToUtm(latitude.Value, longitude.Value);
+                marker.UtmZone = UtmConverter.FormatUtmZone(zone, band);
+                marker.UtmEasting = easting;
+                marker.UtmNorthing = northing;
+            }
+
+            EinsatzChanged?.Invoke();
+            return Task.FromResult<MapMarker?>(marker);
+        }
+
+        public Task RemoveMapMarkerAsync(string markerId)
+        {
+            var marker = _currentEinsatz.MapMarkers.FirstOrDefault(m => m.Id == markerId);
+            if (marker != null)
+            {
+                _currentEinsatz.MapMarkers.Remove(marker);
+                EinsatzChanged?.Invoke();
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task<List<MapMarker>> GetMapMarkersAsync()
+        {
+            return Task.FromResult(_currentEinsatz.MapMarkers.ToList());
+        }
+
         private void Team_TimerStarted(Team team)
         {
             _ = AddGlobalNoteAsync($"Timer gestartet", GlobalNotesEntryType.TeamStart, team.TeamId);

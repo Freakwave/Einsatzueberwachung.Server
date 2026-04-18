@@ -27,6 +27,9 @@
     .input-group,
     .badge:not(.print-legend *):not(.print-list-page *),
     .top-row,
+    .mission-topbar,
+    .map-header,
+    .map-sidebar,
     .header-with-clock,
     .live-datetime,
     #live-datetime,
@@ -61,6 +64,7 @@
         width: 100% !important;
         max-width: 100% !important;
         left: 0 !important;
+        overflow: visible !important;
     }
     
     /* Grid/Flex Layout überschreiben */
@@ -68,6 +72,26 @@
     .page main {
         margin-left: 0 !important;
         width: 100% !important;
+    }
+
+    /* Karten-Layout: map-content Flex zurücksetzen, damit map-main die volle Breite nutzt */
+    .map-content {
+        display: block !important;
+        width: 100% !important;
+        overflow: visible !important;
+    }
+
+    .map-main {
+        width: 100% !important;
+        overflow: visible !important;
+    }
+
+    .map-page-layout {
+        overflow: visible !important;
+    }
+
+    .app-content:has(.map-page-layout) {
+        overflow: visible !important;
     }
     
     /* Verstecke die normale Suchgebiete-Tabelle (nicht druckoptimiert) */

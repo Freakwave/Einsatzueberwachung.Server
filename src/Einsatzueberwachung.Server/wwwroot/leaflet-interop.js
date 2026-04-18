@@ -184,7 +184,69 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             },
             currentLayer: osmLayer
         };
-            
+
+        // ---- Live-Flächen-Anzeige als Leaflet-Tooltip (zentriert im Polygon) ----
+        // Hilfsfunktion: flaches LatLng-Array aus Polygon-getLatLngs() (kann [[...]] sein)
+        const getFlat = (latLngs) => {
+            if (!latLngs || latLngs.length === 0) return [];
+            return (latLngs[0] && latLngs[0].lat === undefined) ? latLngs[0] : latLngs;
+        };
+        // Hilfsfunktion: geometrischer Schwerpunkt (Mittelwert) der Koordinaten
+        const calcCentroid = (latLngs) => {
+            let lat = 0, lng = 0;
+            const n = latLngs.length;
+            for (let i = 0; i < n; i++) { lat += latLngs[i].lat; lng += latLngs[i].lng; }
+            return L.latLng(lat / n, lng / n);
+        };
+
+        const liveAreaTooltip = L.tooltip({ permanent: true, direction: 'center', className: 'live-area-tooltip' });
+
+        const updateLiveArea = (rawLatLngs) => {
+            const flat = getFlat(rawLatLngs);
+            if (!flat || flat.length < 3) return;
+            const area = window.LeafletMap.calcGeodesicArea(flat);
+            liveAreaTooltip.setLatLng(calcCentroid(flat))
+                           .setContent('\u{1F4D0} ' + window.LeafletMap.formatArea(area));
+            if (!map.hasLayer(liveAreaTooltip)) liveAreaTooltip.addTo(map);
+        };
+        const hideLiveArea = () => {
+            if (map.hasLayer(liveAreaTooltip)) liveAreaTooltip.remove();
+        };
+
+        let drawModeActive = false;
+
+        // Draw-Modus: Vertex gesetzt → Fläche der bestätigten Punkte anzeigen
+        map.on('draw:drawvertex', function() {
+            const polyMode = drawControl._toolbars.draw._modes.polygon;
+            if (!polyMode || !polyMode.handler._poly) return;
+            updateLiveArea(polyMode.handler._poly.getLatLngs());
+        });
+
+        // Draw-Modus: Mausbewegung → vorläufige Fläche mit Cursor-Position anzeigen
+        map.on('mousemove', function(e) {
+            if (!drawModeActive) return;
+            const polyMode = drawControl._toolbars.draw._modes.polygon;
+            if (!polyMode || !polyMode.handler._enabled || !polyMode.handler._poly) return;
+            const existing = polyMode.handler._poly.getLatLngs();
+            if (existing.length < 2) return; // mindestens 2 Punkte + Cursor = 3 Ecken nötig
+            updateLiveArea(existing.concat([e.latlng]));
+        });
+
+        // Draw aktiviert / deaktiviert
+        map.on('draw:drawstart', function() { drawModeActive = true; });
+        map.on('draw:drawstop', function() {
+            drawModeActive = false;
+            hideLiveArea();
+        });
+
+        // Edit beendet (Speichern oder Abbrechen) → ausblenden
+        map.on('draw:editstop', function() { hideLiveArea(); });
+        // ---- Ende Live-Flächen-Anzeige ----
+
+        // Live-Flächen-Hilfsfunktionen für Nutzung in startPolygonEdit speichern
+        this.maps[mapId].updateLiveArea = updateLiveArea;
+        this.maps[mapId].hideLiveArea = hideLiveArea;
+
         return true;
     } catch (error) {
         error('Fehler beim Initialisieren der Karte:', error);
@@ -701,6 +763,184 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         }
     },
     
+    // Aktiviert den Bearbeitungsmodus für ein bestehendes Suchgebiet
+    startPolygonEdit: function(mapId, areaId) {
+        const mapData = this.maps[mapId];
+        if (!mapData) {
+            console.error('Karte nicht gefunden:', mapId);
+            return false;
+        }
+
+        try {
+            const outerLayer = mapData.markers[areaId];
+            if (!outerLayer) {
+                console.error('Layer nicht gefunden für Area:', areaId);
+                return false;
+            }
+
+            // Äußere GeoJSON-Gruppe aus savedAreas entfernen
+            if (mapData.savedAreas.hasLayer(outerLayer)) {
+                mapData.savedAreas.removeLayer(outerLayer);
+            }
+
+            // Inneren Polygon-Layer extrahieren
+            let innerLayer = null;
+            let innerLayerCount = 0;
+            outerLayer.eachLayer(function(l) {
+                innerLayerCount++;
+                if (!innerLayer) innerLayer = l;
+            });
+
+            if (!innerLayer) {
+                console.error('Kein innerer Layer gefunden für Area:', areaId);
+                mapData.savedAreas.addLayer(outerLayer);
+                return false;
+            }
+
+            if (innerLayerCount > 1) {
+                console.warn('Mehrere innere Layer gefunden für Area:', areaId, '- nur der erste wird bearbeitet');
+            }
+
+            // Metadaten auf innerem Layer sicherstellen
+            window.LeafletMap.setSearchAreaMetadata(innerLayer, areaId);
+
+            // In drawnItems verschieben (wird von Leaflet.draw bearbeitet)
+            mapData.drawnItems.addLayer(innerLayer);
+
+            // Bearbeitungszustand speichern
+            mapData.editingAreaId = areaId;
+            mapData.editingOuterLayer = outerLayer;
+            mapData.editingInnerLayer = innerLayer;
+
+            // Live-Flächen-Anzeige: editdrag-Listener für Echtzeit-Updates beim Vertex-Ziehen
+            if (mapData.updateLiveArea) {
+                const onEditDrag = function() {
+                    mapData.updateLiveArea(innerLayer.getLatLngs());
+                };
+                innerLayer.on('editdrag', onEditDrag);
+                mapData._editDragHandler = { layer: innerLayer, fn: onEditDrag };
+                // Fläche sofort beim Start der Bearbeitung anzeigen
+                mapData.updateLiveArea(innerLayer.getLatLngs());
+            }
+
+            // Leaflet.draw Bearbeitungsmodus aktivieren
+            const editHandler = mapData.drawControl._toolbars.edit._modes.edit.handler;
+            editHandler.enable();
+
+            console.log('Polygon-Bearbeitung gestartet für Area:', areaId);
+            return true;
+        } catch (e) {
+            console.error('Fehler beim Starten des Polygon-Edits:', e);
+            return false;
+        }
+    },
+
+    // Speichert die Änderungen der Polygon-Bearbeitung
+    savePolygonEdit: function(mapId) {
+        const mapData = this.maps[mapId];
+        if (!mapData) {
+            console.error('Karte nicht gefunden:', mapId);
+            return false;
+        }
+
+        try {
+            const editHandler = mapData.drawControl._toolbars.edit._modes.edit.handler;
+            // save() feuert L.Draw.Event.EDITED
+            editHandler.save();
+
+            // Inneren Layer aus drawnItems entfernen (OnShapeEdited fügt ihn über addSearchArea neu hinzu)
+            if (mapData.editingInnerLayer && mapData.drawnItems.hasLayer(mapData.editingInnerLayer)) {
+                mapData.drawnItems.removeLayer(mapData.editingInnerLayer);
+            }
+
+            // Bearbeitungszustand zurücksetzen
+            mapData.editingAreaId = null;
+            mapData.editingOuterLayer = null;
+            mapData.editingInnerLayer = null;
+
+            // Editdrag-Listener entfernen
+            if (mapData._editDragHandler) {
+                mapData._editDragHandler.layer.off('editdrag', mapData._editDragHandler.fn);
+                mapData._editDragHandler = null;
+            }
+
+            // Edit-Modus beenden (feuert draw:editstop → blendet Flächen-Anzeige aus)
+            editHandler.disable();
+
+            return true;
+        } catch (e) {
+            console.error('Fehler beim Speichern des Polygon-Edits:', e);
+            return false;
+        }
+    },
+
+    // Bricht die Polygon-Bearbeitung ab und stellt den Originalzustand wieder her
+    cancelPolygonEdit: function(mapId) {
+        const mapData = this.maps[mapId];
+        if (!mapData) {
+            console.error('Karte nicht gefunden:', mapId);
+            return false;
+        }
+
+        try {
+            // Editdrag-Listener entfernen (vor revertLayers/disable)
+            if (mapData._editDragHandler) {
+                mapData._editDragHandler.layer.off('editdrag', mapData._editDragHandler.fn);
+                mapData._editDragHandler = null;
+            }
+
+            const editHandler = mapData.drawControl._toolbars.edit._modes.edit.handler;
+            editHandler.revertLayers();
+            editHandler.disable();
+
+            // Inneren Layer aus drawnItems entfernen und äußeren Layer wiederherstellen
+            if (mapData.editingInnerLayer && mapData.drawnItems.hasLayer(mapData.editingInnerLayer)) {
+                mapData.drawnItems.removeLayer(mapData.editingInnerLayer);
+            }
+
+            if (mapData.editingOuterLayer) {
+                mapData.savedAreas.addLayer(mapData.editingOuterLayer);
+            }
+
+            // Bearbeitungszustand zurücksetzen
+            mapData.editingAreaId = null;
+            mapData.editingOuterLayer = null;
+            mapData.editingInnerLayer = null;
+
+            return true;
+        } catch (e) {
+            console.error('Fehler beim Abbrechen des Polygon-Edits:', e);
+            return false;
+        }
+    },
+
+    // Berechnet geodätische Fläche (m²) aus einem flachen Array von {lat, lng} Objekten.
+    // Verwendet dieselbe sphärische Formel wie die C#-Klasse SearchArea.CalculatePolygonArea.
+    calcGeodesicArea: function(latLngs) {
+        if (!latLngs || latLngs.length < 3) return 0;
+        const R = 6371000.0;
+        let area = 0;
+        const n = latLngs.length;
+        for (let i = 0; i < n; i++) {
+            const p1 = latLngs[i];
+            const p2 = latLngs[(i + 1) % n];
+            const lat1 = p1.lat * Math.PI / 180;
+            const lat2 = p2.lat * Math.PI / 180;
+            const lon1 = p1.lng * Math.PI / 180;
+            const lon2 = p2.lng * Math.PI / 180;
+            area += (lon2 - lon1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+        }
+        return Math.abs(area * R * R / 2.0);
+    },
+
+    // Formatiert Fläche in m²/ha/km² (gleiche Schwellwerte wie C# FormattedArea).
+    formatArea: function(sqm) {
+        if (sqm < 1) return '< 1 m²';
+        if (sqm < 50000) return Math.round(sqm).toLocaleString('de-DE') + ' m²';
+        if (sqm < 1000000) return (sqm / 10000).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ha';
+        return (sqm / 1000000).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' km²';
+    },
+
     // Löscht alle Zeichnungen von der Karte
     clearAllDrawings: function(mapId) {
         try {
@@ -725,6 +965,344 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         } catch (err) {
             error('Fehler beim Löschen der Zeichnungen:', err);
             return false;
+        }
+    },
+
+    // ========================================
+    // Koordinaten-Marker Funktionen
+    // ========================================
+
+    // Setzt einen Koordinaten-Marker auf der Karte (Punkt mit Label)
+    setCoordinateMarker: function(mapId, markerId, lat, lng, label, description, color) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) {
+                error('Karte nicht gefunden:', mapId);
+                return false;
+            }
+
+            // Alten Marker entfernen falls vorhanden
+            const coordMarkerId = 'coord_' + markerId;
+            if (mapData.markers[coordMarkerId]) {
+                mapData.map.removeLayer(mapData.markers[coordMarkerId]);
+                delete mapData.markers[coordMarkerId];
+            }
+
+            const markerColor = color || '#2196F3';
+
+            // SVG Pin-Icon mit Label-Nummer/Buchstabe
+            const shortLabel = ((label && label.trim()) || '?').substring(0, 2);
+            const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42">
+                <path fill="${markerColor}" stroke="#333" stroke-width="1.5" d="M15 0 C7 0 0 6.5 0 15 C0 26 15 42 15 42 C15 42 30 26 30 15 C30 6.5 23 0 15 0 Z"/>
+                <circle cx="15" cy="15" r="9" fill="white"/>
+                <text x="15" y="20" font-size="12" font-weight="bold" text-anchor="middle" fill="${markerColor}" font-family="Arial">${shortLabel}</text>
+            </svg>`;
+
+            const icon = L.divIcon({
+                html: svgIcon,
+                iconSize: [30, 42],
+                iconAnchor: [15, 42],
+                popupAnchor: [0, -42],
+                className: 'coordinate-marker-icon'
+            });
+
+            const marker = L.marker([lat, lng], {
+                icon: icon,
+                title: label || 'Koordinaten-Marker',
+                draggable: false
+            }).addTo(mapData.map);
+
+            // Popup mit Koordinaten-Info
+            const utmInfo = this._latLngToUtmString(lat, lng);
+            const popupHtml = `<div class="coord-marker-popup">
+                <strong>${label || 'Punkt'}</strong>
+                ${description ? '<br><small>' + description + '</small>' : ''}
+                <hr style="margin: 4px 0;">
+                <small><strong>Lat/Long:</strong> ${lat.toFixed(6)}° / ${lng.toFixed(6)}°</small><br>
+                <small><strong>UTM:</strong> ${utmInfo}</small>
+            </div>`;
+            marker.bindPopup(popupHtml);
+
+            mapData.markers[coordMarkerId] = marker;
+            return true;
+        } catch (err) {
+            error('Fehler beim Setzen des Koordinaten-Markers:', err);
+            return false;
+        }
+    },
+
+    // Entfernt einen Koordinaten-Marker
+    removeCoordinateMarker: function(mapId, markerId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return false;
+
+            const coordMarkerId = 'coord_' + markerId;
+            if (mapData.markers[coordMarkerId]) {
+                mapData.map.removeLayer(mapData.markers[coordMarkerId]);
+                delete mapData.markers[coordMarkerId];
+                return true;
+            }
+            return false;
+        } catch (err) {
+            error('Fehler beim Entfernen des Koordinaten-Markers:', err);
+            return false;
+        }
+    },
+
+    // Aktiviert den Klick-Modus zum Setzen eines Koordinaten-Markers
+    enableCoordinateClickMode: function(mapId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return false;
+
+            // Cursor ändern
+            mapData.map.getContainer().style.cursor = 'crosshair';
+
+            // Suchgebiete temporär nicht-interaktiv machen, damit der Klick durchkommt
+            if (mapData.savedAreas) {
+                mapData.savedAreas.eachLayer(function(layer) {
+                    if (layer.eachLayer) {
+                        layer.eachLayer(function(subLayer) {
+                            if (subLayer.getElement) {
+                                const el = subLayer.getElement();
+                                if (el) el.style.pointerEvents = 'none';
+                            }
+                        });
+                    }
+                    if (layer.getElement) {
+                        const el = layer.getElement();
+                        if (el) el.style.pointerEvents = 'none';
+                    }
+                });
+            }
+
+            // Einmaliger Klick-Handler
+            const clickHandler = (e) => {
+                const lat = e.latlng.lat;
+                const lng = e.latlng.lng;
+
+                // Cursor zurücksetzen
+                mapData.map.getContainer().style.cursor = '';
+
+                // Suchgebiete wieder interaktiv machen
+                if (mapData.savedAreas) {
+                    mapData.savedAreas.eachLayer(function(layer) {
+                        if (layer.eachLayer) {
+                            layer.eachLayer(function(subLayer) {
+                                if (subLayer.getElement) {
+                                    const el = subLayer.getElement();
+                                    if (el) el.style.pointerEvents = '';
+                                }
+                            });
+                        }
+                        if (layer.getElement) {
+                            const el = layer.getElement();
+                            if (el) el.style.pointerEvents = '';
+                        }
+                    });
+                }
+
+                // Callback an Blazor
+                if (mapData.dotNetReference) {
+                    mapData.dotNetReference.invokeMethodAsync('OnCoordinateMarkerClicked', lat, lng)
+                        .catch(err => error('Fehler beim Callback OnCoordinateMarkerClicked:', err));
+                }
+            };
+
+            // Vorherigen Handler entfernen falls vorhanden
+            if (mapData._coordClickHandler) {
+                mapData.map.off('click', mapData._coordClickHandler);
+            }
+            mapData._coordClickHandler = clickHandler;
+            mapData.map.once('click', clickHandler);
+
+            return true;
+        } catch (err) {
+            error('Fehler beim Aktivieren des Klick-Modus:', err);
+            return false;
+        }
+    },
+
+    // Deaktiviert den Klick-Modus
+    disableCoordinateClickMode: function(mapId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return false;
+
+            mapData.map.getContainer().style.cursor = '';
+            if (mapData._coordClickHandler) {
+                mapData.map.off('click', mapData._coordClickHandler);
+                mapData._coordClickHandler = null;
+            }
+
+            // Suchgebiete wieder interaktiv machen
+            if (mapData.savedAreas) {
+                mapData.savedAreas.eachLayer(function(layer) {
+                    if (layer.eachLayer) {
+                        layer.eachLayer(function(subLayer) {
+                            if (subLayer.getElement) {
+                                const el = subLayer.getElement();
+                                if (el) el.style.pointerEvents = '';
+                            }
+                        });
+                    }
+                    if (layer.getElement) {
+                        const el = layer.getElement();
+                        if (el) el.style.pointerEvents = '';
+                    }
+                });
+            }
+
+            return true;
+        } catch (err) {
+            error('Fehler beim Deaktivieren des Klick-Modus:', err);
+            return false;
+        }
+    },
+
+    // Aktiviert einmaligen Drag-Modus für einen Koordinaten-Marker.
+    // Nach dem Drag wird draggable wieder deaktiviert und der Blazor-Callback aufgerufen.
+    enableCoordinateMarkerDrag: function(mapId, markerId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return false;
+
+            const coordMarkerId = 'coord_' + markerId;
+            const marker = mapData.markers[coordMarkerId];
+            if (!marker) return false;
+
+            // Draggable aktivieren
+            marker.dragging.enable();
+            marker.getElement().style.cursor = 'grab';
+
+            // Einmaliger Drag-Handler
+            marker.once('dragend', (e) => {
+                const newPos = e.target.getLatLng();
+
+                // Draggable sofort wieder deaktivieren
+                marker.dragging.disable();
+                marker.getElement().style.cursor = '';
+
+                // Popup aktualisieren
+                const newUtmInfo = window.LeafletMap._latLngToUtmString(newPos.lat, newPos.lng);
+                const title = marker.options.title || 'Punkt';
+                const updatedPopup = `<div class="coord-marker-popup">
+                    <strong>${title}</strong>
+                    <hr style="margin: 4px 0;">
+                    <small><strong>Lat/Long:</strong> ${newPos.lat.toFixed(6)}° / ${newPos.lng.toFixed(6)}°</small><br>
+                    <small><strong>UTM:</strong> ${newUtmInfo}</small>
+                </div>`;
+                marker.setPopupContent(updatedPopup);
+
+                // Callback an Blazor (Koordinaten nur als Vorschlag, nicht gespeichert)
+                if (mapData.dotNetReference) {
+                    mapData.dotNetReference.invokeMethodAsync('OnCoordinateMarkerDragCompleted', markerId, newPos.lat, newPos.lng)
+                        .catch(err => error('Fehler beim Callback OnCoordinateMarkerDragCompleted:', err));
+                }
+            });
+
+            return true;
+        } catch (err) {
+            error('Fehler beim Aktivieren des Marker-Drag-Modus:', err);
+            return false;
+        }
+    },
+
+    // Deaktiviert den Drag-Modus für einen Koordinaten-Marker (falls noch aktiv)
+    disableCoordinateMarkerDrag: function(mapId, markerId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return false;
+
+            const coordMarkerId = 'coord_' + markerId;
+            const marker = mapData.markers[coordMarkerId];
+            if (!marker) return false;
+
+            marker.dragging.disable();
+            if (marker.getElement()) {
+                marker.getElement().style.cursor = '';
+            }
+
+            return true;
+        } catch (err) {
+            error('Fehler beim Deaktivieren des Marker-Drag-Modus:', err);
+            return false;
+        }
+    },
+
+    // Zentriert die Karte auf einen Koordinaten-Marker
+    zoomToCoordinateMarker: function(mapId, markerId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return false;
+
+            const coordMarkerId = 'coord_' + markerId;
+            const marker = mapData.markers[coordMarkerId];
+            if (marker) {
+                const pos = marker.getLatLng();
+                mapData.map.setView([pos.lat, pos.lng], 16);
+                marker.openPopup();
+                return true;
+            }
+            return false;
+        } catch (err) {
+            error('Fehler beim Zoomen zum Marker:', err);
+            return false;
+        }
+    },
+
+    // Hilfs-Funktion: Lat/Long zu UTM-String (vereinfachte JS-Implementierung)
+    _latLngToUtmString: function(lat, lng) {
+        try {
+            const zone = Math.floor((lng + 180) / 6) + 1;
+            const bands = 'CDEFGHJKLMNPQRSTUVWX';
+            let bandIndex = Math.floor((lat + 80) / 8);
+            if (bandIndex < 0) bandIndex = 0;
+            if (bandIndex >= bands.length) bandIndex = bands.length - 1;
+            const band = bands[bandIndex];
+
+            // Vereinfachte UTM-Berechnung
+            const a = 6378137.0;
+            const e2 = 0.00669437999014;
+            const k0 = 0.9996;
+            const lonOrigin = (zone - 1) * 6 - 180 + 3;
+
+            const latRad = lat * Math.PI / 180;
+            const lonRad = lng * Math.PI / 180;
+            const lonOriginRad = lonOrigin * Math.PI / 180;
+
+            const ePrime2 = e2 / (1 - e2);
+            const n = a / Math.sqrt(1 - e2 * Math.sin(latRad) * Math.sin(latRad));
+            const t = Math.tan(latRad) * Math.tan(latRad);
+            const c = ePrime2 * Math.cos(latRad) * Math.cos(latRad);
+            const aa = Math.cos(latRad) * (lonRad - lonOriginRad);
+
+            const m = a * (
+                (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256) * latRad
+                - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 * e2 * e2 / 1024) * Math.sin(2 * latRad)
+                + (15 * e2 * e2 / 256 + 45 * e2 * e2 * e2 / 1024) * Math.sin(4 * latRad)
+                - (35 * e2 * e2 * e2 / 3072) * Math.sin(6 * latRad)
+            );
+
+            let easting = k0 * n * (
+                aa + (1 - t + c) * aa * aa * aa / 6
+                + (5 - 18 * t + t * t + 72 * c - 58 * ePrime2) * aa * aa * aa * aa * aa / 120
+            ) + 500000;
+
+            let northing = k0 * (
+                m + n * Math.tan(latRad) * (
+                    aa * aa / 2
+                    + (5 - t + 9 * c + 4 * c * c) * aa * aa * aa * aa / 24
+                    + (61 - 58 * t + t * t + 600 * c - 330 * ePrime2) * aa * aa * aa * aa * aa * aa / 720
+                )
+            );
+
+            if (lat < 0) northing += 10000000;
+
+            return `${zone}${band} ${Math.round(easting)} E / ${Math.round(northing)} N`;
+        } catch (err) {
+            return 'N/A';
         }
     }
 };

@@ -40,7 +40,9 @@ html, body {
     height: 100vh;
     position: sticky;
     top: 0;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     z-index: 100;
     flex-shrink: 0;
     transition: width 0.3s ease, min-width 0.3s ease;
@@ -151,8 +153,10 @@ main {
 .page.sidebar-collapsed .top-row .container-fluid {
     justify-content: center;
     padding: 0;
-    flex-direction: column;
-    gap: 0.25rem;
+}
+
+.page.sidebar-collapsed .btn-sidebar-toggle {
+    margin-left: 0;
 }
 
 .page.sidebar-collapsed .navbar-brand {

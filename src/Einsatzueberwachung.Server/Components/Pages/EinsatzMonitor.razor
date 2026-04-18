@@ -946,7 +946,7 @@
         .Where(person => person.Skills.HasFlag(PersonalSkills.Drohnenpilot));
 
     private IEnumerable<DogEntry> AvailableDogs => _dogList
-        .Where(dog => dog.IsActive && (string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId) || dog.HundefuehrerId == _teamForm.HundefuehrerId))
+        .Where(dog => dog.IsActive && (string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId) || dog.HundefuehrerIds.Contains(_teamForm.HundefuehrerId)))
         .OrderBy(dog => dog.Name);
 
     private IEnumerable<DroneEntry> AvailableDrones => _droneList
@@ -1898,7 +1898,7 @@
         var dog = _dogList.FirstOrDefault(entry => entry.Id == _teamForm.DogId);
         if (dog != null && string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId))
         {
-            _teamForm.HundefuehrerId = dog.HundefuehrerId;
+            _teamForm.HundefuehrerId = dog.PrimaryHundefuehrerId;
         }
 
         SyncTeamNameFromSelection();

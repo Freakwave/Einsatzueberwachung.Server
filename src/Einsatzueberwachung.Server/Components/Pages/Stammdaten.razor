@@ -174,13 +174,23 @@
 
                                 <div class="col-12 col-md-6">
                                     <label class="form-label">Hundefuehrer</label>
-                                    <InputSelect class="form-select" @bind-Value="_dogDraft.HundefuehrerId">
-                                        <option value="">Nicht zugewiesen</option>
-                                        @foreach (var person in _personal)
-                                        {
-                                            <option value="@person.Id">@person.FullName</option>
-                                        }
-                                    </InputSelect>
+                                    @for (int i = 0; i < _dogDraftHundefuehrerIds.Count; i++)
+                                    {
+                                        var index = i;
+                                        <div class="d-flex gap-1 mb-1">
+                                            <select class="form-select form-select-sm" value="@_dogDraftHundefuehrerIds[index]" @onchange="args => SetDogHundefuehrer(index, args.Value?.ToString() ?? string.Empty)">
+                                                <option value="">Nicht zugewiesen</option>
+                                                @foreach (var person in _personal)
+                                                {
+                                                    <option value="@person.Id">@person.FullName</option>
+                                                }
+                                            </select>
+                                            <button type="button" class="btn btn-sm btn-outline-danger px-2" @onclick="() => RemoveDogHundefuehrer(index)" title="Entfernen">×</button>
+                                        </div>
+                                    }
+                                    <button type="button" class="btn btn-sm btn-outline-secondary mt-1" @onclick="AddDogHundefuehrer">
+                                        <i class="bi bi-plus"></i> Hundefuehrer hinzufuegen
+                                    </button>
                                 </div>
                             </div>
 
@@ -235,7 +245,7 @@
                                                     <strong>@dog.Name</strong>
                                                     <div class="small text-muted">@dog.Rasse, @dog.Alter Jahre</div>
                                                 </td>
-                                                <td>@GetPersonalName(dog.HundefuehrerId)</td>
+                                                <td>@GetPersonalNames(dog.HundefuehrerIds)</td>
                                                 <td>@dog.SpecializationsDisplay</td>
                                                 <td>@(dog.IsActive ? "Aktiv" : "Inaktiv")</td>
                                                 <td class="text-end">
@@ -435,13 +445,23 @@
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label">Hundefuehrer</label>
-                            <InputSelect class="form-select" @bind-Value="_dogDraft.HundefuehrerId">
-                                <option value="">Nicht zugewiesen</option>
-                                @foreach (var person in _personal)
-                                {
-                                    <option value="@person.Id">@person.FullName</option>
-                                }
-                            </InputSelect>
+                            @for (int i = 0; i < _dogDraftHundefuehrerIds.Count; i++)
+                            {
+                                var index = i;
+                                <div class="d-flex gap-1 mb-1">
+                                    <select class="form-select form-select-sm" value="@_dogDraftHundefuehrerIds[index]" @onchange="args => SetDogHundefuehrer(index, args.Value?.ToString() ?? string.Empty)">
+                                        <option value="">Nicht zugewiesen</option>
+                                        @foreach (var person in _personal)
+                                        {
+                                            <option value="@person.Id">@person.FullName</option>
+                                        }
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-danger px-2" @onclick="() => RemoveDogHundefuehrer(index)" title="Entfernen">×</button>
+                                </div>
+                            }
+                            <button type="button" class="btn btn-sm btn-outline-secondary mt-1" @onclick="AddDogHundefuehrer">
+                                <i class="bi bi-plus"></i> Hundefuehrer hinzufuegen
+                            </button>
                         </div>
                     </div>
                     <label class="form-label">Spezialisierungen</label>
@@ -528,6 +548,7 @@
     private PersonalEntry _personalDraft = new();
     private DogEntry _dogDraft = new();
     private DroneEntry _droneDraft = new();
+    private List<string> _dogDraftHundefuehrerIds = new() { string.Empty };
     private string? _editingPersonalId;
     private string? _editingDogId;
     private string? _editingDroneId;
@@ -663,6 +684,11 @@
             return;
         }
 
+        _dogDraft.HundefuehrerIds = _dogDraftHundefuehrerIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct()
+            .ToList();
+
         if (_editingDogId is null)
         {
             await MasterDataService.AddDogAsync(CloneDog(_dogDraft));
@@ -684,6 +710,9 @@
         var dog = _dogs.First(entry => entry.Id == id);
         _editingDogId = id;
         _dogDraft = CloneDog(dog);
+        _dogDraftHundefuehrerIds = dog.HundefuehrerIds.Count > 0
+            ? new List<string>(dog.HundefuehrerIds)
+            : new List<string> { string.Empty };
     }
 
     private async Task DeleteDogAsync(string id)
@@ -702,6 +731,7 @@
     {
         _editingDogId = null;
         _dogDraft = new DogEntry();
+        _dogDraftHundefuehrerIds = new List<string> { string.Empty };
     }
 
     private void ToggleDogSpecialization(DogSpecialization specialization, bool enabled)
@@ -849,10 +879,39 @@
             Rasse = source.Rasse,
             Alter = source.Alter,
             Specializations = source.Specializations,
-            HundefuehrerId = source.HundefuehrerId,
+            HundefuehrerIds = new List<string>(source.HundefuehrerIds),
             Notizen = source.Notizen,
             IsActive = source.IsActive
         };
+    }
+
+    private void AddDogHundefuehrer()
+    {
+        _dogDraftHundefuehrerIds.Add(string.Empty);
+    }
+
+    private void RemoveDogHundefuehrer(int index)
+    {
+        if (_dogDraftHundefuehrerIds.Count > 1)
+            _dogDraftHundefuehrerIds.RemoveAt(index);
+        else
+            _dogDraftHundefuehrerIds[0] = string.Empty;
+    }
+
+    private void SetDogHundefuehrer(int index, string value)
+    {
+        _dogDraftHundefuehrerIds[index] = value;
+    }
+
+    private string GetPersonalNames(List<string> ids)
+    {
+        if (ids == null || ids.Count == 0)
+            return "-";
+        var names = ids
+            .Select(id => _personal.FirstOrDefault(e => e.Id == id)?.FullName)
+            .Where(n => n != null)
+            .ToList();
+        return names.Count > 0 ? string.Join(", ", names) : "-";
     }
 
     private static DroneEntry CloneDrone(DroneEntry source)

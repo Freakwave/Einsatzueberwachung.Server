@@ -104,13 +104,16 @@ namespace Einsatzueberwachung.Domain.Services
             int row = 2;
             foreach (var dog in dogList.OrderBy(d => d.Name))
             {
-                var hundefuehrer = personalList.FirstOrDefault(p => p.Id == dog.HundefuehrerId);
-                
+                var hundefuehrerNames = dog.HundefuehrerIds
+                    .Select(id => personalList.FirstOrDefault(p => p.Id == id)?.FullName)
+                    .Where(name => name != null)
+                    .ToList();
+
                 ws.Cell(row, 1).Value = dog.Name;
                 ws.Cell(row, 2).Value = dog.Rasse;
                 ws.Cell(row, 3).Value = dog.Alter;
                 ws.Cell(row, 4).Value = GetSpecializationsString(dog.Specializations);
-                ws.Cell(row, 5).Value = hundefuehrer?.FullName ?? "";
+                ws.Cell(row, 5).Value = string.Join(", ", hundefuehrerNames);
                 ws.Cell(row, 6).Value = dog.Notizen;
                 ws.Cell(row, 7).Value = dog.IsActive ? "Ja" : "Nein";
                 row++;
@@ -293,7 +296,7 @@ namespace Einsatzueberwachung.Domain.Services
                         Rasse = row.Cell(2).GetString().Trim(),
                         Alter = ParseInt(row.Cell(3).GetString()),
                         Specializations = ParseSpecializations(row.Cell(4).GetString()),
-                        HundefuehrerId = hundefuehrer?.Id ?? "",
+                        HundefuehrerIds = hundefuehrer != null ? new List<string> { hundefuehrer.Id } : new List<string>(),
                         Notizen = row.Cell(6).GetString().Trim(),
                         IsActive = ParseBool(row.Cell(7).GetString())
                     };

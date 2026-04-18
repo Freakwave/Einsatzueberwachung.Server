@@ -38,6 +38,17 @@ namespace Einsatzueberwachung.Domain.Services
                 {
                     var json = await File.ReadAllTextAsync(filePath);
                     _sessionData = JsonSerializer.Deserialize<SessionData>(json) ?? new SessionData();
+
+                    // Migration: HundefuehrerId (alt) → HundefuehrerIds (neu)
+                    foreach (var dog in _sessionData.DogList)
+                    {
+                        dog.HundefuehrerIds ??= new List<string>();
+                        if (!string.IsNullOrWhiteSpace(dog.HundefuehrerIdLegacy) && dog.HundefuehrerIds.Count == 0)
+                        {
+                            dog.HundefuehrerIds.Add(dog.HundefuehrerIdLegacy);
+                        }
+                        dog.HundefuehrerIdLegacy = null;
+                    }
                 }
                 catch
                 {

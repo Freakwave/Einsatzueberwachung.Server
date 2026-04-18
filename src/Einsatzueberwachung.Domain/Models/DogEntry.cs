@@ -15,9 +15,15 @@ namespace Einsatzueberwachung.Domain.Models
         public string Rasse { get; set; }
         public int Alter { get; set; }
         public DogSpecialization Specializations { get; set; }
-        public string HundefuehrerId { get; set; }
+        /// <summary>Liste aller Hundeführer-IDs (ein Hund kann mehrere Hundeführer haben)</summary>
+        public List<string> HundefuehrerIds { get; set; } = new();
         public string Notizen { get; set; }
         public bool IsActive { get; set; }
+
+        /// <summary>Legacy-Feld für JSON-Rückwärtskompatibilität. Wird beim Laden in HundefuehrerIds migriert.</summary>
+        [System.Text.Json.Serialization.JsonPropertyName("HundefuehrerId")]
+        [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        public string? HundefuehrerIdLegacy { get; set; }
 
         public DogEntry()
         {
@@ -25,11 +31,15 @@ namespace Einsatzueberwachung.Domain.Models
             Name = string.Empty;
             Rasse = string.Empty;
             Specializations = DogSpecialization.None;
-            HundefuehrerId = string.Empty;
+            HundefuehrerIds = new List<string>();
             Notizen = string.Empty;
             IsActive = true;
             Alter = 0;
         }
+
+        /// <summary>Erster (primärer) Hundeführer – für Abwärtskompatibilität mit EinsatzMonitor</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string PrimaryHundefuehrerId => HundefuehrerIds.Count > 0 ? HundefuehrerIds[0] : string.Empty;
 
         public string SpecializationsDisplay
         {

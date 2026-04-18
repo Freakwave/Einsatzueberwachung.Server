@@ -1,3 +1,15 @@
+window.downloadFile = function (fileName, content, mimeType) {
+    var blob = new Blob([content], { type: mimeType });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
+
 window.layoutTools = window.layoutTools || {};
 
 window.layoutTools.warningAudio = window.layoutTools.warningAudio || {

@@ -139,6 +139,7 @@ main {
 
 .page.sidebar-collapsed .nav-icon i {
     font-size: 1.2rem;
+    margin-right: 0;
 }
 
 /* Top row adjustments for collapsed */

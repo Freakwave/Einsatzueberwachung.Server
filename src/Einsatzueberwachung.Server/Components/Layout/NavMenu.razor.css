@@ -1,3 +1,136 @@
+/* === Sidebar Nav Wrapper === */
+.sidebar-nav {
+    display: block;
+    height: calc(100vh - 3.5rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* === Nav Icon & Text === */
+.nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    transition: flex 0.3s, width 0.3s;
+}
+
+.nav-text {
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 200px;
+    opacity: 1;
+    margin-left: 0.65rem;
+    transition: opacity 0.2s ease, max-width 0.3s cubic-bezier(0.4,0,0.2,1), margin-left 0.3s;
+}
+
+/* === Collapsed: Icons zentrieren, Text ausblenden === */
+.sidebar-collapsed .nav-item.px-2 {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+/* Flex-Container: Icons horizontal zentrieren */
+.sidebar-collapsed .nav-item ::deep .nav-link {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+/* Icon-Wrapper: feste Größe, kein Wachsen */
+.sidebar-collapsed .nav-icon {
+    flex: 0 0 1.75rem;
+    width: 1.75rem;
+    height: 1.75rem;
+}
+
+/* Bootstrap Icon: margin-right entfernen, sonst verschiebt sich der visuelle Mittelpunkt */
+.sidebar-collapsed .bi {
+    margin-right: 0 !important;
+    position: static;
+    top: 0;
+}
+
+.sidebar-collapsed .nav-text {
+    opacity: 0;
+    max-width: 0;
+    margin-left: 0;
+    pointer-events: none;
+}
+
+.sidebar-collapsed .nav-section-label {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    padding: 0 !important;
+    margin: 0 !important;
+    pointer-events: none;
+    transition: opacity 0.15s, max-height 0.3s, padding 0.3s, margin 0.3s;
+}
+
+/* === Expanded: Text und Header einblenden === */
+.sidebar-expanded .nav-section-label {
+    opacity: 1;
+    max-height: 3rem;
+    transition: opacity 0.25s 0.1s, max-height 0.3s;
+}
+
+/* === Toggle Button === */
+.btn-sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s, box-shadow 0.2s;
+    padding: 0;
+}
+
+.btn-sidebar-toggle:hover {
+    background: rgba(255, 255, 255, 0.22);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    color: white;
+}
+
+.btn-sidebar-toggle:focus-visible {
+    outline: 2px solid rgba(255,255,255,0.5);
+    outline-offset: 2px;
+}
+
+/* Chevron dreht sich 180° beim Einklappen */
+.btn-sidebar-toggle .toggle-icon {
+    font-size: 0.8rem;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-block;
+}
+
+.btn-sidebar-toggle.is-collapsed .toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* === Header: Brand-Text bei Collapsed ausblenden === */
+.navbar-brand .brand-text {
+    max-width: 200px;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity 0.25s 0.1s, max-width 0.35s;
+    opacity: 1;
+}
+
+.nav-header-collapsed .brand-text {
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    transition: opacity 0.15s, max-width 0.3s;
+}
 .top-row {
     min-height: 3.5rem;
     background-color: rgba(0,0,0,0.4);

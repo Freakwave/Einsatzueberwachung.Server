@@ -1,6 +1,6 @@
 ﻿@inject ISettingsService SettingsService
 
-<div class="top-row navbar navbar-dark">
+<div class="top-row navbar navbar-dark @(IsCollapsed ? "nav-header-collapsed" : "")">
     <div class="container-fluid nav-brand-row">
         <a class="navbar-brand" href="/" title="Startseite">
             @if (!string.IsNullOrWhiteSpace(_staffelLogoUrl))
@@ -13,18 +13,18 @@
             }
             <span class="brand-text">Einsatzüberwachung</span>
         </a>
-        <button class="btn-sidebar-toggle"
+        <button class="btn-sidebar-toggle @(IsCollapsed ? "is-collapsed" : "")"
                 type="button"
                 title="@(IsCollapsed ? "Navigation ausklappen" : "Navigation einklappen")"
                 aria-label="@(IsCollapsed ? "Navigation ausklappen" : "Navigation einklappen")"
                 aria-expanded="@(!IsCollapsed)"
                 @onclick="() => OnToggleSidebar.InvokeAsync()">
-            <i class="bi @(IsCollapsed ? "bi-chevron-right" : "bi-chevron-left") toggle-icon"></i>
+            <i class="bi bi-chevron-left toggle-icon"></i>
         </button>
     </div>
 </div>
 
-<div class="nav-scrollable">
+<div class="sidebar-nav @(IsCollapsed ? "sidebar-collapsed" : "sidebar-expanded")">
     <nav class="nav flex-column nav-wrapper">
         <div class="nav-item px-2">
             <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
@@ -33,17 +33,17 @@
             </NavLink>
         </div>
 
-        <div class="nav-section-header">EINSATZ</div>
+        <div class="nav-section-header nav-section-label">EINSATZ</div>
 
         <div class="nav-item px-2">
             <NavLink class="nav-link" href="/einsatz-start">
-                <span class="nav-icon"><i class="bi bi-alarm"></i></span>
+                <span class="nav-icon"><i class="bi bi-exclamation-triangle-fill text-warning"></i></span>
                 <span class="nav-text">Neuer Einsatz</span>
             </NavLink>
         </div>
         <div class="nav-item px-2">
             <NavLink class="nav-link" href="/einsatz-monitor">
-                <span class="nav-icon"><i class="bi bi-bar-chart-fill"></i></span>
+                <span class="nav-icon"><i class="bi bi-alarm"></i></span>
                 <span class="nav-text">Monitor</span>
             </NavLink>
         </div>
@@ -80,7 +80,7 @@
             </NavLink>
         </div>
 
-        <div class="nav-section-header">VERWALTUNG</div>
+        <div class="nav-section-header nav-section-label">VERWALTUNG</div>
 
         <div class="nav-item px-2">
             <NavLink class="nav-link" href="/stammdaten">

@@ -334,8 +334,8 @@ namespace Einsatzueberwachung.Domain.Services
             var dogId = team.DogId;
             team.ResetTimer();
 
-            // Hundebezogene Pause: Datensatz löschen und alle Schwesterteams ebenfalls zurücksetzen.
-            // SilentReset() verhindert unerwünschte Notizeinträge ("Timer zurückgesetzt") für
+            // Hundebezogene Pause: Datensatz loeschen und alle Schwesterteams ebenfalls zuruecksetzen.
+            // SilentReset() verhindert unerwuenschte Notizeintraege ("Timer zurueckgesetzt") fuer
             // automatisch synchronisierte Teams. TeamUpdated wird danach manuell gefeuert,
             // damit die UI-Clients den neuen Zustand erhalten.
             if (!string.IsNullOrEmpty(dogId))

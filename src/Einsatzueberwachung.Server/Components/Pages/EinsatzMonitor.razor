@@ -116,98 +116,107 @@
                         <div class="teams-monitor-list">
                             @foreach (var team in EinsatzService.Teams.OrderBy(team => team.TeamName))
                             {
-                                <div class="monitor-team-card @GetTeamCardClass(team)">
-                                    <div class="team-info" style="border-left: 5px solid @GetTeamColor(team); padding-left: 1rem;">
-                                        <div class="team-name-section">
-                                            <h5>@team.TeamName</h5>
-                                            @if (!string.IsNullOrWhiteSpace(team.DogName))
-                                            {
-                                                <span class="team-dog">Hund: @team.DogName</span>
-                                            }
-                                            @if (team.IsDroneTeam && !string.IsNullOrWhiteSpace(team.DroneType))
-                                            {
-                                                <span class="team-dog">Drohne: @team.DroneType</span>
-                                            }
-                                            @if (!string.IsNullOrWhiteSpace(team.HundefuehrerName))
-                                            {
-                                                <span class="team-dog">@team.HundefuehrerName</span>
-                                            }
-                                            @if (!string.IsNullOrWhiteSpace(team.HelferName))
-                                            {
-                                                <span class="team-dog">@team.HelferName (Helfer)</span>
-                                            }
-                                            @if (!string.IsNullOrWhiteSpace(team.SearchAreaName))
-                                            {
-                                                <span class="team-area">Gebiet: @team.SearchAreaName</span>
-                                            }
+                                var isDogConflict = !team.IsRunning && !team.IsPausing
+                                    && !string.IsNullOrEmpty(team.DogId)
+                                    && EinsatzService.IsDogRunning(team.DogId);
+                                <div class="monitor-team-card @GetTeamCardClass(team) @(isDogConflict ? "team-dog-blocked" : "")">
+                                    @* — Hinweis-Banner bei Hund-Konflikt — *@
+                                    @if (isDogConflict)
+                                    {
+                                        <div class="team-dog-conflict-banner">
+                                            <i class="bi bi-exclamation-triangle-fill me-2"></i>Hund läuft in anderem Team
                                         </div>
+                                    }
+                                    <div class="team-card-body" style="border-left: 5px solid @GetTeamColor(team); padding-left: 1rem;">
+                                        @* — Obere Zeile: Info links, Timer rechts — *@
+                                        <div class="team-card-top">
+                                            <div class="team-name-section">
+                                                <h5>@team.TeamName</h5>
+                                                @if (!string.IsNullOrWhiteSpace(team.DogName))
+                                                {
+                                                    <span class="team-detail">🐕 @team.DogName</span>
+                                                }
+                                                @if (team.IsDroneTeam && !string.IsNullOrWhiteSpace(team.DroneType))
+                                                {
+                                                    <span class="team-detail"><i class="bi bi-airplane me-1"></i>@team.DroneType</span>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(team.HundefuehrerName))
+                                                {
+                                                    <span class="team-detail"><i class="bi bi-person-fill me-1"></i>@team.HundefuehrerName</span>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(team.HelferName))
+                                                {
+                                                    <span class="team-detail"><i class="bi bi-person me-1"></i>@team.HelferName (Helfer)</span>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(team.SearchAreaName))
+                                                {
+                                                    <span class="team-detail"><i class="bi bi-geo-alt me-1"></i>Gebiet: @team.SearchAreaName</span>
+                                                }
+                                            </div>
 
-                                        <div class="team-timer">
-                                            @if (!team.IsDroneTeam && !team.IsSupportTeam)
-                                            {
-                                                @if (team.IsPausing)
+                                            <div class="team-timer">
+                                                @if (!team.IsDroneTeam && !team.IsSupportTeam)
                                                 {
-                                                    <div class="timer-display timer-pausing">
-                                                        @if (team.IsPauseComplete)
-                                                        {
-                                                            <i class="bi bi-check-circle-fill text-success me-1"></i>
-                                                        }
-                                                        @FormatPauseRemaining(team)
-                                                    </div>
-                                                    <span class="warning-badge badge @(team.IsPauseComplete ? "bg-success" : "bg-warning text-dark")">
-                                                        @(team.IsPauseComplete ? "PAUSE OK" : "IN PAUSE")
-                                                    </span>
-                                                    <div class="pause-info-line small text-muted mt-1">
-                                                        Gelaufen: @((int)team.RunTimeBeforePause.TotalMinutes) Min. &bull;
-                                                        Pflichtpause: @team.RequiredPauseMinutes Min.
-                                                    </div>
-                                                }
-                                                else
-                                                {
-                                                    <div class="timer-display @GetTimerDisplayClass(team)">@team.ElapsedTime.ToString(@"hh\:mm\:ss")</div>
-                                                    @if (team.IsSecondWarning)
+                                                    @if (team.IsPausing)
                                                     {
-                                                        <span class="warning-badge badge bg-danger">KRITISCH</span>
-                                                    }
-                                                    else if (team.IsFirstWarning)
-                                                    {
-                                                        <span class="warning-badge badge bg-warning text-dark">Warnung</span>
-                                                    }
-                                                }
-                                            }
-                                            else
-                                            {
-                                                <small class="text-muted">Kein Timer erforderlich</small>
-                                            }
-                                        </div>
-
-                                        <div class="team-controls flex-wrap">
-                                            @if (!team.IsDroneTeam && !team.IsSupportTeam)
-                                            {
-                                                @if (team.IsRunning)
-                                                {
-                                                    <button class="btn btn-warning" @onclick="() => StopTeamAsync(team.TeamId)">Stopp</button>
-                                                }
-                                                else if (!team.IsPausing)
-                                                {
-                                                    var dogConflict = !string.IsNullOrEmpty(team.DogId) && EinsatzService.IsDogRunning(team.DogId);
-                                                    @if (dogConflict)
-                                                    {
-                                                        <button class="btn btn-success" disabled title="Hund läuft bereits in einem anderen Team">Start</button>
-                                                        <span class="badge bg-warning text-dark ms-1" title="Hund im Einsatz">Hund läuft</span>
+                                                        <div class="timer-display timer-pausing">
+                                                            @if (team.IsPauseComplete)
+                                                            {
+                                                                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                                            }
+                                                            @FormatPauseRemaining(team)
+                                                        </div>
+                                                        <span class="warning-badge badge @(team.IsPauseComplete ? "bg-success" : "bg-warning text-dark")">
+                                                            @(team.IsPauseComplete ? "PAUSE OK" : "IN PAUSE")
+                                                        </span>
+                                                        <div class="pause-info-line small text-muted mt-1">
+                                                            Gelaufen: @((int)team.RunTimeBeforePause.TotalMinutes) Min. &bull;
+                                                            Pflichtpause: @team.RequiredPauseMinutes Min.
+                                                        </div>
                                                     }
                                                     else
                                                     {
-                                                        <button class="btn btn-success" @onclick="() => StartTeamAsync(team.TeamId)">Start</button>
+                                                        <div class="timer-display @GetTimerDisplayClass(team)">@team.ElapsedTime.ToString(@"hh\:mm\:ss")</div>
+                                                        @if (team.IsSecondWarning)
+                                                        {
+                                                            <span class="warning-badge badge bg-danger">KRITISCH</span>
+                                                        }
+                                                        else if (team.IsFirstWarning)
+                                                        {
+                                                            <span class="warning-badge badge bg-warning text-dark">Warnung</span>
+                                                        }
                                                     }
                                                 }
                                                 else
                                                 {
-                                                    <button class="btn btn-success" @onclick="() => StartTeamAsync(team.TeamId)" title="Neuen Einsatz starten (Pause beendet)">Start</button>
+                                                    <small class="text-muted">Kein Timer erforderlich</small>
                                                 }
-                                                <button class="btn btn-secondary" @onclick="() => RequestResetTeamAsync(team.TeamId)">Reset</button>
-                                            }
-                                            <button class="btn btn-sm btn-primary" @onclick="() => EditTeam(team.TeamId)">Bearbeiten</button>
+                                            </div>
+                                        </div>
+
+                                        @* — Untere Zeile: Buttons rechts — *@
+                                        <div class="team-card-bottom">
+                                            <div class="team-controls">
+                                                @if (!team.IsDroneTeam && !team.IsSupportTeam)
+                                                {
+                                                    @if (team.IsRunning)
+                                                    {
+                                                        <button class="btn btn-warning" @onclick="() => StopTeamAsync(team.TeamId)">Stopp</button>
+                                                    }
+                                                    else if (!team.IsPausing)
+                                                    {
+                                                        <button class="btn btn-success" disabled="@isDogConflict"
+                                                                @onclick="() => StartTeamAsync(team.TeamId)"
+                                                                title="@(isDogConflict ? "Hund läuft bereits in einem anderen Team" : "Timer starten")">Start</button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button class="btn btn-success" @onclick="() => StartTeamAsync(team.TeamId)" title="Neuen Einsatz starten (Pause beendet)">Start</button>
+                                                    }
+                                                    <button class="btn btn-secondary" disabled="@isDogConflict" @onclick="() => RequestResetTeamAsync(team.TeamId)">Reset</button>
+                                                }
+                                                <button class="btn btn-primary" @onclick="() => EditTeam(team.TeamId)">Bearbeiten</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

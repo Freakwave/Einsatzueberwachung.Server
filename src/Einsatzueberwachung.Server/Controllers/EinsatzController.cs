@@ -128,6 +128,11 @@ public class EinsatzController : ControllerBase
             await _einsatzService.StartTeamTimerAsync(teamId);
             return Ok(new { message = "Timer gestartet", teamId });
         }
+        catch (InvalidOperationException ex)
+        {
+            // Bekannter Konflikt (z.B. Hund läuft bereits in einem anderen Team) → 409
+            return Conflict(new { error = ex.Message });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fehler beim Starten des Timers fuer Team {TeamId}", teamId);

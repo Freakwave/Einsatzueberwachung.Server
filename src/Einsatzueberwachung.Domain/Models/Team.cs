@@ -146,6 +146,24 @@ namespace Einsatzueberwachung.Domain.Models
             IsPausing = true;
         }
 
+        /// <summary>
+        /// Übernimmt den Pausenstatus vom hundebezogenen Datensatz (DogPauseRecord).
+        /// Wird verwendet, um Schwesterteams und neu erstellte Teams mit demselben Hund
+        /// in denselben Pausenzustand zu versetzen.
+        /// </summary>
+        public void SyncPauseFromDog(DateTime pauseStartTime, TimeSpan runTimeBeforePause, int requiredPauseMinutes)
+        {
+            if (IsRunning)
+            {
+                IsRunning = false;
+                TimerStopped?.Invoke(this);
+            }
+            RunTimeBeforePause = runTimeBeforePause;
+            RequiredPauseMinutes = requiredPauseMinutes;
+            PauseStartTime = pauseStartTime;
+            IsPausing = true;
+        }
+
         public void CheckWarnings()
         {
             var totalMinutes = (int)ElapsedTime.TotalMinutes;

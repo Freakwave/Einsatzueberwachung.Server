@@ -98,6 +98,13 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    @if (!string.IsNullOrWhiteSpace(_teamStatusMessage))
+                    {
+                        <div class="alert @(_teamStatusIsError ? "alert-warning" : "alert-success") alert-dismissible py-2 mb-3" role="alert">
+                            @_teamStatusMessage
+                            <button type="button" class="btn-close" @onclick="() => _teamStatusMessage = string.Empty"></button>
+                        </div>
+                    }
                     @if (EinsatzService.Teams.Count == 0)
                     {
                         <div class="alert alert-info mb-0">
@@ -183,7 +190,16 @@
                                                 }
                                                 else if (!team.IsPausing)
                                                 {
-                                                    <button class="btn btn-success" @onclick="() => StartTeamAsync(team.TeamId)">Start</button>
+                                                    var dogConflict = !string.IsNullOrEmpty(team.DogId) && EinsatzService.IsDogRunning(team.DogId);
+                                                    @if (dogConflict)
+                                                    {
+                                                        <button class="btn btn-success" disabled title="Hund läuft bereits in einem anderen Team">Start</button>
+                                                        <span class="badge bg-warning text-dark ms-1" title="Hund im Einsatz">Hund läuft</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button class="btn btn-success" @onclick="() => StartTeamAsync(team.TeamId)">Start</button>
+                                                    }
                                                 }
                                                 else
                                                 {
@@ -810,6 +826,8 @@
     private string? _editingTeamId;
     private string _teamFormMessage = string.Empty;
     private bool _teamFormIsError;
+    private string _teamStatusMessage = string.Empty;
+    private bool _teamStatusIsError;
     private bool _showTeamModal;
     private bool _showCloseMissionModal;
     private bool _showPauseResetModal;
@@ -1554,8 +1572,16 @@
         {
             CollarTrackingService.ClearCollarHistory(team.CollarId);
         }
-        
-        await EinsatzService.StartTeamTimerAsync(teamId);
+
+        try
+        {
+            await EinsatzService.StartTeamTimerAsync(teamId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _teamStatusMessage = ex.Message;
+            _teamStatusIsError = true;
+        }
     }
 
     private async Task StopTeamAsync(string teamId)

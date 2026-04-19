@@ -38,6 +38,8 @@ namespace Einsatzueberwachung.Domain.Services
         private readonly List<Team> _teams;
         private readonly List<GlobalNotesEntry> _globalNotes;
         private readonly List<GlobalNotesHistory> _noteHistory;
+        // Hundebezogene Pausendatensätze (DogId → DogPauseRecord)
+        private readonly Dictionary<string, DogPauseRecord> _dogPauses = new();
 
         public EinsatzData CurrentEinsatz => _currentEinsatz;
         public List<Team> Teams => _teams;
@@ -71,6 +73,7 @@ namespace Einsatzueberwachung.Domain.Services
             _teams.Clear();
             _globalNotes.Clear();
             _noteHistory.Clear();
+            _dogPauses.Clear();
             EnsureCurrentEinsatzTeamReference();
 
             var startNote = new GlobalNotesEntry
@@ -215,6 +218,14 @@ namespace Einsatzueberwachung.Domain.Services
             if (_timeService is not null)
                 team.CreatedAt = _timeService.Now;
 
+            // Wenn der Hund bereits in Pause ist, den Pausenstatus übernehmen
+            if (!string.IsNullOrEmpty(team.DogId)
+                && _dogPauses.TryGetValue(team.DogId, out var dogPause)
+                && !dogPause.IsPauseComplete)
+            {
+                team.SyncPauseFromDog(dogPause.PauseStartTime, dogPause.RunTimeBeforePause, dogPause.RequiredPauseMinutes);
+            }
+
             _teams.Add(team);
 
             team.TimerStarted += Team_TimerStarted;
@@ -267,19 +278,67 @@ namespace Einsatzueberwachung.Domain.Services
         public async Task StartTeamTimerAsync(string teamId)
         {
             var team = await GetTeamByIdAsync(teamId);
-            team?.StartTimer(_timeService?.Now ?? DateTime.Now);
+            if (team == null) return;
+
+            // Sicherstellen, dass der Hund nicht bereits in einem anderen laufenden Team eingesetzt ist
+            if (!string.IsNullOrEmpty(team.DogId))
+            {
+                var conflict = _teams.FirstOrDefault(t => t.TeamId != teamId && t.DogId == team.DogId && t.IsRunning);
+                if (conflict != null)
+                {
+                    throw new InvalidOperationException(
+                        $"Hund '{team.DogName}' laeuft bereits in Team '{conflict.TeamName}'. Bitte zuerst dieses Team stoppen.");
+                }
+            }
+
+            team.StartTimer(_timeService?.Now ?? DateTime.Now);
         }
 
         public async Task StopTeamTimerAsync(string teamId)
         {
             var team = await GetTeamByIdAsync(teamId);
-            team?.StopTimer();
+            if (team == null) return;
+
+            team.StopTimer();
+
+            // Hundebezogene Pause: Pausendatensatz speichern und alle Schwesterteams synchronisieren
+            if (team.IsPausing && !string.IsNullOrEmpty(team.DogId) && team.PauseStartTime.HasValue)
+            {
+                var record = new DogPauseRecord
+                {
+                    DogId = team.DogId,
+                    DogName = team.DogName,
+                    PauseStartTime = team.PauseStartTime.Value,
+                    RunTimeBeforePause = team.RunTimeBeforePause,
+                    RequiredPauseMinutes = team.RequiredPauseMinutes
+                };
+                _dogPauses[team.DogId] = record;
+
+                // Alle anderen Teams mit demselben Hund in denselben Pausenstatus versetzen
+                foreach (var sibling in _teams.Where(t => t.TeamId != teamId && t.DogId == team.DogId))
+                {
+                    sibling.SyncPauseFromDog(record.PauseStartTime, record.RunTimeBeforePause, record.RequiredPauseMinutes);
+                }
+            }
         }
 
         public async Task ResetTeamTimerAsync(string teamId)
         {
             var team = await GetTeamByIdAsync(teamId);
-            team?.ResetTimer();
+            if (team == null) return;
+
+            var dogId = team.DogId;
+            team.ResetTimer();
+
+            // Hundebezogene Pause: Datensatz löschen und alle Schwesterteams ebenfalls zurücksetzen
+            if (!string.IsNullOrEmpty(dogId))
+            {
+                _dogPauses.Remove(dogId);
+                foreach (var sibling in _teams.Where(t => t.TeamId != teamId && t.DogId == dogId && t.IsPausing))
+                {
+                    sibling.ResetTimer();
+                }
+            }
         }
 
         public Task AddGlobalNoteAsync(string text, GlobalNotesEntryType type = GlobalNotesEntryType.Manual, string teamId = "")
@@ -697,6 +756,7 @@ namespace Einsatzueberwachung.Domain.Services
             _teams.Clear();
             _globalNotes.Clear();
             _noteHistory.Clear();
+            _dogPauses.Clear();
             
             // Einsatz-Daten zuruecksetzen
             _currentEinsatz = new EinsatzData
@@ -739,6 +799,7 @@ namespace Einsatzueberwachung.Domain.Services
             _teams.Clear();
             _globalNotes.Clear();
             _noteHistory.Clear();
+            _dogPauses.Clear();
 
             _currentEinsatz = snapshot.CurrentEinsatz ?? new EinsatzData();
 
@@ -750,6 +811,22 @@ namespace Einsatzueberwachung.Domain.Services
                 team.TimerStopped += Team_TimerStopped;
                 team.TimerReset += Team_TimerReset;
                 team.WarningTriggered += Team_WarningTriggered;
+            }
+
+            // Hundebezogene Pausendatensätze aus den geladenen Team-Zuständen wiederherstellen
+            foreach (var t in _teams.Where(t => t.IsPausing && !string.IsNullOrEmpty(t.DogId) && t.PauseStartTime.HasValue))
+            {
+                if (!_dogPauses.TryGetValue(t.DogId, out var existing) || t.RunTimeBeforePause > existing.RunTimeBeforePause)
+                {
+                    _dogPauses[t.DogId] = new DogPauseRecord
+                    {
+                        DogId = t.DogId,
+                        DogName = t.DogName,
+                        PauseStartTime = t.PauseStartTime!.Value,
+                        RunTimeBeforePause = t.RunTimeBeforePause,
+                        RequiredPauseMinutes = t.RequiredPauseMinutes
+                    };
+                }
             }
 
             if (snapshot.GlobalNotes != null)
@@ -812,6 +889,20 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 // GeoJSON konnte nicht geparst werden – Koordinaten bleiben leer
             }
+        }
+
+        public DogPauseRecord? GetDogPause(string dogId)
+        {
+            if (string.IsNullOrEmpty(dogId))
+                return null;
+            return _dogPauses.TryGetValue(dogId, out var record) ? record : null;
+        }
+
+        public bool IsDogRunning(string dogId)
+        {
+            if (string.IsNullOrEmpty(dogId))
+                return false;
+            return _teams.Any(t => t.DogId == dogId && t.IsRunning);
         }
 
         private void EnsureCurrentEinsatzTeamReference()

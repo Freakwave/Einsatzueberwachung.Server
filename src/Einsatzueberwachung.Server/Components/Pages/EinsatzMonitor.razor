@@ -936,8 +936,26 @@
         .OrderBy(name => name)
         .ToList();
 
-    private IEnumerable<PersonalEntry> HundefuehrerOptions => ActivePersonnel
-        .Where(person => person.Skills.HasFlag(PersonalSkills.Hundefuehrer));
+    private IEnumerable<PersonalEntry> HundefuehrerOptions
+    {
+        get
+        {
+            var dog = string.IsNullOrWhiteSpace(_teamForm.DogId)
+                ? null
+                : _dogList.FirstOrDefault(d => d.Id == _teamForm.DogId);
+
+            if (dog != null && dog.HundefuehrerIds.Count > 0)
+            {
+                // Hund ausgewählt → nur dessen zugewiesene Hundeführer anzeigen
+                return ActivePersonnel
+                    .Where(person => dog.HundefuehrerIds.Contains(person.Id));
+            }
+
+            // Kein Hund ausgewählt → alle Hundeführer anzeigen
+            return ActivePersonnel
+                .Where(person => person.Skills.HasFlag(PersonalSkills.Hundefuehrer));
+        }
+    }
 
     private IEnumerable<PersonalEntry> HelferOptions => ActivePersonnel
         .Where(person => person.Skills.HasFlag(PersonalSkills.Helfer) || person.Skills.HasFlag(PersonalSkills.Hundefuehrer));
@@ -946,7 +964,7 @@
         .Where(person => person.Skills.HasFlag(PersonalSkills.Drohnenpilot));
 
     private IEnumerable<DogEntry> AvailableDogs => _dogList
-        .Where(dog => dog.IsActive && (string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId) || dog.HundefuehrerId == _teamForm.HundefuehrerId))
+        .Where(dog => dog.IsActive && (string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId) || dog.HundefuehrerIds.Contains(_teamForm.HundefuehrerId)))
         .OrderBy(dog => dog.Name);
 
     private IEnumerable<DroneEntry> AvailableDrones => _droneList
@@ -1896,9 +1914,19 @@
     private async Task OnDogChangedAsync()
     {
         var dog = _dogList.FirstOrDefault(entry => entry.Id == _teamForm.DogId);
-        if (dog != null && string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId))
+        if (dog != null)
         {
-            _teamForm.HundefuehrerId = dog.HundefuehrerId;
+            // Wenn aktueller Hundeführer nicht zum Hund gehört → zurücksetzen
+            if (!string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId) && !dog.HundefuehrerIds.Contains(_teamForm.HundefuehrerId))
+            {
+                _teamForm.HundefuehrerId = string.Empty;
+            }
+
+            // Automatisch ersten Hundeführer auswählen wenn keiner gesetzt
+            if (string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId))
+            {
+                _teamForm.HundefuehrerId = dog.PrimaryHundefuehrerId;
+            }
         }
 
         SyncTeamNameFromSelection();

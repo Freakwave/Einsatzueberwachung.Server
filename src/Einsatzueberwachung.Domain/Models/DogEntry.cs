@@ -1,9 +1,10 @@
 ﻿// Quelle: WPF-Projekt Models/DogEntry.cs
-// Repräsentiert einen Hund mit Name, Rasse, Ausbildungen und zugeordnetem Hundeführer
+// Repräsentiert einen Hund mit Name, Rasse, Ausbildungen und zugeordneten Hundeführern
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using Einsatzueberwachung.Domain.Models.Enums;
 
 namespace Einsatzueberwachung.Domain.Models
@@ -15,7 +16,37 @@ namespace Einsatzueberwachung.Domain.Models
         public string Rasse { get; set; }
         public int Alter { get; set; }
         public DogSpecialization Specializations { get; set; }
-        public string HundefuehrerId { get; set; }
+
+        /// <summary>
+        /// Liste aller zugewiesenen Hundeführer-IDs (Mehrfachzuweisung möglich).
+        /// </summary>
+        public List<string> HundefuehrerIds { get; set; }
+
+        /// <summary>
+        /// Backward-Compat: Beim Deserialisieren alter JSON-Daten mit einzelnem HundefuehrerId
+        /// wird der Wert automatisch in die HundefuehrerIds-Liste übernommen.
+        /// Wird beim Serialisieren NICHT geschrieben.
+        /// </summary>
+        [JsonInclude]
+        [JsonPropertyName("HundefuehrerId")]
+        public string? LegacyHundefuehrerId
+        {
+            get => null; // Nie serialisieren
+            set
+            {
+                if (!string.IsNullOrEmpty(value) && !HundefuehrerIds.Contains(value))
+                {
+                    HundefuehrerIds.Add(value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Erster Hundeführer (für Abwärtskompatibilität in Team-Logik).
+        /// </summary>
+        [JsonIgnore]
+        public string PrimaryHundefuehrerId => HundefuehrerIds.FirstOrDefault() ?? string.Empty;
+
         public string Notizen { get; set; }
         public bool IsActive { get; set; }
 
@@ -25,7 +56,7 @@ namespace Einsatzueberwachung.Domain.Models
             Name = string.Empty;
             Rasse = string.Empty;
             Specializations = DogSpecialization.None;
-            HundefuehrerId = string.Empty;
+            HundefuehrerIds = new List<string>();
             Notizen = string.Empty;
             IsActive = true;
             Alter = 0;

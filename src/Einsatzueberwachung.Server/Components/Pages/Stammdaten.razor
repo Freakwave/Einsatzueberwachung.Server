@@ -173,14 +173,23 @@
                                 </div>
 
                                 <div class="col-12 col-md-6">
-                                    <label class="form-label">Hundefuehrer</label>
-                                    <InputSelect class="form-select" @bind-Value="_dogDraft.HundefuehrerId">
-                                        <option value="">Nicht zugewiesen</option>
+                                    <label class="form-label">Hundeführer</label>
+                                    <div class="border rounded p-2" style="max-height:160px;overflow-y:auto">
+                                        @if (!_personal.Any())
+                                        {
+                                            <span class="text-muted small">Kein Personal vorhanden</span>
+                                        }
                                         @foreach (var person in _personal)
                                         {
-                                            <option value="@person.Id">@person.FullName</option>
+                                            var hfId = $"hf-edit-{person.Id}";
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="@hfId"
+                                                       checked="@_dogDraft.HundefuehrerIds.Contains(person.Id)"
+                                                       @onchange="args => ToggleHundefuehrer(person.Id, args.Value is true)" />
+                                                <label class="form-check-label" for="@hfId">@person.FullName</label>
+                                            </div>
                                         }
-                                    </InputSelect>
+                                    </div>
                                 </div>
                             </div>
 
@@ -235,7 +244,7 @@
                                                     <strong>@dog.Name</strong>
                                                     <div class="small text-muted">@dog.Rasse, @dog.Alter Jahre</div>
                                                 </td>
-                                                <td>@GetPersonalName(dog.HundefuehrerId)</td>
+                                                <td>@GetHundefuehrerNames(dog.HundefuehrerIds)</td>
                                                 <td>@dog.SpecializationsDisplay</td>
                                                 <td>@(dog.IsActive ? "Aktiv" : "Inaktiv")</td>
                                                 <td class="text-end">
@@ -434,14 +443,23 @@
                             <InputNumber class="form-control" @bind-Value="_dogDraft.Alter" />
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Hundefuehrer</label>
-                            <InputSelect class="form-select" @bind-Value="_dogDraft.HundefuehrerId">
-                                <option value="">Nicht zugewiesen</option>
+                            <label class="form-label">Hundeführer</label>
+                            <div class="border rounded p-2" style="max-height:160px;overflow-y:auto">
+                                @if (!_personal.Any())
+                                {
+                                    <span class="text-muted small">Kein Personal vorhanden</span>
+                                }
                                 @foreach (var person in _personal)
                                 {
-                                    <option value="@person.Id">@person.FullName</option>
+                                    var hfId = $"hf-modal-{person.Id}";
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="@hfId"
+                                               checked="@_dogDraft.HundefuehrerIds.Contains(person.Id)"
+                                               @onchange="args => ToggleHundefuehrer(person.Id, args.Value is true)" />
+                                        <label class="form-check-label" for="@hfId">@person.FullName</label>
+                                    </div>
                                 }
-                            </InputSelect>
+                            </div>
                         </div>
                     </div>
                     <label class="form-label">Spezialisierungen</label>
@@ -806,6 +824,31 @@
         return _personal.FirstOrDefault(entry => entry.Id == personalId)?.FullName ?? "-";
     }
 
+    private string GetHundefuehrerNames(List<string> ids)
+    {
+        if (ids == null || ids.Count == 0)
+            return "-";
+
+        var names = ids
+            .Select(id => _personal.FirstOrDefault(p => p.Id == id)?.FullName)
+            .Where(n => n != null);
+        var result = string.Join(", ", names);
+        return string.IsNullOrEmpty(result) ? "-" : result;
+    }
+
+    private void ToggleHundefuehrer(string personalId, bool enabled)
+    {
+        if (enabled)
+        {
+            if (!_dogDraft.HundefuehrerIds.Contains(personalId))
+                _dogDraft.HundefuehrerIds.Add(personalId);
+        }
+        else
+        {
+            _dogDraft.HundefuehrerIds.Remove(personalId);
+        }
+    }
+
     private string GetDownloadUrl(string relativePath)
     {
         return new Uri(new Uri(Navigation.BaseUri), relativePath.TrimStart('/')).ToString();
@@ -849,7 +892,7 @@
             Rasse = source.Rasse,
             Alter = source.Alter,
             Specializations = source.Specializations,
-            HundefuehrerId = source.HundefuehrerId,
+            HundefuehrerIds = new List<string>(source.HundefuehrerIds),
             Notizen = source.Notizen,
             IsActive = source.IsActive
         };

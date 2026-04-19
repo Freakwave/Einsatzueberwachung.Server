@@ -105,6 +105,11 @@ namespace Einsatzueberwachung.Domain.Models
             if (!IsRunning)
             {
                 var t = now ?? DateTime.Now;
+                // Pausen-Zustand für neuen Lauf zurücksetzen
+                IsPausing = false;
+                PauseStartTime = null;
+                RunTimeBeforePause = TimeSpan.Zero;
+                RequiredPauseMinutes = 0;
                 StartTime = t - ElapsedTime;
                 IsRunning = true;
                 TimerStarted?.Invoke(this);
@@ -144,6 +149,37 @@ namespace Einsatzueberwachung.Domain.Models
             RequiredPauseMinutes = ElapsedTime.TotalMinutes <= 20 ? 60 : 180;
             PauseStartTime = now ?? DateTime.Now;
             IsPausing = true;
+        }
+
+        /// <summary>
+        /// Übernimmt den Pausenstatus vom hundebezogenen Datensatz (DogPauseRecord).
+        /// Wird verwendet, um Schwesterteams und neu erstellte Teams mit demselben Hund
+        /// in denselben Pausenzustand zu versetzen.
+        /// Es werden keine Events gefeuert – die Synchronisierung ist automatisch (kein Nutzer-Stopp).
+        /// </summary>
+        public void SyncPauseFromDog(DateTime pauseStartTime, TimeSpan runTimeBeforePause, int requiredPauseMinutes)
+        {
+            IsRunning = false;
+            RunTimeBeforePause = runTimeBeforePause;
+            RequiredPauseMinutes = requiredPauseMinutes;
+            PauseStartTime = pauseStartTime;
+            IsPausing = true;
+        }
+
+        /// <summary>
+        /// Setzt den Timer zurück, ohne Events zu feuern.
+        /// Wird für automatische Synchronisierung von Schwesterteams verwendet.
+        /// </summary>
+        public void SilentReset()
+        {
+            IsRunning = false;
+            ElapsedTime = TimeSpan.Zero;
+            IsFirstWarning = false;
+            IsSecondWarning = false;
+            IsPausing = false;
+            PauseStartTime = null;
+            RunTimeBeforePause = TimeSpan.Zero;
+            RequiredPauseMinutes = 0;
         }
 
         public void CheckWarnings()

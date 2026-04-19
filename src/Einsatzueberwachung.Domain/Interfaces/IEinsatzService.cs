@@ -67,6 +67,16 @@ namespace Einsatzueberwachung.Domain.Interfaces
         Task ImportRuntimeSnapshotAsync(EinsatzRuntimeSnapshot snapshot);
         
         /// <summary>
+        /// Gibt den aktiven Pausendatensatz für einen Hund zurück, oder null falls keine Pause läuft.
+        /// </summary>
+        DogPauseRecord? GetDogPause(string dogId);
+
+        /// <summary>
+        /// Gibt an, ob der Hund aktuell in einem laufenden (nicht gestoppten) Team eingesetzt ist.
+        /// </summary>
+        bool IsDogRunning(string dogId);
+
+        /// <summary>
         /// Setzt den aktuellen Einsatz zurueck (loescht Teams, Notizen, etc.)
         /// </summary>
         void ResetEinsatz();

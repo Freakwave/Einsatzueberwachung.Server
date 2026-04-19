@@ -963,8 +963,25 @@
         .OrderBy(name => name)
         .ToList();
 
-    private IEnumerable<PersonalEntry> HundefuehrerOptions => ActivePersonnel
-        .Where(person => person.Skills.HasFlag(PersonalSkills.Hundefuehrer));
+    private IEnumerable<PersonalEntry> HundefuehrerOptions
+    {
+        get
+        {
+            var allHandlers = ActivePersonnel
+                .Where(person => person.Skills.HasFlag(PersonalSkills.Hundefuehrer));
+
+            if (!string.IsNullOrWhiteSpace(_teamForm.DogId))
+            {
+                var selectedDog = _dogList.FirstOrDefault(d => d.Id == _teamForm.DogId);
+                if (selectedDog != null && selectedDog.HundefuehrerIds.Count > 0)
+                {
+                    return allHandlers.Where(p => selectedDog.HundefuehrerIds.Contains(p.Id));
+                }
+            }
+
+            return allHandlers;
+        }
+    }
 
     private IEnumerable<PersonalEntry> HelferOptions => ActivePersonnel
         .Where(person => person.Skills.HasFlag(PersonalSkills.Helfer) || person.Skills.HasFlag(PersonalSkills.Hundefuehrer));
@@ -1931,9 +1948,13 @@
     private async Task OnDogChangedAsync()
     {
         var dog = _dogList.FirstOrDefault(entry => entry.Id == _teamForm.DogId);
-        if (dog != null && string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId))
+        if (dog != null)
         {
-            _teamForm.HundefuehrerId = dog.PrimaryHundefuehrerId;
+            if (string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId)
+                || !dog.HundefuehrerIds.Contains(_teamForm.HundefuehrerId))
+            {
+                _teamForm.HundefuehrerId = dog.PrimaryHundefuehrerId;
+            }
         }
 
         SyncTeamNameFromSelection();

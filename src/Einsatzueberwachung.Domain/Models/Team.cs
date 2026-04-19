@@ -105,6 +105,11 @@ namespace Einsatzueberwachung.Domain.Models
             if (!IsRunning)
             {
                 var t = now ?? DateTime.Now;
+                // Pausen-Zustand für neuen Lauf zurücksetzen
+                IsPausing = false;
+                PauseStartTime = null;
+                RunTimeBeforePause = TimeSpan.Zero;
+                RequiredPauseMinutes = 0;
                 StartTime = t - ElapsedTime;
                 IsRunning = true;
                 TimerStarted?.Invoke(this);
@@ -150,18 +155,33 @@ namespace Einsatzueberwachung.Domain.Models
         /// Übernimmt den Pausenstatus vom hundebezogenen Datensatz (DogPauseRecord).
         /// Wird verwendet, um Schwesterteams und neu erstellte Teams mit demselben Hund
         /// in denselben Pausenzustand zu versetzen.
+        /// Es werden keine Events gefeuert – die Synchronisierung ist automatisch (kein Nutzer-Stopp).
         /// </summary>
         public void SyncPauseFromDog(DateTime pauseStartTime, TimeSpan runTimeBeforePause, int requiredPauseMinutes)
         {
-            if (IsRunning)
-            {
-                IsRunning = false;
-                TimerStopped?.Invoke(this);
-            }
+            // Kein TimerStopped-Event: Es handelt sich um eine automatische Synchronisierung,
+            // nicht um einen manuell durch den Nutzer ausgelösten Stopp.
+            IsRunning = false;
             RunTimeBeforePause = runTimeBeforePause;
             RequiredPauseMinutes = requiredPauseMinutes;
             PauseStartTime = pauseStartTime;
             IsPausing = true;
+        }
+
+        /// <summary>
+        /// Setzt den Timer zurück, ohne Events zu feuern.
+        /// Wird für automatische Synchronisierung von Schwesterteams verwendet.
+        /// </summary>
+        public void SilentReset()
+        {
+            IsRunning = false;
+            ElapsedTime = TimeSpan.Zero;
+            IsFirstWarning = false;
+            IsSecondWarning = false;
+            IsPausing = false;
+            PauseStartTime = null;
+            RunTimeBeforePause = TimeSpan.Zero;
+            RequiredPauseMinutes = 0;
         }
 
         public void CheckWarnings()

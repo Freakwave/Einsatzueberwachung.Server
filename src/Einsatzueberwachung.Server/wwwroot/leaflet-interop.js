@@ -72,6 +72,12 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             maxZoom: 20
         });
         
+        // OpenTopoMap: Topografische Karte mit Hoehenlinien
+        const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            maxZoom: 17,
+            attribution: 'Kartendaten: (c) OpenStreetMap | Kartenstil: (c) <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'
+        });
+        
         log('Layer erstellt');
         
         // Standard-Layer hinzufuegen
@@ -82,7 +88,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             "Strassenkarte": osmLayer,
             "Satellit (Esri)": satelliteLayer,
             "Satellit (Google)": googleSatellite,
-            "Hybrid (Google)": hybridLayer
+            "Hybrid (Google)": hybridLayer,
+            "Topografisch": topoLayer
         };
         
         log('Layer Control wird hinzugefuegt');

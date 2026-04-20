@@ -759,7 +759,7 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             const bounds = collectPrintBounds();
 
             const applyPrintView = () => {
-                map.invalidateSize();
+                map.invalidateSize({ noMoveStart: true });
                 if (bounds.isValid()) {
                     map.fitBounds(bounds.pad(0.18), {
                         maxZoom: 16,
@@ -767,9 +767,6 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                         paddingTopLeft: [40, 40],
                         paddingBottomRight: [40, 40]
                     });
-
-                    // Verschiebt den sichtbaren Druckbereich gezielt nach unten rechts.
-                    map.panBy([350, 250], { animate: false });
                     return;
                 }
 
@@ -801,6 +798,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
 
             const beforePrintHandler = () => {
                 enablePrintLayout();
+                // Synchronous invalidate so Leaflet picks up the @media print container dimensions
+                map.invalidateSize({ noMoveStart: true });
                 requestAnimationFrame(() => {
                     applyPrintView();
 

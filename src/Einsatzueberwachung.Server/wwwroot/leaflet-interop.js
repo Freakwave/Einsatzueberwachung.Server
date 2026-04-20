@@ -145,6 +145,9 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         });
         gridControl.addTo(map);
         log('Grid Control hinzugefuegt');
+
+        // Maßstab (metrisch)
+        L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
             
         // FeatureGroup fuer gezeichnete Items (NUR neue, ungespeicherte Zeichnungen!)
         const drawnItems = new L.FeatureGroup();

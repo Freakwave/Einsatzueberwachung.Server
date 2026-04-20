@@ -64,6 +64,8 @@ window.einsatzMap = (function () {
         areasLayer = L.layerGroup().addTo(map);
         draftLayer = L.layerGroup().addTo(map);
 
+        L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+
         map.on("click", function (event) {
             if (!drawMode) {
                 return;

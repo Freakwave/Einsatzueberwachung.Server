@@ -1,6 +1,5 @@
 // Leaflet MetricGrid Plugin
 // Zeichnet UTM- und Lat/Lon-Koordinatengitter auf der Karte
-// Basiert auf L.MetricGrid von https://github.com/...
 // Erfordert proj4js
 
 L.MetricGrid = L.Layer.extend({

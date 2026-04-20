@@ -168,6 +168,7 @@
         width: 100% !important;
         height: 100% !important;
         background: white !important;
+        overflow: visible !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
@@ -179,8 +180,11 @@
         print-color-adjust: exact !important;
     }
     
-    /* Leaflet Panes sichtbar */
-    .leaflet-pane {
+    /* Leaflet Panes sichtbar - overflow visible damit Canvas-Inhalt nicht abgeschnitten wird */
+    .leaflet-pane,
+    .leaflet-overlay-pane,
+    .leaflet-image-layer {
+        overflow: visible !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }

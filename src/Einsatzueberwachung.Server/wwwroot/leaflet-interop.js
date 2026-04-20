@@ -118,10 +118,10 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 opacity: 0.8,
                 font: "bold 11px Verdana",
                 minZoom: 6,
-                showAxisLabels: [1000, 10000],
+                showAxisLabels: [100, 1000, 10000, 100000],
                 showAxis100km: true,
                 showSquareLabels: [100000],
-                latLonClipBounds: [[-90, zoneLngWest], [90, zoneLngEast]]
+                latLonClipBounds: [[-85, zoneLngWest], [85, zoneLngEast]]
             });
             utmGridGroup.addLayer(utmGrid);
         }

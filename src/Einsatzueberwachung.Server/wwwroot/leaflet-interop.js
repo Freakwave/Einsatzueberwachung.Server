@@ -109,6 +109,9 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         const utmGridGroup = L.layerGroup();
         // Hauptzone und ggf. benachbarte Zonen hinzufuegen
         for (let z = Math.max(1, utmZone - 1); z <= Math.min(60, utmZone + 1); z++) {
+            // Jede UTM-Zone auf ihre 6-Grad-Laengenband-Grenzen clippen
+            const zoneLngWest = (z - 1) * 6 - 180;
+            const zoneLngEast = z * 6 - 180;
             const utmGrid = L.utmGrid(z, bSouth, {
                 color: "rgba(0, 100, 255, 0.6)",
                 weight: 1.5,
@@ -117,7 +120,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 minZoom: 6,
                 showAxisLabels: [1000, 10000],
                 showAxis100km: true,
-                showSquareLabels: [100000]
+                showSquareLabels: [100000],
+                latLonClipBounds: [[-90, zoneLngWest], [90, zoneLngEast]]
             });
             utmGridGroup.addLayer(utmGrid);
         }

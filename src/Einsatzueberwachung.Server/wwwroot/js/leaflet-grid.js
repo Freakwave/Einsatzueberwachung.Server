@@ -382,6 +382,7 @@ L.MetricGrid = L.Layer.extend({
             grdNy = Math.ceil(grdNy / spacing) * spacing;
 
             var canvasClipBounds = null;
+            var hasLLClip = false;
             if (this.options.clip) {
                 var swInClip = this._inside([grdWx, grdSy], this.options.clip);
                 var seInClip = this._inside([grdEx, grdSy], this.options.clip);
@@ -392,6 +393,8 @@ L.MetricGrid = L.Layer.extend({
                     this._setClip(ctx);
                 }
             } else if (this.options.latLonClipBounds) {
+                hasLLClip = true;
+                ctx.save();
                 canvasClipBounds = this._setLLClipBounds(ctx, map);
             }
 
@@ -399,24 +402,28 @@ L.MetricGrid = L.Layer.extend({
                 grdWx = Math.floor(this.options.bounds[0][0] / spacing) * spacing;
             }
             if (grdWx > this.options.bounds[1][0]) {
+                if (hasLLClip) ctx.restore();
                 return;
             }
             if (grdEx > this.options.bounds[1][0]) {
                 grdEx = Math.ceil(this.options.bounds[1][0] / spacing) * spacing;
             }
             if (grdEx < this.options.bounds[0][0]) {
+                if (hasLLClip) ctx.restore();
                 return;
             }
             if (grdSy < this.options.bounds[0][1]) {
                 grdSy = Math.floor(this.options.bounds[0][1] / spacing) * spacing;
             }
             if (grdSy > this.options.bounds[1][1]) {
+                if (hasLLClip) ctx.restore();
                 return;
             }
             if (grdNy > this.options.bounds[1][1]) {
                 grdNy = Math.ceil(this.options.bounds[1][1] / spacing) * spacing;
             }
             if (grdNy < this.options.bounds[0][1]) {
+                if (hasLLClip) ctx.restore();
                 return;
             }
 
@@ -458,6 +465,17 @@ L.MetricGrid = L.Layer.extend({
                     }
                     ctx.stroke();
                 }).call(this, y);
+            }
+
+            // Restore canvas state to remove clip before drawing labels
+            if (hasLLClip) {
+                ctx.restore();
+                // Re-apply styles after restore
+                ctx.lineWidth = this.options.weight;
+                ctx.strokeStyle = this.options.color;
+                if (this.options.font) {
+                    ctx.font = this.options.font;
+                }
             }
 
             // Axis labels

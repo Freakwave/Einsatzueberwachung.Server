@@ -694,82 +694,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 map.removeLayer(mapData.drawnItems);
             }
 
-            const extendBoundsWithLatLngs = (bounds, latLngs) => {
-                if (!latLngs) {
-                    return;
-                }
-
-                latLngs.forEach((entry) => {
-                    if (Array.isArray(entry)) {
-                        extendBoundsWithLatLngs(bounds, entry);
-                        return;
-                    }
-
-                    if (entry && typeof entry.lat === 'number' && typeof entry.lng === 'number') {
-                        bounds.extend(entry);
-                    }
-                });
-            };
-
-            const collectPrintBounds = () => {
-                const bounds = L.latLngBounds([]);
-
-                if (mapData.savedAreas) {
-                    mapData.savedAreas.eachLayer((layer) => {
-                        if (!layer) {
-                            return;
-                        }
-
-                        if (typeof layer.eachLayer === 'function' && !layer.getLatLngs && !layer.getLatLng) {
-                            layer.eachLayer((childLayer) => {
-                                if (childLayer && typeof childLayer.getLatLngs === 'function') {
-                                    extendBoundsWithLatLngs(bounds, childLayer.getLatLngs());
-                                } else if (childLayer && typeof childLayer.getLatLng === 'function') {
-                                    bounds.extend(childLayer.getLatLng());
-                                } else if (childLayer && typeof childLayer.getBounds === 'function') {
-                                    bounds.extend(childLayer.getBounds());
-                                }
-                            });
-                            return;
-                        }
-
-                        if (typeof layer.getLatLngs === 'function') {
-                            extendBoundsWithLatLngs(bounds, layer.getLatLngs());
-                            return;
-                        }
-
-                        if (typeof layer.getLatLng === 'function') {
-                            bounds.extend(layer.getLatLng());
-                            return;
-                        }
-
-                        if (typeof layer.getBounds === 'function') {
-                            bounds.extend(layer.getBounds());
-                        }
-                    });
-                }
-
-                if (mapData.markers && mapData.markers.elw && typeof mapData.markers.elw.getLatLng === 'function') {
-                    bounds.extend(mapData.markers.elw.getLatLng());
-                }
-
-                return bounds;
-            };
-
-            const bounds = collectPrintBounds();
-
             const applyPrintView = () => {
                 map.invalidateSize({ noMoveStart: true });
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds.pad(0.18), {
-                        maxZoom: 16,
-                        animate: false,
-                        paddingTopLeft: [40, 40],
-                        paddingBottomRight: [40, 40]
-                    });
-                    return;
-                }
-
                 map.setView(currentCenter, currentZoom, { animate: false });
             };
 

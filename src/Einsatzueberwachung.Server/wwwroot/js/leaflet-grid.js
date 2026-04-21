@@ -227,12 +227,18 @@ L.MetricGrid = L.Layer.extend({
     _calcInterval: function () {
         var mPerPx = this._mPerPx();
         var spacing;
-        if (mPerPx <= 1) {
+        if (mPerPx <= 1.5) {
             spacing = 100;
-        } else if (mPerPx <= 20) {
+        } else if (mPerPx <= 3) {
+            spacing = 500;
+        } else if (mPerPx <= 15) {
             spacing = 1000;
-        } else if (mPerPx <= 175) {
+        } else if (mPerPx <= 30) {
+            spacing = 5000;
+        } else if (mPerPx <= 150) {
             spacing = 10000;
+        } else if (mPerPx <= 300) {
+            spacing = 50000;
         } else {
             spacing = 100000;
         }

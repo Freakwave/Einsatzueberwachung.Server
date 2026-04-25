@@ -13,6 +13,9 @@ using Microsoft.EntityFrameworkCore;
 using Einsatzueberwachung.Server.Data;
 using Einsatzueberwachung.Server.Services.Radio;
 using Microsoft.AspNetCore.StaticFiles;
+using Einsatzueberwachung.Server.Training;
+using Microsoft.OpenApi.Models;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,7 +37,28 @@ builder.Services.AddRazorComponents()
 // API Controllers für REST (Mobile & externe Clients)
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Einsatzueberwachung.Server API",
+        Version = "v1",
+        Description = "REST API fuer Mobile- und externe Integrationen inkl. Trainings-Endpoints."
+    });
+
+    options.SchemaFilter<TrainingOpenApiSchemaFilter>();
+
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+    }
+});
+
+builder.Services.Configure<TrainingApiOptions>(
+    builder.Configuration.GetSection(TrainingApiOptions.SectionName));
+builder.Services.AddSingleton<ITrainingExerciseService, TrainingExerciseService>();
 
 // Response Compression für bessere Performance
 builder.Services.AddResponseCompression(options =>
@@ -79,6 +103,10 @@ builder.Services.AddSignalR(options =>
 
 builder.Services.AddCors(options =>
 {
+    var trainingOrigins = builder.Configuration
+        .GetSection("TrainingApi:AllowedOrigins")
+        .Get<string[]>() ?? Array.Empty<string>();
+
     options.AddPolicy("VpnPolicy", policy =>
     {
         policy.SetIsOriginAllowed(_ => true)
@@ -91,6 +119,21 @@ builder.Services.AddCors(options =>
     {
         policy.SetIsOriginAllowed(_ => true)
               .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+
+    options.AddPolicy("TrainingApi", policy =>
+    {
+        if (trainingOrigins.Length == 0)
+        {
+            policy.SetIsOriginAllowed(_ => true);
+        }
+        else
+        {
+            policy.WithOrigins(trainingOrigins);
+        }
+
+        policy.AllowAnyMethod()
               .AllowAnyHeader();
     });
 });

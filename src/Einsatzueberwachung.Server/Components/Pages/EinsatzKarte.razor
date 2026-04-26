@@ -35,12 +35,12 @@
         <div class="header-right">
             <button class="btn btn-sm btn-outline-info btn-elw" @onclick="SetElwPosition" 
                     title="@(_hasElwPosition ? "ELW verschieben" : "ELW setzen")">
-                <i class="bi bi-geo-fill"></i> @(_hasElwPosition ? "ELW verschieben" : "ELW setzen")
+                <i class="bi bi-geo-fill"></i><span class="btn-label"> @(_hasElwPosition ? "ELW verschieben" : "ELW setzen")</span>
             </button>
             <button class="btn btn-sm @(_markerPanelVisible ? "btn-info" : "btn-outline-info")" 
                     @onclick="ToggleMarkerPanel" 
                     title="Koordinaten-Marker">
-                <i class="bi bi-crosshair"></i> Punkte
+                <i class="bi bi-crosshair"></i><span class="btn-label"> Punkte</span>
             </button>
             <button class="btn btn-sm btn-outline-warning" @onclick="PrintMap" title="Drucken">
                 <i class="bi bi-printer"></i>
@@ -48,7 +48,7 @@
             <button class="btn btn-sm @(_trackingVisible ? "btn-success" : "btn-outline-secondary")" 
                     @onclick="ToggleTracking" 
                     title="@(_trackingVisible ? "Live-Tracking ausblenden" : "Live-Tracking einblenden")">
-                <i class="bi bi-broadcast"></i> GPS
+                <i class="bi bi-broadcast"></i><span class="btn-label"> GPS</span>
             </button>
         </div>
     </header>

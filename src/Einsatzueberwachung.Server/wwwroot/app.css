@@ -2438,12 +2438,18 @@ main:has(.map-page-layout) {
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .map-sidebar .sidebar-header-right {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex-shrink: 0;
 }
 
 .btn-circle {
@@ -2631,8 +2637,9 @@ main:has(.map-page-layout) {
         width: 200px;
     }
 
+    /* Minimized stays slim — do not widen */
     .map-sidebar.minimized {
-        width: 120px;
+        width: 60px;
     }
     
     .map-header {
@@ -2650,7 +2657,13 @@ main:has(.map-page-layout) {
         flex-direction: column;
     }
 
+    /* Map stays on top, sidebar below */
+    .map-main {
+        order: 1;
+    }
+
     .map-sidebar {
+        order: 2;
         width: 100%;
         height: 180px;
         border-right: none;
@@ -2672,6 +2685,24 @@ main:has(.map-page-layout) {
 
     .map-sidebar.minimized .sidebar-header-right {
         flex-direction: row;
+    }
+}
+
+/* Map header: collapse title and button labels at medium widths to keep all buttons visible */
+@media (max-width: 900px) {
+    /* Hide the "Karte" page title to free horizontal space */
+    .map-header .header-left {
+        display: none;
+    }
+
+    /* Allow search input to shrink freely */
+    .map-header .header-center {
+        min-width: 0;
+    }
+
+    /* Make ELW / Punkte / GPS buttons icon-only */
+    .map-header .header-right .btn-label {
+        display: none;
     }
 }
 
@@ -2918,7 +2949,7 @@ main,
     background: var(--ui-topbar-bg);
     border-bottom: 1px solid var(--ui-topbar-border);
     display: grid;
-    grid-template-columns: auto 1fr auto auto;
+    grid-template-columns: 1fr auto auto;
     align-items: center;
     column-gap: 0.75rem;
     padding: 0 0.9rem;
@@ -2928,6 +2959,7 @@ main,
 }
 
 .mission-topbar-close {
+    display: none; /* Unnecessary; navigation handled by nav sidebar */
     justify-self: center;
     width: 34px;
     height: 34px;
@@ -3142,30 +3174,25 @@ textarea:focus {
 
 @media (max-width: 768px) {
     /* Two-row layout:
-       Row 1: [close] [clock (centered)] [actions]
+       Row 1: [clock (centered)] [actions]
        Row 2: [status strip spanning all columns] */
     .mission-topbar {
-        grid-template-columns: auto 1fr auto;
+        grid-template-columns: 1fr auto;
         grid-template-rows: auto auto;
         gap: 0.35rem 0.5rem;
         padding: 0.3rem 0.9rem;
     }
 
-    .mission-topbar-close {
+    .mission-topbar-clock {
         grid-column: 1;
         grid-row: 1;
-    }
-
-    .mission-topbar-clock {
-        grid-column: 2;
-        grid-row: 1;
-        justify-self: center;
+        justify-self: start;
         gap: 0.6rem;
         font-size: 0.88rem;
     }
 
     .mission-topbar-actions {
-        grid-column: 3;
+        grid-column: 2;
         grid-row: 1;
         justify-self: end;
     }
@@ -3178,6 +3205,29 @@ textarea:focus {
 
     .mission-status-location {
         max-width: 220px;
+    }
+}
+
+@media (max-width: 640px) {
+    /* Hide dark-mode/fullscreen action buttons to save topbar space */
+    .mission-topbar-actions {
+        display: none;
+    }
+
+    .mission-topbar {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+    }
+
+    .mission-topbar-clock {
+        grid-column: 1;
+        grid-row: 1;
+        justify-self: end;
+    }
+
+    .mission-status-strip {
+        grid-column: 1;
+        grid-row: 2;
     }
 }
 

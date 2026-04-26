@@ -28,7 +28,10 @@ window.layoutTools.getInitialSidebarState = function () {
     if (saved !== null) {
         return saved === "1" || saved === "true";
     }
-    // Default: collapsed (icon-only strip) on mobile, expanded on desktop
+    // On first visit (no saved preference), default to collapsed on mobile viewports
+    // so the icon-only sidebar strip is shown without blocking content.
+    // window.innerWidth is read here during OnAfterRenderAsync (first render only),
+    // ensuring the DOM and viewport dimensions are fully available.
     return window.innerWidth <= 640;
 };
 

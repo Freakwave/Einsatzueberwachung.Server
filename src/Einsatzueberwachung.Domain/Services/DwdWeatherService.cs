@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Einsatzueberwachung.Domain.Interfaces;
+using Einsatzueberwachung.Domain.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Einsatzueberwachung.Domain.Services

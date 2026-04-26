@@ -6,7 +6,6 @@ Linux-faehiger Nachbau der Anwendung Einsatzueberwachung.Web mit separater Mobil
 
 - `src/Einsatzueberwachung.Server`: Hauptanwendung (Blazor Server)
 - `src/Einsatzueberwachung.Domain`: Domain-Modelle und Services
-- `src/Einsatzueberwachung.Mobile`: Mobile PWA mit 4 Kernfunktionen
 - `src/Einsatzueberwachung.LiveTracking`: Windows Desktop-App (WPF) fuer GPS USB Halsband-Empfang
 - `deploy`: Linux-Deployment (Nginx, systemd, WireGuard, Setup-Skript)
 

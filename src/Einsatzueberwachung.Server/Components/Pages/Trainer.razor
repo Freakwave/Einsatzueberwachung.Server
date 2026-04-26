@@ -1,0 +1,1647 @@
+@page "/trainer"
+@layout Layout.TrainerLayout
+@rendermode InteractiveServer
+@implements IDisposable
+
+@using Einsatzueberwachung.Server.Training
+@using Einsatzueberwachung.Domain.Interfaces
+
+@inject ITrainingExerciseService TrainingExerciseService
+@inject ITrainingScenarioSuggestionService TrainingScenarioSuggestionService
+@inject IEinsatzService EinsatzService
+@inject IArchivService ArchivService
+@inject Einsatzueberwachung.Server.Training.TrainerNotificationService TrainerNotifications
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Trainer-Modul</PageTitle>
+
+@if (!_authChecked)
+{
+    <div class="trainer-dashboard">
+        <section class="card trainer-card">
+            <div class="card-body">
+                <p class="mb-0 text-muted">Trainer-Authentifizierung wird geprueft...</p>
+            </div>
+        </section>
+    </div>
+}
+else if (!_trainerAuthenticated)
+{
+    <div class="trainer-dashboard">
+        <section class="card trainer-card trainer-login-card">
+            <div class="card-body">
+                <h2 class="h4 mb-2">Trainer-Login</h2>
+                <p class="text-muted mb-3">Bitte Passwort eingeben, um den Trainerbereich zu oeffnen.</p>
+
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-6 col-lg-5">
+                        <label class="form-label">Trainer-Passwort</label>
+                        <input class="form-control form-control-lg"
+                               type="password"
+                               autocomplete="current-password"
+                               @bind="_trainerPassword"
+                               @bind:event="oninput"
+                               @onkeydown="HandleLoginKeyDown"
+                               placeholder="Passwort eingeben" />
+                    </div>
+                    <div class="col-12 col-md-auto">
+                        <button type="button"
+                                class="btn btn-primary btn-lg"
+                                disabled="@_trainerLoginBusy"
+                                @onclick="LoginTrainerAsync">
+                            <i class="bi bi-unlock-fill me-1"></i>Anmelden
+                        </button>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_trainerAccessStatus))
+                {
+                    <div class="alert @(_trainerAccessError ? "alert-danger" : "alert-success") mt-3 mb-0">@_trainerAccessStatus</div>
+                }
+            </div>
+        </section>
+    </div>
+}
+else
+{
+<div class="trainer-dashboard">
+
+    @* ── Tab-Navigation ──────────────────────────────────────────────── *@
+    <nav class="trainer-tabs mb-3">
+        <button class="trainer-tab @(_activeTab == "start" ? "active" : string.Empty)"
+                type="button" @onclick='() => _activeTab = "start"'>
+            <i class="bi bi-play-circle me-1"></i>Uebungsstart
+        </button>
+        <button class="trainer-tab @(_activeTab == "aktuell" ? "active" : string.Empty)"
+                type="button" @onclick='() => _activeTab = "aktuell"'
+                disabled="@(_selectedExercise is null)">
+            <i class="bi bi-activity me-1"></i>Aktuell
+            @if (_selectedExercise is not null && _selectedExercise.Status == "open")
+            {
+                <span class="trainer-tab-badge">●</span>
+            }
+        </button>
+        <button class="trainer-tab @(_activeTab == "abschluss" ? "active" : string.Empty)"
+                type="button" @onclick='() => _activeTab = "abschluss"'
+                disabled="@(_selectedExercise is null)">
+            <i class="bi bi-flag me-1"></i>Abschluss
+        </button>
+    </nav>
+
+    @if (!string.IsNullOrWhiteSpace(_statusMessage))
+    {
+        <div class="alert @(_statusError ? "alert-danger" : "alert-success") alert-dismissible mb-3">
+            @_statusMessage
+            <button type="button" class="btn-close" @onclick='() => _statusMessage = string.Empty'></button>
+        </div>
+    }
+
+    @* ══════════════════════════════════════════════════════════════════════
+         TAB 1 — ÜBUNGSSTART
+    ══════════════════════════════════════════════════════════════════════════ *@
+    @if (_activeTab == "start")
+    {
+    <section class="trainer-grid">
+        <article class="card trainer-card">
+            <div class="card-body">
+                <h2 class="h5 mb-3"><i class="bi bi-collection me-2"></i>Neue Uebung erstellen</h2>
+
+                <div class="row g-2">
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label">Lagevorlage</label>
+                        <select class="form-select" @bind="SelectedScenarioId">
+                            @foreach (var template in ScenarioTemplates)
+                            {
+                                <option value="@template.Id">@template.Title (@template.Category)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-lg-3">
+                        <label class="form-label">Uebungsname (optional)</label>
+                        <input class="form-control" @bind="_newExerciseName" placeholder="Automatisch wenn leer" />
+                    </div>
+                    <div class="col-6 col-lg-2">
+                        <label class="form-label">Dauer (Min)</label>
+                        <input class="form-control" type="number" min="1" max="480" @bind="_newExerciseDurationMinutes" placeholder="z.B. 60" />
+                    </div>
+                    <div class="col-6 col-lg-3 d-flex align-items-end">
+                        <button class="btn btn-success w-100" type="button" @onclick="CreateExerciseAsync" disabled="@_busy">
+                            <i class="bi bi-play-fill me-1"></i>Uebung starten
+                        </button>
+                    </div>
+                </div>
+
+                <div class="trainer-briefing mt-3">
+                    <h3 class="h6 mb-2"><i class="bi bi-file-text me-1"></i>Lage-Briefing fuer Teilnehmer</h3>
+                    <p class="mb-2">@SelectedScenario.Briefing</p>
+                    <div class="small fw-semibold mb-1">Entscheidungspunkte:</div>
+                    <ul class="mb-0 small">
+                        @foreach (var decision in SelectedScenario.DecisionPrompts)
+                        {
+                            <li>@decision</li>
+                        }
+                    </ul>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button class="btn btn-outline-primary" type="button" @onclick="PrepareStartMaskAsync" disabled="@_busy">
+                        <i class="bi bi-ui-checks me-1"></i>Maske "Neuer Einsatz" vorfuellen
+                    </button>
+                    <a class="btn btn-outline-secondary" href="/einsatz-start" target="_blank" rel="noopener noreferrer">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Teilnehmer-Startmaske oeffnen
+                    </a>
+                </div>
+            </div>
+        </article>
+
+        <article class="card trainer-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h5 mb-0"><i class="bi bi-clock-history me-2"></i>Uebungsauswahl</h2>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" @onclick="ReloadExercisesAsync">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </button>
+                </div>
+
+                <label class="form-label">Laufende / abgeschlossene Uebung</label>
+                <select class="form-select" @bind="SelectedExerciseId">
+                    <option value="">-- Bitte waehlen --</option>
+                    @foreach (var exercise in _exercises)
+                    {
+                        <option value="@exercise.Id">
+                            @exercise.CreatedAtUtc.ToLocalTime().ToString("dd.MM HH:mm") — @exercise.Name
+                            (@(exercise.Status == "open" ? "laufend" : "beendet"))
+                        </option>
+                    }
+                </select>
+
+                @if (_selectedExercise is not null)
+                {
+                    <div class="trainer-briefing mt-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-semibold">@_selectedExercise.Name</div>
+                                <div class="small text-muted">@_selectedExercise.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</div>
+                            </div>
+                            @if (_selectedExercise.Status == "open")
+                            {
+                                <span class="badge text-bg-success">Laufend</span>
+                            }
+                            else
+                            {
+                                <span class="badge text-bg-secondary">Beendet</span>
+                            }
+                        </div>
+                    </div>
+
+                    @if (_selectedExercise.Status == "open")
+                    {
+                        <button class="btn btn-primary mt-3 w-100" type="button" @onclick='() => _activeTab = "aktuell"'>
+                            <i class="bi bi-activity me-1"></i>Zur laufenden Uebung wechseln
+                        </button>
+                    }
+                }
+            </div>
+        </article>
+    </section>
+    }
+
+    @* ══════════════════════════════════════════════════════════════════════
+         TAB 2 — AKTUELL
+    ══════════════════════════════════════════════════════════════════════════ *@
+    @if (_activeTab == "aktuell")
+    {
+    @if (_selectedExercise is null)
+    {
+        <div class="alert alert-info">Bitte zuerst unter <strong>Uebungsstart</strong> eine Uebung auswaehlen oder starten.</div>
+    }
+    else
+    {
+    @* Timer-Leiste *@
+    <section class="card trainer-card mb-3">
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap align-items-center gap-4">
+                <div>
+                    <div class="small text-muted">Laufzeit</div>
+                    <div class="fs-3 fw-bold font-monospace">@GetElapsedDisplay()</div>
+                </div>
+                @if (_selectedExercise.PlannedDurationMinutes.HasValue)
+                {
+                    var remaining = GetRemainingTime();
+                    var isWarning = remaining.HasValue && remaining.Value.TotalMinutes <= 5 && remaining.Value.TotalSeconds > 0;
+                    var isExpired = remaining.HasValue && remaining.Value.TotalSeconds <= 0;
+                    <div>
+                        <div class="small text-muted">Verbleibend (@_selectedExercise.PlannedDurationMinutes Min)</div>
+                        <div class="fs-3 fw-bold font-monospace @(isExpired ? "text-danger" : isWarning ? "text-warning" : "text-success")">
+                            @(isExpired ? "ABGELAUFEN" : remaining?.ToString(@"hh\:mm\:ss") ?? "--:--:--")
+                        </div>
+                    </div>
+                    @if (isWarning && !isExpired)
+                    {
+                        <div class="alert alert-warning py-1 mb-0 small">
+                            <i class="bi bi-hourglass-split me-1"></i><strong>Weniger als 5 Minuten!</strong> Abschluss vorbereiten.
+                        </div>
+                    }
+                    @if (isExpired)
+                    {
+                        <div class="alert alert-danger py-1 mb-0 small">
+                            <i class="bi bi-alarm-fill me-1"></i><strong>Uebungszeit abgelaufen.</strong>
+                        </div>
+                    }
+                }
+                @if (_selectedExercise.EscalationLevel > 0)
+                {
+                    <div class="ms-auto">
+                        <span class="badge fs-6 @GetEscalationBadgeClass(_selectedExercise.EscalationLevel)">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>Eskalation Stufe @_selectedExercise.EscalationLevel
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+
+    <div class="row g-3">
+        @* Linke Spalte: Live-Teams + Trainer-Update *@
+        <div class="col-12 col-md-5 col-xl-5">
+            <div class="card trainer-card mb-3 h-auto">
+                <div class="card-body">
+                    <h2 class="h6 mb-2"><i class="bi bi-people-fill me-1"></i>Live-Teams</h2>
+                    @if (LiveTeams.Count == 0)
+                    {
+                        <p class="text-muted small mb-0">Noch keine Teams angelegt.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead><tr><th>Team</th><th>Status</th><th>Funktion</th><th>Gebiet</th></tr></thead>
+                                <tbody>
+                                    @foreach (var team in LiveTeams)
+                                    {
+                                        <tr>
+                                            <td class="fw-semibold">@team.TeamName</td>
+                                            <td>
+                                                @if (team.IsRunning)
+                                                { <span class="badge text-bg-success">Laufend</span> }
+                                                else if (team.IsPausing)
+                                                { <span class="badge text-bg-warning">Pause</span> }
+                                                else
+                                                { <span class="badge text-bg-secondary">Bereit</span> }
+                                            </td>
+                                            <td class="small">@(team.IsDroneTeam ? "Drohne" : team.IsSupportTeam ? "Support" : "Hund")</td>
+                                            <td class="small">@(string.IsNullOrWhiteSpace(team.SearchAreaName) ? "—" : team.SearchAreaName)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card trainer-card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                        <h2 class="h6 mb-0"><i class="bi bi-broadcast-pin me-1"></i>Live-Funk & Notizen</h2>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Kommunikationsfilter">
+                            <button type="button" class="btn @(_commFilter == "alle" ? "btn-primary" : "btn-outline-primary")" @onclick='() => SetCommFilter("alle")'>Alle</button>
+                            <button type="button" class="btn @(_commFilter == "funk" ? "btn-primary" : "btn-outline-primary")" @onclick='() => SetCommFilter("funk")'>Funk</button>
+                            <button type="button" class="btn @(_commFilter == "notiz" ? "btn-primary" : "btn-outline-primary")" @onclick='() => SetCommFilter("notiz")'>Notizen</button>
+                        </div>
+                    </div>
+
+                    @if (_teamJoinReactions.Count > 0)
+                    {
+                        <div class="trainer-team-reaction-box mb-2">
+                            <div class="small fw-semibold mb-1">Sofortreaktion fuer neue Teams</div>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var reaction in _teamJoinReactions.Take(3))
+                                {
+                                    <button class="btn btn-warning btn-sm"
+                                            type="button"
+                                            @onclick="@(() => SendQuickReactionAsync(reaction))"
+                                            disabled="@_busy">
+                                        <i class="bi bi-send-fill me-1"></i>@reaction.TeamName: Startsignal senden
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @if (_liveComms.Count == 0)
+                    {
+                        <p class="text-muted small mb-0">Noch keine Funksprueche oder Notizen vorhanden.</p>
+                    }
+                    else
+                    {
+                        <ul class="trainer-comm-list mb-0">
+                            @foreach (var note in _liveComms.Take(20))
+                            {
+                                <li>
+                                    <div class="d-flex align-items-start justify-content-between gap-2">
+                                        <div>
+                                            <div class="small text-muted">@note.Timestamp.ToLocalTime().ToString("HH:mm:ss") · @GetSourceLabel(note)</div>
+                                            <div class="small fw-semibold">@note.Text</div>
+                                        </div>
+                                        <div class="d-flex gap-1">
+                                            <span class="badge @(IsRadio(note) ? "text-bg-primary" : "text-bg-secondary")">@(IsRadio(note) ? "Funk" : "Notiz")</span>
+                                            <button class="btn btn-outline-secondary btn-sm"
+                                                    type="button"
+                                                    title="Antwort fuer dieses Team vorbereiten"
+                                                    @onclick="@(() => PrepareReplyForNote(note))">
+                                                <i class="bi bi-reply-fill"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+
+            <div class="card trainer-card">
+                <div class="card-body">
+                    <h2 class="h6 mb-2"><i class="bi bi-send me-1"></i>Trainer-Update senden</h2>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <select class="form-select form-select-sm" @bind="_entryType">
+                                <option value="lage">&#128225; Lageupdate (Funk)</option>
+                                <option value="funk">&#128225; Funkspruch</option>
+                                <option value="feedback">&#128221; Rueckmeldung (Notiz)</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select class="form-select form-select-sm" @bind="_entryParticipantName">
+                                <option value="">-- kein Team --</option>
+                                @foreach (var team in LiveTeams)
+                                { <option value="@team.TeamName">@team.TeamName</option> }
+                                @foreach (var simTeam in SelectedScenario.SimulatedTeams)
+                                { <option value="@simTeam">@simTeam</option> }
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <textarea class="form-control form-control-sm" rows="2" @bind="_entryText"
+                                      placeholder="Lageupdate / Funkspruch / Rueckmeldung an Teilnehmer..."></textarea>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 mt-2">
+                        <button class="btn btn-primary btn-sm" type="button" @onclick="AddTrainerEntryAsync" disabled="@_busy">
+                            <i class="bi bi-send-fill me-1"></i>Senden
+                        </button>
+                    </div>
+
+                    @* Vorschlaege *@
+                    <div class="mt-3">
+                        <div class="small text-muted mb-2">Schnellauswahl:</div>
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var suggestion in GetFeedbackSuggestions().Take(8))
+                            {
+                                <button class="btn btn-outline-secondary btn-sm"
+                                        type="button"
+                                        @onclick="@(() => ApplyFeedbackSuggestion(suggestion.Text, suggestion.Type, suggestion.TeamName))">
+                                    <span class="badge text-bg-light border me-1" style="font-size:0.6rem">@suggestion.TypeLabel</span>@suggestion.Text[..Math.Min(35, suggestion.Text.Length)]@(suggestion.Text.Length > 35 ? "…" : string.Empty)
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Rechte Spalte: Eskalation + Stressoren + Zeitgesteuerte Events *@
+        <div class="col-12 col-md-7 col-xl-7">
+            <div class="card trainer-card mb-3">
+                <div class="card-body">
+                    <h2 class="h6 mb-2"><i class="bi bi-exclamation-triangle me-1"></i>Eskalationsstufen</h2>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <button class="btn btn-sm @(_selectedExercise.EscalationLevel == 0 ? "btn-secondary" : "btn-outline-secondary")"
+                                type="button" @onclick="@(() => SetEscalationLevelAsync(0))" disabled="@_busy">
+                            Keine
+                        </button>
+                        <button class="btn btn-sm @(_selectedExercise.EscalationLevel == 1 ? "btn-warning text-dark" : "btn-outline-warning")"
+                                type="button" @onclick="@(() => SetEscalationLevelAsync(1))" disabled="@_busy">
+                            <i class="bi bi-exclamation-triangle me-1"></i>Stufe 1 — Erhoehter Bedarf
+                        </button>
+                        <button class="btn btn-sm @(_selectedExercise.EscalationLevel == 2 ? "btn-danger" : "btn-outline-danger")"
+                                type="button" @onclick="@(() => SetEscalationLevelAsync(2))" disabled="@_busy">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>Stufe 2 — Kritisch
+                        </button>
+                        <button class="btn btn-sm @(_selectedExercise.EscalationLevel == 3 ? "btn-dark" : "btn-outline-dark")"
+                                type="button" @onclick="@(() => SetEscalationLevelAsync(3))" disabled="@_busy">
+                            <i class="bi bi-alarm-fill me-1"></i>Stufe 3 — Vollalarm
+                        </button>
+                    </div>
+                    <div class="small text-muted">
+                        <strong>1:</strong> Suche ausgeweitet, Ressourcencheck ·
+                        <strong>2:</strong> RD alarmieren, 10-Min-Rhythmus ·
+                        <strong>3:</strong> Vollalarm, ueberortliche Fuehrung
+                    </div>
+                </div>
+            </div>
+
+            <div class="card trainer-card mb-3">
+                <div class="card-body">
+                    <h2 class="h6 mb-2"><i class="bi bi-lightning me-1"></i>Stressoren</h2>
+                    @foreach (var category in StressorCatalog)
+                    {
+                        <div class="mb-2">
+                            <div class="small text-muted fw-semibold mb-1">@category.Category</div>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var stressor in category.Items)
+                                {
+                                    <button class="btn btn-outline-secondary btn-sm"
+                                            type="button"
+                                            @onclick="@(() => FireStressorAsync(stressor))"
+                                            disabled="@_busy">
+                                        <i class="bi bi-lightning-fill me-1"></i>@stressor[..Math.Min(40, stressor.Length)]@(stressor.Length > 40 ? "…" : string.Empty)
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card trainer-card">
+                <div class="card-body">
+                    <h2 class="h6 mb-2"><i class="bi bi-clock me-1"></i>Zeitgesteuerte Lageupdates</h2>
+                    <div class="row g-2 mb-2">
+                        <div class="col-4 col-lg-2">
+                            <input class="form-control form-control-sm" type="number" min="1" max="480"
+                                   @bind="_schedDelay" placeholder="Min" title="Nach X Minuten ausloesen" />
+                        </div>
+                        <div class="col-4 col-lg-2">
+                            <select class="form-select form-select-sm" @bind="_schedType">
+                                <option value="funk">Funk</option>
+                                <option value="lage">Lage</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-lg-6">
+                            <input class="form-control form-control-sm" @bind="_schedText" placeholder="Text des Ereignisses..." />
+                        </div>
+                        <div class="col-4 col-lg-2 d-flex align-items-end">
+                            <button class="btn btn-primary btn-sm w-100" type="button" @onclick="AddScheduledEventAsync" disabled="@_busy">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                    @if (_selectedExercise.ScheduledEvents.Count == 0)
+                    {
+                        <p class="text-muted small mb-0">Noch keine Events geplant.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead><tr><th>Min</th><th>Typ</th><th>Text</th><th>Status</th><th></th></tr></thead>
+                                <tbody>
+                                    @foreach (var ev in _selectedExercise.ScheduledEvents.OrderBy(e => e.DelayMinutes))
+                                    {
+                                        <tr class="@(ev.IsFired ? "table-secondary text-muted" : string.Empty)">
+                                            <td>@ev.DelayMinutes</td>
+                                            <td><span class="badge @(ev.EventType == "lage" ? "text-bg-info" : "text-bg-primary")">@ev.EventType</span></td>
+                                            <td class="small">@ev.Text[..Math.Min(50, ev.Text.Length)]@(ev.Text.Length > 50 ? "…" : string.Empty)</td>
+                                            <td>
+                                                @if (ev.IsFired)
+                                                { <span class="badge text-bg-success">@ev.FiredAtUtc!.Value.ToLocalTime().ToString("HH:mm")</span> }
+                                                else
+                                                {
+                                                    var triggerAt = _selectedExercise.CreatedAtUtc.ToLocalTime() + TimeSpan.FromMinutes(ev.DelayMinutes);
+                                                    <span class="badge text-bg-secondary">@triggerAt.ToString("HH:mm")</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!ev.IsFired)
+                                                {
+                                                    <button class="btn btn-sm btn-outline-danger" type="button"
+                                                            @onclick="@(() => RemoveScheduledEventAsync(ev.Id))" disabled="@_busy">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    }
+    }
+
+    @* ══════════════════════════════════════════════════════════════════════
+         TAB 3 — ABSCHLUSS
+    ══════════════════════════════════════════════════════════════════════════ *@
+    @if (_activeTab == "abschluss")
+    {
+    @if (_selectedExercise is null)
+    {
+        <div class="alert alert-info">Bitte zuerst unter <strong>Uebungsstart</strong> eine Uebung auswaehlen.</div>
+    }
+    else
+    {
+    <div class="row g-3">
+        @* Linke Spalte: Teilnehmer-Entscheidungen + Beenden *@
+        <div class="col-12 col-md-5 col-xl-5">
+            @if (_selectedExercise.Status == "open")
+            {
+            <div class="card trainer-card mb-3">
+                <div class="card-body">
+                    <h2 class="h6 mb-2"><i class="bi bi-diagram-3 me-1"></i>Teilnehmer-Entscheidung protokollieren</h2>
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <input class="form-control form-control-sm" @bind="_decisionParticipantName" placeholder="Teilnehmer / Team" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <input class="form-control form-control-sm" @bind="_decisionCategory" placeholder="Kategorie (z.B. Taktik)" />
+                        </div>
+                        <div class="col-12">
+                            <input class="form-control form-control-sm" @bind="_decisionText" placeholder="Entscheidung beschreiben..." />
+                        </div>
+                        <div class="col-12">
+                            <textarea class="form-control form-control-sm" rows="2" @bind="_decisionRationale"
+                                      placeholder="Begruendung (optional)..."></textarea>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm mt-2" type="button" @onclick="AddParticipantDecisionAsync" disabled="@_busy">
+                        <i class="bi bi-check-lg me-1"></i>Entscheidung speichern
+                    </button>
+                </div>
+            </div>
+            }
+
+            <div class="card trainer-card border-danger">
+                <div class="card-body">
+                    <h2 class="h6 mb-2"><i class="bi bi-flag me-1"></i>Uebung abschliessen</h2>
+                    @if (_selectedExercise.Status == "open")
+                    {
+                        <p class="small text-muted mb-3">
+                            Nach dem Abschluss wird die Uebung archiviert und alle Teilnehmer erhalten eine Benachrichtigung.
+                        </p>
+                        <label class="form-label small">Abschluss-Kommentar / Trainer-Feedback</label>
+                        <textarea class="form-control form-control-sm mb-2" rows="4" @bind="_endSummary"
+                                  placeholder="z.B. Alle Lernziele erreicht. Team Alpha zeigte gute Kommunikation, EL hat Ressourcenplanung optimierungswuerdig..."></textarea>
+                        <button class="btn btn-danger w-100" type="button" @onclick="ShowEndExerciseConfirm" disabled="@_busy">
+                            <i class="bi bi-flag-fill me-1"></i>Uebung beenden und archivieren
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="alert alert-secondary mb-0">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Uebung wurde am @_selectedExercise.CompletedAtUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") beendet.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* Rechte Spalte: Verlauf / Timeline *@
+        <div class="col-12 col-md-7 col-xl-7">
+            <div class="card trainer-card">
+                <div class="card-body">
+                    <h2 class="h6 mb-2"><i class="bi bi-list-ul me-1"></i>Verlauf der Simulation</h2>
+                    @{
+                        var timeline = BuildTimeline(_selectedExercise);
+                    }
+                    @if (timeline.Count == 0)
+                    {
+                        <p class="text-muted small mb-0">Noch keine Eintraege vorhanden.</p>
+                    }
+                    else
+                    {
+                        <ul class="trainer-log-list mb-0">
+                            @foreach (var line in timeline)
+                            {
+                                <li>
+                                    <span class="trainer-log-time">@line.TimeLabel</span>
+                                    <span class="trainer-log-text">
+                                        <span class="badge @GetTimelineKindBadge(line.Kind) me-1">@line.Kind</span>
+                                        @line.Text
+                                    </span>
+                                    @if (!string.IsNullOrWhiteSpace(line.Source))
+                                    {
+                                        <span class="badge text-bg-secondary ms-1">@line.Source</span>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    }
+    }
+
+</div>
+}
+
+@if (_showEndExerciseConfirm)
+{
+    <div class="global-warning-overlay" @onclick="CancelEndExercise">
+        <div class="global-warning-popup" @onclick:stopPropagation="true">
+            <div class="global-warning-header" style="background: var(--bs-danger, #dc3545);">
+                <h4 class="mb-0"><i class="bi bi-flag-fill me-2"></i>Uebung wirklich beenden?</h4>
+            </div>
+            <div class="global-warning-body">
+                <p class="mb-3">Die Uebung <strong>@_selectedExercise?.Name</strong> wird als abgeschlossen markiert und der aktuelle Einsatz wird archiviert.</p>
+                <label class="form-label">Abschluss-Kommentar (optional)</label>
+                <textarea class="form-control" rows="3" @bind="_endSummary" placeholder="z.B. Uebung erfolgreich, alle Lernziele erreicht..."></textarea>
+            </div>
+            <div class="global-warning-footer d-flex gap-2">
+                <button class="btn btn-danger" type="button" @onclick="ConfirmEndExerciseAsync" disabled="@_busy">
+                    <i class="bi bi-flag-fill me-1"></i>Uebung beenden
+                </button>
+                <button class="btn btn-secondary" type="button" @onclick="CancelEndExercise">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private static readonly List<ScenarioTemplate> ScenarioTemplates =
+    [
+        new(
+            "lage-wald",
+            "Vermisstensuche im Wald",
+            "Sucheinsatz",
+            "Eine 76-jaehrige Person wird seit 2 Stunden vermisst. Letzter Sichtkontakt am Waldparkplatz, Temperatur faellt, Licht wird schlechter.",
+            [
+                "Wie teilen die Teams die Suchsektoren auf?",
+                "Wann wird auf Flaechensuche statt Spur umgestellt?",
+                "Welche Sicherheitsregeln gelten bei Dunkelheit?"
+            ],
+            ["Sim-Team Alpha", "Sim-Team Bravo", "Sim-Team Drohne"]),
+        new(
+            "lage-mantrailing",
+            "Mantrailing Innenstadt",
+            "Mantrailing",
+            "Startpunkt ist ein Busbahnhof. Die Spur fuehrt durch stark frequentierte Bereiche mit vielen Ablenkungen und Wetterwechsel.",
+            [
+                "Welche Taktik wird bei Spurverlust angewendet?",
+                "Wie wird die Kommunikation mit der Einsatzleitung priorisiert?",
+                "Wann wird eine Rueckfallebene aktiviert?"
+            ],
+            ["Sim-Team Trail 1", "Sim-Team Trail 2", "Sim-Lageleitung"]),
+        new(
+            "lage-flaeche-drohne",
+            "Flaechensuche mit Drohnenunterstuetzung",
+            "Vermisstensuche",
+            "Eine unklare Lage mit grossem Suchgebiet und eingeschraenkter Sicht. Hundeteams und Drohne muessen eng koordiniert werden.",
+            [
+                "Welche Prioritaeten gelten bei der Sektorplanung?",
+                "Wie werden Luft- und Bodenerkenntnisse zusammengefuehrt?",
+                "Wie wird auf einen medizinischen Fund reagiert?"
+            ],
+            ["Sim-Team Boden", "Sim-Team Hund", "Sim-Team Drohne"])
+    ];
+
+    // ── Tab-Navigation ────────────────────────────────────────────────────────
+    private string _activeTab = "start";
+
+    private List<TrainingExerciseRecord> _exercises = new();
+    private TrainingExerciseRecord? _selectedExercise;
+    private string _selectedExerciseId = string.Empty;
+    private string _selectedScenarioId = ScenarioTemplates[0].Id;
+
+    private string SelectedExerciseId
+    {
+        get => _selectedExerciseId;
+        set
+        {
+            _selectedExerciseId = value;
+            _selectedExercise = _exercises.FirstOrDefault(x => x.Id == _selectedExerciseId);
+            RefreshSuggestions();
+        }
+    }
+
+    private string SelectedScenarioId
+    {
+        get => _selectedScenarioId;
+        set
+        {
+            _selectedScenarioId = value;
+            RefreshSuggestions();
+        }
+    }
+
+    private ScenarioTemplate SelectedScenario =>
+        ScenarioTemplates.FirstOrDefault(x => x.Id == _selectedScenarioId) ?? ScenarioTemplates[0];
+
+    private string _newExerciseName = string.Empty;
+
+    private string _entryType = "lage";
+    private string _entryText = string.Empty;
+    private string _entryParticipantId = string.Empty;
+    private string _entryParticipantName = string.Empty;
+
+    private string _decisionParticipantName = string.Empty;
+    private string _decisionCategory = string.Empty;
+    private string _decisionText = string.Empty;
+    private string _decisionRationale = string.Empty;
+
+    private bool _busy;
+    private string _statusMessage = string.Empty;
+    private bool _statusError;
+    private bool _authChecked;
+    private bool _trainerAuthenticated;
+    private string _trainerPassword = string.Empty;
+    private bool _trainerLoginBusy;
+    private string _trainerAccessStatus = string.Empty;
+    private bool _trainerAccessError;
+    private List<Team> LiveTeams => EinsatzService.Teams.OrderBy(t => t.TeamName).ToList();
+    private string _commFilter = "alle";
+    private List<GlobalNotesEntry> _liveComms = new();
+    private readonly List<QuickTrainerReaction> _teamJoinReactions = new();
+
+    private string _suggestionHint = string.Empty;
+    private TrainingScenarioSuggestionResult? _suggestions;
+
+    private bool _showEndExerciseConfirm;
+    private string _endSummary = string.Empty;
+
+    private Timer? _refreshTimer;
+    private Timer? _uiTimer;
+
+    // Neue Übungserstellung
+    private int? _newExerciseDurationMinutes;
+
+    // Zeitgesteuerte Events
+    private int _schedDelay = 15;
+    private string _schedType = "funk";
+    private string _schedText = string.Empty;
+
+    // Stressoren-Katalog (statisch, speziell fuer EL/FA-Schulung)
+    private static readonly IReadOnlyList<StressorCategory> StressorCatalog =
+    [
+        new("Kommunikation", [
+            "Leitstelle fordert Lagemeldung in 5 Minuten",
+            "Funkkommunikation auf Kanal 1 gestoert — auf Kanal 2 wechseln",
+            "Medien erscheinen am Einsatzort — Presseanfrage eingegangen",
+            "Einsatzleiter von Leitstelle direkt angefordert"
+        ]),
+        new("Ressourcen", [
+            "Zweites Suchhundeteam trifft ein — Einweisung und Sektorzuweisung erforderlich",
+            "Drohnenakku leer — Drohne muss landen, Neuplanung der Luftabdeckung",
+            "Suche ueberschreitet geplante Dauer — Kraefte melden Erschoepfung",
+            "Fuehrungsassistent: Kraeftenachweis aktualisieren und an EL melden"
+        ]),
+        new("Lageaenderung", [
+            "Zeuge meldet Sichtung in Abschnitt C — abweichend vom aktuellen Suchgebiet",
+            "Person gefunden, aber bewusstlos — Rettungsdienst sofort anfordern",
+            "Hund kehrt ohne Fund zurueck — neue Sektorzuweisung erforderlich",
+            "Vermisstensuche ausgeweitet: Neue Koordinaten erhalten"
+        ]),
+        new("Koordination EL/FA", [
+            "Feuerwehr fordert Freigabe des Abschnitts fuer eigene Massnahmen",
+            "Polizei uebernimmt Einsatzleitung — Uebergabe erforderlich",
+            "Paralleleinsatz in Nachbargemeinde — Kraefteabzug wird angefragt",
+            "Fuehrungsassistent: Einsatzdokumentation sofort sichern und EL vorlegen"
+        ])
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        EinsatzService.TeamAdded += OnTeamAdded;
+        EinsatzService.TeamUpdated += OnTeamUpdated;
+        EinsatzService.TeamRemoved += OnTeamRemoved;
+        EinsatzService.EinsatzChanged += OnEinsatzChanged;
+        EinsatzService.NoteAdded += OnNoteAdded;
+
+        await RefreshTrainerAuthStatusAsync();
+        if (!_trainerAuthenticated)
+        {
+            return;
+        }
+
+        await ReloadExercisesAsync();
+        RefreshSuggestions();
+        RefreshLiveComms();
+
+        // Automatische Aktualisierung alle 10 Sekunden
+        _refreshTimer = new Timer(async _ =>
+        {
+            await ReloadExercisesAsync();
+            await CheckAndFireScheduledEventsAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+
+        // UI-Uhr: 1-Sekunden-Tick nur fuer Countdown-Anzeige
+        _uiTimer = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    private void SetCommFilter(string filter)
+    {
+        _commFilter = filter;
+        RefreshLiveComms();
+    }
+
+    private void RefreshLiveComms()
+    {
+        IEnumerable<GlobalNotesEntry> query = EinsatzService.GlobalNotes
+            .OrderByDescending(n => n.Timestamp);
+
+        if (_commFilter == "funk")
+        {
+            query = query.Where(IsRadio);
+        }
+        else if (_commFilter == "notiz")
+        {
+            query = query.Where(n => !IsRadio(n));
+        }
+
+        _liveComms = query.Take(80).ToList();
+    }
+
+    private static bool IsRadio(GlobalNotesEntry note) =>
+        string.Equals(note.SourceType, "Funk", StringComparison.OrdinalIgnoreCase);
+
+    private static string GetSourceLabel(GlobalNotesEntry note)
+    {
+        if (!string.IsNullOrWhiteSpace(note.SourceTeamName))
+        {
+            return note.SourceTeamName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(note.CreatedBy))
+        {
+            return note.CreatedBy;
+        }
+
+        return "Unbekannt";
+    }
+
+    private void PrepareReplyForNote(GlobalNotesEntry note)
+    {
+        _entryType = IsRadio(note) ? "funk" : "feedback";
+        _entryParticipantName = note.SourceTeamName;
+        _entryText = string.IsNullOrWhiteSpace(note.SourceTeamName)
+            ? "Rueckmeldung erhalten. Bitte naechsten Schritt melden."
+            : $"{note.SourceTeamName}: Rueckmeldung erhalten. Bitte Status und naechsten Schritt melden.";
+    }
+
+    private async Task SendQuickReactionAsync(QuickTrainerReaction reaction)
+    {
+        _entryType = "funk";
+        _entryParticipantName = reaction.TeamName;
+        _entryText = reaction.Text;
+
+        await AddTrainerEntryAsync();
+        _teamJoinReactions.RemoveAll(r => r.TeamName == reaction.TeamName);
+    }
+
+    private void AddTeamJoinReaction(Team team)
+    {
+        if (string.IsNullOrWhiteSpace(team.TeamName))
+        {
+            return;
+        }
+
+        if (_teamJoinReactions.Any(r => string.Equals(r.TeamName, team.TeamName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        _teamJoinReactions.Insert(0, new QuickTrainerReaction(
+            team.TeamName,
+            $"{team.TeamName}: Teamstart bestaetigt. Startet Suche im zugewiesenen Bereich und meldet ersten Status in 5 Minuten."));
+
+        if (_teamJoinReactions.Count > 8)
+        {
+            _teamJoinReactions.RemoveRange(8, _teamJoinReactions.Count - 8);
+        }
+    }
+
+    private Task PrepareStartMaskAsync()
+    {
+        var preset = new TrainingStartPreset
+        {
+            ExerciseId = _selectedExerciseId,
+            ExerciseName = string.IsNullOrWhiteSpace(_newExerciseName)
+                ? SelectedScenario.Title
+                : _newExerciseName.Trim(),
+            ScenarioCategory = SelectedScenario.Category,
+            SuggestedLocation = SelectedScenario.Title,
+            BriefingText = BuildStartBriefing(SelectedScenario),
+            PreparedAtUtc = DateTime.UtcNow
+        };
+
+        return SavePresetAndSetStatusAsync(preset);
+    }
+
+    private async Task SavePresetAndSetStatusAsync(TrainingStartPreset preset)
+    {
+        try
+        {
+            await TrainingExerciseService.SetStartPresetAsync(preset, CancellationToken.None);
+            SetStatus("Maske 'Neuer Einsatz' wurde fuer Teilnehmer vorbefuellt.", false);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Vorbefuellen fehlgeschlagen: {ex.Message}", true);
+        }
+    }
+
+    private async Task LoginTrainerAsync()
+    {
+        _trainerAccessStatus = string.Empty;
+        _trainerAccessError = false;
+
+        if (string.IsNullOrWhiteSpace(_trainerPassword))
+        {
+            _trainerAccessStatus = "Bitte Trainer-Passwort eingeben.";
+            _trainerAccessError = true;
+            return;
+        }
+
+        _trainerLoginBusy = true;
+        try
+        {
+            var client = HttpClientFactory.CreateClient();
+            client.BaseAddress = new Uri(Navigation.BaseUri);
+
+            var response = await client.PostAsJsonAsync("api/trainer-auth/login", new { password = _trainerPassword });
+            if (!response.IsSuccessStatusCode)
+            {
+                _trainerAccessStatus = "Anmeldung fehlgeschlagen. Passwort ungueltig.";
+                _trainerAccessError = true;
+                return;
+            }
+
+            _trainerAuthenticated = true;
+            _trainerPassword = string.Empty;
+            _trainerAccessStatus = "Anmeldung erfolgreich.";
+            _trainerAccessError = false;
+
+            await ReloadExercisesAsync();
+            RefreshSuggestions();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            _trainerAccessStatus = $"Trainer-Anmeldung nicht moeglich: {ex.Message}";
+            _trainerAccessError = true;
+        }
+        finally
+        {
+            _trainerLoginBusy = false;
+        }
+    }
+
+    private async Task RefreshTrainerAuthStatusAsync()
+    {
+        try
+        {
+            var client = HttpClientFactory.CreateClient();
+            client.BaseAddress = new Uri(Navigation.BaseUri);
+            var status = await client.GetFromJsonAsync<TrainerAuthStatusDto>("api/trainer-auth/status");
+            _trainerAuthenticated = status?.Authenticated == true;
+        }
+        catch
+        {
+            _trainerAuthenticated = false;
+        }
+        finally
+        {
+            _authChecked = true;
+        }
+    }
+
+    private async Task HandleLoginKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await LoginTrainerAsync();
+        }
+    }
+
+    private async Task ReloadExercisesAsync()
+    {
+        var list = await TrainingExerciseService.GetExercisesAsync(CancellationToken.None);
+        _exercises = list.ToList();
+
+        if (!string.IsNullOrWhiteSpace(_selectedExerciseId))
+        {
+            _selectedExercise = _exercises.FirstOrDefault(x => x.Id == _selectedExerciseId);
+        }
+    }
+
+    private async Task CreateExerciseAsync()
+    {
+        _busy = true;
+        try
+        {
+            var exerciseName = string.IsNullOrWhiteSpace(_newExerciseName)
+                ? $"{SelectedScenario.Title} ({DateTime.Now:dd.MM HH:mm})"
+                : _newExerciseName.Trim();
+
+            var created = await TrainingExerciseService.CreateExerciseAsync(
+                new CreateTrainingExerciseRequest(
+                    ExternalReference: SelectedScenario.Id,
+                    Name: exerciseName,
+                    Scenario: $"{SelectedScenario.Category}: {SelectedScenario.Briefing}",
+                    Location: "Simulation",
+                    PlannedStartUtc: DateTime.UtcNow,
+                    IsTraining: true,
+                    Initiator: "TrainerPortal",
+                    PlannedDurationMinutes: _newExerciseDurationMinutes > 0 ? _newExerciseDurationMinutes : null),
+                CancellationToken.None);
+
+            _selectedExerciseId = created.ExerciseId;
+            _newExerciseName = string.Empty;
+
+            await TrainingExerciseService.AddTrainerEntryAsync(
+                created.ExerciseId,
+                new AddTrainingTrainerEntryRequest(
+                    EntryType: "lage",
+                    Text: $"Startlage: {SelectedScenario.Briefing}",
+                    ParticipantId: string.Empty,
+                    ParticipantName: "Lageleitung",
+                    OccurredAtUtc: DateTime.UtcNow,
+                    IsTraining: true,
+                    SourceSystem: "TrainerPortal",
+                    SourceUser: "Trainer"),
+                CancellationToken.None);
+
+            await TrainingExerciseService.SetStartPresetAsync(
+                new TrainingStartPreset
+                {
+                    ExerciseId = created.ExerciseId,
+                    ExerciseName = created.Name,
+                    ScenarioCategory = SelectedScenario.Category,
+                    SuggestedLocation = SelectedScenario.Title,
+                    BriefingText = BuildStartBriefing(SelectedScenario),
+                    PreparedAtUtc = DateTime.UtcNow
+                },
+                CancellationToken.None);
+
+            await ReloadExercisesAsync();
+            _selectedExercise = _exercises.FirstOrDefault(x => x.Id == _selectedExerciseId);
+            SetStatus("Uebung wurde gestartet und die Maske 'Neuer Einsatz' automatisch vorbereitet.", false);
+            _activeTab = "aktuell";
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Uebung konnte nicht gestartet werden: {ex.Message}", true);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task AddParticipantDecisionAsync()
+    {
+        if (_selectedExercise is null)
+        {
+            SetStatus("Bitte zuerst eine Uebung auswaehlen.", true);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_decisionText))
+        {
+            SetStatus("Bitte eine Entscheidung eingeben.", true);
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await TrainingExerciseService.MirrorDecisionAsync(
+                _selectedExercise.Id,
+                new MirrorTrainingDecisionRequest(
+                    Category: string.IsNullOrWhiteSpace(_decisionCategory) ? "Teilnehmer-Entscheidung" : _decisionCategory,
+                    Decision: _decisionText,
+                    Rationale: _decisionRationale,
+                    OccurredAtUtc: DateTime.UtcNow,
+                    IsTraining: true,
+                    SourceSystem: "TrainerPortal",
+                    SourceUser: string.IsNullOrWhiteSpace(_decisionParticipantName) ? "Teilnehmer" : _decisionParticipantName),
+                CancellationToken.None);
+
+            _decisionText = string.Empty;
+            _decisionRationale = string.Empty;
+            await ReloadExercisesAsync();
+            _selectedExercise = _exercises.FirstOrDefault(x => x.Id == _selectedExerciseId);
+            SetStatus("Teilnehmer-Entscheidung wurde gespeichert.", false);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Entscheidung konnte nicht gespeichert werden: {ex.Message}", true);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task AddTrainerEntryAsync()
+    {
+        if (_selectedExercise is null)
+        {
+            SetStatus("Bitte zuerst eine Uebung auswaehlen.", true);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_entryText))
+        {
+            SetStatus("Bitte zuerst einen Eintragstext erfassen.", true);
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await TrainingExerciseService.AddTrainerEntryAsync(
+                _selectedExercise.Id,
+                new AddTrainingTrainerEntryRequest(
+                    EntryType: _entryType,
+                    Text: _entryText,
+                    ParticipantId: _entryParticipantId,
+                    ParticipantName: _entryParticipantName,
+                    OccurredAtUtc: DateTime.UtcNow,
+                    IsTraining: true,
+                    SourceSystem: "TrainerPortal",
+                    SourceUser: "Trainer"),
+                CancellationToken.None);
+
+            // Immer ins live Funk/Notizen-System pushen — unabhaengig ob ein Team gewaehlt ist.
+            // Lagemeldungen und Funksprueche erscheinen als "Funk", Rueckmeldungen als "Notiz".
+            var (noteSourceId, noteSourceName) = ResolveTrainerNoteSource();
+            var noteSourceType = _entryType is "funk" or "lage" ? "Funk" : "Notiz";
+            var noteText = _entryType switch
+            {
+                "lage"     => $"[Lage] {_entryText}",
+                "feedback" => $"[Trainer] {_entryText}",
+                _          => _entryText
+            };
+            var noteEntryType = _entryType is "funk" or "lage"
+                ? GlobalNotesEntryType.EinsatzUpdate
+                : GlobalNotesEntryType.Manual;
+
+            await EinsatzService.AddGlobalNoteWithSourceAsync(
+                noteText,
+                noteSourceId,
+                noteSourceName,
+                noteSourceType,
+                noteEntryType,
+                "Trainer");
+
+            _entryText = string.Empty;
+            await ReloadExercisesAsync();
+            _selectedExercise = _exercises.FirstOrDefault(x => x.Id == _selectedExerciseId);
+            SetStatus("Trainer-Update wurde gespeichert.", false);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Update konnte nicht gespeichert werden: {ex.Message}", true);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>
+    /// Gibt die Note-Quelle zurueck: aktives Team falls gewaehlt, sonst Trainer.
+    /// </summary>
+    private (string Id, string Name) ResolveTrainerNoteSource()
+    {
+        if (!string.IsNullOrWhiteSpace(_entryParticipantName))
+        {
+            var liveTeam = EinsatzService.Teams.FirstOrDefault(t =>
+                string.Equals(t.TeamName, _entryParticipantName, StringComparison.OrdinalIgnoreCase));
+            if (liveTeam is not null)
+                return (liveTeam.TeamId, $"Trainer \u2192 {liveTeam.TeamName}");
+        }
+        return ("trainer", "Trainer");
+    }
+
+    private void RefreshSuggestions()
+    {
+        _suggestions = TrainingScenarioSuggestionService.BuildSuggestions(
+            isExerciseMode: _selectedExercise is not null,
+            location: SelectedScenario.Title,
+            teams: Array.Empty<Team>(),
+            hint: _suggestionHint);
+    }
+
+    // ── Timer-Hilfsmethoden ──────────────────────────────────────────────────
+
+    private string GetElapsedDisplay()
+    {
+        if (_selectedExercise is null) return "--:--:--";
+        var elapsed = DateTime.UtcNow - _selectedExercise.CreatedAtUtc;
+        return elapsed.ToString(@"hh\:mm\:ss");
+    }
+
+    private TimeSpan? GetRemainingTime()
+    {
+        if (_selectedExercise?.PlannedDurationMinutes is null) return null;
+        var end = _selectedExercise.CreatedAtUtc + TimeSpan.FromMinutes(_selectedExercise.PlannedDurationMinutes.Value);
+        return end - DateTime.UtcNow;
+    }
+
+    private static string GetEscalationBadgeClass(int level) => level switch
+    {
+        1 => "text-bg-warning",
+        2 => "text-bg-danger",
+        3 => "text-bg-dark",
+        _ => "text-bg-secondary"
+    };
+
+    // ── Zeitgesteuerte Events ─────────────────────────────────────────────────
+
+    private async Task AddScheduledEventAsync()
+    {
+        if (_selectedExercise is null || string.IsNullOrWhiteSpace(_schedText)) return;
+        _busy = true;
+        try
+        {
+            await TrainingExerciseService.AddScheduledEventAsync(
+                _selectedExercise.Id,
+                new AddScheduledEventRequest(_schedDelay, _schedText.Trim(), _schedType, string.Empty),
+                CancellationToken.None);
+            _schedText = string.Empty;
+            await ReloadExercisesAsync();
+            _selectedExercise = _exercises.FirstOrDefault(x => x.Id == _selectedExerciseId);
+            SetStatus("Zeitgesteuertes Event wurde geplant.", false);
+        }
+        catch (Exception ex) { SetStatus($"Fehler: {ex.Message}", true); }
+        finally { _busy = false; }
+    }
+
+    private async Task RemoveScheduledEventAsync(string eventId)
+    {
+        if (_selectedExercise is null) return;
+        _busy = true;
+        try
+        {
+            await TrainingExerciseService.RemoveScheduledEventAsync(_selectedExercise.Id, eventId, CancellationToken.None);
+            await ReloadExercisesAsync();
+            _selectedExercise = _exercises.FirstOrDefault(x => x.Id == _selectedExerciseId);
+        }
+        catch (Exception ex) { SetStatus($"Fehler: {ex.Message}", true); }
+        finally { _busy = false; }
+    }
+
+    private async Task CheckAndFireScheduledEventsAsync()
+    {
+        if (_selectedExercise is null || _selectedExercise.Status != "open") return;
+        var pending = _selectedExercise.ScheduledEvents
+            .Where(e => !e.IsFired && DateTime.UtcNow >= _selectedExercise.CreatedAtUtc + TimeSpan.FromMinutes(e.DelayMinutes))
+            .ToList();
+
+        foreach (var ev in pending)
+        {
+            try
+            {
+                await TrainingExerciseService.AddTrainerEntryAsync(
+                    _selectedExercise.Id,
+                    new AddTrainingTrainerEntryRequest(ev.EventType, ev.Text, string.Empty, ev.TeamName,
+                        DateTime.UtcNow, true, "AutoScheduler", "Trainer"),
+                    CancellationToken.None);
+
+                await EinsatzService.AddGlobalNoteWithSourceAsync(
+                    $"[Trainer-{ev.EventType}] {ev.Text}",
+                    "trainer", "Trainer", "Funk",
+                    GlobalNotesEntryType.Manual, "Trainer");
+
+                await TrainingExerciseService.MarkScheduledEventFiredAsync(_selectedExercise.Id, ev.Id, CancellationToken.None);
+            }
+            catch { /* Einzelnes Event-Fehler nicht den gesamten Polling-Lauf stoppen */ }
+        }
+    }
+
+    // ── Eskalationsstufen ─────────────────────────────────────────────────────
+
+    private static readonly IReadOnlyDictionary<int, IReadOnlyList<string>> EscalationMessages = new Dictionary<int, IReadOnlyList<string>>
+    {
+        [1] = [
+            "LAGEMELDUNG: Suche wird auf angrenzende Sektoren ausgeweitet — zusaetzliche Kraefte werden angefordert.",
+            "Fuehrungsassistent: Kraeftenachweis sofort aktualisieren und Einsatzleiter vorlegen.",
+            "Einsatzleiter: Ressourcenplanung anpassen, Abloesung einplanen."
+        ],
+        [2] = [
+            "ACHTUNG ALLE TEAMS: Lage hat sich verschaerft — medizinische Situation moeglich.",
+            "Einsatzleiter: Rettungsdienst alarmieren, Hubschrauberlandeplatz einrichten und absichern.",
+            "Alle Teams: Melderhythmus auf 10 Minuten, Kanaele auf Rufbereitschaft halten.",
+            "Fuehrungsassistent: Einsatzdokumentation sichern, Leitstelle ueber Lageaenderung informieren."
+        ],
+        [3] = [
+            "VOLLALARM: Grosseinsatz ausgerufen — alle verfuegbaren Kraefte sofort zum ELW.",
+            "Einsatzleiter: Ueberortliche Fuehrungsunterstuetzung angefordert, Nachbareinheiten alarmiert.",
+            "Fuehrungsassistent: Alarmprotokoll aktivieren, lueckenlose Dokumentation sicherstellen.",
+            "Koordination: Abschnittsfuehrung einrichten, Kraefte in Sektoren aufteilen und melden."
+        ]
+    };
+
+    private async Task SetEscalationLevelAsync(int level)
+    {
+        if (_selectedExercise is null) return;
+        _busy = true;
+        try
+        {
+            var oldLevel = _selectedExercise.EscalationLevel;
+            await TrainingExerciseService.SetEscalationLevelAsync(
+                _selectedExercise.Id,
+                new SetEscalationLevelRequest(level, "Trainer"),
+                CancellationToken.None);
+
+            if (level > 0 && level != oldLevel && EscalationMessages.TryGetValue(level, out var messages))
+            {
+                foreach (var msg in messages)
+                {
+                    await EinsatzService.AddGlobalNoteWithSourceAsync(
+                        $"[Eskalation Stufe {level}] {msg}",
+                        "trainer", "Trainer", "Funk",
+                        GlobalNotesEntryType.Manual, "Trainer");
+
+                    await TrainingExerciseService.AddTrainerEntryAsync(
+                        _selectedExercise.Id,
+                        new AddTrainingTrainerEntryRequest("eskalation", msg, string.Empty, string.Empty,
+                            DateTime.UtcNow, true, "TrainerPortal", "Trainer"),
+                        CancellationToken.None);
+                }
+            }
+
+            await ReloadExercisesAsync();
+            _selectedExercise = _exercises.FirstOrDefault(x => x.Id == _selectedExerciseId);
+            SetStatus(level == 0 ? "Eskalation zurueckgesetzt." : $"Eskalationsstufe {level} aktiviert — {(EscalationMessages.TryGetValue(level, out var m) ? m.Count : 0)} Funksprueche eingespeist.", false);
+        }
+        catch (Exception ex) { SetStatus($"Fehler: {ex.Message}", true); }
+        finally { _busy = false; }
+    }
+
+    // ── Stressoren ────────────────────────────────────────────────────────────
+
+    private async Task FireStressorAsync(string text)
+    {
+        if (_selectedExercise is null) return;
+        _busy = true;
+        try
+        {
+            await EinsatzService.AddGlobalNoteWithSourceAsync(
+                $"[Stressor] {text}",
+                "trainer", "Trainer", "Funk",
+                GlobalNotesEntryType.Manual, "Trainer");
+
+            await TrainingExerciseService.AddTrainerEntryAsync(
+                _selectedExercise.Id,
+                new AddTrainingTrainerEntryRequest("stressor", text, string.Empty, string.Empty,
+                    DateTime.UtcNow, true, "TrainerPortal", "Trainer"),
+                CancellationToken.None);
+
+            SetStatus($"Stressor eingespeist: {text[..Math.Min(40, text.Length)]}...", false);
+        }
+        catch (Exception ex) { SetStatus($"Fehler: {ex.Message}", true); }
+        finally { _busy = false; }
+    }
+
+    private void ShowEndExerciseConfirm()    {
+        _endSummary = string.Empty;
+        _showEndExerciseConfirm = true;
+    }
+
+    private void CancelEndExercise()
+    {
+        _showEndExerciseConfirm = false;
+    }
+
+    private async Task ConfirmEndExerciseAsync()
+    {
+        if (_selectedExercise is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var exerciseName = _selectedExercise.Name;
+            var summary = string.IsNullOrWhiteSpace(_endSummary) ? "Uebung planmaessig beendet." : _endSummary.Trim();
+
+            await TrainingExerciseService.CompleteExerciseAsync(
+                _selectedExercise.Id,
+                new CompleteTrainingExerciseRequest(
+                    Summary: summary,
+                    CompletedAtUtc: DateTime.UtcNow,
+                    IsTraining: true,
+                    SourceSystem: "TrainerPortal",
+                    SourceUser: "Trainer"),
+                CancellationToken.None);
+
+            // Laufenden Einsatz archivieren, falls einer aktiv ist
+            var currentEinsatz = EinsatzService.CurrentEinsatz;
+            if (!string.IsNullOrWhiteSpace(currentEinsatz.Einsatzort) && currentEinsatz.EinsatzEnde is null)
+            {
+                try
+                {
+                    await ArchivService.ArchiveEinsatzAsync(
+                        currentEinsatz,
+                        ergebnis: $"Uebungsende: {summary}",
+                        bemerkungen: $"Trainer-Uebung '{exerciseName}' beendet.",
+                        personalVorOrt: null,
+                        hundeVorOrt: null);
+                }
+                catch
+                {
+                    // Archivierung optional – Hauptfluss nicht unterbrechen
+                }
+            }
+
+            // Benachrichtigung an alle Browser-Fenster
+            TrainerNotifications.FireExerciseEnded(exerciseName, summary);
+
+            _showEndExerciseConfirm = false;
+            await ReloadExercisesAsync();
+            _selectedExercise = _exercises.FirstOrDefault(x => x.Id == _selectedExerciseId);
+            SetStatus($"Uebung '{exerciseName}' wurde beendet.", false);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Uebung konnte nicht beendet werden: {ex.Message}", true);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>
+    /// Klickbare Rueckmeldungsvorschlaege auf Basis der laufenden Teams und der gewaehlten Lagevorlage.
+    /// </summary>
+    private List<FeedbackSuggestion> GetFeedbackSuggestions()
+    {
+        var result = new List<FeedbackSuggestion>();
+
+        // Generische Vorschlaege passend zur Lage
+        var scenario = SelectedScenario;
+        result.Add(new FeedbackSuggestion("lage", "Lage", string.Empty,
+            $"Neue Information: Im Bereich {scenario.Title} wurde eine moegliche Spur entdeckt."));
+        result.Add(new FeedbackSuggestion("lage", "Lage", string.Empty,
+            "Wetterbedingungen haben sich geaendert: Sichtweite eingeschraenkt, Teamleiter informieren."));
+        result.Add(new FeedbackSuggestion("funk", "Funk", string.Empty,
+            "ELW an alle Teams: Suche wird auf Abschnitt B2 erweitert, bitte einruecken."));
+        result.Add(new FeedbackSuggestion("funk", "Funk", string.Empty,
+            "Kontrollpunkt Ost meldet: Keine Sichtung, Weitermarsch nach Nord."));
+
+        // Team-spezifische Vorschlaege fuer live angelegte Teams
+        foreach (var team in LiveTeams.Take(4))
+        {
+            result.Add(new FeedbackSuggestion("feedback", "Feedback", team.TeamName,
+                $"{team.TeamName}: Ihr Abschnitt wurde abgesucht. Bitte weiter nach Norden ausweichen."));
+            result.Add(new FeedbackSuggestion("feedback", "Feedback", team.TeamName,
+                $"{team.TeamName}: Guter Einsatz – Dokumentation nicht vergessen."));
+        }
+
+        // Team-spezifische Vorschlaege fuer Simulations-Teams
+        foreach (var simTeam in scenario.SimulatedTeams.Take(3))
+        {
+            result.Add(new FeedbackSuggestion("feedback", "Feedback", simTeam,
+                $"{simTeam}: Lageupdate – Suchgebiet auf Koordinaten Q3 eingrenzen."));
+        }
+
+        return result.Take(12).ToList();
+    }
+
+    private void ApplyFeedbackSuggestion(string text, string type, string teamName)
+    {
+        _entryText = text;
+        _entryType = type;
+        if (!string.IsNullOrWhiteSpace(teamName))
+        {
+            _entryParticipantName = teamName;
+        }
+    }
+
+    private List<TimelineLine> BuildTimeline(TrainingExerciseRecord exercise)
+    {
+        var lines = new List<TimelineLine>();
+
+        lines.AddRange(exercise.TrainerEntries.Select(entry =>
+            new TimelineLine(entry.TimestampUtc, entry.EntryType, entry.Text, entry.ParticipantName)));
+
+        lines.AddRange(exercise.Decisions.Select(decision =>
+            new TimelineLine(
+                decision.TimestampUtc,
+                $"entscheidung:{decision.Category}",
+                string.IsNullOrWhiteSpace(decision.Rationale)
+                    ? decision.Decision
+                    : $"{decision.Decision} | Begruendung: {decision.Rationale}",
+                decision.SourceUser)));
+
+        lines.AddRange(exercise.Reports.Select(report =>
+            new TimelineLine(report.TimestampUtc, "report", $"{report.Title}: {report.Content}", report.SourceUser)));
+
+        return lines
+            .OrderByDescending(x => x.TimestampUtc)
+            .Take(60)
+            .ToList();
+    }
+
+    private void SetStatus(string text, bool isError)
+    {
+        _statusMessage = text;
+        _statusError = isError;
+    }
+
+    private static string BuildStartBriefing(ScenarioTemplate scenario)
+    {
+        var lines = new List<string>
+        {
+            $"Trainer-Lage ({scenario.Category})",
+            scenario.Briefing,
+            string.Empty,
+            "Entscheidungspunkte fuer Teilnehmer:"
+        };
+
+        lines.AddRange(scenario.DecisionPrompts.Select(prompt => $"- {prompt}"));
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private void OnTeamAdded(Team team)
+    {
+        AddTeamJoinReaction(team);
+        RefreshLiveComms();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnTeamUpdated(Team team)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnTeamRemoved(Team team)
+    {
+        _teamJoinReactions.RemoveAll(r => string.Equals(r.TeamName, team.TeamName, StringComparison.OrdinalIgnoreCase));
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnNoteAdded(GlobalNotesEntry note)
+    {
+        RefreshLiveComms();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnEinsatzChanged()
+    {
+        RefreshLiveComms();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+        _uiTimer?.Dispose();
+        EinsatzService.TeamAdded -= OnTeamAdded;
+        EinsatzService.TeamUpdated -= OnTeamUpdated;
+        EinsatzService.TeamRemoved -= OnTeamRemoved;
+        EinsatzService.EinsatzChanged -= OnEinsatzChanged;
+        EinsatzService.NoteAdded -= OnNoteAdded;
+    }
+
+    private sealed record FeedbackSuggestion(string Type, string TypeLabel, string TeamName, string Text);
+    private sealed record StressorCategory(string Category, IReadOnlyList<string> Items);
+    private sealed record QuickTrainerReaction(string TeamName, string Text);
+
+    private static string GetTimelineKindBadge(string kind) => kind switch
+    {
+        "lage" => "text-bg-info",
+        "funk" => "text-bg-primary",
+        "feedback" => "text-bg-success",
+        "stressor" => "text-bg-danger",
+        "eskalation" => "text-bg-warning text-dark",
+        _ when kind.StartsWith("entscheidung") => "text-bg-secondary",
+        _ => "text-bg-secondary"
+    };
+
+    private sealed record ScenarioTemplate(
+        string Id,
+        string Title,
+        string Category,
+        string Briefing,
+        IReadOnlyList<string> DecisionPrompts,
+        IReadOnlyList<string> SimulatedTeams);
+
+    private sealed record TimelineLine(
+        DateTime TimestampUtc,
+        string Kind,
+        string Text,
+        string Source)
+    {
+        public string TimeLabel => TimestampUtc.ToLocalTime().ToString("HH:mm");
+    }
+
+    private sealed class TrainerAuthStatusDto
+    {
+        public bool Authenticated { get; set; }
+    }
+}

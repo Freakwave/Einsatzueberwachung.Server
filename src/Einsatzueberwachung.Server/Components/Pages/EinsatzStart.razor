@@ -3,11 +3,13 @@
 
 @using Einsatzueberwachung.Domain.Models.Enums
 @using Einsatzueberwachung.Domain.Models.Divera
+@using Einsatzueberwachung.Server.Training
 
 @inject IEinsatzService EinsatzService
 @inject IMasterDataService MasterDataService
 @inject ISettingsService SettingsService
 @inject IDiveraService DiveraService
+@inject ITrainingExerciseService TrainingExerciseService
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 
@@ -39,6 +41,28 @@
     }
     else
     {
+    @if (_trainerStartPreset is not null)
+    {
+        <div class="alert alert-primary d-flex align-items-start gap-3 mb-4" role="alert" style="border-left: 4px solid var(--bs-primary);">
+            <i class="bi bi-mortarboard-fill fs-4 mt-1"></i>
+            <div class="flex-grow-1">
+                <h5 class="alert-heading mb-1">Trainer-Lage vorbefuellt</h5>
+                <p class="mb-2 small">
+                    <strong>@_trainerStartPreset.ExerciseName</strong> · @_trainerStartPreset.ScenarioCategory<br />
+                    @_trainerStartPreset.BriefingText
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-outline-primary" type="button" @onclick="ApplyTrainerPreset">
+                        <i class="bi bi-arrow-repeat me-1"></i>Vorfuellung erneut anwenden
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" @onclick="ClearTrainerPresetAsync">
+                        <i class="bi bi-x-circle me-1"></i>Vorfuellung entfernen
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
     @* Divera-Alarm-Hinweis — wird oberhalb des Formulars angezeigt wenn Alarm(e) vorliegen *@
     @if (DiveraService.IsConfigured && _diveraAlarms.Any())
     {
@@ -304,6 +328,7 @@
     private bool _error;
     private bool _busy;
     private bool _einsatzBereitsAktiv;
+    private TrainingStartPreset? _trainerStartPreset;
 
     // Divera 24/7 Import-Felder
     private List<DiveraAlarm> _diveraAlarms = new();
@@ -358,6 +383,12 @@
         _model.StaffelTelefon = staffelSettings.StaffelTelefon;
         _model.StaffelEmail = staffelSettings.StaffelEmail;
         _model.StaffelLogoPfad = staffelSettings.StaffelLogoPfad;
+
+        _trainerStartPreset = await TrainingExerciseService.GetStartPresetAsync(CancellationToken.None);
+        if (_trainerStartPreset is not null)
+        {
+            ApplyTrainerPreset();
+        }
 
         var alarmBase = _model.AlarmierungsZeit ?? DateTime.Now;
         _alarmStartTime = alarmBase.ToString("HH:mm");
@@ -437,6 +468,10 @@
         {
             _model.EinsatzDatum = _clientNow ?? DateTime.Now;
             await EinsatzService.StartEinsatzAsync(_model);
+            if (_trainerStartPreset is not null)
+            {
+                await TrainingExerciseService.ClearStartPresetAsync(CancellationToken.None);
+            }
             _status = "Einsatz wurde gestartet.";
             _error = false;
             await Task.Delay(800);
@@ -547,6 +582,31 @@
         }
 
         StateHasChanged();
+    }
+
+    private void ApplyTrainerPreset()
+    {
+        if (_trainerStartPreset is null)
+        {
+            return;
+        }
+
+        _model.IstEinsatz = false;
+        _model.Einsatzort = _trainerStartPreset.SuggestedLocation;
+        _model.Stichwort = _trainerStartPreset.ScenarioCategory;
+        _model.Alarmiert = "Trainer-Modul";
+        _model.ExportPfad = _trainerStartPreset.BriefingText;
+
+        if (string.IsNullOrWhiteSpace(_model.EinsatzNummer))
+        {
+            _model.EinsatzNummer = $"U-{DateTime.Now:yyyyMMddHHmm}";
+        }
+    }
+
+    private async Task ClearTrainerPresetAsync()
+    {
+        await TrainingExerciseService.ClearStartPresetAsync(CancellationToken.None);
+        _trainerStartPreset = null;
     }
 }
 

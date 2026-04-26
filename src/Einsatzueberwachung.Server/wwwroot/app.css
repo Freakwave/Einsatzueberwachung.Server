@@ -210,39 +210,35 @@ main {
     color: white !important;
 }
 
-/* Mobile: Sidebar oben */
+/* Mobile: icon-only sidebar strip + overlay expansion */
 @media (max-width: 640px) {
-    .sidebar {
-        width: 100%;
-        height: auto;
-        position: relative !important;
-    }
-    
+    /* Width/position are controlled by MainLayout.razor.css (scoped, higher specificity).
+       Here we only need to ensure the sidebar content behaves like collapsed (icon-only). */
+
     main {
+        flex: 1;
+        min-width: 0;
         margin: 0;
-        width: 100%;
     }
-    
-    /* Disable collapsed state on mobile */
-    .page.sidebar-collapsed .sidebar {
-        width: 100%;
-    }
-    
-    .page.sidebar-collapsed .brand-text,
-    .page.sidebar-collapsed .nav-text {
-        opacity: 1;
-        width: auto;
-        display: inline;
-    }
-    
-    .page.sidebar-collapsed .nav-section-header {
-        opacity: 1;
-        height: auto;
-        padding: 0.75rem 1rem !important;
-    }
-    
+
+    /* Show the sidebar toggle button on mobile */
     .btn-sidebar-toggle {
-        display: none;
+        display: flex;
+    }
+}
+
+/* Mobile nav backdrop — covers content when nav is expanded as overlay */
+.mobile-nav-backdrop {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    .page:not(.sidebar-collapsed) .mobile-nav-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 149;
     }
 }
 
@@ -2353,7 +2349,7 @@ main:has(.map-page-layout) {
     overflow: hidden;
     background: #f8f9fa;
     flex-shrink: 0;
-    transition: width 0.25s ease;
+    transition: width 0.25s ease, height 0.25s ease;
 }
 
 /* Minimierte Sidebar */
@@ -2647,18 +2643,35 @@ main:has(.map-page-layout) {
     .map-header h1 {
         font-size: 1.1rem;
     }
-}7
+}
 
 @media (max-width: 576px) {
     .map-content {
         flex-direction: column;
     }
-    
+
     .map-sidebar {
         width: 100%;
-        height: 150px;
+        height: 180px;
         border-right: none;
         border-bottom: 1px solid #dee2e6;
+        overflow: hidden;
+    }
+
+    /* At mobile, "minimized" means a slim header strip instead of narrow width */
+    .map-sidebar.minimized {
+        width: 100% !important;
+        height: 48px;
+    }
+
+    .map-sidebar.minimized .sidebar-header {
+        flex-direction: row;
+        padding: 0.4rem 0.75rem;
+        align-items: center;
+    }
+
+    .map-sidebar.minimized .sidebar-header-right {
+        flex-direction: row;
     }
 }
 
@@ -3128,33 +3141,54 @@ textarea:focus {
 }
 
 @media (max-width: 768px) {
+    /* Two-row layout:
+       Row 1: [close] [clock (centered)] [actions]
+       Row 2: [status strip spanning all columns] */
     .mission-topbar {
-        grid-template-columns: auto 1fr;
-        gap: 0.45rem;
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: auto auto;
+        gap: 0.35rem 0.5rem;
+        padding: 0.3rem 0.9rem;
     }
 
-    .mission-topbar-actions {
-        grid-column: 2;
-        justify-self: end;
+    .mission-topbar-close {
+        grid-column: 1;
+        grid-row: 1;
     }
 
     .mission-topbar-clock {
         grid-column: 2;
-        justify-self: start;
+        grid-row: 1;
+        justify-self: center;
+        gap: 0.6rem;
+        font-size: 0.88rem;
+    }
+
+    .mission-topbar-actions {
+        grid-column: 3;
+        grid-row: 1;
+        justify-self: end;
     }
 
     .mission-status-strip {
         grid-column: 1 / -1;
-        padding-bottom: 0.4rem;
+        grid-row: 2;
+        padding: 0 0 0.3rem;
     }
 
     .mission-status-location {
         max-width: 220px;
     }
+}
 
-    .mission-topbar-clock {
-        gap: 0.6rem;
-        font-size: 0.88rem;
+@media (max-width: 480px) {
+    /* Hide clock date on very small screens to save space */
+    #live-date {
+        display: none;
+    }
+
+    .mission-status-location {
+        max-width: 140px;
     }
 }
 

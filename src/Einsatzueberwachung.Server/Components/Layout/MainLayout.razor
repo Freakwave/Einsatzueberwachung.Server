@@ -10,6 +10,7 @@
     <div class="sidebar">
         <NavMenu IsCollapsed="_sidebarCollapsed" OnToggleSidebar="ToggleSidebarAsync" />
     </div>
+    <div class="mobile-nav-backdrop" @onclick="ToggleSidebarAsync" aria-hidden="true"></div>
 
     <main>
         <div class="mission-topbar">
@@ -134,7 +135,7 @@
 
         await BrowserPrefs.LoadAsync();
         _isDarkMode = BrowserPrefs.Preferences.IsDarkMode;
-        _sidebarCollapsed = await JS.InvokeAsync<bool>("layoutTools.getSidebarCollapsed");
+        _sidebarCollapsed = await JS.InvokeAsync<bool>("layoutTools.getInitialSidebarState");
         _dotNetRef = DotNetObjectReference.Create(this);
 
         await JS.InvokeVoidAsync("themeSync.init", _dotNetRef, _isDarkMode);

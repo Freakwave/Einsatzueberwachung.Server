@@ -23,6 +23,15 @@ window.layoutTools.getSidebarCollapsed = function () {
     return value === "1" || value === "true";
 };
 
+window.layoutTools.getInitialSidebarState = function () {
+    const saved = localStorage.getItem("einsatz.sidebarCollapsed");
+    if (saved !== null) {
+        return saved === "1" || saved === "true";
+    }
+    // Default: collapsed (icon-only strip) on mobile, expanded on desktop
+    return window.innerWidth <= 640;
+};
+
 window.layoutTools.setSidebarCollapsed = function (collapsed) {
     localStorage.setItem("einsatz.sidebarCollapsed", collapsed ? "1" : "0");
 };

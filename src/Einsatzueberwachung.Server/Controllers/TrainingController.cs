@@ -251,6 +251,18 @@ public sealed class TrainingController : ControllerBase
     /// <summary>
     /// Legt einen neuen Trainingslauf an. Nur aktiv, wenn Schreiboperationen freigegeben sind.
     /// </summary>
+    [HttpGet("exercises")]
+    public async Task<IActionResult> GetExercises(CancellationToken cancellationToken)
+    {
+        if (!IsEnabled())
+        {
+            return NotFound();
+        }
+
+        var list = await _exerciseService.GetExercisesAsync(cancellationToken);
+        return Ok(new { snapshotUtc = DateTime.UtcNow, exercises = list, count = list.Count });
+    }
+
     [HttpPost("exercises")]
     public async Task<IActionResult> CreateExercise([FromBody] CreateTrainingExerciseRequest request, CancellationToken cancellationToken)
     {
@@ -324,6 +336,18 @@ public sealed class TrainingController : ControllerBase
             exerciseId,
             request.IsTraining,
             () => _exerciseService.SubmitReportAsync(exerciseId, request, cancellationToken));
+    }
+
+    /// <summary>
+    /// Fuegt einen trainerseitigen Eintrag (Feedback, Notiz, Funkspruch) zu einer Uebung hinzu.
+    /// </summary>
+    [HttpPost("exercises/{exerciseId}/trainer-entry")]
+    public async Task<IActionResult> AddTrainerEntry(string exerciseId, [FromBody] AddTrainingTrainerEntryRequest request, CancellationToken cancellationToken)
+    {
+        return await ExecuteWriteOperationAsync(
+            exerciseId,
+            request.IsTraining,
+            () => _exerciseService.AddTrainerEntryAsync(exerciseId, request, cancellationToken));
     }
 
     private bool IsEnabled() => _options.CurrentValue.Enabled;

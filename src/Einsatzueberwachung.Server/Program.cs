@@ -12,6 +12,8 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Einsatzueberwachung.Server.Data;
 using Einsatzueberwachung.Server.Services.Radio;
+using Einsatzueberwachung.Server.Security;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.StaticFiles;
 using Einsatzueberwachung.Server.Training;
 using Microsoft.OpenApi.Models;
@@ -59,6 +61,36 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.Configure<TrainingApiOptions>(
     builder.Configuration.GetSection(TrainingApiOptions.SectionName));
 builder.Services.AddSingleton<ITrainingExerciseService, TrainingExerciseService>();
+builder.Services.AddSingleton<ITrainingScenarioSuggestionService, TrainingScenarioSuggestionService>();
+builder.Services.AddSingleton<TrainerNotificationService>();
+builder.Services.Configure<TrainerAuthOptions>(
+    builder.Configuration.GetSection(TrainerAuthOptions.SectionName));
+
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "einsatz.trainer.auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.LoginPath = "/einstellungen";
+        options.AccessDeniedPath = "/einstellungen";
+        options.ExpireTimeSpan = TimeSpan.FromHours(12);
+        options.SlidingExpiration = true;
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    // Trainerbereich ist explizit rollenbasiert von der Einsatzoberflaeche getrennt.
+    options.AddPolicy("TrainerOnly", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Trainer");
+    });
+});
+
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddHttpContextAccessor();
 
 // Response Compression für bessere Performance
 builder.Services.AddResponseCompression(options =>
@@ -213,6 +245,9 @@ app.UseResponseCaching();
 
 // CORS
 app.UseCors("VpnPolicy");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseAntiforgery();
 

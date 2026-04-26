@@ -3,6 +3,7 @@
 @using Einsatzueberwachung.Domain.Models
 @inject Einsatzueberwachung.Server.Services.BrowserPreferencesService BrowserPrefs
 @inject Einsatzueberwachung.Domain.Interfaces.IEinsatzService EinsatzService
+@inject Einsatzueberwachung.Server.Training.TrainerNotificationService TrainerNotifications
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 
@@ -90,6 +91,27 @@
     </div>
 }
 
+@if (_showExerciseEndedPopup)
+{
+    <div class="global-warning-overlay" @onclick="DismissExerciseEndedPopup">
+        <div class="global-warning-popup" @onclick:stopPropagation="true">
+            <div class="global-warning-header" style="background: var(--bs-success, #198754);">
+                <h4 class="mb-0"><i class="bi bi-flag-fill me-2"></i>Uebung beendet</h4>
+            </div>
+            <div class="global-warning-body">
+                <p class="mb-2"><strong>@_exerciseEndedName</strong></p>
+                @if (!string.IsNullOrWhiteSpace(_exerciseEndedSummary))
+                {
+                    <p class="mb-0">@_exerciseEndedSummary</p>
+                }
+            </div>
+            <div class="global-warning-footer">
+                <button class="btn btn-success" @onclick="DismissExerciseEndedPopup">OK</button>
+            </div>
+        </div>
+    </div>
+}
+
 <div id="blazor-error-ui" data-nosnippet>
     Es ist ein Fehler aufgetreten.
     <a href="." class="reload">Neu laden</a>
@@ -104,6 +126,10 @@
     private string _criticalWarningTitle = string.Empty;
     private string _criticalWarningMessage = string.Empty;
     private bool _audioEnableHintVisible;
+
+    private bool _showExerciseEndedPopup;
+    private string _exerciseEndedName = string.Empty;
+    private string _exerciseEndedSummary = string.Empty;
 
     private bool HasActiveEinsatz =>
         !string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzort)
@@ -123,6 +149,23 @@
         EinsatzService.TeamUpdated += OnTeamStateChanged;
         EinsatzService.TeamRemoved += OnTeamStateChanged;
         EinsatzService.TeamWarningTriggered += OnTeamWarningTriggered;
+        TrainerNotifications.ExerciseEnded += OnExerciseEnded;
+    }
+
+    private void OnExerciseEnded(string exerciseName, string summary)
+    {
+        _ = InvokeAsync(() =>
+        {
+            _exerciseEndedName = exerciseName;
+            _exerciseEndedSummary = summary;
+            _showExerciseEndedPopup = true;
+            StateHasChanged();
+        });
+    }
+
+    private void DismissExerciseEndedPopup()
+    {
+        _showExerciseEndedPopup = false;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -286,6 +329,7 @@
         EinsatzService.TeamUpdated -= OnTeamStateChanged;
         EinsatzService.TeamRemoved -= OnTeamStateChanged;
         EinsatzService.TeamWarningTriggered -= OnTeamWarningTriggered;
+        TrainerNotifications.ExerciseEnded -= OnExerciseEnded;
 
         try
         {

@@ -11,6 +11,7 @@ namespace Einsatzueberwachung.Domain.Models
     /// </summary>
     public class TeamTrackSnapshot
     {
+        public string Id { get; set; } = Guid.NewGuid().ToString("N");
         public string CollarId { get; set; } = string.Empty;
         public string CollarName { get; set; } = string.Empty;
         public string TeamId { get; set; } = string.Empty;

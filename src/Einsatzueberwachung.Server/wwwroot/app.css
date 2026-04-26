@@ -2333,6 +2333,26 @@ main:has(.map-page-layout) {
     font-size: 0.9rem;
     color: #0c5460;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.search-message-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    line-height: 1;
+    color: #0c5460;
+    cursor: pointer;
+    padding: 0 0.25rem;
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+
+.search-message-close:hover {
+    opacity: 1;
 }
 
 /* Main Content: Sidebar + Map */
@@ -2346,56 +2366,19 @@ main:has(.map-page-layout) {
 
 /* Sidebar */
 .map-sidebar {
-    width: 300px;
+    width: 320px;
     border-right: 1px solid #dee2e6;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     overflow: hidden;
     background: #f8f9fa;
     flex-shrink: 0;
     transition: width 0.25s ease;
 }
 
-/* Minimierte Sidebar */
+/* Minimierte Sidebar – nur der vtab-strip (44px) bleibt sichtbar */
 .map-sidebar.minimized {
-    width: 60px;
-}
-
-.map-sidebar.minimized .sidebar-header {
-    padding: 0.6rem 0.5rem;
-    flex-direction: column;
-}
-
-.map-sidebar.minimized .sidebar-header-right {
-    flex-direction: column;
-}
-
-.sidebar-mini-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0.4rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-}
-
-.sidebar-mini-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.5rem 0.3rem;
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: border-color 0.15s ease, background 0.15s ease;
-    overflow: hidden;
-}
-
-.sidebar-mini-item:hover {
-    border-color: #007bff;
-    background: #f0f7ff;
+    width: 44px;
 }
 
 .sidebar-mini-item .color-box {
@@ -2747,6 +2730,10 @@ main:has(.map-page-layout) {
 [data-bs-theme="dark"] .search-message {
     background: #1a2535;
     border-bottom-color: #2c3d52;
+    color: #7db5d8;
+}
+
+[data-bs-theme="dark"] .search-message-close {
     color: #7db5d8;
 }
 

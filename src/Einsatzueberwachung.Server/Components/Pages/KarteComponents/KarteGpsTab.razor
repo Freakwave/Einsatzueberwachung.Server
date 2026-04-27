@@ -1,0 +1,153 @@
+@* GPS-Tracking-Tab-Panel der Karten-Sidebar *@
+
+<div class="sidebar-content-header">
+    <span class="small fw-semibold text-muted"><i class="bi bi-broadcast me-1"></i>GPS Tracking</span>
+    @if (OobWarnings.Any())
+    {
+        <span class="badge bg-danger pulse-badge">!</span>
+    }
+</div>
+
+<div class="sidebar-list gps-tab-content">
+
+    @* OOB-Warnungen *@
+    @foreach (var warning in OobWarnings.Values)
+    {
+        <div class="alert alert-danger py-1 px-2 mb-1 small">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>@warning
+        </div>
+    }
+
+    @* Live Halsbänder *@
+    @if (Collars.Any())
+    {
+        <div class="sidebar-section-header">
+            <span><i class="bi bi-broadcast me-1"></i>Live</span>
+            <span class="badge bg-info">@Collars.Count</span>
+        </div>
+        @foreach (var collar in Collars)
+        {
+            <div class="collar-item"
+                 @onclick="() => OnZoomToCollar.InvokeAsync(collar)"
+                 title="Zum Live-Punkt springen">
+                <span class="collar-name">
+                    <i class="bi bi-geo-alt-fill" style="color: @GetCollarColorFn(collar.Id);"></i>
+                    @collar.CollarName [@collar.Id]
+                </span>
+                @if (collar.IsAssigned)
+                {
+                    var liveTeam = Teams.FirstOrDefault(t => t.TeamId == collar.AssignedTeamId);
+                    <span class="collar-team text-primary">@(liveTeam?.TeamName ?? "?")</span>
+                }
+                else
+                {
+                    <span class="collar-team text-muted">Nicht zugewiesen</span>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <div class="text-center text-muted small py-2">
+            <i class="bi bi-wifi-off me-1"></i>Warte auf GPS-Daten...
+        </div>
+    }
+
+    @* Abgeschlossene Suchen *@
+    @if (CompletedSnapshots.Any())
+    {
+        <div class="sidebar-section-header mt-2">
+            <span><i class="bi bi-archive me-1"></i>Abgeschlossene Suchen</span>
+            <span class="badge bg-secondary">@CompletedSnapshots.Count</span>
+        </div>
+        @foreach (var snap in CompletedSnapshots)
+        {
+            var isExpanded = ExpandedSnapshotId == snap.Id;
+            var isVisible = !CompletedTrackVisibility.TryGetValue(snap.Id, out var sv) || sv;
+            <div class="snapshot-item">
+                <div class="snapshot-summary @(isExpanded ? "snapshot-expanded-header" : "")"
+                     @onclick="() => OnToggleSnapshotExpand.InvokeAsync(snap.Id)">
+                    <span class="snapshot-color-bar" style="background:@snap.Color"></span>
+                    <div class="snapshot-meta">
+                        <div class="snapshot-team-name">@snap.TeamName</div>
+                        <div class="snapshot-sub">
+                            @(snap.CollarName ?? snap.CollarId)
+                            @if (!string.IsNullOrEmpty(snap.SearchAreaName))
+                            {
+                                <text> · @snap.SearchAreaName</text>
+                            }
+                        </div>
+                        <div class="snapshot-sub">@snap.FormattedDuration · @snap.FormattedDistance · @snap.Points.Count Pkt.</div>
+                    </div>
+                    <div class="snapshot-controls">
+                        <button class="btn btn-xs @(isVisible ? "btn-outline-secondary" : "btn-outline-secondary opacity-50")"
+                                title="@(isVisible ? "Auf Karte ausblenden" : "Auf Karte einblenden")"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => OnToggleTrackVisibility.InvokeAsync((snap.Id, !isVisible))">
+                            <i class="bi @(isVisible ? "bi-eye" : "bi-eye-slash")"></i>
+                        </button>
+                        <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down") text-muted small"></i>
+                    </div>
+                </div>
+                @if (isExpanded)
+                {
+                    <div class="snapshot-detail">
+                        <table class="table table-sm table-borderless snapshot-stats-table mb-2">
+                            <tbody>
+                                <tr><td class="text-muted">Team</td><td><strong>@snap.TeamName</strong></td></tr>
+                                <tr><td class="text-muted">Halsband</td><td>@(snap.CollarName ?? snap.CollarId)</td></tr>
+                                <tr><td class="text-muted">Suchgebiet</td><td>@(string.IsNullOrEmpty(snap.SearchAreaName) ? "–" : snap.SearchAreaName)</td></tr>
+                                <tr><td class="text-muted">Beginn</td><td>@(snap.Points.FirstOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
+                                <tr><td class="text-muted">Ende</td><td>@(snap.Points.LastOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
+                                <tr><td class="text-muted">Dauer</td><td>@snap.FormattedDuration</td></tr>
+                                <tr><td class="text-muted">Strecke</td><td>@snap.FormattedDistance</td></tr>
+                                <tr><td class="text-muted">Punkte</td><td>@snap.Points.Count</td></tr>
+                            </tbody>
+                        </table>
+                        @if (snap.Points.Count > 0)
+                        {
+                            <div class="snapshot-points-scroll">
+                                <table class="table table-xs snapshot-points-table">
+                                    <thead>
+                                        <tr><th>#</th><th>Zeit</th><th>Lat</th><th>Lng</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (var pi = 0; pi < snap.Points.Count; pi++)
+                                        {
+                                            var pt = snap.Points[pi];
+                                            <tr>
+                                                <td class="text-muted">@(pi + 1)</td>
+                                                <td>@pt.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
+                                                <td class="font-monospace">@pt.Latitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
+                                                <td class="font-monospace">@pt.Longitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+    else if (!Collars.Any())
+    {
+        <div class="text-center text-muted small py-3">
+            <i class="bi bi-broadcast me-1"></i>Noch kein Tracking gestartet.
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<Collar> Collars { get; set; } = new();
+    [Parameter, EditorRequired] public Dictionary<string, string> OobWarnings { get; set; } = new();
+    [Parameter, EditorRequired] public List<TeamTrackSnapshot> CompletedSnapshots { get; set; } = new();
+    [Parameter, EditorRequired] public List<Team> Teams { get; set; } = new();
+    [Parameter, EditorRequired] public Dictionary<string, bool> CompletedTrackVisibility { get; set; } = new();
+    [Parameter] public string? ExpandedSnapshotId { get; set; }
+    [Parameter, EditorRequired] public Func<string, string> GetCollarColorFn { get; set; } = _ => "#007bff";
+    [Parameter] public EventCallback<Collar> OnZoomToCollar { get; set; }
+    [Parameter] public EventCallback<string> OnToggleSnapshotExpand { get; set; }
+    [Parameter] public EventCallback<(string Id, bool Visible)> OnToggleTrackVisibility { get; set; }
+}

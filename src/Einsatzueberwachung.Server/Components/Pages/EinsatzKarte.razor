@@ -1,6 +1,7 @@
 ﻿@page "/einsatz/karte"
 @page "/einsatz-karte"
 @using Einsatzueberwachung.Domain.Interfaces
+@using Einsatzueberwachung.Server.Components.Pages.KarteComponents
 @using Einsatzueberwachung.Domain.Models
 @inject IEinsatzService EinsatzService
 @inject ICollarTrackingService CollarTrackingService
@@ -111,328 +112,39 @@
                 <div class="sidebar-tab-content">
                     @if (_activeSidebarTab == "areas")
                     {
-                        <div class="sidebar-content-header">
-                            <span class="small fw-semibold text-muted">Suchgebiete</span>
-                            <button class="btn btn-xs btn-primary"
-                                    @onclick="ActivateDrawPolygon"
-                                    title="Neues Suchgebiet zeichnen">
-                                <i class="bi bi-plus-lg"></i> Neu
-                            </button>
-                        </div>
-                        @if (_searchAreas.Any())
-                        {
-                            <div class="sidebar-list">
-                                @foreach (var area in _searchAreas)
-                            {
-                                <div class="search-area-item">
-                                    <div class="area-header">
-                                        <span class="color-box" style="background-color: @area.Color;"></span>
-                                        <span class="area-name">@area.Name</span>
-                                    </div>
-                                    <div class="area-info">
-                                        <small>@area.FormattedArea</small>
-                                        @if (!string.IsNullOrEmpty(area.AssignedTeamName))
-                                        {
-                                            <small class="text-primary">@area.AssignedTeamName</small>
-                                        }
-                                        @if (area.IsCompleted)
-                                        {
-                                            <small class="text-success">✓</small>
-                                        }
-                                    </div>
-                                    <div class="area-actions">
-                                        <button class="btn btn-xs btn-link" @onclick="() => ZoomToArea(area)" title="Zoomen">
-                                            <i class="bi bi-zoom-in"></i>
-                                        </button>
-                                        <button class="btn btn-xs btn-link" @onclick="() => EditSearchArea(area)" title="Bearbeiten">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button class="btn btn-xs btn-link" @onclick="() => DownloadGpx(area)" title="GPX herunterladen">
-                                            <i class="bi bi-download"></i>
-                                        </button>
-                                        <button class="btn btn-xs btn-link text-danger" @onclick="() => DeleteSearchArea(area)" title="Löschen">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            }
-                        </div>
+                        <KarteGebieteTab SearchAreas="_searchAreas"
+                                         OnAddArea="ActivateDrawPolygon"
+                                         OnZoomToArea="ZoomToArea"
+                                         OnEdit="EditSearchArea"
+                                         OnDownloadGpx="DownloadGpx"
+                                         OnDelete="DeleteSearchArea" />
                     }
-                    else
+
+                    @if (_activeSidebarTab == "gps")
                     {
-                        <div class="sidebar-empty">
-                            <p><i class="bi bi-inbox"></i><br>Keine Suchgebiete</p>
-                        </div>
+                        <KarteGpsTab Collars="_collars"
+                                     OobWarnings="_oobWarnings"
+                                     CompletedSnapshots="@(EinsatzService.CurrentEinsatz.TrackSnapshots ?? new())"
+                                     Teams="_teams"
+                                     CompletedTrackVisibility="_completedTrackVisibility"
+                                     ExpandedSnapshotId="_expandedSnapshotId"
+                                     GetCollarColorFn="GetCollarColor"
+                                     OnZoomToCollar="ZoomToCollarAsync"
+                                     OnToggleSnapshotExpand="ToggleSnapshotExpand"
+                                     OnToggleTrackVisibility="HandleToggleTrackVisibility" />
                     }
-                }
 
-                @if (_activeSidebarTab == "gps")
-                {
-                    var completedSnaps = EinsatzService.CurrentEinsatz.TrackSnapshots ?? new();
-                    <div class="sidebar-list gps-tab-content">
-
-                        @* OOB-Warnungen *@
-                        @foreach (var warning in _oobWarnings.Values)
-                        {
-                            <div class="alert alert-danger py-1 px-2 mb-1 small">
-                                <i class="bi bi-exclamation-triangle-fill me-1"></i>@warning
-                            </div>
-                        }
-
-                        @* Live Halsbänder *@
-                        @if (_collars.Any())
-                        {
-                            <div class="sidebar-section-header">
-                                <span><i class="bi bi-broadcast me-1"></i>Live</span>
-                                <span class="badge bg-info">@_collars.Count</span>
-                            </div>
-                            @foreach (var collar in _collars)
-                            {
-                                <div class="collar-item"
-                                     @onclick="() => ZoomToCollarAsync(collar)"
-                                     title="Zum Live-Punkt springen">
-                                    <span class="collar-name">
-                                        <i class="bi bi-geo-alt-fill" style="color: @GetCollarColor(collar.Id);"></i>
-                                        @collar.CollarName [@collar.Id]
-                                    </span>
-                                    @if (collar.IsAssigned)
-                                    {
-                                        var liveTeam = _teams.FirstOrDefault(t => t.TeamId == collar.AssignedTeamId);
-                                        <span class="collar-team text-primary">@(liveTeam?.TeamName ?? "?")</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="collar-team text-muted">Nicht zugewiesen</span>
-                                    }
-                                </div>
-                            }
-                        }
-                        else
-                        {
-                            <div class="text-center text-muted small py-2">
-                                <i class="bi bi-wifi-off me-1"></i>Warte auf GPS-Daten...
-                            </div>
-                        }
-
-                        @* Abgeschlossene Suchen *@
-                        @if (completedSnaps.Any())
-                        {
-                            <div class="sidebar-section-header mt-2">
-                                <span><i class="bi bi-archive me-1"></i>Abgeschlossene Suchen</span>
-                                <span class="badge bg-secondary">@completedSnaps.Count</span>
-                            </div>
-                            @foreach (var snap in completedSnaps)
-                            {
-                                var isExpanded = _expandedSnapshotId == snap.Id;
-                                var isVisible = !_completedTrackVisibility.TryGetValue(snap.Id, out var sv) || sv;
-                                <div class="snapshot-item">
-                                    <div class="snapshot-summary @(isExpanded ? "snapshot-expanded-header" : "")"
-                                         @onclick="() => ToggleSnapshotExpand(snap.Id)">
-                                        <span class="snapshot-color-bar" style="background:@snap.Color"></span>
-                                        <div class="snapshot-meta">
-                                            <div class="snapshot-team-name">@snap.TeamName</div>
-                                            <div class="snapshot-sub">
-                                                @(snap.CollarName ?? snap.CollarId)
-                                                @if (!string.IsNullOrEmpty(snap.SearchAreaName))
-                                                {
-                                                    <text> · @snap.SearchAreaName</text>
-                                                }
-                                            </div>
-                                            <div class="snapshot-sub">@snap.FormattedDuration · @snap.FormattedDistance · @snap.Points.Count Pkt.</div>
-                                        </div>
-                                        <div class="snapshot-controls">
-                                            <button class="btn btn-xs @(isVisible ? "btn-outline-secondary" : "btn-outline-secondary opacity-50")"
-                                                    title="@(isVisible ? "Auf Karte ausblenden" : "Auf Karte einblenden")"
-                                                    @onclick:stopPropagation="true"
-                                                    @onclick="() => ToggleCompletedTrackAsync(snap.Id, !isVisible)">
-                                                <i class="bi @(isVisible ? "bi-eye" : "bi-eye-slash")"></i>
-                                            </button>
-                                            <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down") text-muted small"></i>
-                                        </div>
-                                    </div>
-                                    @if (isExpanded)
-                                    {
-                                        <div class="snapshot-detail">
-                                            <table class="table table-sm table-borderless snapshot-stats-table mb-2">
-                                                <tbody>
-                                                    <tr><td class="text-muted">Team</td><td><strong>@snap.TeamName</strong></td></tr>
-                                                    <tr><td class="text-muted">Halsband</td><td>@(snap.CollarName ?? snap.CollarId)</td></tr>
-                                                    <tr><td class="text-muted">Suchgebiet</td><td>@(string.IsNullOrEmpty(snap.SearchAreaName) ? "–" : snap.SearchAreaName)</td></tr>
-                                                    <tr><td class="text-muted">Beginn</td><td>@(snap.Points.FirstOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
-                                                    <tr><td class="text-muted">Ende</td><td>@(snap.Points.LastOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
-                                                    <tr><td class="text-muted">Dauer</td><td>@snap.FormattedDuration</td></tr>
-                                                    <tr><td class="text-muted">Strecke</td><td>@snap.FormattedDistance</td></tr>
-                                                    <tr><td class="text-muted">Punkte</td><td>@snap.Points.Count</td></tr>
-                                                </tbody>
-                                            </table>
-                                            @if (snap.Points.Count > 0)
-                                            {
-                                                <div class="snapshot-points-scroll">
-                                                    <table class="table table-xs snapshot-points-table">
-                                                        <thead>
-                                                            <tr><th>#</th><th>Zeit</th><th>Lat</th><th>Lng</th></tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            @for (var pi = 0; pi < snap.Points.Count; pi++)
-                                                            {
-                                                                var pt = snap.Points[pi];
-                                                                <tr>
-                                                                    <td class="text-muted">@(pi + 1)</td>
-                                                                    <td>@pt.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
-                                                                    <td class="font-monospace">@pt.Latitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
-                                                                    <td class="font-monospace">@pt.Longitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
-                                                                </tr>
-                                                            }
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            }
-                                        </div>
-                                    }
-                                </div>
-                            }
-                        }
-                        else if (!_collars.Any())
-                        {
-                            <div class="text-center text-muted small py-3">
-                                <i class="bi bi-broadcast me-1"></i>Noch kein Tracking gestartet.
-                            </div>
-                        }
-                    </div>
-                }
-
-                @if (_activeSidebarTab == "points")
-                {
-                    <div class="sidebar-list points-tab-content">
-                        @* Eingabe-Bereich *@
-                        <div class="marker-input-section">
-                            <div class="marker-input-tabs">
-                                <button class="btn btn-xs @(_clickToPlaceActive ? "btn-primary" : "btn-outline-primary")"
-                                        @onclick="ActivateClickToPlaceMode"
-                                        title="Punkt per Mausklick auf Karte setzen">
-                                    <i class="bi bi-cursor-fill"></i> Klick
-                                </button>
-                                <button class="btn btn-xs @(_coordInputMode == "latlong" ? "btn-primary" : "btn-outline-primary")"
-                                        @onclick='@(() => SetCoordInputMode("latlong"))'>
-                                    <i class="bi bi-geo"></i> Lat/Long
-                                </button>
-                                <button class="btn btn-xs @(_coordInputMode == "utm" ? "btn-primary" : "btn-outline-primary")"
-                                        @onclick='@(() => SetCoordInputMode("utm"))'>
-                                    <i class="bi bi-grid-3x3"></i> UTM
-                                </button>
-                            </div>
-
-                            @if (_coordInputMode == "click")
-                            {
-                                <div class="mt-2">
-                                    <div class="input-group input-group-sm mb-1">
-                                        <span class="input-group-text" style="min-width:35px"><i class="bi bi-tag"></i></span>
-                                        <input type="text" class="form-control" @bind="_inputMarkerLabel" @bind:event="oninput"
-                                               placeholder="Bezeichnung (optional)" />
-                                    </div>
-                                    @if (_clickToPlaceActive)
-                                    {
-                                        <div class="alert alert-info py-1 px-2 small mb-0">
-                                            <i class="bi bi-cursor-fill me-1"></i>Auf die Karte klicken um Punkt zu setzen
-                                        </div>
-                                    }
-                                </div>
-                            }
-                            else if (_coordInputMode == "latlong")
-                            {
-                                <div class="marker-coord-input mt-2">
-                                    <div class="input-group input-group-sm mb-1">
-                                        <span class="input-group-text" style="min-width:35px">Lat</span>
-                                        <input type="text" class="form-control" @bind="_inputLatitude" @bind:event="oninput" placeholder="z.B. 49.31880" />
-                                    </div>
-                                    <div class="input-group input-group-sm mb-1">
-                                        <span class="input-group-text" style="min-width:35px">Lng</span>
-                                        <input type="text" class="form-control" @bind="_inputLongitude" @bind:event="oninput" placeholder="z.B. 8.43120" />
-                                    </div>
-                                    <div class="input-group input-group-sm mb-1">
-                                        <span class="input-group-text" style="min-width:35px"><i class="bi bi-tag"></i></span>
-                                        <input type="text" class="form-control" @bind="_inputMarkerLabel" @bind:event="oninput" placeholder="Bezeichnung (optional)" />
-                                    </div>
-                                    <button class="btn btn-sm btn-success w-100" @onclick="PlaceMarkerFromLatLong">
-                                        <i class="bi bi-pin-map"></i> Punkt setzen
-                                    </button>
-                                </div>
-                            }
-                            else if (_coordInputMode == "utm")
-                            {
-                                <div class="marker-coord-input mt-2">
-                                    <div class="input-group input-group-sm mb-1">
-                                        <span class="input-group-text" style="min-width:50px">UTM</span>
-                                        <input type="text" class="form-control" @bind="_inputUtm" @bind:event="oninput" placeholder="z.B. 32U 461344 5481745" />
-                                    </div>
-                                    <div class="input-group input-group-sm mb-1">
-                                        <span class="input-group-text" style="min-width:50px"><i class="bi bi-tag"></i></span>
-                                        <input type="text" class="form-control" @bind="_inputMarkerLabel" @bind:event="oninput" placeholder="Bezeichnung (optional)" />
-                                    </div>
-                                    <button class="btn btn-sm btn-success w-100" @onclick="PlaceMarkerFromUtm">
-                                        <i class="bi bi-pin-map"></i> Punkt setzen
-                                    </button>
-                                </div>
-                            }
-
-                            @if (!string.IsNullOrEmpty(_markerMessage))
-                            {
-                                <div class="alert @(_markerMessageType) py-1 px-2 mt-2 mb-0 small">@_markerMessage</div>
-                            }
-                        </div>
-
-                        @* Liste der Marker *@
-                        <div class="marker-list-section">
-                            <div class="marker-list-header">
-                                <small class="fw-bold">Gesetzte Punkte (@_mapMarkers.Count)</small>
-                                @if (_mapMarkers.Any())
-                                {
-                                    <button class="btn btn-xs btn-link p-0 ms-1" @onclick="DownloadAllMarkersGpx" title="Alle als GPX">
-                                        <i class="bi bi-download"></i>
-                                    </button>
-                                }
-                            </div>
-                            @if (_mapMarkers.Any())
-                            {
-                                <div class="marker-list">
-                                    @foreach (var marker in _mapMarkers.OrderByDescending(m => m.CreatedAt))
-                                    {
-                                        <div class="marker-list-item">
-                                            <div class="marker-list-info" @onclick="() => ZoomToMarker(marker)" title="Zum Punkt zoomen">
-                                                <span class="marker-list-label">
-                                                    <i class="bi bi-pin-map-fill" style="color: @marker.Color;"></i>
-                                                    @(string.IsNullOrEmpty(marker.Label) ? $"Punkt {marker.FormattedTimestamp}" : marker.Label)
-                                                </span>
-                                                <span class="marker-list-coords text-muted">@marker.FormattedLatLng</span>
-                                                @if (!string.IsNullOrEmpty(marker.FormattedUtm))
-                                                {
-                                                    <span class="marker-list-coords text-muted">@marker.FormattedUtm</span>
-                                                }
-                                            </div>
-                                            <div class="marker-list-actions">
-                                                <button class="btn btn-xs btn-link p-0" @onclick="() => StartEditMarker(marker)" title="Bearbeiten">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-                                                <button class="btn btn-xs btn-link p-0" @onclick="() => DownloadMarkerGpx(marker)" title="GPX">
-                                                    <i class="bi bi-download"></i>
-                                                </button>
-                                                <button class="btn btn-xs btn-link text-danger p-0" @onclick="() => RemoveMarker(marker)" title="Entfernen">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="marker-list-empty">
-                                    <small class="text-muted">Keine Punkte gesetzt</small>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
+                    @if (_activeSidebarTab == "points")
+                    {
+                        <KartePunkteTab @ref="_punkteTab"
+                                        Markers="_mapMarkers"
+                                        ClickToPlaceActive="_clickToPlaceActive"
+                                        CoordInputMode="_coordInputMode"
+                                        CoordInputModeChanged="OnCoordInputModeChanged"
+                                        OnActivateClickToPlace="ActivateClickToPlaceMode"
+                                        OnDeactivateClickToPlace="DeactivateClickToPlaceMode"
+                                        OnMarkersChanged="OnPunkteMarkersChanged" />
+                    }
                 </div>@* /sidebar-tab-content *@
             }
         </aside>
@@ -593,78 +305,6 @@
     </div>
 }
 
-@if (_showMarkerEditDialog)
-{
-    <div class="modal-backdrop show"></div>
-    <div class="modal show d-block" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-pencil"></i> Marker bearbeiten</h5>
-                    <button type="button" class="btn-close" @onclick="CloseMarkerEditDialog"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Bezeichnung</label>
-                        <input type="text" class="form-control" @bind="_editMarkerLabel" @bind:event="oninput"
-                               placeholder="Bezeichnung" />
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Koordinaten (Lat/Long)</label>
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">Lat</span>
-                                    <input type="text" class="form-control" value="@_editMarkerLat"
-                                           @oninput="OnEditLatChanged" />
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">Lng</span>
-                                    <input type="text" class="form-control" value="@_editMarkerLng"
-                                           @oninput="OnEditLngChanged" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">UTM-Koordinaten</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text">UTM</span>
-                            <input type="text" class="form-control" value="@_editMarkerUtm"
-                                   @oninput="OnEditUtmChanged"
-                                   placeholder="z.B. 32U 461344 5481745" />
-                        </div>
-                        <small class="text-muted">Änderungen werden automatisch zwischen Lat/Long und UTM synchronisiert.</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="StartMarkerDragMode">
-                            <i class="bi bi-arrows-move"></i> Position per Drag auf der Karte ändern
-                        </button>
-                    </div>
-
-                    @if (!string.IsNullOrEmpty(_editMarkerMessage))
-                    {
-                        <div class="alert @(_editMarkerMessageType) py-1 px-2 mt-2 mb-0">
-                            <small>@_editMarkerMessage</small>
-                        </div>
-                    }
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseMarkerEditDialog">Abbrechen</button>
-                    <button type="button" class="btn btn-success" @onclick="SaveMarkerEdit">
-                        <i class="bi bi-check-lg"></i> Speichern
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
 @code {
     private const double CoordinateEpsilon = 0.0000001;
     
@@ -722,25 +362,11 @@
 
     // Koordinaten-Marker
     private List<MapMarker> _mapMarkers = new();
-    private string _coordInputMode = "click"; // "click", "latlong", "utm"
+    private string _coordInputMode = "click"; // "click", "latlong", "utm" — auch von KartePunkteTab über @bind synchronisiert
     private bool _clickToPlaceActive = false;
-    private string _inputLatitude = "";
-    private string _inputLongitude = "";
-    private string _inputUtm = "";
-    private string _inputMarkerLabel = "";
-    private string _markerMessage = "";
-    private string _markerMessageType = "alert-info";
-    private int _markerCounter = 0;
 
-    // Marker-Bearbeitung
-    private bool _showMarkerEditDialog = false;
-    private MapMarker? _editingMarker = null;
-    private string _editMarkerLabel = "";
-    private string _editMarkerLat = "";
-    private string _editMarkerLng = "";
-    private string _editMarkerUtm = "";
-    private string _editMarkerMessage = "";
-    private string _editMarkerMessageType = "alert-info";
+    // Referenz auf KartePunkteTab für JSInvokable-Callbacks
+    private KartePunkteTab? _punkteTab;
 
     protected override void OnInitialized()
     {
@@ -748,7 +374,6 @@
         _teams = EinsatzService.Teams;
         _collars = CollarTrackingService.Collars.ToList();
         _mapMarkers = EinsatzService.CurrentEinsatz.MapMarkers.ToList();
-        _markerCounter = _mapMarkers.Count;
         
         // DotNetObjectReference für Callbacks erstellen
         _dotNetReference = DotNetObjectReference.Create(this);
@@ -1089,75 +714,6 @@
         }
     }
 
-    private static string EscapeXml(string text)
-        => text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
-
-    private static System.Text.StringBuilder BuildGpxHeader()
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-        sb.AppendLine("<gpx version=\"1.1\" creator=\"Einsatzueberwachung.Server\"");
-        sb.AppendLine("     xmlns=\"http://www.topografix.com/GPX/1/1\"");
-        sb.AppendLine("     xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"");
-        sb.AppendLine("     xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">");
-        return sb;
-    }
-
-    private static void AppendWaypoint(System.Text.StringBuilder sb, MapMarker marker)
-    {
-        var timestamp = marker.CreatedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
-        var displayName = string.IsNullOrEmpty(marker.Label) ? $"Punkt {marker.FormattedTimestamp}" : marker.Label;
-        sb.AppendLine($"  <wpt lat=\"{marker.Latitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture)}\" lon=\"{marker.Longitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture)}\">");
-        sb.AppendLine($"    <name>{EscapeXml(displayName)}</name>");
-        sb.AppendLine($"    <time>{timestamp}</time>");
-        sb.AppendLine("  </wpt>");
-    }
-
-    private async Task DownloadMarkerGpx(MapMarker marker)
-    {
-        try
-        {
-            var sb = BuildGpxHeader();
-            AppendWaypoint(sb, marker);
-            sb.AppendLine("</gpx>");
-
-            var safeFileName = (string.IsNullOrEmpty(marker.Label) ? $"Punkt_{marker.FormattedTimestamp}" : marker.Label)
-                .Replace(" ", "_").Replace(":", "-");
-            await JSRuntime.InvokeVoidAsync("downloadFile", $"{safeFileName}.gpx", sb.ToString(), "application/gpx+xml");
-        }
-        catch (Exception ex)
-        {
-            _markerMessage = $"Fehler beim GPX-Export: {ex.Message}";
-            _markerMessageType = "alert-danger";
-            Console.WriteLine($"Marker GPX-Export Fehler: {ex.Message}");
-            StateHasChanged();
-        }
-    }
-
-    private async Task DownloadAllMarkersGpx()
-    {
-        if (!_mapMarkers.Any())
-            return;
-
-        try
-        {
-            var sb = BuildGpxHeader();
-            foreach (var marker in _mapMarkers.OrderBy(m => m.CreatedAt))
-                AppendWaypoint(sb, marker);
-            sb.AppendLine("</gpx>");
-
-            var dateStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            await JSRuntime.InvokeVoidAsync("downloadFile", $"Punkte_{dateStamp}.gpx", sb.ToString(), "application/gpx+xml");
-        }
-        catch (Exception ex)
-        {
-            _markerMessage = $"Fehler beim GPX-Export: {ex.Message}";
-            _markerMessageType = "alert-danger";
-            Console.WriteLine($"Marker GPX-Export Fehler: {ex.Message}");
-            StateHasChanged();
-        }
-    }
-
     private async Task ZoomToArea(SearchArea area)
     {
         if (area.Coordinates.Any())
@@ -1332,21 +888,30 @@
         _expandedSnapshotId = _expandedSnapshotId == snapshotId ? null : snapshotId;
     }
 
-    private async Task SetCoordInputMode(string mode)
+    // --- Callbacks für KartePunkteTab ---
+
+    private void OnCoordInputModeChanged(string mode)
     {
         _coordInputMode = mode;
-        _markerMessage = "";
-        if (_clickToPlaceActive)
-        {
-            await DeactivateClickToPlaceMode();
-        }
+    }
+
+    private void OnPunkteMarkersChanged()
+    {
+        _mapMarkers = EinsatzService.CurrentEinsatz.MapMarkers.ToList();
+        StateHasChanged();
+    }
+
+    // --- Callbacks für KarteGpsTab ---
+
+    private async Task HandleToggleTrackVisibility((string Id, bool Visible) args)
+    {
+        await ToggleCompletedTrackAsync(args.Id, args.Visible);
     }
 
     private async Task ActivateClickToPlaceMode()
     {
         _coordInputMode = "click";
         _clickToPlaceActive = true;
-        _markerMessage = "";
         
         try
         {
@@ -1355,8 +920,7 @@
         }
         catch (Exception ex)
         {
-            _markerMessage = $"Fehler: {ex.Message}";
-            _markerMessageType = "alert-danger";
+            Console.WriteLine($"Fehler beim Aktivieren des Klick-Modus: {ex.Message}");
             _clickToPlaceActive = false;
         }
     }
@@ -1371,360 +935,40 @@
         catch { /* ignore */ }
     }
 
-    private async Task PlaceMarkerFromLatLong()
-    {
-        _markerMessage = "";
-        
-        if (!TryParseDecimalInput(_inputLatitude, out var lat) ||
-            !TryParseDecimalInput(_inputLongitude, out var lng))
-        {
-            _markerMessage = "Ungültige Koordinaten. Bitte Dezimalgrad eingeben (z.B. 49.31880 / 8.43120).";
-            _markerMessageType = "alert-danger";
-            return;
-        }
 
-        if (lat < -90 || lat > 90 || lng < -180 || lng > 180)
-        {
-            _markerMessage = "Koordinaten außerhalb des gültigen Bereichs.";
-            _markerMessageType = "alert-danger";
-            return;
-        }
 
-        await PlaceMarkerAtPosition(lat, lng, _inputMarkerLabel);
-        _inputLatitude = "";
-        _inputLongitude = "";
-        _inputMarkerLabel = "";
-    }
 
-    private async Task PlaceMarkerFromUtm()
-    {
-        _markerMessage = "";
 
-        if (!Domain.Services.UtmConverter.TryParseUtm(_inputUtm ?? "", out int zone, out char band, out double easting, out double northing))
-        {
-            _markerMessage = "Ungültiges UTM-Format. Bitte z.B. \"32U 461344 5481745\" eingeben.";
-            _markerMessageType = "alert-danger";
-            return;
-        }
-
-        var (lat, lng) = Domain.Services.UtmConverter.UtmToLatLong(zone, band, easting, northing);
-
-        await PlaceMarkerAtPosition(lat, lng, _inputMarkerLabel);
-        _inputUtm = "";
-        _inputMarkerLabel = "";
-    }
-
-    private async Task PlaceMarkerAtPosition(double lat, double lng, string? label = null)
-    {
-        string markerLabel;
-        if (!string.IsNullOrWhiteSpace(label))
-        {
-            markerLabel = label.Trim();
-        }
-        else
-        {
-            _markerCounter++;
-            markerLabel = $"P{_markerCounter}";
-        }
-
-        // UTM berechnen
-        var (utmZone, utmBand, utmEasting, utmNorthing) = Domain.Services.UtmConverter.LatLongToUtm(lat, lng);
-
-        var marker = new MapMarker
-        {
-            Label = markerLabel,
-            Latitude = lat,
-            Longitude = lng,
-            UtmZone = Domain.Services.UtmConverter.FormatUtmZone(utmZone, utmBand),
-            UtmEasting = utmEasting,
-            UtmNorthing = utmNorthing,
-            CreatedAt = DateTime.Now
-        };
-
-        // Im Service speichern
-        await EinsatzService.AddMapMarkerAsync(marker);
-        _mapMarkers = EinsatzService.CurrentEinsatz.MapMarkers.ToList();
-
-        // Auf Karte anzeigen
-        await JSRuntime.InvokeVoidAsync("LeafletMap.setCoordinateMarker",
-            "einsatzMap", marker.Id, lat, lng, markerLabel, "", marker.Color);
-
-        // Zur Position zoomen
-        await JSRuntime.InvokeVoidAsync("LeafletMap.centerMap", "einsatzMap", lat, lng, 16);
-
-        // Protokolleintrag: Funkspruch / Notiz automatisch erstellen
-        var noteText = $"📍 Koordinaten-Marker \"{markerLabel}\" gesetzt: {lat:F6}° / {lng:F6}° (UTM: {marker.FormattedUtm})";
-        await EinsatzService.AddGlobalNoteWithSourceAsync(
-            noteText,
-            "system",
-            "Einsatzleitung",
-            "Notiz",
-            Domain.Models.Enums.GlobalNotesEntryType.EinsatzUpdate,
-            "Karte");
-
-        _markerMessage = $"✓ Punkt \"{markerLabel}\" gesetzt ({lat:F6}° / {lng:F6}°)";
-        _markerMessageType = "alert-success";
-
-        StateHasChanged();
-    }
-
-    private async Task RemoveMarker(MapMarker marker)
-    {
-        await EinsatzService.RemoveMapMarkerAsync(marker.Id);
-        _mapMarkers = EinsatzService.CurrentEinsatz.MapMarkers.ToList();
-
-        await JSRuntime.InvokeVoidAsync("LeafletMap.removeCoordinateMarker", "einsatzMap", marker.Id);
-
-        // Protokolleintrag
-        var noteText = $"📍 Koordinaten-Marker \"{marker.Label}\" entfernt ({marker.FormattedLatLng})";
-        await EinsatzService.AddGlobalNoteWithSourceAsync(
-            noteText,
-            "system",
-            "Einsatzleitung",
-            "Notiz",
-            Domain.Models.Enums.GlobalNotesEntryType.EinsatzUpdate,
-            "Karte");
-
-        _markerMessage = $"Punkt \"{marker.Label}\" entfernt.";
-        _markerMessageType = "alert-info";
-        StateHasChanged();
-    }
-
-    private async Task ZoomToMarker(MapMarker marker)
-    {
-        await JSRuntime.InvokeVoidAsync("LeafletMap.zoomToCoordinateMarker", "einsatzMap", marker.Id);
-    }
-
-    // --- Marker-Bearbeitung ---
-
-    private void StartEditMarker(MapMarker marker)
-    {
-        _editingMarker = marker;
-        _editMarkerLabel = marker.Label;
-        _editMarkerLat = marker.Latitude.ToString("F6", System.Globalization.CultureInfo.InvariantCulture);
-        _editMarkerLng = marker.Longitude.ToString("F6", System.Globalization.CultureInfo.InvariantCulture);
-        _editMarkerUtm = marker.FormattedUtm;
-        _editMarkerMessage = "";
-        _showMarkerEditDialog = true;
-    }
-
-    private void CloseMarkerEditDialog()
-    {
-        _showMarkerEditDialog = false;
-        _editingMarker = null;
-        _editMarkerMessage = "";
-    }
-
-    private void OnEditLatChanged(ChangeEventArgs e)
-    {
-        _editMarkerLat = e.Value?.ToString() ?? "";
-        SyncLatLngToUtm();
-    }
-
-    private void OnEditLngChanged(ChangeEventArgs e)
-    {
-        _editMarkerLng = e.Value?.ToString() ?? "";
-        SyncLatLngToUtm();
-    }
-
-    private void OnEditUtmChanged(ChangeEventArgs e)
-    {
-        _editMarkerUtm = e.Value?.ToString() ?? "";
-        SyncUtmToLatLng();
-    }
-
-    private void SyncLatLngToUtm()
-    {
-        _editMarkerMessage = "";
-        if (TryParseDecimalInput(_editMarkerLat, out var lat) &&
-            TryParseDecimalInput(_editMarkerLng, out var lng) &&
-            lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)
-        {
-            _editMarkerUtm = FormatUtmString(lat, lng);
-        }
-    }
-
-    private void SyncUtmToLatLng()
-    {
-        _editMarkerMessage = "";
-        if (Domain.Services.UtmConverter.TryParseUtm(_editMarkerUtm ?? "", out int zone, out char band, out double easting, out double northing))
-        {
-            var (lat, lng) = Domain.Services.UtmConverter.UtmToLatLong(zone, band, easting, northing);
-            _editMarkerLat = lat.ToString("F6", System.Globalization.CultureInfo.InvariantCulture);
-            _editMarkerLng = lng.ToString("F6", System.Globalization.CultureInfo.InvariantCulture);
-        }
-    }
-
-    private async Task StartMarkerDragMode()
-    {
-        if (_editingMarker == null) return;
-
-        var markerId = _editingMarker.Id;
-        // Dialog schließen (aber Marker-Referenz behalten)
-        _showMarkerEditDialog = false;
-        _editMarkerMessage = "";
-        StateHasChanged();
-
-        // Drag-Modus auf der Karte aktivieren
-        try
-        {
-            await JSRuntime.InvokeVoidAsync("LeafletMap.enableCoordinateMarkerDrag", "einsatzMap", markerId);
-            // Zur Marker-Position zoomen, damit der Nutzer den Marker sieht
-            await JSRuntime.InvokeVoidAsync("LeafletMap.zoomToCoordinateMarker", "einsatzMap", markerId);
-
-            _markerMessage = "Verschieben Sie den Marker auf der Karte. Der Bearbeiten-Dialog öffnet sich nach dem Loslassen.";
-            _markerMessageType = "alert-info";
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            _editMarkerMessage = $"Fehler: {ex.Message}";
-            _editMarkerMessageType = "alert-danger";
-            _showMarkerEditDialog = true;
-            StateHasChanged();
-        }
-    }
-
-    private async Task SaveMarkerEdit()
-    {
-        if (_editingMarker == null) return;
-        _editMarkerMessage = "";
-
-        var newLabel = _editMarkerLabel?.Trim();
-        if (string.IsNullOrWhiteSpace(newLabel))
-        {
-            _editMarkerMessage = "Bitte eine Bezeichnung eingeben.";
-            _editMarkerMessageType = "alert-danger";
-            return;
-        }
-
-        if (!TryParseDecimalInput(_editMarkerLat, out var lat) ||
-            !TryParseDecimalInput(_editMarkerLng, out var lng))
-        {
-            _editMarkerMessage = "Ungültige Koordinaten.";
-            _editMarkerMessageType = "alert-danger";
-            return;
-        }
-
-        if (lat < -90 || lat > 90 || lng < -180 || lng > 180)
-        {
-            _editMarkerMessage = "Koordinaten außerhalb des gültigen Bereichs.";
-            _editMarkerMessageType = "alert-danger";
-            return;
-        }
-
-        var oldLabel = _editingMarker.Label;
-        var positionChanged = Math.Abs(_editingMarker.Latitude - lat) > CoordinateEpsilon || Math.Abs(_editingMarker.Longitude - lng) > CoordinateEpsilon;
-        var labelChanged = oldLabel != newLabel;
-
-        // Update im Service
-        var updated = await EinsatzService.UpdateMapMarkerAsync(_editingMarker.Id,
-            label: newLabel,
-            latitude: positionChanged ? lat : null,
-            longitude: positionChanged ? lng : null);
-
-        if (updated == null)
-        {
-            _editMarkerMessage = "Marker nicht gefunden.";
-            _editMarkerMessageType = "alert-danger";
-            return;
-        }
-
-        _mapMarkers = EinsatzService.CurrentEinsatz.MapMarkers.ToList();
-
-        // Marker auf der Karte aktualisieren (entfernen und neu setzen)
-        await JSRuntime.InvokeVoidAsync("LeafletMap.removeCoordinateMarker", "einsatzMap", updated.Id);
-        await JSRuntime.InvokeVoidAsync("LeafletMap.setCoordinateMarker",
-            "einsatzMap", updated.Id, updated.Latitude, updated.Longitude,
-            updated.Label, updated.Description, updated.Color);
-
-        // Protokolleintrag
-        var changes = new List<string>();
-        if (labelChanged) changes.Add($"Bezeichnung: \"{oldLabel}\" → \"{newLabel}\"");
-        if (positionChanged) changes.Add($"Position: {updated.FormattedLatLng} (UTM: {updated.FormattedUtm})");
-
-        if (changes.Count > 0)
-        {
-            var noteText = $"📍 Koordinaten-Marker bearbeitet: {string.Join(", ", changes)}";
-            await EinsatzService.AddGlobalNoteWithSourceAsync(
-                noteText,
-                "system",
-                "Einsatzleitung",
-                "Notiz",
-                Domain.Models.Enums.GlobalNotesEntryType.EinsatzUpdate,
-                "Karte");
-        }
-
-        _markerMessage = $"✓ Marker \"{newLabel}\" aktualisiert.";
-        _markerMessageType = "alert-success";
-
-        CloseMarkerEditDialog();
-        StateHasChanged();
-    }
 
     [JSInvokable]
     public async Task OnCoordinateMarkerDragCompleted(string markerId, double lat, double lng)
     {
         await InvokeAsync(() =>
         {
-            // Finde den Marker, der gerade bearbeitet wird
-            var marker = _editingMarker;
-            if (marker == null || marker.Id != markerId)
-            {
-                // Fallback: Marker anhand der ID finden
-                marker = _mapMarkers.FirstOrDefault(m => m.Id == markerId);
-            }
-
-            if (marker != null)
-            {
-                // Dialog mit neuen Koordinaten wieder öffnen (ohne zu speichern)
-                _editingMarker = marker;
-                // Label beibehalten (falls nicht gesetzt, vom Marker übernehmen)
-                if (string.IsNullOrEmpty(_editMarkerLabel))
-                {
-                    _editMarkerLabel = marker.Label;
-                }
-                _editMarkerLat = lat.ToString("F6", System.Globalization.CultureInfo.InvariantCulture);
-                _editMarkerLng = lng.ToString("F6", System.Globalization.CultureInfo.InvariantCulture);
-
-                // UTM automatisch aktualisieren
-                _editMarkerUtm = FormatUtmString(lat, lng);
-
-                _editMarkerMessage = "✓ Position aktualisiert. Klicken Sie \"Speichern\" um die Änderung zu übernehmen.";
-                _editMarkerMessageType = "alert-info";
-                _showMarkerEditDialog = true;
-
-                _markerMessage = "";
-                StateHasChanged();
-            }
+            _punkteTab?.OpenEditDialogFromDrag(markerId, lat, lng);
+            StateHasChanged();
         });
-    }
-
-    private static bool TryParseDecimalInput(string? input, out double result)
-    {
-        result = 0;
-        if (string.IsNullOrWhiteSpace(input)) return false;
-        return double.TryParse(input.Replace(",", "."),
-            System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture, out result);
-    }
-
-    private static string FormatUtmString(double lat, double lng)
-    {
-        var (utmZone, utmBand, utmEasting, utmNorthing) = Domain.Services.UtmConverter.LatLongToUtm(lat, lng);
-        return $"{Domain.Services.UtmConverter.FormatUtmZone(utmZone, utmBand)} {utmEasting:F0} {utmNorthing:F0}";
     }
 
     [JSInvokable]
     public async Task OnCoordinateMarkerClicked(double lat, double lng)
     {
         _clickToPlaceActive = false;
-        await InvokeAsync(async () =>
+        if (_punkteTab != null)
         {
-            await PlaceMarkerAtPosition(lat, lng, _inputMarkerLabel);
-            _inputMarkerLabel = "";
-            StateHasChanged();
-        });
+            var label = _punkteTab.InputLabel;
+            _punkteTab.ClearInputLabel();
+            await InvokeAsync(async () =>
+            {
+                await _punkteTab.PlaceMarkerAtPositionAsync(lat, lng, label);
+                _mapMarkers = EinsatzService.CurrentEinsatz.MapMarkers.ToList();
+                StateHasChanged();
+            });
+        }
+        else
+        {
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     // --- Collar-Tracking Methoden ---

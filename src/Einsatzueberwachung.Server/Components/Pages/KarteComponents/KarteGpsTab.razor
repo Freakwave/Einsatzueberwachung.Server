@@ -193,35 +193,9 @@
     private async Task DownloadTrackGpxAsync()
     {
         if (_detailSnapshot == null || _detailSnapshot.Points.Count == 0) return;
-        var snap = _detailSnapshot;
-
-        var namePart = snap.TeamName + (string.IsNullOrEmpty(snap.SearchAreaName) ? "" : $"_{snap.SearchAreaName}");
-        var safeName = namePart.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
-        var fileName = namePart.Replace(" ", "_") + "_Track.gpx";
-
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-        sb.AppendLine("<gpx version=\"1.1\" creator=\"Einsatzueberwachung.Server\"");
-        sb.AppendLine("     xmlns=\"http://www.topografix.com/GPX/1/1\"");
-        sb.AppendLine("     xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"");
-        sb.AppendLine("     xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">");
-        sb.AppendLine($"  <trk>");
-        sb.AppendLine($"    <name>{safeName}</name>");
-        sb.AppendLine($"    <desc>Team: {safeName} &middot; {snap.FormattedDistance} &middot; {snap.FormattedDuration}</desc>");
-        sb.AppendLine("    <trkseg>");
-        foreach (var pt in snap.Points)
-        {
-            var iso = pt.Timestamp.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
-            var lat = pt.Latitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture);
-            var lon = pt.Longitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture);
-            sb.AppendLine($"      <trkpt lat=\"{lat}\" lon=\"{lon}\">");
-            sb.AppendLine($"        <time>{iso}</time>");
-            sb.AppendLine("      </trkpt>");
-        }
-        sb.AppendLine("    </trkseg>");
-        sb.AppendLine("  </trk>");
-        sb.AppendLine("</gpx>");
-
-        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, sb.ToString(), "application/gpx+xml");
+        await JSRuntime.InvokeVoidAsync("downloadFile",
+            GpxBuilder.TrackSnapshotFileName(_detailSnapshot),
+            GpxBuilder.BuildTrackSnapshotGpx(_detailSnapshot),
+            "application/gpx+xml");
     }
 }

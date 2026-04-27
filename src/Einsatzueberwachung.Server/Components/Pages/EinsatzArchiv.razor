@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 
 @inject IArchivService ArchivService
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Einsatz-Archiv</PageTitle>
 
@@ -153,10 +154,145 @@
                             }
                         </ul>
                     }
+
+                    @if (_selected.SearchAreas.Count > 0)
+                    {
+                        <h5 class="mt-3">Suchgebiete</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>Name</th>
+                                        <th>Fläche</th>
+                                        <th>Team</th>
+                                        <th>Status</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var area in _selected.SearchAreas)
+                                    {
+                                        <tr>
+                                            <td><span style="background-color: @area.Color; width: 12px; height: 12px; border-radius: 3px; display: inline-block;"></span></td>
+                                            <td>@area.Name</td>
+                                            <td>@area.FormattedArea</td>
+                                            <td>@(string.IsNullOrEmpty(area.AssignedTeamName) ? "–" : area.AssignedTeamName)</td>
+                                            <td>
+                                                @if (area.IsCompleted)
+                                                {
+                                                    <span class="badge bg-success">Abgeschlossen</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning text-dark">In Bearbeitung</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (area.Coordinates?.Count >= 2)
+                                                {
+                                                    <button class="btn btn-xs btn-outline-success" @onclick="() => DownloadAreaGpxAsync(area)" title="GPX herunterladen">
+                                                        <i class="bi bi-download me-1"></i>GPX
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    @if (_selected.TrackSnapshots.Count > 0)
+                    {
+                        <h5 class="mt-3">GPS-Tracks</h5>
+                        <div class="list-group mb-0">
+                            @foreach (var snap in _selected.TrackSnapshots)
+                            {
+                                <button class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-2 px-3"
+                                        @onclick="() => _archiveTrackPopup = snap">
+                                    <span style="background: @snap.Color; width: 6px; min-height: 34px; border-radius: 3px; flex-shrink: 0;"></span>
+                                    <div class="flex-grow-1" style="min-width:0;">
+                                        <div class="fw-semibold text-truncate">@snap.TeamName</div>
+                                        <div class="small text-muted text-truncate">
+                                            @(snap.CollarName ?? snap.CollarId)
+                                            @if (!string.IsNullOrEmpty(snap.SearchAreaName))
+                                            {
+                                                <text> · @snap.SearchAreaName</text>
+                                            }
+                                            &nbsp;·&nbsp;@snap.FormattedDuration · @snap.FormattedDistance · @snap.Points.Count&thinsp;Pkt.
+                                        </div>
+                                    </div>
+                                    <i class="bi bi-info-circle text-muted small"></i>
+                                </button>
+                            }
+                        </div>
+                    }
                 </div>
             </div>
         }
     }
+
+@* Track-Detail-Popup *@
+@if (_archiveTrackPopup != null)
+{
+    <div class="modal-backdrop show" style="z-index: 2000;" @onclick='() => _archiveTrackPopup = null'></div>
+    <div class="modal show d-block" style="z-index: 2001;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span style="background:@_archiveTrackPopup.Color; width:10px; height:20px; border-radius:3px; display:inline-block; flex-shrink:0;"></span>
+                        <h6 class="modal-title mb-0">@_archiveTrackPopup.TeamName</h6>
+                    </div>
+                    <button type="button" class="btn-close" @onclick='() => _archiveTrackPopup = null'></button>
+                </div>
+                <div class="modal-body py-2">
+                    <table class="table table-sm table-borderless mb-2">
+                        <tbody>
+                            <tr><td class="text-muted">Team</td><td><strong>@_archiveTrackPopup.TeamName</strong></td></tr>
+                            <tr><td class="text-muted">Halsband</td><td>@(_archiveTrackPopup.CollarName ?? _archiveTrackPopup.CollarId)</td></tr>
+                            <tr><td class="text-muted">Suchgebiet</td><td>@(string.IsNullOrEmpty(_archiveTrackPopup.SearchAreaName) ? "–" : _archiveTrackPopup.SearchAreaName)</td></tr>
+                            <tr><td class="text-muted">Beginn</td><td>@(_archiveTrackPopup.Points.FirstOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
+                            <tr><td class="text-muted">Ende</td><td>@(_archiveTrackPopup.Points.LastOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
+                            <tr><td class="text-muted">Dauer</td><td>@_archiveTrackPopup.FormattedDuration</td></tr>
+                            <tr><td class="text-muted">Strecke</td><td>@_archiveTrackPopup.FormattedDistance</td></tr>
+                            <tr><td class="text-muted">Punkte</td><td>@_archiveTrackPopup.Points.Count</td></tr>
+                        </tbody>
+                    </table>
+                    @if (_archiveTrackPopup.Points.Count > 0)
+                    {
+                        <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--bs-border-color); border-radius: 4px;">
+                            <table class="table table-sm mb-0" style="font-size: 0.72rem;">
+                                <thead>
+                                    <tr><th>#</th><th>Zeit</th><th>Lat</th><th>Lng</th></tr>
+                                </thead>
+                                <tbody>
+                                    @for (var pi = 0; pi < _archiveTrackPopup.Points.Count; pi++)
+                                    {
+                                        var pt = _archiveTrackPopup.Points[pi];
+                                        <tr>
+                                            <td class="text-muted">@(pi + 1)</td>
+                                            <td>@pt.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
+                                            <td class="font-monospace">@pt.Latitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
+                                            <td class="font-monospace">@pt.Longitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer py-2">
+                    <button class="btn btn-sm btn-outline-success" @onclick="DownloadArchiveTrackGpxAsync">
+                        <i class="bi bi-download me-1"></i>GPX herunterladen
+                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" @onclick='() => _archiveTrackPopup = null'>Schlie&#xDF;en</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
     @if (_deleteCandidate is not null)
     {
@@ -191,6 +327,7 @@
     private string _status = string.Empty;
     private ArchivedEinsatz? _selected;
     private ArchivedEinsatz? _deleteCandidate;
+    private TeamTrackSnapshot? _archiveTrackPopup;
 
     protected override async Task OnInitializedAsync()
     {
@@ -268,5 +405,23 @@
     private static string GetArchivedPdfDownloadUrl(string id)
     {
         return $"/downloads/einsatz-archiv/{id}.pdf";
+    }
+
+    private async Task DownloadArchiveTrackGpxAsync()
+    {
+        if (_archiveTrackPopup == null || _archiveTrackPopup.Points.Count == 0) return;
+        await JSRuntime.InvokeVoidAsync("downloadFile",
+            GpxBuilder.TrackSnapshotFileName(_archiveTrackPopup),
+            GpxBuilder.BuildTrackSnapshotGpx(_archiveTrackPopup),
+            "application/gpx+xml");
+    }
+
+    private async Task DownloadAreaGpxAsync(SearchArea area)
+    {
+        if (area.Coordinates == null || area.Coordinates.Count < 2) return;
+        await JSRuntime.InvokeVoidAsync("downloadFile",
+            GpxBuilder.SearchAreaFileName(area),
+            GpxBuilder.BuildSearchAreaGpx(area),
+            "application/gpx+xml");
     }
 }

@@ -602,16 +602,10 @@
         try
         {
             var dateStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-            sb.AppendLine("<gpx version=\"1.1\" creator=\"Einsatzüberwachung\" xmlns=\"http://www.topografix.com/GPX/1/1\">");
-            sb.AppendLine($"  <wpt lat=\"{marker.Latitude.ToString("F6", System.Globalization.CultureInfo.InvariantCulture)}\" lon=\"{marker.Longitude.ToString("F6", System.Globalization.CultureInfo.InvariantCulture)}\">");
-            sb.AppendLine($"    <name>{System.Security.SecurityElement.Escape(marker.Label)}</name>");
-            sb.AppendLine($"    <time>{marker.CreatedAt.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}</time>");
-            sb.AppendLine("  </wpt>");
-            sb.AppendLine("</gpx>");
-            var filename = $"Punkt_{marker.Label.Replace(" ", "_")}_{dateStamp}.gpx";
-            await JSRuntime.InvokeVoidAsync("downloadFile", filename, sb.ToString(), "application/gpx+xml");
+            await JSRuntime.InvokeVoidAsync("downloadFile",
+                GpxBuilder.MarkerFileName(marker, dateStamp),
+                GpxBuilder.BuildMarkerGpx(marker),
+                "application/gpx+xml");
         }
         catch (Exception ex)
         {
@@ -627,18 +621,10 @@
         try
         {
             var dateStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-            sb.AppendLine("<gpx version=\"1.1\" creator=\"Einsatzüberwachung\" xmlns=\"http://www.topografix.com/GPX/1/1\">");
-            foreach (var marker in Markers.OrderBy(m => m.CreatedAt))
-            {
-                sb.AppendLine($"  <wpt lat=\"{marker.Latitude.ToString("F6", System.Globalization.CultureInfo.InvariantCulture)}\" lon=\"{marker.Longitude.ToString("F6", System.Globalization.CultureInfo.InvariantCulture)}\">");
-                sb.AppendLine($"    <name>{System.Security.SecurityElement.Escape(marker.Label)}</name>");
-                sb.AppendLine($"    <time>{marker.CreatedAt.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}</time>");
-                sb.AppendLine("  </wpt>");
-            }
-            sb.AppendLine("</gpx>");
-            await JSRuntime.InvokeVoidAsync("downloadFile", $"Punkte_{dateStamp}.gpx", sb.ToString(), "application/gpx+xml");
+            await JSRuntime.InvokeVoidAsync("downloadFile",
+                $"Punkte_{dateStamp}.gpx",
+                GpxBuilder.BuildMarkersGpx(Markers.OrderBy(m => m.CreatedAt)),
+                "application/gpx+xml");
         }
         catch (Exception ex)
         {

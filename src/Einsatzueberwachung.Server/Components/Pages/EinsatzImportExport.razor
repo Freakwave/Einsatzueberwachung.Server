@@ -633,13 +633,13 @@
 
             @* Stepper *@
             <div class="merge-stepper d-flex gap-0 mb-4 align-items-center">
-                @foreach (var step in _newEinsatzSteps)
+                @foreach (var step in NewEinsatzEffectiveSteps)
                 {
                     <div class="merge-step @GetNewEinsatzStepClass(step.Number)">
                         <div class="merge-step-circle">@step.Number</div>
                         <div class="merge-step-label d-none d-md-block">@step.Label</div>
                     </div>
-                    @if (step.Number < _newEinsatzSteps.Count)
+                    @if (step.Number < NewEinsatzEffectiveSteps.Count)
                     {
                         <div class="merge-step-connector @GetNewEinsatzConnectorClass(step.Number)"></div>
                     }
@@ -710,7 +710,7 @@
                             </div>
 
                             <div class="d-flex justify-content-end mt-3">
-                                <button class="btn btn-primary" @onclick="() => _newEinsatzStep = 2">
+                                <button class="btn btn-primary" @onclick="AdvanceFromNewEinsatzUpload">
                                     Weiter <i class="bi bi-arrow-right ms-1"></i>
                                 </button>
                             </div>
@@ -719,12 +719,77 @@
                 </div>
             }
 
-            @* ─── Schritt 2: Details ─── *@
-            @if (_newEinsatzStep == 2 && _newEinsatzPacket != null)
+            @* ─── Schritt 2: Stammdaten zuordnen ─── *@
+            @if (_newEinsatzStep == 2 && _newEinsatzMergeSession != null)
+            {
+                <div class="card">
+                    <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-people me-2"></i>Schritt 2 — Stammdaten zuordnen</span>
+                        <span class="badge @(_newEinsatzMergeSession.AllMasterDataResolved ? "bg-success" : "bg-warning text-dark")">
+                            @_newEinsatzMergeSession.ResolvedMasterDataCount / @_newEinsatzMergeSession.TotalMasterDataCount zugeordnet
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Das Export-Paket enthält Personen, Hunde oder Drohnen. Entscheiden Sie für
+                            jeden Eintrag, ob er als neuer Datensatz angelegt, mit einem vorhandenen
+                            Eintrag verknüpft oder übersprungen werden soll.
+                            <strong>Die Entscheidungen werden erst beim abschließenden Speichern übernommen.</strong>
+                        </p>
+
+                        @* Personal *@
+                        @if (_newEinsatzMergeSession.PersonalItems.Any())
+                        {
+                            <h5 class="mt-3 mb-2"><i class="bi bi-person me-1"></i>Personal (@_newEinsatzMergeSession.PersonalItems.Count)</h5>
+                            @foreach (var item in _newEinsatzMergeSession.PersonalItems)
+                            {
+                                <MasterDataMergeItemCard Item="item"
+                                                         OnDecisionChanged="() => OnNewEinsatzMasterDataDecisionChanged()" />
+                            }
+                        }
+
+                        @* Hunde *@
+                        @if (_newEinsatzMergeSession.DogItems.Any())
+                        {
+                            <h5 class="mt-4 mb-2"><i class="bi bi-heart me-1"></i>Hunde (@_newEinsatzMergeSession.DogItems.Count)</h5>
+                            @foreach (var item in _newEinsatzMergeSession.DogItems)
+                            {
+                                <MasterDataMergeItemCard Item="item"
+                                                         OnDecisionChanged="() => OnNewEinsatzMasterDataDecisionChanged()" />
+                            }
+                        }
+
+                        @* Drohnen *@
+                        @if (_newEinsatzMergeSession.DroneItems.Any())
+                        {
+                            <h5 class="mt-4 mb-2"><i class="bi bi-rocket me-1"></i>Drohnen (@_newEinsatzMergeSession.DroneItems.Count)</h5>
+                            @foreach (var item in _newEinsatzMergeSession.DroneItems)
+                            {
+                                <MasterDataMergeItemCard Item="item"
+                                                         OnDecisionChanged="() => OnNewEinsatzMasterDataDecisionChanged()" />
+                            }
+                        }
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button class="btn btn-outline-secondary" @onclick="() => _newEinsatzStep = 1">
+                                <i class="bi bi-arrow-left me-1"></i>Zurück
+                            </button>
+                            <button class="btn btn-primary"
+                                    @onclick="() => _newEinsatzStep = 3"
+                                    disabled="@(!_newEinsatzMergeSession.AllMasterDataResolved)">
+                                Weiter <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ─── Schritt 3: Details ─── *@
+            @if (_newEinsatzStep == 3 && _newEinsatzPacket != null)
             {
                 <div class="card">
                     <div class="card-header fw-semibold">
-                        <i class="bi bi-pencil me-2"></i>Schritt 2 — Details
+                        <i class="bi bi-pencil me-2"></i>Schritt 3 — Details
                     </div>
                     <div class="card-body">
                         <p class="text-muted small mb-3">
@@ -758,7 +823,7 @@
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
-                            <button class="btn btn-outline-secondary" @onclick="() => _newEinsatzStep = 1">
+                            <button class="btn btn-outline-secondary" @onclick="BackFromNewEinsatzDetails">
                                 <i class="bi bi-arrow-left me-1"></i>Zurück
                             </button>
                             <button class="btn btn-success"
@@ -780,8 +845,8 @@
                 </div>
             }
 
-            @* ─── Schritt 3: Ergebnis ─── *@
-            @if (_newEinsatzStep == 3 && _newEinsatzResult != null)
+            @* ─── Schritt 4: Ergebnis ─── *@
+            @if (_newEinsatzStep == 4 && _newEinsatzResult != null)
             {
                 <div class="card border-success">
                     <div class="card-header bg-success text-white fw-semibold">
@@ -1171,6 +1236,7 @@
         _einsatzNrMismatch = false;
         _revertSuccess = false;
         _newEinsatzPacket = null;
+        _newEinsatzMergeSession = null;
         _newEinsatzStep = 1;
         _newEinsatzErrorMessage = string.Empty;
         _newEinsatzResult = null;
@@ -1340,15 +1406,65 @@
     }
 
     // ── Stepper-Helpers für Neuer-Einsatz-Modus ──
+
+    /// <summary>
+    /// Zeigt 4 Schritte wenn Stammdaten vorhanden, sonst 3 (Schritt 2 entfällt).
+    /// Verhindert, dass ein übersprungener Schritt im Stepper als „abgeschlossen" erscheint.
+    /// </summary>
+    private List<(int Number, string Label)> NewEinsatzEffectiveSteps =>
+        _newEinsatzMergeSession?.TotalMasterDataCount > 0
+            ? new() { (1, "Upload"), (2, "Stammdaten"), (3, "Details"), (4, "Ergebnis") }
+            : new() { (1, "Upload"), (2, "Details"), (3, "Ergebnis") };
+
+    /// <summary>
+    /// Konvertiert die interne Schritt-Nummer in die Stepper-Anzeigeposition.
+    /// Wenn kein Stammdaten-Schritt: intern 3→Anzeige 2, intern 4→Anzeige 3; sonst 1:1.
+    /// </summary>
+    private int NewEinsatzDisplayStep =>
+        _newEinsatzMergeSession?.TotalMasterDataCount > 0
+            ? _newEinsatzStep
+            : _newEinsatzStep switch
+            {
+                3 => 2,
+                4 => 3,
+                _ => _newEinsatzStep
+            };
+
     private string GetNewEinsatzStepClass(int stepNumber)
     {
-        if (stepNumber == _newEinsatzStep) return "active";
-        if (stepNumber < _newEinsatzStep) return "completed";
+        var display = NewEinsatzDisplayStep;
+        if (stepNumber == display) return "active";
+        if (stepNumber < display) return "completed";
         return "";
     }
 
     private string GetNewEinsatzConnectorClass(int stepNumber) =>
-        stepNumber < _newEinsatzStep ? "completed" : "";
+        stepNumber < NewEinsatzDisplayStep ? "completed" : "";
+
+    private void AdvanceFromNewEinsatzUpload()
+    {
+        // Schritt 2 (Stammdaten) überspringen, wenn das Paket keine Stammdaten enthält
+        if (_newEinsatzMergeSession?.TotalMasterDataCount > 0)
+            _newEinsatzStep = 2;
+        else
+            _newEinsatzStep = 3;
+    }
+
+    private void BackFromNewEinsatzDetails()
+    {
+        // Wenn Stammdaten vorhanden waren, zurück zu Schritt 2, sonst zu Schritt 1
+        if (_newEinsatzMergeSession?.TotalMasterDataCount > 0)
+            _newEinsatzStep = 2;
+        else
+            _newEinsatzStep = 1;
+    }
+
+    private void OnNewEinsatzMasterDataDecisionChanged()
+    {
+        if (_newEinsatzMergeSession != null)
+            MergeService.RebuildIdRemapping(_newEinsatzMergeSession);
+        StateHasChanged();
+    }
 
     private static string SafeId(string? id) =>
         id is { Length: >= 8 } ? $"{id[..8]}…" : (id ?? "?");
@@ -1382,7 +1498,8 @@
     // ════════════════════════════════════════════════════════════
 
     private SubgroupExportPacket? _newEinsatzPacket;
-    private int _newEinsatzStep = 1;  // 1=Upload, 2=Details, 3=Result
+    private SubgroupMergeSession? _newEinsatzMergeSession;
+    private int _newEinsatzStep = 1;  // 1=Upload, 2=Stammdaten, 3=Details, 4=Ergebnis
     private bool _newEinsatzIsLoading;
     private string _newEinsatzErrorMessage = string.Empty;
     private string _newEinsatzEinsatzort = string.Empty;
@@ -1390,12 +1507,7 @@
     private string _newEinsatzBemerkungen = string.Empty;
     private ArchivedEinsatz? _newEinsatzResult;
 
-    private readonly List<(int Number, string Label)> _newEinsatzSteps = new()
-    {
-        (1, "Upload"),
-        (2, "Details"),
-        (3, "Ergebnis")
-    };
+    // ── Stepper-Helpers für Neuer-Einsatz-Modus ──
 
     private async Task HandleNewEinsatzFileUploadAsync(InputFileChangeEventArgs e)
     {
@@ -1418,6 +1530,9 @@
 
             _newEinsatzPacket = packet;
             _newEinsatzEinsatzort = string.Empty; // cleared so placeholder shows SubgroupName
+
+            // Stammdaten-Merge-Items mit Vorschlägen befüllen (nur für Schritt 2 genutzt)
+            _newEinsatzMergeSession = await MergeService.CreateSessionAsync(packet, null);
         }
         catch (Exception ex)
         {
@@ -1437,12 +1552,16 @@
 
         try
         {
+            // Stammdaten-Entscheidungen aus Schritt 2 anwenden (falls vorhanden)
+            if (_newEinsatzMergeSession != null && _newEinsatzMergeSession.TotalMasterDataCount > 0)
+                await ApplyNewEinsatzMasterDataAsync(_newEinsatzMergeSession);
+
             _newEinsatzResult = await ArchivService.ImportPacketAsNewEinsatzAsync(
                 _newEinsatzPacket,
                 _newEinsatzEinsatzort,
                 _newEinsatzErgebnis,
                 _newEinsatzBemerkungen);
-            _newEinsatzStep = 3;
+            _newEinsatzStep = 4;
         }
         catch (Exception ex)
         {
@@ -1451,6 +1570,111 @@
         finally
         {
             _newEinsatzIsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Wendet die Stammdaten-Entscheidungen aus Schritt 2 des „Neuer Einsatz"-Wizards an.
+    /// Legt neue Einträge an (CreateNew) und überschreibt ggf. lokale Felder (LinkToExisting + OverwriteLocalFields).
+    /// </summary>
+    private async Task ApplyNewEinsatzMasterDataAsync(SubgroupMergeSession session)
+    {
+        // ── Personal ──
+        foreach (var item in session.PersonalItems.Where(i => i.Decision == MergeDecision.CreateNew))
+        {
+            var src = (PersonalEntry)item.ImportedEntry;
+            await MasterDataService.AddPersonalAsync(new PersonalEntry
+            {
+                Id = Guid.NewGuid().ToString(),
+                Vorname = src.Vorname,
+                Nachname = src.Nachname,
+                Skills = src.Skills,
+                Notizen = src.Notizen,
+                IsActive = src.IsActive,
+                DiveraUserId = src.DiveraUserId
+            });
+        }
+
+        foreach (var item in session.PersonalItems.Where(i =>
+            i.Decision == MergeDecision.LinkToExisting &&
+            i.OverwriteLocalFields &&
+            !string.IsNullOrEmpty(i.SelectedLocalId)))
+        {
+            var local = await MasterDataService.GetPersonalByIdAsync(item.SelectedLocalId!);
+            if (local == null) continue;
+            var imported = (PersonalEntry)item.ImportedEntry;
+            local.Vorname = imported.Vorname;
+            local.Nachname = imported.Nachname;
+            local.Skills = imported.Skills;
+            if (!string.IsNullOrWhiteSpace(imported.Notizen))
+                local.Notizen = imported.Notizen;
+            await MasterDataService.UpdatePersonalAsync(local);
+        }
+
+        // ── Hunde ──
+        foreach (var item in session.DogItems.Where(i => i.Decision == MergeDecision.CreateNew))
+        {
+            var src = (DogEntry)item.ImportedEntry;
+            await MasterDataService.AddDogAsync(new DogEntry
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = src.Name,
+                Rasse = src.Rasse,
+                Alter = src.Alter,
+                Specializations = src.Specializations,
+                HundefuehrerIds = new System.Collections.Generic.List<string>(src.HundefuehrerIds),
+                Notizen = src.Notizen,
+                IsActive = src.IsActive
+            });
+        }
+
+        foreach (var item in session.DogItems.Where(i =>
+            i.Decision == MergeDecision.LinkToExisting &&
+            i.OverwriteLocalFields &&
+            !string.IsNullOrEmpty(i.SelectedLocalId)))
+        {
+            var local = await MasterDataService.GetDogByIdAsync(item.SelectedLocalId!);
+            if (local == null) continue;
+            var imported = (DogEntry)item.ImportedEntry;
+            local.Name = imported.Name;
+            local.Rasse = imported.Rasse;
+            local.Specializations = imported.Specializations;
+            if (!string.IsNullOrWhiteSpace(imported.Notizen))
+                local.Notizen = imported.Notizen;
+            await MasterDataService.UpdateDogAsync(local);
+        }
+
+        // ── Drohnen ──
+        foreach (var item in session.DroneItems.Where(i => i.Decision == MergeDecision.CreateNew))
+        {
+            var src = (DroneEntry)item.ImportedEntry;
+            await MasterDataService.AddDroneAsync(new DroneEntry
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = src.Name,
+                Modell = src.Modell,
+                Hersteller = src.Hersteller,
+                Seriennummer = src.Seriennummer,
+                DrohnenpilotId = src.DrohnenpilotId,
+                Notizen = src.Notizen,
+                IsActive = src.IsActive
+            });
+        }
+
+        foreach (var item in session.DroneItems.Where(i =>
+            i.Decision == MergeDecision.LinkToExisting &&
+            i.OverwriteLocalFields &&
+            !string.IsNullOrEmpty(i.SelectedLocalId)))
+        {
+            var local = await MasterDataService.GetDroneByIdAsync(item.SelectedLocalId!);
+            if (local == null) continue;
+            var imported = (DroneEntry)item.ImportedEntry;
+            local.Name = imported.Name;
+            local.Modell = imported.Modell;
+            local.Hersteller = imported.Hersteller;
+            if (!string.IsNullOrWhiteSpace(imported.Notizen))
+                local.Notizen = imported.Notizen;
+            await MasterDataService.UpdateDroneAsync(local);
         }
     }
 

@@ -1,0 +1,463 @@
+@page "/teilgruppe-exportieren"
+@rendermode InteractiveServer
+
+@using Einsatzueberwachung.Domain.Models
+@using Einsatzueberwachung.Domain.Interfaces
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject ISubgroupExportService ExportService
+@inject IEinsatzService EinsatzService
+@inject IMasterDataService MasterDataService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<PageTitle>Teilgruppe exportieren</PageTitle>
+
+<div class="container py-4">
+
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <button class="btn btn-outline-secondary btn-sm" @onclick='() => Navigation.NavigateTo("/einsatz-monitor")'>
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </button>
+        <div>
+            <h1 class="mb-0 h3">
+                <i class="bi bi-box-arrow-up me-2"></i>Teilgruppe exportieren
+            </h1>
+            <small class="text-muted">
+                Einsatz: <strong>@EinsatzService.CurrentEinsatz.EinsatzNummer</strong>
+                &bull; @EinsatzService.CurrentEinsatz.Einsatzort
+            </small>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_statusMessage))
+    {
+        <div class="alert @(_statusIsError ? "alert-danger" : "alert-success") d-flex justify-content-between align-items-center mb-3">
+            <span>@_statusMessage</span>
+            <button class="btn-close" @onclick="() => _statusMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (!EinsatzService.Teams.Any())
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Es sind noch keine Teams im laufenden Einsatz vorhanden.
+            Teams können im <a href="/einsatz-monitor">Einsatz-Monitor</a> angelegt werden.
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+
+            @* ── LINKE SPALTE: Konfiguration ── *@
+            <div class="col-lg-7">
+
+                @* ── Schritt 1: Teilgruppe benennen ── *@
+                <div class="card mb-3">
+                    <div class="card-header fw-semibold">
+                        <span class="badge bg-primary rounded-circle me-2">1</span>
+                        Teilgruppe benennen
+                    </div>
+                    <div class="card-body">
+                        <label class="form-label">Name der Teilgruppe / Staffel <span class="text-danger">*</span></label>
+                        <input class="form-control @(string.IsNullOrWhiteSpace(_subgroupName) && _validationAttempted ? "is-invalid" : "")"
+                               type="text"
+                               placeholder="z. B. Staffel Nord, Gruppe 2, …"
+                               @bind="_subgroupName"
+                               @bind:event="oninput"
+                               maxlength="80" />
+                        @if (string.IsNullOrWhiteSpace(_subgroupName) && _validationAttempted)
+                        {
+                            <div class="invalid-feedback">Bitte einen Namen angeben.</div>
+                        }
+                        <div class="form-text">
+                            Der Name erscheint im Dateinamen und beim Import auf der Gegenseite.
+                        </div>
+                    </div>
+                </div>
+
+                @* ── Schritt 2: Teams auswählen ── *@
+                <div class="card mb-3">
+                    <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-primary rounded-circle me-2">2</span>
+                            Teams der Teilgruppe
+                            @if (_selectedTeamIds.Any())
+                            {
+                                <span class="badge bg-success ms-2">@_selectedTeamIds.Count ausgewählt</span>
+                            }
+                            else if (_validationAttempted)
+                            {
+                                <span class="badge bg-danger ms-2">Kein Team ausgewählt</span>
+                            }
+                        </div>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-outline-secondary btn-sm" @onclick="SelectAllTeams">Alle</button>
+                            <button class="btn btn-outline-secondary btn-sm" @onclick="DeselectAllTeams">Keine</button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush">
+                            @foreach (var team in EinsatzService.Teams.OrderBy(t => t.TeamName))
+                            {
+                                var isSelected = _selectedTeamIds.Contains(team.TeamId);
+                                <label class="list-group-item list-group-item-action d-flex align-items-start gap-3 py-2 px-3 cursor-pointer">
+                                    <input type="checkbox"
+                                           class="form-check-input mt-1 flex-shrink-0"
+                                           checked="@isSelected"
+                                           @onchange="() => ToggleTeam(team.TeamId)" />
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold">@team.TeamName</div>
+                                        <div class="small text-muted">
+                                            @if (team.IsDroneTeam)
+                                            {
+                                                <span><i class="bi bi-airplane me-1"></i>Drohne: @team.DroneType</span>
+                                            }
+                                            else
+                                            {
+                                                <span>
+                                                    @if (!string.IsNullOrEmpty(team.HundefuehrerName))
+                                                    {
+                                                        <span><i class="bi bi-person me-1"></i>@team.HundefuehrerName</span>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(team.DogName))
+                                                    {
+                                                        <span class="ms-2"><i class="bi bi-heart me-1"></i>@team.DogName</span>
+                                                    }
+                                                </span>
+                                            }
+                                        </div>
+                                        @if (team.IsRunning)
+                                        {
+                                            <span class="badge bg-success small">Läuft</span>
+                                        }
+                                        else if (team.IsPausing)
+                                        {
+                                            <span class="badge bg-warning text-dark small">Pause</span>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(team.SearchAreaName))
+                                    {
+                                        <span class="badge bg-secondary align-self-center">@team.SearchAreaName</span>
+                                    }
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                @* ── Schritt 3: Export-Optionen ── *@
+                <div class="card mb-3">
+                    <div class="card-header fw-semibold">
+                        <span class="badge bg-primary rounded-circle me-2">3</span>
+                        Export-Optionen
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="opt-team-notes"
+                                           @bind="_options.IncludeTeamNotes" />
+                                    <label class="form-check-label" for="opt-team-notes">
+                                        Notizen / Funksprüche der gewählten Teams einschließen
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="opt-global-notes"
+                                           @bind="_options.IncludeGlobalNotes" />
+                                    <label class="form-check-label" for="opt-global-notes">
+                                        Alle globalen Notizen einschließen
+                                        <small class="text-muted">(inkl. nicht team-spezifischer Einträge)</small>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="opt-system-notes"
+                                           @bind="_options.IncludeSystemNotes" />
+                                    <label class="form-check-label" for="opt-system-notes">
+                                        System-Notizen einschließen
+                                        <small class="text-muted">(Timer-Starts, Warnungen, etc.)</small>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="opt-assigned-areas"
+                                           @bind="_options.IncludeAssignedSearchAreas" />
+                                    <label class="form-check-label" for="opt-assigned-areas">
+                                        Zugewiesene Suchgebiete einschließen
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="opt-all-areas"
+                                           @bind="_options.IncludeAllSearchAreas" />
+                                    <label class="form-check-label" for="opt-all-areas">
+                                        Alle Suchgebiete einschließen
+                                        <small class="text-muted">(unabhängig von Team-Zuordnung)</small>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="opt-markers"
+                                           @bind="_options.IncludeMapMarkers" />
+                                    <label class="form-check-label" for="opt-markers">
+                                        Karten-Marker einschließen
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="opt-tracks"
+                                           @bind="_options.IncludeTrackSnapshots" />
+                                    <label class="form-check-label" for="opt-tracks">
+                                        GPS-Tracks einschließen
+                                    </label>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            @* ── RECHTE SPALTE: Vorschau + Download ── *@
+            <div class="col-lg-5">
+                <div class="card sticky-top" style="top: 1.5rem;">
+                    <div class="card-header fw-semibold">
+                        <i class="bi bi-file-earmark-zip me-1"></i>Export-Vorschau
+                    </div>
+                    <div class="card-body">
+
+                        @if (_preview is not null)
+                        {
+                            <dl class="row mb-0 small">
+                                <dt class="col-6 text-muted">Teilgruppe</dt>
+                                <dd class="col-6">@_preview.SubgroupName</dd>
+
+                                <dt class="col-6 text-muted">Einsatz-Nr.</dt>
+                                <dd class="col-6">@_preview.EinsatzNummer</dd>
+
+                                <dt class="col-6 text-muted">Teams</dt>
+                                <dd class="col-6">@_preview.Teams.Count</dd>
+
+                                <dt class="col-6 text-muted">Personal</dt>
+                                <dd class="col-6">@_preview.Personal.Count</dd>
+
+                                <dt class="col-6 text-muted">Hunde</dt>
+                                <dd class="col-6">@_preview.Dogs.Count</dd>
+
+                                <dt class="col-6 text-muted">Drohnen</dt>
+                                <dd class="col-6">@_preview.Drones.Count</dd>
+
+                                <dt class="col-6 text-muted">Notizen</dt>
+                                <dd class="col-6">@_preview.Notes.Count</dd>
+
+                                <dt class="col-6 text-muted">Suchgebiete</dt>
+                                <dd class="col-6">@_preview.SearchAreas.Count</dd>
+
+                                <dt class="col-6 text-muted">Marker</dt>
+                                <dd class="col-6">@_preview.MapMarkers.Count</dd>
+
+                                <dt class="col-6 text-muted">GPS-Tracks</dt>
+                                <dd class="col-6">@_preview.TrackSnapshots.Count</dd>
+
+                                <dt class="col-6 text-muted">Dateiname</dt>
+                                <dd class="col-6 font-monospace" style="word-break: break-all; font-size: 0.7rem;">
+                                    @ExportService.GetFileName(_preview)
+                                </dd>
+                            </dl>
+
+                            @if (_previewSizeKb > 0)
+                            {
+                                <div class="text-muted small mt-2">
+                                    <i class="bi bi-file-earmark me-1"></i>
+                                    Geschätzte Dateigröße: ~@_previewSizeKb KB
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted small mb-2">
+                                Wählen Sie mindestens ein Team und klicken Sie auf
+                                <em>Vorschau aktualisieren</em>.
+                            </p>
+                        }
+
+                        <div class="d-grid gap-2 mt-3">
+                            <button class="btn btn-outline-secondary"
+                                    @onclick="RefreshPreviewAsync"
+                                    disabled="@(_selectedTeamIds.Count == 0 || string.IsNullOrWhiteSpace(_subgroupName) || _isWorking)">
+                                @if (_isWorking && !_isDownloading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-arrow-clockwise me-1"></i>
+                                }
+                                Vorschau aktualisieren
+                            </button>
+
+                            <button class="btn btn-success btn-lg"
+                                    @onclick="ExportAndDownloadAsync"
+                                    disabled="@(_isWorking)">
+                                @if (_isWorking && _isDownloading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    <span>Exportiere…</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-download me-1"></i>
+                                    <span>Export herunterladen</span>
+                                }
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    }
+
+</div>
+
+@code {
+    private string _subgroupName = string.Empty;
+    private readonly HashSet<string> _selectedTeamIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SubgroupExportOptions _options = new();
+
+    private SubgroupExportPacket? _preview;
+    private long _previewSizeKb;
+    private bool _isWorking;
+    private bool _isDownloading;
+    private bool _validationAttempted;
+    private string _statusMessage = string.Empty;
+    private bool _statusIsError;
+
+    protected override void OnInitialized()
+    {
+        // Vorauswahl: alle Teams
+        foreach (var team in EinsatzService.Teams)
+            _selectedTeamIds.Add(team.TeamId);
+
+        // Vorbelegung mit Staffelname aus Einsatzdaten (falls vorhanden)
+        if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.StaffelName))
+            _subgroupName = EinsatzService.CurrentEinsatz.StaffelName;
+    }
+
+    private void ToggleTeam(string teamId)
+    {
+        if (_selectedTeamIds.Contains(teamId))
+            _selectedTeamIds.Remove(teamId);
+        else
+            _selectedTeamIds.Add(teamId);
+
+        _preview = null; // Vorschau invalidieren
+    }
+
+    private void SelectAllTeams()
+    {
+        foreach (var t in EinsatzService.Teams)
+            _selectedTeamIds.Add(t.TeamId);
+        _preview = null;
+    }
+
+    private void DeselectAllTeams()
+    {
+        _selectedTeamIds.Clear();
+        _preview = null;
+    }
+
+    private bool Validate()
+    {
+        _validationAttempted = true;
+        return !string.IsNullOrWhiteSpace(_subgroupName) && _selectedTeamIds.Any();
+    }
+
+    private async Task RefreshPreviewAsync()
+    {
+        if (!Validate()) return;
+
+        _isWorking = true;
+        StateHasChanged();
+
+        try
+        {
+            var packet = await ExportService.BuildExportPacketAsync(
+                _selectedTeamIds,
+                _subgroupName,
+                _options);
+
+            var bytes = ExportService.Serialize(packet);
+            _preview = packet;
+            _previewSizeKb = bytes.Length / 1024 + 1;
+        }
+        catch (Exception ex)
+        {
+            _statusMessage = $"Fehler bei der Vorschau: {ex.Message}";
+            _statusIsError = true;
+        }
+        finally
+        {
+            _isWorking = false;
+        }
+    }
+
+    private async Task ExportAndDownloadAsync()
+    {
+        if (!Validate()) return;
+
+        _isWorking = true;
+        _isDownloading = true;
+        _statusMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var packet = await ExportService.BuildExportPacketAsync(
+                _selectedTeamIds,
+                _subgroupName,
+                _options);
+
+            var bytes = ExportService.Serialize(packet);
+            var json = System.Text.Encoding.UTF8.GetString(bytes);
+            var fileName = ExportService.GetFileName(packet);
+
+            _preview = packet;
+            _previewSizeKb = bytes.Length / 1024 + 1;
+
+            // JS-Download auslösen (gleiche Funktion wie GPX-Download)
+            await JS.InvokeVoidAsync("downloadFile", fileName, json, "application/json");
+
+            _statusMessage = $"Export erfolgreich: {fileName}";
+            _statusIsError = false;
+        }
+        catch (Exception ex)
+        {
+            _statusMessage = $"Export fehlgeschlagen: {ex.Message}";
+            _statusIsError = true;
+        }
+        finally
+        {
+            _isWorking = false;
+            _isDownloading = false;
+        }
+    }
+}

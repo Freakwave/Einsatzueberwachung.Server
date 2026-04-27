@@ -179,6 +179,7 @@ builder.Services.AddSingleton<IPdfExportService, PdfExportService>();
 builder.Services.AddSingleton<IExcelExportService, ExcelExportService>();
 builder.Services.AddSingleton<IArchivService, ArchivService>();
 builder.Services.AddSingleton<ISubgroupMergeService, SubgroupMergeService>();
+builder.Services.AddSingleton<ISubgroupExportService, SubgroupExportService>();
 builder.Services.AddSingleton<ToastService>();
 builder.Services.AddScoped<BrowserPreferencesService>();
 builder.Services.AddScoped<IRadioService, RadioService>();

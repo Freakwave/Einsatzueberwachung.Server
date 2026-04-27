@@ -114,6 +114,8 @@
                     {
                         <KarteGebieteTab SearchAreas="_searchAreas"
                                          OnAddArea="ActivateDrawPolygon"
+                                         OnCancelDraw="CancelDrawPolygon"
+                                         DrawingActive="_drawingActive"
                                          OnZoomToArea="ZoomToArea"
                                          OnEdit="EditSearchArea"
                                          OnDownloadGpx="DownloadGpx"
@@ -364,6 +366,9 @@
     private List<MapMarker> _mapMarkers = new();
     private string _coordInputMode = "click"; // "click", "latlong", "utm" — auch von KartePunkteTab über @bind synchronisiert
     private bool _clickToPlaceActive = false;
+
+    // Zeichenmodus (Suchgebiete)
+    private bool _drawingActive = false;
 
     // Referenz auf KartePunkteTab für JSInvokable-Callbacks
     private KartePunkteTab? _punkteTab;
@@ -828,6 +833,7 @@
         {
             await JSRuntime.InvokeVoidAsync("LeafletMap.activateDrawMode", "einsatzMap", "polygon");
             SetSearchMessage("Zeichenmodus aktiviert: Klicken Sie auf die Karte, um Punkte zu setzen. Doppelklick zum Beenden.");
+            _drawingActive = true;
             StateHasChanged();
         }
         catch (Exception ex)
@@ -835,6 +841,21 @@
             SetSearchMessage($"Fehler: {ex.Message}");
             Console.WriteLine(ex.Message);
         }
+    }
+
+    private async Task CancelDrawPolygon()
+    {
+        _drawingActive = false;
+        try { await JSRuntime.InvokeVoidAsync("LeafletMap.cancelDrawMode", "einsatzMap"); }
+        catch { }
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public Task OnDrawCanceled()
+    {
+        _drawingActive = false;
+        return InvokeAsync(StateHasChanged);
     }
 
     private string GetRandomColor()
@@ -873,11 +894,7 @@
         {
             await ToggleTrackingLayer();
         }
-        if (tab == "points" && _coordInputMode == "click" && !_clickToPlaceActive)
-        {
-            await ActivateClickToPlaceMode();
-        }
-        else if (tab != "points" && _clickToPlaceActive)
+        if (tab != "points" && _clickToPlaceActive)
         {
             await DeactivateClickToPlaceMode();
         }
@@ -1288,6 +1305,7 @@
     [JSInvokable]
     public async Task OnShapeCreated(string geoJson)
     {
+        _drawingActive = false;
         Console.WriteLine($"Shape created: {geoJson}");
         _lastDrawnGeoJson = geoJson;
         _drawingSaved = false; // Neue Zeichnung wurde noch nicht gespeichert

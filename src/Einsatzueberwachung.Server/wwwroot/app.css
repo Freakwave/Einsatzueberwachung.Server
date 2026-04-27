@@ -4174,3 +4174,23 @@ textarea:focus-visible {
     font-size: 0.7rem;
     line-height: 1.4;
 }
+
+/* Toggle-Button (+ / ×) mit Farb- und Rotationsanimation */
+.tab-toggle-btn {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.tab-toggle-btn .toggle-icon {
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+.tab-toggle-btn.is-active {
+    background-color: var(--bs-danger) !important;
+    border-color: var(--bs-danger) !important;
+    color: white !important;
+}
+
+.tab-toggle-btn.is-active .toggle-icon {
+    transform: rotate(45deg);
+}

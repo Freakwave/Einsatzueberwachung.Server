@@ -1,11 +1,11 @@
 @* Suchgebiete-Tab-Panel der Karten-Sidebar *@
 
 <div class="sidebar-content-header">
-    <span class="small fw-semibold text-muted">Suchgebiete</span>
-    <button class="btn btn-xs btn-primary"
-            @onclick="OnAddArea"
-            title="Neues Suchgebiet zeichnen">
-        <i class="bi bi-plus-lg"></i> Neu
+    <span class="small fw-semibold text-muted"><i class="bi bi-geo-alt-fill me-1"></i>Gebiete</span>
+    <button class="btn btn-xs tab-toggle-btn @(DrawingActive ? "is-active" : "btn-primary")"
+            @onclick="DrawingActive ? OnCancelDraw : OnAddArea"
+            title="@(DrawingActive ? "Zeichnen abbrechen" : "Neues Suchgebiet zeichnen")">
+        <i class="bi bi-plus-lg toggle-icon"></i>
     </button>
 </div>
 
@@ -58,6 +58,8 @@ else
 @code {
     [Parameter, EditorRequired] public List<SearchArea> SearchAreas { get; set; } = new();
     [Parameter] public EventCallback OnAddArea { get; set; }
+    [Parameter] public EventCallback OnCancelDraw { get; set; }
+    [Parameter] public bool DrawingActive { get; set; }
     [Parameter] public EventCallback<SearchArea> OnZoomToArea { get; set; }
     [Parameter] public EventCallback<SearchArea> OnEdit { get; set; }
     [Parameter] public EventCallback<SearchArea> OnDownloadGpx { get; set; }

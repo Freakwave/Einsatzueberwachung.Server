@@ -258,10 +258,13 @@ namespace Einsatzueberwachung.Domain.Services
             }
         }
 
+        private const string FallbackSubgroupName = "unbekannt";
+        private const string FallbackExportName = "export";
+
         private static string MakeSafeFileName(string input)
         {
             if (string.IsNullOrWhiteSpace(input))
-                return "unbekannt";
+                return FallbackSubgroupName;
 
             var invalid = Path.GetInvalidFileNameChars();
             var sb = new StringBuilder(input.Length);
@@ -269,7 +272,7 @@ namespace Einsatzueberwachung.Domain.Services
                 sb.Append(Array.IndexOf(invalid, c) >= 0 || c == ' ' ? '_' : c);
 
             var result = sb.ToString().Trim('_');
-            return result.Length == 0 ? "export" :
+            return result.Length == 0 ? FallbackExportName :
                    result.Length > 50 ? result[..50] : result;
         }
     }

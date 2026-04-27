@@ -567,6 +567,13 @@
 @code {
     [Parameter] public string? ArchivedEinsatzId { get; set; }
 
+    /// <summary>
+    /// Maximale Dateigröße für den Upload in Bytes (10 MB).
+    /// Export-Pakete mit vielen GPS-Tracks können mehrere MB groß werden;
+    /// 10 MB bieten ausreichend Puffer für typische Einsätze.
+    /// </summary>
+    private const long MaxUploadBytes = 10 * 1024 * 1024;
+
     // ── State ──
     private SubgroupMergeSession? _session;
     private MergeWizardStep _currentStep = MergeWizardStep.Upload;
@@ -602,7 +609,7 @@
         try
         {
             using var ms = new System.IO.MemoryStream();
-            await e.File.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
+            await e.File.OpenReadStream(maxAllowedSize: MaxUploadBytes).CopyToAsync(ms);
             var bytes = ms.ToArray();
 
             var packet = MergeService.ParseExportPacket(bytes);

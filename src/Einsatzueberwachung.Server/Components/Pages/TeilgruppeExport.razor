@@ -443,7 +443,7 @@
             _preview = packet;
             _previewSizeKb = bytes.Length / 1024 + 1;
 
-            // JS-Download auslösen (gleiche Funktion wie GPX-Download)
+            // JS-Download: window.downloadFile ist in wwwroot/js/layout-tools.js definiert
             await JS.InvokeVoidAsync("downloadFile", fileName, json, "application/json");
 
             _statusMessage = $"Export erfolgreich: {fileName}";

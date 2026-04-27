@@ -23,6 +23,9 @@ namespace Einsatzueberwachung.Domain.Services
         private readonly IArchivService _archivService;
         private readonly ITimeService? _timeService;
 
+        /// <summary>Suffix für umbenannte Suchgebiete bei Namenskonflikt.</summary>
+        private const string SearchAreaRenameSuffix = "_importiert";
+
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             PropertyNameCaseInsensitive = true,
@@ -476,7 +479,7 @@ namespace Einsatzueberwachung.Domain.Services
                 if (reason == "PARTIAL") { reason = "PARTIAL_NAME"; label = "Ähnlicher Name"; }
             }
 
-            if (imported.Skills != Models.Enums.PersonalSkills.None && imported.Skills == local.Skills)
+            if (imported.Skills != PersonalSkills.None && imported.Skills == local.Skills)
             {
                 score += 0.05;
             }
@@ -649,7 +652,7 @@ namespace Einsatzueberwachung.Domain.Services
                     switch (areaItem.NameConflictResolution)
                     {
                         case SearchAreaNameConflictResolution.Rename:
-                            area.Name = area.Name + "_import";
+                            area.Name = area.Name + SearchAreaRenameSuffix;
                             break;
 
                         case SearchAreaNameConflictResolution.ReplaceLocal:
@@ -726,7 +729,7 @@ namespace Einsatzueberwachung.Domain.Services
                     switch (areaItem.NameConflictResolution)
                     {
                         case SearchAreaNameConflictResolution.Rename:
-                            area.Name = area.Name + "_import";
+                            area.Name = area.Name + SearchAreaRenameSuffix;
                             break;
                         case SearchAreaNameConflictResolution.ReplaceLocal:
                             archived.SearchAreas.RemoveAll(a => a.Id == areaItem.LocalConflictArea!.Id);

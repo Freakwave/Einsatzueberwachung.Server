@@ -12,28 +12,31 @@
 @inject IArchivService ArchivService
 @inject NavigationManager Navigation
 
-<PageTitle>Teilgruppe zusammenführen</PageTitle>
+<PageTitle>@(HidePageHeader ? "Einsatz Import/Export" : "Teilgruppe zusammenführen")</PageTitle>
 
-<div class="container py-4">
+<div class="@(HidePageHeader ? "" : "container py-4")">
 
-    <div class="d-flex align-items-center gap-3 mb-4">
-        <button class="btn btn-outline-secondary btn-sm" @onclick="NavigateBack">
-            <i class="bi bi-arrow-left me-1"></i>Zurück
-        </button>
-        <div>
-            <h1 class="mb-0 h3">
-                <i class="bi bi-diagram-2 me-2"></i>Teilgruppe zusammenführen
-            </h1>
-            @if (!string.IsNullOrEmpty(ArchivedEinsatzId))
-            {
-                <small class="text-muted">Ziel: Archivierter Einsatz</small>
-            }
-            else
-            {
-                <small class="text-muted">Ziel: Laufender Einsatz</small>
-            }
+    @if (!HidePageHeader)
+    {
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <button class="btn btn-outline-secondary btn-sm" @onclick="NavigateBack">
+                <i class="bi bi-arrow-left me-1"></i>Zurück
+            </button>
+            <div>
+                <h1 class="mb-0 h3">
+                    <i class="bi bi-diagram-2 me-2"></i>Teilgruppe zusammenführen
+                </h1>
+                @if (!string.IsNullOrEmpty(ArchivedEinsatzId))
+                {
+                    <small class="text-muted">Ziel: Archivierter Einsatz</small>
+                }
+                else
+                {
+                    <small class="text-muted">Ziel: Laufender Einsatz</small>
+                }
+            </div>
         </div>
-    </div>
+    }
 
     @* Fortschritts-Stepper *@
     <div class="merge-stepper d-flex gap-0 mb-4 align-items-center">
@@ -568,6 +571,17 @@
     [Parameter] public string? ArchivedEinsatzId { get; set; }
 
     /// <summary>
+    /// Blendet den Seitenkopf (Titel + Zurück-Button) aus, wenn die Komponente eingebettet ist.
+    /// </summary>
+    [Parameter] public bool HidePageHeader { get; set; }
+
+    /// <summary>
+    /// Wenn gesetzt, wird dieser Callback beim Klick auf "Zurück" aufgerufen
+    /// anstatt zur vorherigen Seite zu navigieren (z. B. Tab wechseln).
+    /// </summary>
+    [Parameter] public EventCallback OnBack { get; set; }
+
+    /// <summary>
     /// Maximale Dateigröße für den Upload in Bytes (10 MB).
     /// Export-Pakete mit vielen GPS-Tracks können mehrere MB groß werden;
     /// 10 MB bieten ausreichend Puffer für typische Einsätze.
@@ -736,8 +750,14 @@
             _session.CurrentStep = step;
     }
 
-    private void NavigateBack()
+    private async Task NavigateBack()
     {
+        if (OnBack.HasDelegate)
+        {
+            await OnBack.InvokeAsync();
+            return;
+        }
+
         if (!string.IsNullOrEmpty(ArchivedEinsatzId))
             Navigation.NavigateTo("/einsatz-archiv");
         else

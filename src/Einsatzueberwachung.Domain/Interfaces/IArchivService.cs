@@ -50,6 +50,11 @@ namespace Einsatzueberwachung.Domain.Interfaces
         Task<int> ImportFromJsonAsync(byte[] jsonData);
 
         /// <summary>
+        /// Speichert einen aktualisierten archivierten Einsatz (z.B. nach einer Zusammenführung).
+        /// </summary>
+        Task UpdateArchivedEinsatzAsync(ArchivedEinsatz archived);
+
+        /// <summary>
         /// Gibt Statistiken ueber alle archivierten Einsaetze zurueck
         /// </summary>
         Task<ArchivStatistics> GetStatisticsAsync();

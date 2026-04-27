@@ -177,6 +177,23 @@ namespace Einsatzueberwachung.Domain.Services
             return true;
         }
 
+        public async Task UpdateArchivedEinsatzAsync(ArchivedEinsatz archived)
+        {
+            await EnsureLoadedAsync();
+
+            var index = _archiv.FindIndex(e => e.Id == archived.Id);
+            if (index >= 0)
+            {
+                _archiv[index] = archived;
+            }
+            else
+            {
+                _archiv.Insert(0, archived);
+            }
+
+            await SaveAsync();
+        }
+
         public async Task<byte[]> ExportAllAsJsonAsync()
         {
             await EnsureLoadedAsync();

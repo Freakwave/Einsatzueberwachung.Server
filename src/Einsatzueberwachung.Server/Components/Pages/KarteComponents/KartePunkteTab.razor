@@ -3,18 +3,27 @@
 @inject IJSRuntime JSRuntime
 
 <div class="sidebar-content-header">
-    <span class="small fw-semibold text-muted"><i class="bi bi-crosshair me-1"></i>Koordinaten</span>
-    @if (Markers.Any())
-    {
-        <button class="btn btn-xs btn-link p-0" @onclick="DownloadAllMarkersGpx" title="Alle als GPX exportieren">
-            <i class="bi bi-download"></i>
+    <span class="small fw-semibold text-muted"><i class="bi bi-crosshair me-1"></i>Punkte</span>
+    <div class="d-flex gap-1 align-items-center">
+        @if (Markers.Any())
+        {
+            <button class="btn btn-xs btn-link p-0" @onclick="DownloadAllMarkersGpx" title="Alle als GPX exportieren">
+                <i class="bi bi-download"></i>
+            </button>
+        }
+        <button class="btn btn-xs tab-toggle-btn @(_inputOpen ? "is-active" : "btn-primary")"
+                @onclick="ToggleInputPanel"
+                title="@(_inputOpen ? "Eingabe schlie\xDFen" : "Punkt eintragen")">
+            <i class="bi bi-plus-lg toggle-icon"></i>
         </button>
-    }
+    </div>
 </div>
 
 <div class="sidebar-list points-tab-content">
 
     @* Eingabe-Bereich *@
+    @if (_inputOpen)
+    {
     <div class="marker-input-section">
         <div class="marker-input-tabs">
         <button class="btn btn-xs @(_mode == "click" ? "btn-primary" : "btn-outline-primary")"
@@ -90,6 +99,7 @@
             <div class="alert @(_markerMessageType) py-1 px-2 mt-2 mb-0 small">@_markerMessage</div>
         }
     </div>
+    }
 
     @* Liste der Marker *@
     <div class="sidebar-section-header">
@@ -269,6 +279,9 @@
     private string _markerMessageType = "alert-info";
     private int _markerCounter = 0;
 
+    // Panel-Zustand: Eingabebereich ein-/ausgeklappt
+    private bool _inputOpen = false;
+
     // Lokaler Display-Status für sofortige Reaktion (unabhängig von Parameter-Roundtrip)
     private string _mode = "click";
 
@@ -293,6 +306,25 @@
         // Wenn der Elternteil den Modus auf "click" zurücksetzt (z.B. beim Tab-Wechsel), synchronisieren
         if (CoordInputMode == "click" && _mode != "click")
             _mode = "click";
+    }
+
+    // --- Panel-Toggle ---
+
+    private async Task ToggleInputPanel()
+    {
+        if (_inputOpen)
+        {
+            _inputOpen = false;
+            _markerMessage = "";
+            if (ClickToPlaceActive)
+                await OnDeactivateClickToPlace.InvokeAsync();
+        }
+        else
+        {
+            _inputOpen = true;
+            if (_mode == "click" && !ClickToPlaceActive)
+                await OnActivateClickToPlace.InvokeAsync();
+        }
     }
 
     // --- Eingabe-Modus ---

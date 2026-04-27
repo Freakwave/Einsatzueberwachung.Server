@@ -1,0 +1,65 @@
+@* Suchgebiete-Tab-Panel der Karten-Sidebar *@
+
+<div class="sidebar-content-header">
+    <span class="small fw-semibold text-muted">Suchgebiete</span>
+    <button class="btn btn-xs btn-primary"
+            @onclick="OnAddArea"
+            title="Neues Suchgebiet zeichnen">
+        <i class="bi bi-plus-lg"></i> Neu
+    </button>
+</div>
+
+@if (SearchAreas.Any())
+{
+    <div class="sidebar-list">
+        @foreach (var area in SearchAreas)
+        {
+            <div class="search-area-item">
+                <div class="area-header">
+                    <span class="color-box" style="background-color: @area.Color;"></span>
+                    <span class="area-name">@area.Name</span>
+                </div>
+                <div class="area-info">
+                    <small>@area.FormattedArea</small>
+                    @if (!string.IsNullOrEmpty(area.AssignedTeamName))
+                    {
+                        <small class="text-primary">@area.AssignedTeamName</small>
+                    }
+                    @if (area.IsCompleted)
+                    {
+                        <small class="text-success">✓</small>
+                    }
+                </div>
+                <div class="area-actions">
+                    <button class="btn btn-xs btn-link" @onclick="() => OnZoomToArea.InvokeAsync(area)" title="Zoomen">
+                        <i class="bi bi-zoom-in"></i>
+                    </button>
+                    <button class="btn btn-xs btn-link" @onclick="() => OnEdit.InvokeAsync(area)" title="Bearbeiten">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-xs btn-link" @onclick="() => OnDownloadGpx.InvokeAsync(area)" title="GPX herunterladen">
+                        <i class="bi bi-download"></i>
+                    </button>
+                    <button class="btn btn-xs btn-link text-danger" @onclick="() => OnDelete.InvokeAsync(area)" title="Löschen">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="sidebar-empty">
+        <p><i class="bi bi-inbox"></i><br>Keine Suchgebiete</p>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public List<SearchArea> SearchAreas { get; set; } = new();
+    [Parameter] public EventCallback OnAddArea { get; set; }
+    [Parameter] public EventCallback<SearchArea> OnZoomToArea { get; set; }
+    [Parameter] public EventCallback<SearchArea> OnEdit { get; set; }
+    [Parameter] public EventCallback<SearchArea> OnDownloadGpx { get; set; }
+    [Parameter] public EventCallback<SearchArea> OnDelete { get; set; }
+}

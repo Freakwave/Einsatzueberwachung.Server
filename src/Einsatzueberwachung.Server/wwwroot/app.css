@@ -4140,3 +4140,37 @@ textarea:focus-visible {
         max-height: 380px;
     }
 }
+
+/* ========================================
+   Shared Sidebar Header & Utility Styles
+   (Used by EinsatzKarte sub-components)
+   ======================================== */
+
+.sidebar-content-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px 6px;
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+    flex-shrink: 0;
+}
+
+.sidebar-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color, #6c757d);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+    margin-top: 4px;
+}
+
+.btn-xs {
+    padding: 0 4px;
+    font-size: 0.7rem;
+    line-height: 1.4;
+}

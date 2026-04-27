@@ -1,0 +1,105 @@
+/* ========================================
+   Koordinaten-Tab – Eingabe & Marker-Liste
+   ======================================== */
+
+.points-tab-content {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.marker-input-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.marker-input-tabs {
+    display: flex;
+    gap: 4px;
+}
+
+.marker-input-tabs .btn-xs {
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    flex: 1;
+}
+
+.marker-coord-input .input-group-text {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+}
+
+.marker-coord-input .form-control {
+    font-size: 0.8rem;
+}
+
+.marker-list-section {
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+    padding-top: 6px;
+}
+
+.marker-list-header {
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.marker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.marker-list-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    font-size: 0.78rem;
+}
+
+.marker-list-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    cursor: pointer;
+    flex: 1;
+    min-width: 0;
+}
+
+.marker-list-info:hover {
+    text-decoration: underline;
+}
+
+.marker-list-label {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.marker-list-coords {
+    font-size: 0.7rem;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.marker-list-empty {
+    text-align: center;
+    padding: 8px;
+}
+
+.marker-list-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+}

@@ -132,7 +132,6 @@
                                      ExpandedSnapshotId="_expandedSnapshotId"
                                      GetCollarColorFn="GetCollarColor"
                                      OnZoomToCollar="ZoomToCollarAsync"
-                                     OnToggleSnapshotExpand="ToggleSnapshotExpand"
                                      OnToggleTrackVisibility="HandleToggleTrackVisibility" />
                     }
 
@@ -898,11 +897,6 @@
         {
             await DeactivateClickToPlaceMode();
         }
-    }
-
-    private void ToggleSnapshotExpand(string snapshotId)
-    {
-        _expandedSnapshotId = _expandedSnapshotId == snapshotId ? null : snapshotId;
     }
 
     // --- Callbacks für KartePunkteTab ---

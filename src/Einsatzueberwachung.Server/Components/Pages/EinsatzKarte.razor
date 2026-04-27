@@ -1001,13 +1001,28 @@
                 return area.Color;
         }
 
-        // Fallback: feste Farbpalette (identisch mit JS _colors)
-        var colors = new[] {
-            "#FF4444", "#44FF44", "#4444FF", "#FFAA00", "#FF44FF",
-            "#00FFFF", "#FF8800", "#8844FF", "#44FF88", "#FF4488"
+        // 10 klar unterscheidbare Farben (maximaler Hue-Abstand, gut sichtbar auf Karten)
+        var palette = new[]
+        {
+            "#E63946", // Rot
+            "#0077B6", // Dunkelblau
+            "#2DC653", // Grün
+            "#FF851B", // Orange
+            "#9B5DE5", // Violett
+            "#00B4D8", // Cyan
+            "#F72585", // Pink
+            "#FFD166", // Gelb
+            "#06D6A0", // Mint
+            "#FF6B35"  // Tiefes Orange
         };
-        var index = Math.Abs(collarId.GetHashCode()) % colors.Length;
-        return colors[index];
+
+        // Ersten 10: feste Farbe nach Listenposition (deterministisch, keine Kollisionen)
+        var idx = _collars.FindIndex(c => c.Id == collarId);
+        if (idx >= 0 && idx < palette.Length)
+            return palette[idx];
+
+        // Mehr als 10 Halsbänder: Hash-Fallback auf die gleiche Palette
+        return palette[Math.Abs(collarId.GetHashCode()) % palette.Length];
     }
 
     private async Task ZoomToCollarAsync(Collar collar)

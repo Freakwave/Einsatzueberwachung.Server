@@ -1,0 +1,164 @@
+@* MasterDataMergeItemCard — Zeigt einen importierten Stammdaten-Eintrag mit
+   Vorschlags-Radio-Buttons an und nimmt die Benutzerentscheidung entgegen. *@
+
+<div class="card mb-2 merge-item-card @GetCardClass()">
+    <div class="card-body py-2 px-3">
+
+        @* Importierter Eintrag (Header) *@
+        <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+            <div>
+                <span class="badge bg-secondary me-1">Import</span>
+                <strong>@Item.DisplayName</strong>
+                <span class="text-muted ms-2 small">(ID: @SafeId(Item.ImportedId))</span>
+                @if (!string.IsNullOrEmpty(Item.DetailsDisplay))
+                {
+                    <span class="text-muted small ms-2">@Item.DetailsDisplay</span>
+                }
+            </div>
+            @if (Item.IsResolved)
+            {
+                <span class="badge @GetDecisionBadgeClass() flex-shrink-0">@GetDecisionBadgeLabel()</span>
+            }
+        </div>
+
+        @* Vorschläge *@
+        <div class="ps-2">
+            @* Vorhandene Kandidaten (Link to existing) *@
+            @foreach (var candidate in Item.Suggestions)
+            {
+                var isSelected = Item.Decision == MergeDecision.LinkToExisting &&
+                                 Item.SelectedLocalId == candidate.LocalId;
+
+                <div class="candidate-option border rounded p-2 mb-1 @(isSelected ? "selected" : "")"
+                     @onclick="() => SelectLinkToExisting(candidate.LocalId)">
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="radio"
+                               class="form-check-input mt-0 flex-shrink-0"
+                               checked="@isSelected"
+                               @onchange="() => SelectLinkToExisting(candidate.LocalId)" />
+                        <div class="flex-grow-1">
+                            <span class="badge @GetMatchBadgeClass(candidate.MatchReason) me-1">
+                                @candidate.MatchReasonLabel
+                            </span>
+                            <span class="fw-semibold">@candidate.DisplayName</span>
+                            <span class="text-muted small ms-1">(ID: @SafeId(candidate.LocalId))</span>
+                            @if (!string.IsNullOrEmpty(candidate.DetailsDisplay))
+                            {
+                                <span class="text-muted small ms-2">@candidate.DetailsDisplay</span>
+                            }
+                        </div>
+                        <span class="text-muted small flex-shrink-0">
+                            @((int)(candidate.ConfidenceScore * 100))%
+                        </span>
+                    </div>
+                    @if (isSelected)
+                    {
+                        <div class="ms-4 mt-1">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="overwrite-@Item.ImportedId"
+                                       @bind="Item.OverwriteLocalFields" />
+                                <label class="form-check-label small text-muted" for="overwrite-@Item.ImportedId">
+                                    Lokale Felder mit importierten Werten überschreiben
+                                </label>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            @* Neu anlegen *@
+            @{
+                var isCreateNew = Item.Decision == MergeDecision.CreateNew;
+            }
+            <div class="candidate-option border rounded p-2 mb-1 @(isCreateNew ? "selected" : "")"
+                 @onclick="SelectCreateNew">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="radio" class="form-check-input mt-0 flex-shrink-0"
+                           checked="@isCreateNew"
+                           @onchange="SelectCreateNew" />
+                    <span class="badge bg-primary me-1">NEU</span>
+                    <span>Als neuen Eintrag anlegen</span>
+                </div>
+            </div>
+
+            @* Überspringen *@
+            @{
+                var isSkip = Item.Decision == MergeDecision.Skip;
+            }
+            <div class="candidate-option border rounded p-2 mb-1 @(isSkip ? "selected border-secondary" : "")"
+                 @onclick="SelectSkip">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="radio" class="form-check-input mt-0 flex-shrink-0"
+                           checked="@isSkip"
+                           @onchange="SelectSkip" />
+                    <span class="badge bg-secondary me-1">SKIP</span>
+                    <span class="text-muted">Eintrag ignorieren (Referenzen werden geleert)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public MasterDataMergeItem Item { get; set; } = null!;
+    [Parameter] public EventCallback OnDecisionChanged { get; set; }
+
+    private void SelectLinkToExisting(string localId)
+    {
+        Item.Decision = MergeDecision.LinkToExisting;
+        Item.SelectedLocalId = localId;
+        OnDecisionChanged.InvokeAsync();
+    }
+
+    private void SelectCreateNew()
+    {
+        Item.Decision = MergeDecision.CreateNew;
+        Item.SelectedLocalId = null;
+        Item.OverwriteLocalFields = false;
+        OnDecisionChanged.InvokeAsync();
+    }
+
+    private void SelectSkip()
+    {
+        Item.Decision = MergeDecision.Skip;
+        Item.SelectedLocalId = null;
+        Item.OverwriteLocalFields = false;
+        OnDecisionChanged.InvokeAsync();
+    }
+
+    private string GetCardClass() => Item.Decision switch
+    {
+        MergeDecision.LinkToExisting => "resolved-link",
+        MergeDecision.CreateNew => "resolved-create",
+        MergeDecision.Skip => "resolved-skip",
+        _ => ""
+    };
+
+    private string GetDecisionBadgeClass() => Item.Decision switch
+    {
+        MergeDecision.LinkToExisting => "bg-success",
+        MergeDecision.CreateNew => "bg-primary",
+        MergeDecision.Skip => "bg-secondary",
+        _ => "bg-light text-dark"
+    };
+
+    private string GetDecisionBadgeLabel() => Item.Decision switch
+    {
+        MergeDecision.LinkToExisting => "Verknüpft",
+        MergeDecision.CreateNew => "Neu anlegen",
+        MergeDecision.Skip => "Überspringen",
+        _ => "Offen"
+    };
+
+    private static string GetMatchBadgeClass(string reason) => reason switch
+    {
+        "SAME_ID" => "bg-success",
+        "EXACT_NAME" => "bg-primary",
+        "PARTIAL_NAME" => "bg-warning text-dark",
+        "SERIAL" => "bg-info text-dark",
+        _ => "bg-secondary"
+    };
+
+    private static string SafeId(string? id) =>
+        id is { Length: >= 8 } ? $"{id[..8]}…" : (id ?? "?");
+}

@@ -432,6 +432,17 @@ namespace Einsatzueberwachung.Domain.Services
             return Task.CompletedTask;
         }
 
+        public Task RemoveGlobalNoteAsync(string noteId)
+        {
+            var note = _globalNotes.FirstOrDefault(n => n.Id == noteId);
+            if (note != null)
+            {
+                _globalNotes.Remove(note);
+                _currentEinsatz.GlobalNotesEntries.Remove(note);
+            }
+            return Task.CompletedTask;
+        }
+
         public Task AssignTeamToSearchAreaAsync(string areaId, string teamId)
         {
             var area = _currentEinsatz.SearchAreas.FirstOrDefault(a => a.Id == areaId);

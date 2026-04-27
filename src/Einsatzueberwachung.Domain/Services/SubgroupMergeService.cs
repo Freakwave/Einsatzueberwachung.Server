@@ -939,7 +939,7 @@ namespace Einsatzueberwachung.Domain.Services
             // ArchivedTeam → Team (nur TeamId/TeamName für Vergleiche)
             var teams = archived.Teams.Select(t => new Team
             {
-                TeamId = Guid.NewGuid().ToString(), // ArchivedTeam hat keine TeamId; echte IDs nicht prüfbar
+                TeamId = t.TeamId,
                 TeamName = t.TeamName
             }).ToList();
 

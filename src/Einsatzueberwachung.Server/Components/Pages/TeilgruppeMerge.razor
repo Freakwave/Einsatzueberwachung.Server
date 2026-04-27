@@ -279,7 +279,7 @@
                     var _newNotes = _session?.NoteItems.Where(n => !n.IsAlreadyPresent).ToList() ?? new();
                     var _existingNotes = _session?.NoteItems.Where(n => n.IsAlreadyPresent).ToList() ?? new();
                 }
-                @if (_session.NoteItems.Any())
+                @if (_session?.NoteItems.Any() == true)
                 {
                     <h5 class="mt-3 mb-2">
                         <i class="bi bi-chat-left-text me-1"></i>Notizen / Funksprüche
@@ -753,6 +753,9 @@
         return stepNumber < current ? "completed" : "";
     }
 
+    private static string SafeId(string? id) =>
+        id is { Length: >= 8 } ? $"{id[..8]}…" : (id ?? "?");
+
     private static string GetDecisionIcon(MergeDecision d) => d switch
     {
         MergeDecision.LinkToExisting => "bi-link-45deg",
@@ -771,7 +774,7 @@
 
     private static string GetDecisionLabel(MasterDataMergeItem item) => item.Decision switch
     {
-        MergeDecision.LinkToExisting => $"Verknüpft mit {item.SelectedLocalId?[..8]}…",
+        MergeDecision.LinkToExisting => $"Verknüpft mit {SafeId(item.SelectedLocalId)}",
         MergeDecision.CreateNew => "Neu anlegen",
         MergeDecision.Skip => "Überspringen",
         _ => "Offen"

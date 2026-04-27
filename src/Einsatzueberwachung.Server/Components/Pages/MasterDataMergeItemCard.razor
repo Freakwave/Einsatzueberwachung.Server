@@ -9,7 +9,7 @@
             <div>
                 <span class="badge bg-secondary me-1">Import</span>
                 <strong>@Item.DisplayName</strong>
-                <span class="text-muted ms-2 small">(ID: @Item.ImportedId[..8]…)</span>
+                <span class="text-muted ms-2 small">(ID: @SafeId(Item.ImportedId))</span>
                 @if (!string.IsNullOrEmpty(Item.DetailsDisplay))
                 {
                     <span class="text-muted small ms-2">@Item.DetailsDisplay</span>
@@ -41,7 +41,7 @@
                                 @candidate.MatchReasonLabel
                             </span>
                             <span class="fw-semibold">@candidate.DisplayName</span>
-                            <span class="text-muted small ms-1">(ID: @candidate.LocalId[..8]…)</span>
+                            <span class="text-muted small ms-1">(ID: @SafeId(candidate.LocalId))</span>
                             @if (!string.IsNullOrEmpty(candidate.DetailsDisplay))
                             {
                                 <span class="text-muted small ms-2">@candidate.DetailsDisplay</span>
@@ -158,4 +158,7 @@
         "SERIAL" => "bg-info text-dark",
         _ => "bg-secondary"
     };
+
+    private static string SafeId(string? id) =>
+        id is { Length: >= 8 } ? $"{id[..8]}…" : (id ?? "?");
 }

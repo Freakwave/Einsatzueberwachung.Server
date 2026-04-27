@@ -456,7 +456,7 @@
 
     private void NavigateToMerge(string archivedEinsatzId)
     {
-        Navigation.NavigateTo($"/teilgruppe-zusammenfuehren/{archivedEinsatzId}");
+        Navigation.NavigateTo($"/einsatz-import-export/{archivedEinsatzId}");
     }
 
     private async Task RevertArchivedMergeAsync(string archivedEinsatzId, string mergeId)

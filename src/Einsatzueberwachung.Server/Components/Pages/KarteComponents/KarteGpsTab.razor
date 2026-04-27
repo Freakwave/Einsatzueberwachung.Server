@@ -1,4 +1,5 @@
 @* GPS-Tracking-Tab-Panel der Karten-Sidebar *@
+@inject IJSRuntime JSRuntime
 
 <div class="sidebar-content-header">
     <span class="small fw-semibold text-muted"><i class="bi bi-broadcast me-1"></i>GPS Tracking</span>
@@ -62,11 +63,11 @@
         </div>
         @foreach (var snap in CompletedSnapshots)
         {
-            var isExpanded = ExpandedSnapshotId == snap.Id;
             var isVisible = !CompletedTrackVisibility.TryGetValue(snap.Id, out var sv) || sv;
             <div class="snapshot-item">
-                <div class="snapshot-summary @(isExpanded ? "snapshot-expanded-header" : "")"
-                     @onclick="() => OnToggleSnapshotExpand.InvokeAsync(snap.Id)">
+                <div class="snapshot-summary"
+                     @onclick="() => OpenDetailPopup(snap)"
+                     title="Details anzeigen">
                     <span class="snapshot-color-bar" style="background:@snap.Color"></span>
                     <div class="snapshot-meta">
                         <div class="snapshot-team-name">@snap.TeamName</div>
@@ -86,48 +87,9 @@
                                 @onclick="() => OnToggleTrackVisibility.InvokeAsync((snap.Id, !isVisible))">
                             <i class="bi @(isVisible ? "bi-eye" : "bi-eye-slash")"></i>
                         </button>
-                        <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down") text-muted small"></i>
+                        <i class="bi bi-info-circle text-muted small" title="Details anzeigen"></i>
                     </div>
                 </div>
-                @if (isExpanded)
-                {
-                    <div class="snapshot-detail">
-                        <table class="table table-sm table-borderless snapshot-stats-table mb-2">
-                            <tbody>
-                                <tr><td class="text-muted">Team</td><td><strong>@snap.TeamName</strong></td></tr>
-                                <tr><td class="text-muted">Halsband</td><td>@(snap.CollarName ?? snap.CollarId)</td></tr>
-                                <tr><td class="text-muted">Suchgebiet</td><td>@(string.IsNullOrEmpty(snap.SearchAreaName) ? "–" : snap.SearchAreaName)</td></tr>
-                                <tr><td class="text-muted">Beginn</td><td>@(snap.Points.FirstOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
-                                <tr><td class="text-muted">Ende</td><td>@(snap.Points.LastOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
-                                <tr><td class="text-muted">Dauer</td><td>@snap.FormattedDuration</td></tr>
-                                <tr><td class="text-muted">Strecke</td><td>@snap.FormattedDistance</td></tr>
-                                <tr><td class="text-muted">Punkte</td><td>@snap.Points.Count</td></tr>
-                            </tbody>
-                        </table>
-                        @if (snap.Points.Count > 0)
-                        {
-                            <div class="snapshot-points-scroll">
-                                <table class="table table-xs snapshot-points-table">
-                                    <thead>
-                                        <tr><th>#</th><th>Zeit</th><th>Lat</th><th>Lng</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        @for (var pi = 0; pi < snap.Points.Count; pi++)
-                                        {
-                                            var pt = snap.Points[pi];
-                                            <tr>
-                                                <td class="text-muted">@(pi + 1)</td>
-                                                <td>@pt.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
-                                                <td class="font-monospace">@pt.Latitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
-                                                <td class="font-monospace">@pt.Longitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        }
-                    </div>
-                }
             </div>
         }
     }
@@ -139,6 +101,67 @@
     }
 </div>
 
+@* Detail-Popup für abgeschlossene Suche *@
+@if (_detailSnapshot != null)
+{
+    <div class="modal-backdrop show" style="z-index: 2000;" @onclick="CloseDetailPopup"></div>
+    <div class="modal show d-block" style="z-index: 2001;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span style="background:@_detailSnapshot.Color; width:10px; height:20px; border-radius:3px; display:inline-block; flex-shrink:0;"></span>
+                        <h6 class="modal-title mb-0">@_detailSnapshot.TeamName</h6>
+                    </div>
+                    <button type="button" class="btn-close" @onclick="CloseDetailPopup"></button>
+                </div>
+                <div class="modal-body py-2">
+                    <table class="table table-sm table-borderless snapshot-stats-table mb-2">
+                        <tbody>
+                            <tr><td class="text-muted">Team</td><td><strong>@_detailSnapshot.TeamName</strong></td></tr>
+                            <tr><td class="text-muted">Halsband</td><td>@(_detailSnapshot.CollarName ?? _detailSnapshot.CollarId)</td></tr>
+                            <tr><td class="text-muted">Suchgebiet</td><td>@(string.IsNullOrEmpty(_detailSnapshot.SearchAreaName) ? "–" : _detailSnapshot.SearchAreaName)</td></tr>
+                            <tr><td class="text-muted">Beginn</td><td>@(_detailSnapshot.Points.FirstOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
+                            <tr><td class="text-muted">Ende</td><td>@(_detailSnapshot.Points.LastOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
+                            <tr><td class="text-muted">Dauer</td><td>@_detailSnapshot.FormattedDuration</td></tr>
+                            <tr><td class="text-muted">Strecke</td><td>@_detailSnapshot.FormattedDistance</td></tr>
+                            <tr><td class="text-muted">Punkte</td><td>@_detailSnapshot.Points.Count</td></tr>
+                        </tbody>
+                    </table>
+                    @if (_detailSnapshot.Points.Count > 0)
+                    {
+                        <div class="snapshot-points-scroll">
+                            <table class="table table-xs snapshot-points-table">
+                                <thead>
+                                    <tr><th>#</th><th>Zeit</th><th>Lat</th><th>Lng</th></tr>
+                                </thead>
+                                <tbody>
+                                    @for (var pi = 0; pi < _detailSnapshot.Points.Count; pi++)
+                                    {
+                                        var pt = _detailSnapshot.Points[pi];
+                                        <tr>
+                                            <td class="text-muted">@(pi + 1)</td>
+                                            <td>@pt.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
+                                            <td class="font-monospace">@pt.Latitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
+                                            <td class="font-monospace">@pt.Longitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer py-2">
+                    <button class="btn btn-sm btn-outline-success" @onclick="DownloadTrackGpxAsync">
+                        <i class="bi bi-download me-1"></i>GPX herunterladen
+                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" @onclick="CloseDetailPopup">Schlie&#xDF;en</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter, EditorRequired] public List<Collar> Collars { get; set; } = new();
     [Parameter, EditorRequired] public Dictionary<string, string> OobWarnings { get; set; } = new();
@@ -148,6 +171,57 @@
     [Parameter] public string? ExpandedSnapshotId { get; set; }
     [Parameter, EditorRequired] public Func<string, string> GetCollarColorFn { get; set; } = _ => "#007bff";
     [Parameter] public EventCallback<Collar> OnZoomToCollar { get; set; }
-    [Parameter] public EventCallback<string> OnToggleSnapshotExpand { get; set; }
     [Parameter] public EventCallback<(string Id, bool Visible)> OnToggleTrackVisibility { get; set; }
+
+    private TeamTrackSnapshot? _detailSnapshot;
+    private string? _prevExpandedSnapshotId;
+
+    protected override void OnParametersSet()
+    {
+        // Auto-open popup when parent navigates to a specific snapshot (e.g. map click)
+        if (ExpandedSnapshotId != null && ExpandedSnapshotId != _prevExpandedSnapshotId)
+        {
+            var snap = CompletedSnapshots.FirstOrDefault(s => s.Id == ExpandedSnapshotId);
+            if (snap != null) _detailSnapshot = snap;
+        }
+        _prevExpandedSnapshotId = ExpandedSnapshotId;
+    }
+
+    private void OpenDetailPopup(TeamTrackSnapshot snap) => _detailSnapshot = snap;
+    private void CloseDetailPopup() => _detailSnapshot = null;
+
+    private async Task DownloadTrackGpxAsync()
+    {
+        if (_detailSnapshot == null || _detailSnapshot.Points.Count == 0) return;
+        var snap = _detailSnapshot;
+
+        var namePart = snap.TeamName + (string.IsNullOrEmpty(snap.SearchAreaName) ? "" : $"_{snap.SearchAreaName}");
+        var safeName = namePart.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+        var fileName = namePart.Replace(" ", "_") + "_Track.gpx";
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        sb.AppendLine("<gpx version=\"1.1\" creator=\"Einsatzueberwachung.Server\"");
+        sb.AppendLine("     xmlns=\"http://www.topografix.com/GPX/1/1\"");
+        sb.AppendLine("     xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"");
+        sb.AppendLine("     xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">");
+        sb.AppendLine($"  <trk>");
+        sb.AppendLine($"    <name>{safeName}</name>");
+        sb.AppendLine($"    <desc>Team: {safeName} &middot; {snap.FormattedDistance} &middot; {snap.FormattedDuration}</desc>");
+        sb.AppendLine("    <trkseg>");
+        foreach (var pt in snap.Points)
+        {
+            var iso = pt.Timestamp.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var lat = pt.Latitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture);
+            var lon = pt.Longitude.ToString("F7", System.Globalization.CultureInfo.InvariantCulture);
+            sb.AppendLine($"      <trkpt lat=\"{lat}\" lon=\"{lon}\">");
+            sb.AppendLine($"        <time>{iso}</time>");
+            sb.AppendLine("      </trkpt>");
+        }
+        sb.AppendLine("    </trkseg>");
+        sb.AppendLine("  </trk>");
+        sb.AppendLine("</gpx>");
+
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, sb.ToString(), "application/gpx+xml");
+    }
 }

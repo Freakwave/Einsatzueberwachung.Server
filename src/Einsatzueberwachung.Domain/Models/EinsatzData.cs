@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using Einsatzueberwachung.Domain.Models.Merge;
 
 namespace Einsatzueberwachung.Domain.Models
 {
@@ -37,6 +38,9 @@ namespace Einsatzueberwachung.Domain.Models
 
         // Alle gespeicherten GPS-Tracks des Einsatzes
         public List<TeamTrackSnapshot> TrackSnapshots { get; set; }
+
+        // Protokoll aller Import-Zusammenführungen für diesen Einsatz
+        public List<MergeHistoryEntry> MergeHistory { get; set; }
         
         // Koordinaten fuer Wetter-Abfrage
         public double? ElwLatitude => ElwPosition?.Latitude;
@@ -68,6 +72,7 @@ namespace Einsatzueberwachung.Domain.Models
             Teams = new List<Team>();
             ElwPosition = null;
             TrackSnapshots = new List<TeamTrackSnapshot>();
+            MergeHistory = new List<MergeHistoryEntry>();
         }
 
         public string EinsatzTyp => IstEinsatz ? "Einsatz" : "Übung";

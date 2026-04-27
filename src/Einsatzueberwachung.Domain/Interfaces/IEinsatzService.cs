@@ -54,6 +54,11 @@ namespace Einsatzueberwachung.Domain.Interfaces
         Task DeleteSearchAreaAsync(string areaId);
         Task AssignTeamToSearchAreaAsync(string areaId, string teamId);
 
+        /// <summary>
+        /// Entfernt eine Notiz anhand ihrer ID (für administrative Revert-Operationen).
+        /// </summary>
+        Task RemoveGlobalNoteAsync(string noteId);
+
         Task SetElwPositionAsync(double latitude, double longitude);
         Task ClearElwPositionAsync();
 

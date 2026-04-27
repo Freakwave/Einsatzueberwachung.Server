@@ -40,10 +40,10 @@ window.CollarTracking = {
 
     // Farben für verschiedene Halsbänder
     _colors: [
-        '#FF4444', '#44FF44', '#4444FF', '#FFAA00', '#FF44FF',
-        '#00FFFF', '#FF8800', '#8844FF', '#44FF88', '#FF4488',
-        '#88FF44', '#4488FF', '#FFFF44', '#FF0088', '#00FF88',
-        '#8800FF', '#FF8844', '#4488FF', '#88FF00', '#0044FF'
+        '#E63946', '#0077B6', '#2DC653', '#FF851B', '#9B5DE5',
+        '#00B4D8', '#F72585', '#FFD166', '#06D6A0', '#FF6B35',
+        '#8B4513', '#20B2AA', '#DC143C', '#4169E1', '#228B22',
+        '#FF1493', '#DAA520', '#6A0DAD', '#40E0D0', '#CD5C5C'
     ],
     _colorIndex: 0,
 

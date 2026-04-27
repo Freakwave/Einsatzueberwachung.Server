@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Einsatzueberwachung.Domain.Models;
+using Einsatzueberwachung.Domain.Models.Merge;
 
 namespace Einsatzueberwachung.Domain.Interfaces
 {
@@ -53,6 +54,20 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// Speichert einen aktualisierten archivierten Einsatz (z.B. nach einer Zusammenführung).
         /// </summary>
         Task UpdateArchivedEinsatzAsync(ArchivedEinsatz archived);
+
+        /// <summary>
+        /// Erstellt einen neuen archivierten Einsatz direkt aus einem Export-Paket,
+        /// ohne Zusammenführung mit einem bestehenden Einsatz.
+        /// </summary>
+        /// <param name="packet">Das importierte Export-Paket.</param>
+        /// <param name="einsatzort">Optionaler Einsatzort (Standard: SubgroupName aus dem Paket).</param>
+        /// <param name="ergebnis">Optionales Ergebnis (z.B. "Person gefunden").</param>
+        /// <param name="bemerkungen">Optionale Bemerkungen.</param>
+        Task<ArchivedEinsatz> ImportPacketAsNewEinsatzAsync(
+            SubgroupExportPacket packet,
+            string einsatzort = "",
+            string ergebnis = "",
+            string bemerkungen = "");
 
         /// <summary>
         /// Gibt Statistiken ueber alle archivierten Einsaetze zurueck

@@ -1,5 +1,12 @@
 # 🚀 Projekt: Einsatzüberwachung.Server — VS Code Copilot Projektanweisung
 
+> **⚠️ Hinweis für alle KI-Agenten:**  
+> Die vollständigen und aktuellen Projektregeln, Architektur-Entscheidungen und das Self-Improvement-Protokoll befinden sich in:  
+> **[`../AI_AGENT_GUIDELINES.md`](../AI_AGENT_GUIDELINES.md)**  
+> Bitte diese Datei vor jeder größeren Aufgabe lesen. Die nachfolgenden Inhalte sind eine Kopie für Copilot-Kompatibilität — maßgeblich ist stets `AI_AGENT_GUIDELINES.md`.
+
+---
+
 ## 📋 Projekt-Überblick
 
 Dieses Projekt ist ein **vollständiger Nachbau** der bestehenden Anwendung **Einsatzüberwachung.Web** 

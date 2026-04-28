@@ -72,6 +72,12 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             maxZoom: 20
         });
         
+        // OpenTopoMap: Topografische Karte mit Hoehenlinien
+        const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            maxZoom: 17,
+            attribution: 'Kartendaten: (c) OpenStreetMap | Kartenstil: (c) <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'
+        });
+        
         log('Layer erstellt');
         
         // Standard-Layer hinzufuegen
@@ -82,7 +88,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             "Strassenkarte": osmLayer,
             "Satellit (Esri)": satelliteLayer,
             "Satellit (Google)": googleSatellite,
-            "Hybrid (Google)": hybridLayer
+            "Hybrid (Google)": hybridLayer,
+            "Topografisch": topoLayer
         };
         
         log('Layer Control wird hinzugefuegt');
@@ -92,6 +99,55 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         });
         layerControl.addTo(map);
         log('Layer Control hinzugeFuegt:', layerControl);
+        
+        // Koordinaten-Gitter Control (UTM und Lat/Lon)
+        // UTM-Zone automatisch anhand der Kartenmitte bestimmen
+        const utmZone = Math.floor((centerLng + 180) / 6) + 1;
+        const bSouth = centerLat < 0;
+        
+        // UTM-Gitter als LayerGroup (mehrere benachbarte Zonen fuer bessere Abdeckung)
+        const utmGridGroup = L.layerGroup();
+        // Hauptzone und ggf. benachbarte Zonen hinzufuegen
+        for (let z = Math.max(1, utmZone - 1); z <= Math.min(60, utmZone + 1); z++) {
+            // Jede UTM-Zone auf ihre 6-Grad-Laengenband-Grenzen clippen
+            const zoneLngWest = (z - 1) * 6 - 180;
+            const zoneLngEast = z * 6 - 180;
+            const utmGrid = L.utmGrid(z, bSouth, {
+                color: "rgba(0, 100, 255, 0.6)",
+                weight: 1.5,
+                opacity: 0.8,
+                font: "bold 11px Verdana",
+                minZoom: 6,
+                showAxisLabels: [100, 500, 1000, 5000, 10000, 50000, 100000],
+                showAxis100km: true,
+                showSquareLabels: [100000],
+                latLonClipBounds: [[-85, zoneLngWest], [85, zoneLngEast]]
+            });
+            utmGridGroup.addLayer(utmGrid);
+        }
+        
+        // Lat/Lon Dezimal-Gitter
+        const latLonGrid = L.latLonGrid({
+            color: "rgba(214, 51, 132, 0.6)",
+            weight: 1.5,
+            opacity: 0.8,
+            font: "bold 11px Verdana",
+            minZoom: 3
+        });
+        
+        // Grid Selector Control hinzufuegen
+        const gridControl = L.control.gridSelector({
+            "Ohne": null,
+            "UTM": utmGridGroup,
+            "Lat/Lon (dezimal)": latLonGrid
+        }, {
+            position: 'topright'
+        });
+        gridControl.addTo(map);
+        log('Grid Control hinzugefuegt');
+
+        // Maßstab (metrisch)
+        L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
             
         // FeatureGroup fuer gezeichnete Items (NUR neue, ungespeicherte Zeichnungen!)
         const drawnItems = new L.FeatureGroup();
@@ -638,85 +694,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 map.removeLayer(mapData.drawnItems);
             }
 
-            const extendBoundsWithLatLngs = (bounds, latLngs) => {
-                if (!latLngs) {
-                    return;
-                }
-
-                latLngs.forEach((entry) => {
-                    if (Array.isArray(entry)) {
-                        extendBoundsWithLatLngs(bounds, entry);
-                        return;
-                    }
-
-                    if (entry && typeof entry.lat === 'number' && typeof entry.lng === 'number') {
-                        bounds.extend(entry);
-                    }
-                });
-            };
-
-            const collectPrintBounds = () => {
-                const bounds = L.latLngBounds([]);
-
-                if (mapData.savedAreas) {
-                    mapData.savedAreas.eachLayer((layer) => {
-                        if (!layer) {
-                            return;
-                        }
-
-                        if (typeof layer.eachLayer === 'function' && !layer.getLatLngs && !layer.getLatLng) {
-                            layer.eachLayer((childLayer) => {
-                                if (childLayer && typeof childLayer.getLatLngs === 'function') {
-                                    extendBoundsWithLatLngs(bounds, childLayer.getLatLngs());
-                                } else if (childLayer && typeof childLayer.getLatLng === 'function') {
-                                    bounds.extend(childLayer.getLatLng());
-                                } else if (childLayer && typeof childLayer.getBounds === 'function') {
-                                    bounds.extend(childLayer.getBounds());
-                                }
-                            });
-                            return;
-                        }
-
-                        if (typeof layer.getLatLngs === 'function') {
-                            extendBoundsWithLatLngs(bounds, layer.getLatLngs());
-                            return;
-                        }
-
-                        if (typeof layer.getLatLng === 'function') {
-                            bounds.extend(layer.getLatLng());
-                            return;
-                        }
-
-                        if (typeof layer.getBounds === 'function') {
-                            bounds.extend(layer.getBounds());
-                        }
-                    });
-                }
-
-                if (mapData.markers && mapData.markers.elw && typeof mapData.markers.elw.getLatLng === 'function') {
-                    bounds.extend(mapData.markers.elw.getLatLng());
-                }
-
-                return bounds;
-            };
-
-            const bounds = collectPrintBounds();
-
             const applyPrintView = () => {
-                map.invalidateSize();
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds.pad(0.18), {
-                        maxZoom: 16,
-                        animate: false,
-                        paddingTopLeft: [40, 40],
-                        paddingBottomRight: [40, 40]
-                    });
-
-                    // Verschiebt den sichtbaren Druckbereich gezielt nach unten rechts.
-                    map.panBy([350, 250], { animate: false });
-                    return;
-                }
-
+                map.invalidateSize({ noMoveStart: true });
                 map.setView(currentCenter, currentZoom, { animate: false });
             };
 
@@ -745,6 +724,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
 
             const beforePrintHandler = () => {
                 enablePrintLayout();
+                // Synchronous invalidate so Leaflet picks up the @media print container dimensions
+                map.invalidateSize({ noMoveStart: true });
                 requestAnimationFrame(() => {
                     applyPrintView();
 

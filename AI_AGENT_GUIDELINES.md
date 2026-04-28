@@ -22,17 +22,11 @@ Wann immer ein menschlicher Entwickler deinen Code korrigiert, einen Vorschlag a
 ## 3. Allgemeine Projekt-Grundsätze (Statisch)
 
 ### Projekt-Überblick
-Dieses Projekt ist ein **vollständiger Nachbau** der bestehenden Anwendung **Einsatzüberwachung.Web**
-(Repository: `Elemirus1996/Einsatzueberwachung.Web`), angepasst für den Betrieb auf einem **Ubuntu Linux Server**
-mit **VPN-geschütztem Zugriff** (nicht öffentlich erreichbar).
+**Einsatzüberwachung.Server** ist eine Blazor Server (.NET 8/9) Einsatzleit-Anwendung für Suchhundestaffeln.
+Sie läuft auf einem **Ubuntu Linux Server** mit **VPN-geschütztem Zugriff** (nicht öffentlich erreichbar) hinter Nginx Reverse Proxy.
 
-Das neue Projekt heißt: **Einsatzüberwachung.Server**
-
-Zusätzlich gibt es eine **separate mobile Version** (PWA), die auf folgende Funktionen reduziert ist:
-- Einsatz anlegen
-- Team-Übersicht (welche Teams im Einsatz sind)
-- Notizen
-- Funksprüche
+Mobile Ansichten sind direkt im Server-Projekt integriert (kein separates Mobile-Projekt).
+Der Desktop-GPS-Client `Einsatzueberwachung.LiveTracking` ist eine separate WPF-App (Windows-only).
 
 ### Tech-Stack
 - **Frontend**: Blazor Server (.NET 8/9) mit Razor Components + interaktiver Server-Render-Modus (`@rendermode InteractiveServer`)
@@ -209,11 +203,6 @@ Das bedeutet konkret: Wenn du eine Datei ohnehin bearbeitest, darfst und sollst 
 Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze System betreffen, **frage immer den Menschen um Erlaubnis**.
 
 ### DO ✅
-- Gleiche Funktionalität und Aussehen wie Einsatzüberwachung.Web
-- Gleiche Razor Components (Blazor Server) mit identischer UI
-- Gleiche CSS-Klassen und Bootstrap 5.3+ Design mit Bootstrap Icons (`bi-*`)
-- Gleiche SignalR Echtzeit-Logik (alle Events über `EinsatzHub` und Relay-Services)
-- Gleiche Domain-Modelle (EinsatzData, Team, PersonalEntry, Note, Collar, etc.)
 - **Linux-kompatible Pfade** — immer `AppPathResolver.GetDataDirectory()` und `Path.Combine()` verwenden
 - Systemd-fähige Konfiguration (kein interaktiver Modus, kein Autostart via Windows-Mechanismen)
 - Nginx-kompatibel: `UseForwardedHeaders()` muss als erstes in der Middleware-Pipeline stehen
@@ -223,6 +212,7 @@ Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze 
 - `IDbContextFactory<RuntimeDbContext>` verwenden (nicht direkt injizieren) wenn in Singleton-Services auf die DB zugegriffen wird
 - Neue Audio-Warnungen als `.wav` in `wwwroot/audio/warnings/` ablegen
 - Neue JS-Module als eigene Dateien in `wwwroot/js/` anlegen (kein eingebettetes JS in Razor-Dateien)
+- UI auf Deutsch, Bootstrap 5.3+ mit Dark Mode und Bootstrap Icons (`bi-*`)
 
 ### DON'T ❌
 - Keine Windows-spezifischen Pfade (`C:\`, Backslashes) im Server-Projekt
@@ -258,14 +248,7 @@ Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze 
 - **📥 Downloads**: PDF-Berichte, Excel-Stammdaten, JSON-Export, ZIP-Backup, LiveTracking-App
 
 ### Migrations-Reihenfolge (aktueller Stand)
-**Phase 1–2**: ✅ Abgeschlossen — Grundstruktur, alle Hauptseiten, SignalR, Dark Mode  
-**Phase 3**: ⚠️ Geändert — `Mobile PWA` ersetzt durch mobile Ansichten im Server-Projekt selbst  
-**Phase 4**: ✅ Deployment-Infrastruktur vorhanden (Nginx, systemd, WireGuard, Backup, Update-Skripte)
-
-### Referenz-Repository
-- **Repo**: `Elemirus1996/Einsatzueberwachung.Web`
-- **Branch**: `main`
-- **Commit**: `c028154660dc5e9a78bc10e65ddbe7af607453f4`
+**Migration abgeschlossen.** Alle Phasen (Grundstruktur, Hauptseiten, SignalR, Dark Mode, Deployment-Infrastruktur) sind umgesetzt.
 
 ---
 
@@ -278,3 +261,4 @@ Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze 
 * [2026-04-28] - Wichtige Konvention: Domain-Services sind **Singletons**. Wer aus einem Singleton auf den `DbContext` zugreifen muss, nutzt `IDbContextFactory<RuntimeDbContext>` — niemals direkt den `DbContext` injizieren.
 * [2026-04-28] - Neue REST-Controller kommen in `src/Einsatzueberwachung.Server/Controllers/`. SignalR-Events werden nie direkt aus Domain-Services gesendet, sondern immer durch die zugehörigen Relay-`BackgroundService`s (`EinsatzHubRelayService`, `CollarTrackingRelayService`).
 * [2026-04-28] - Boy Scout Rule eingeführt: Bei jeder Änderung kleine Architektur-Verbesserungen an der berührten Datei vornehmen (Methoden extrahieren, Duplikate entfernen, Magic Strings ersetzen, etc.) — aber keine großen Umstrukturierungen ohne Rückfrage.
+* [2026-04-28] - `.github/copilot-instructions.md` ist ein schlanker Stub mit Redirect auf `AI_AGENT_GUIDELINES.md`. Migrations-Inhalte wurden aus beiden Dateien entfernt — Migration ist abgeschlossen. `AI_AGENT_GUIDELINES.md` ist die einzige Wahrheitsquelle.

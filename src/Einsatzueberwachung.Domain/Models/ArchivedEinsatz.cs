@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Einsatzueberwachung.Domain.Models.Merge;
 
 namespace Einsatzueberwachung.Domain.Models
 {
@@ -62,6 +63,16 @@ namespace Einsatzueberwachung.Domain.Models
 
         // === GPS-Tracks ===
         public List<TeamTrackSnapshot> TrackSnapshots { get; set; } = new();
+
+        // === Zusammenführungs-Protokoll ===
+        /// <summary>Zeitpunkt der letzten Teilgruppen-Zusammenführung (null = noch nie zusammengeführt).</summary>
+        public DateTime? LastMergedAt { get; set; }
+
+        /// <summary>
+        /// Protokoll aller Teilgruppen-Zusammenführungen für diesen archivierten Einsatz.
+        /// Ermöglicht das rückstandslose Rückgängigmachen einzelner Zusammenführungen.
+        /// </summary>
+        public List<MergeHistoryEntry> MergeHistory { get; set; } = new();
 
         // === Berechnete Eigenschaften ===
         public string EinsatzTyp => IstEinsatz ? "Einsatz" : "Uebung";
@@ -158,6 +169,7 @@ namespace Einsatzueberwachung.Domain.Models
     /// </summary>
     public class ArchivedTeam
     {
+        public string TeamId { get; set; } = string.Empty;
         public string TeamName { get; set; } = string.Empty;
         public string Funkrufname { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
@@ -172,6 +184,7 @@ namespace Einsatzueberwachung.Domain.Models
         {
             var archived = new ArchivedTeam
             {
+                TeamId = team.TeamId,
                 TeamName = team.TeamName,
                 Funkrufname = team.TeamName, // TeamName wird als Funkrufname verwendet
                 Status = team.IsRunning ? "Im Einsatz" : "Beendet",

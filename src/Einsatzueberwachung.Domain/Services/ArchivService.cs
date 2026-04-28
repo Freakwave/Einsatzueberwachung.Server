@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
+using Einsatzueberwachung.Domain.Models.Merge;
 
 namespace Einsatzueberwachung.Domain.Services
 {
@@ -175,6 +176,84 @@ namespace Einsatzueberwachung.Domain.Services
             await SaveAsync();
 
             return true;
+        }
+
+        public async Task UpdateArchivedEinsatzAsync(ArchivedEinsatz archived)
+        {
+            await EnsureLoadedAsync();
+
+            var index = _archiv.FindIndex(e => e.Id == archived.Id);
+            if (index >= 0)
+            {
+                _archiv[index] = archived;
+            }
+            else
+            {
+                _archiv.Insert(0, archived);
+            }
+
+            await SaveAsync();
+        }
+
+        public async Task<ArchivedEinsatz> ImportPacketAsNewEinsatzAsync(
+            SubgroupExportPacket packet,
+            string einsatzort = "",
+            string ergebnis = "",
+            string bemerkungen = "")
+        {
+            await EnsureLoadedAsync();
+
+            var archived = new ArchivedEinsatz
+            {
+                ArchivedAt = Now,
+                EinsatzNummer = packet.EinsatzNummer,
+                Einsatzort = !string.IsNullOrWhiteSpace(einsatzort) ? einsatzort : packet.SubgroupName,
+                StaffelName = packet.SubgroupName,
+                IstEinsatz = true,
+                EinsatzDatum = packet.ExportedAt.ToLocalTime().Date,
+                AlarmierungsZeit = packet.ExportedAt.ToLocalTime(),
+                EinsatzEnde = Now,
+                Ergebnis = ergebnis,
+                Bemerkungen = bemerkungen,
+                AnzahlTeams = packet.Teams.Count,
+                GlobalNotesEntries = packet.Notes.ToList(),
+                SearchAreas = packet.SearchAreas.ToList(),
+                TrackSnapshots = packet.TrackSnapshots.ToList(),
+            };
+
+            foreach (var team in packet.Teams)
+                archived.Teams.Add(ArchivedTeam.FromTeam(team));
+
+            archived.PersonalNamen = packet.Personal
+                .Select(p => p.FullName)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(n => n)
+                .ToList();
+
+            archived.HundeNamen = packet.Dogs
+                .Select(d => d.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(n => n)
+                .ToList();
+
+            archived.DrohnenNamen = packet.Drones
+                .Select(d => d.DisplayName)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(n => n)
+                .ToList();
+
+            archived.AnzahlPersonal = archived.PersonalNamen.Count;
+            archived.AnzahlHunde = archived.HundeNamen.Count;
+            archived.AnzahlDrohnen = archived.DrohnenNamen.Count;
+            archived.AnzahlRessourcen = archived.AnzahlPersonal + archived.AnzahlHunde + archived.AnzahlDrohnen;
+
+            _archiv.Insert(0, archived);
+            await SaveAsync();
+
+            return archived;
         }
 
         public async Task<byte[]> ExportAllAsJsonAsync()

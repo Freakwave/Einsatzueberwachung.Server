@@ -1,0 +1,1905 @@
+@page "/einsatz-import-export"
+@page "/einsatz-import-export/{ArchivedEinsatzId}"
+@rendermode InteractiveServer
+
+@using Einsatzueberwachung.Domain.Models
+@using Einsatzueberwachung.Domain.Models.Merge
+@using Einsatzueberwachung.Domain.Interfaces
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject ISubgroupMergeService MergeService
+@inject ISubgroupExportService ExportService
+@inject IEinsatzService EinsatzService
+@inject IMasterDataService MasterDataService
+@inject IArchivService ArchivService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<PageTitle>Einsatz Import/Export</PageTitle>
+
+<div class="container py-4">
+
+    @* ── Seitenkopf ── *@
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <button class="btn btn-outline-secondary btn-sm" @onclick="NavigateBack">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </button>
+        <div>
+            <h1 class="mb-0 h3">
+                <i class="bi bi-arrow-left-right me-2"></i>Einsatz Import/Export
+            </h1>
+            @if (!string.IsNullOrEmpty(ArchivedEinsatzId))
+            {
+                <small class="text-muted">Ziel: Archivierter Einsatz</small>
+            }
+            else
+            {
+                <small class="text-muted">
+                    Einsatz: <strong>@EinsatzService.CurrentEinsatz.EinsatzNummer</strong>
+                    &bull; @EinsatzService.CurrentEinsatz.Einsatzort
+                </small>
+            }
+        </div>
+    </div>
+
+    @* ── Tab-Umschalter ── *@
+    <div class="btn-group mb-4" role="group" aria-label="Tab auswählen">
+        <button class="btn @GetTabButtonClass("import")" @onclick='() => SetActiveTab("import")'>
+            <i class="bi bi-upload me-1"></i>Import
+        </button>
+        <button class="btn @GetTabButtonClass("export")" @onclick='() => SetActiveTab("export")'
+                disabled="@(!string.IsNullOrEmpty(ArchivedEinsatzId))">
+            <i class="bi bi-download me-1"></i>Export
+        </button>
+    </div>
+
+    @* ══════════════════════════════════════════════════════════════
+       TAB: IMPORT
+       ══════════════════════════════════════════════════════════════ *@
+    <div class="@GetTabPaneClass("import")">
+
+        @* ── Modus-Auswahl ── *@
+        @if (_importMode == null)
+        {
+            <p class="text-muted mb-4">
+                Wählen Sie, wie das Export-Paket importiert werden soll:
+            </p>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card h-100 import-mode-card border-primary"
+                         role="button"
+                         @onclick='() => SelectImportMode("merge")'>
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-diagram-2 display-4 text-primary mb-3 d-block"></i>
+                            <h5 class="card-title">Als Unterabschnitt integrieren</h5>
+                            <p class="card-text text-muted small">
+                                Teams, Stammdaten, Notizen und Suchgebiete einer Teilgruppe in den
+                                laufenden oder archivierten Einsatz übernehmen.
+                            </p>
+                        </div>
+                        <div class="card-footer text-center border-0 bg-transparent pb-4">
+                            <span class="btn btn-primary">Auswählen</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100 import-mode-card border-success"
+                         role="button"
+                         @onclick='() => SelectImportMode("new-einsatz")'>
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-folder-plus display-4 text-success mb-3 d-block"></i>
+                            <h5 class="card-title">Als neuen Einsatz anlegen</h5>
+                            <p class="card-text text-muted small">
+                                Export-Paket als eigenständigen Archiv-Eintrag speichern —
+                                unabhängig vom laufenden Einsatz.
+                            </p>
+                        </div>
+                        <div class="card-footer text-center border-0 bg-transparent pb-4">
+                            <span class="btn btn-success">Auswählen</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* ── Unterabschnitt-Modus (bestehender Merge-Wizard) ── *@
+        @if (_importMode == "merge")
+        {
+            <button class="btn btn-link btn-sm ps-0 text-muted mb-3" @onclick="ResetImportMode">
+                <i class="bi bi-arrow-left me-1"></i>Modus ändern
+            </button>
+
+            @* Fortschritts-Stepper *@
+            <div class="merge-stepper d-flex gap-0 mb-4 align-items-center">
+                @foreach (var step in _steps)
+                {
+                    <div class="merge-step @GetStepClass(step.Number)">
+                        <div class="merge-step-circle">@step.Number</div>
+                        <div class="merge-step-label d-none d-md-block">@step.Label</div>
+                    </div>
+                    @if (step.Number < _steps.Count)
+                    {
+                        <div class="merge-step-connector @GetConnectorClass(step.Number)"></div>
+                    }
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@_errorMessage
+                </div>
+            }
+
+            @* ─── Schritt 1: Upload ─── *@
+            @if (_currentStep == MergeWizardStep.Upload)
+            {
+                <div class="card">
+                    <div class="card-header fw-semibold">
+                        <i class="bi bi-upload me-2"></i>Schritt 1 — Export-Datei hochladen
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">
+                            Wählen Sie die <code>.einsatz-export.json</code> Datei der Teilgruppe aus.
+                        </p>
+
+                        <div class="mb-3">
+                            <InputFile OnChange="HandleFileUploadAsync"
+                                       accept=".json"
+                                       class="form-control"
+                                       disabled="@_isLoading" />
+                        </div>
+
+                        @if (_isLoading)
+                        {
+                            <div class="text-muted"><i class="bi bi-hourglass-split me-1"></i>Wird verarbeitet…</div>
+                        }
+
+                        @if (_session?.Packet != null && _currentStep == MergeWizardStep.Upload)
+                        {
+                            <div class="card bg-body-secondary mt-3">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-2">
+                                        <i class="bi bi-info-circle me-1"></i>Export-Zusammenfassung
+                                    </h6>
+                                    <dl class="row mb-0 small">
+                                        <dt class="col-sm-4">Teilgruppe</dt>
+                                        <dd class="col-sm-8">@_session.Packet.SubgroupName</dd>
+                                        <dt class="col-sm-4">EinsatzNummer</dt>
+                                        <dd class="col-sm-8">@_session.Packet.EinsatzNummer</dd>
+                                        <dt class="col-sm-4">Exportiert am</dt>
+                                        <dd class="col-sm-8">@_session.Packet.ExportedAt.ToString("dd.MM.yyyy HH:mm")</dd>
+                                        <dt class="col-sm-4">Stammdaten</dt>
+                                        <dd class="col-sm-8">
+                                            @_session.Packet.Personal.Count Personal,
+                                            @_session.Packet.Dogs.Count Hunde,
+                                            @_session.Packet.Drones.Count Drohnen
+                                        </dd>
+                                        <dt class="col-sm-4">Operative Daten</dt>
+                                        <dd class="col-sm-8">
+                                            @_session.Packet.Teams.Count Teams,
+                                            @_session.Packet.Notes.Count Notizen,
+                                            @_session.Packet.SearchAreas.Count Gebiete
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+
+                            @if (_einsatzNrMismatch && !_session.EinsatzNrMismatchAcknowledged)
+                            {
+                                <div class="alert alert-warning mt-3">
+                                    <strong><i class="bi bi-exclamation-triangle-fill me-1"></i>Abweichende EinsatzNummer!</strong>
+                                    <p class="mb-2 mt-1">
+                                        Die importierte EinsatzNummer <strong>„@_session.Packet.EinsatzNummer"</strong>
+                                        stimmt nicht mit dem aktuellen Einsatz überein.
+                                        Bitte bestätigen Sie, dass Sie trotzdem fortfahren möchten.
+                                    </p>
+                                    <button class="btn btn-warning btn-sm" @onclick="AcknowledgeMismatch">
+                                        Ich verstehe das Risiko — trotzdem fortfahren
+                                    </button>
+                                </div>
+                            }
+
+                            <div class="d-flex justify-content-end mt-3">
+                                <button class="btn btn-primary"
+                                        @onclick="ProceedToMasterData"
+                                        disabled="@(!CanProceedFromUpload)">
+                                    Weiter <i class="bi bi-arrow-right ms-1"></i>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            @* ─── Schritt 2: Stammdaten-Zuordnung ─── *@
+            @if (_currentStep == MergeWizardStep.MasterDataResolution && _session != null)
+            {
+                <div class="card">
+                    <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-people me-2"></i>Schritt 2 — Stammdaten zuordnen</span>
+                        <span class="badge @(_session.AllMasterDataResolved ? "bg-success" : "bg-warning text-dark")">
+                            @_session.ResolvedMasterDataCount / @_session.TotalMasterDataCount zugeordnet
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Jeder importierte Eintrag muss zugeordnet werden, bevor Sie fortfahren können.
+                            <strong>Keine Entscheidung wird gespeichert, bis Sie am Ende „Zusammenführen" klicken.</strong>
+                        </p>
+
+                        @* Personal *@
+                        @if (_session.PersonalItems.Any())
+                        {
+                            <h5 class="mt-3 mb-2"><i class="bi bi-person me-1"></i>Personal (@_session.PersonalItems.Count)</h5>
+                            @foreach (var item in _session.PersonalItems)
+                            {
+                                <MasterDataMergeItemCard Item="item"
+                                                         OnDecisionChanged="() => OnMasterDataDecisionChanged()" />
+                            }
+                        }
+
+                        @* Hunde *@
+                        @if (_session.DogItems.Any())
+                        {
+                            <h5 class="mt-4 mb-2"><i class="bi bi-heart me-1"></i>Hunde (@_session.DogItems.Count)</h5>
+                            @foreach (var item in _session.DogItems)
+                            {
+                                <MasterDataMergeItemCard Item="item"
+                                                         OnDecisionChanged="() => OnMasterDataDecisionChanged()" />
+                            }
+                        }
+
+                        @* Drohnen *@
+                        @if (_session.DroneItems.Any())
+                        {
+                            <h5 class="mt-4 mb-2"><i class="bi bi-rocket me-1"></i>Drohnen (@_session.DroneItems.Count)</h5>
+                            @foreach (var item in _session.DroneItems)
+                            {
+                                <MasterDataMergeItemCard Item="item"
+                                                         OnDecisionChanged="() => OnMasterDataDecisionChanged()" />
+                            }
+                        }
+
+                        @if (_session.TotalMasterDataCount == 0)
+                        {
+                            <p class="text-muted fst-italic">Keine Stammdaten im Export-Paket.</p>
+                        }
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button class="btn btn-outline-secondary" @onclick="() => GoToStep(MergeWizardStep.Upload)">
+                                <i class="bi bi-arrow-left me-1"></i>Zurück
+                            </button>
+                            <button class="btn btn-primary"
+                                    @onclick="ProceedToOperationalData"
+                                    disabled="@(!_session.AllMasterDataResolved)">
+                                Weiter <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ─── Schritt 3: Operative Daten prüfen ─── *@
+            @if (_currentStep == MergeWizardStep.OperationalDataReview && _session != null)
+            {
+                <div class="card">
+                    <div class="card-header fw-semibold">
+                        <i class="bi bi-clipboard-check me-2"></i>Schritt 3 — Operative Daten prüfen
+                    </div>
+                    <div class="card-body">
+
+                        @* Zusammenfassungszeile *@
+                        <div class="alert alert-info mb-3 small">
+                            <strong>Vorschau:</strong>
+                            @_session.TeamsToImport Teams,
+                            @_session.NotesToImport Notizen,
+                            @_session.SearchAreasToImport Gebiete,
+                            @_session.NewMarkerCount Marker,
+                            @_session.NewTrackSnapshotCount GPS-Tracks werden importiert.
+                        </div>
+
+                        @* Teams *@
+                        @if (_session.TeamItems.Any())
+                        {
+                            <h5 class="mt-2 mb-2"><i class="bi bi-people me-1"></i>Teams</h5>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-3">
+                                    <thead>
+                                        <tr>
+                                            <th>Importieren?</th>
+                                            <th>Team</th>
+                                            <th>Mitglieder</th>
+                                            <th>Timer</th>
+                                            <th>Konflikt</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var teamItem in _session.TeamItems)
+                                        {
+                                            <tr class="@(teamItem.ShouldImport ? "" : "table-secondary text-muted")">
+                                                <td>
+                                                    <div class="form-check form-switch mb-0">
+                                                        <input class="form-check-input" type="checkbox"
+                                                               @bind="teamItem.ShouldImport" />
+                                                    </div>
+                                                </td>
+                                                <td>@teamItem.ImportedTeam.TeamName</td>
+                                                <td>@string.Join(", ", teamItem.ResolvedMemberNames)</td>
+                                                <td>@teamItem.ImportedTeam.ElapsedTime.ToString(@"hh\:mm\:ss")</td>
+                                                <td>
+                                                    @if (teamItem.HasLocalConflict)
+                                                    {
+                                                        <span class="badge bg-warning text-dark">
+                                                            <i class="bi bi-exclamation-triangle me-1"></i>ID-Konflikt
+                                                        </span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                        @* Notizen *@
+                        @{
+                            var _newNotes = _session?.NoteItems.Where(n => !n.IsAlreadyPresent).ToList() ?? new();
+                            var _existingNotes = _session?.NoteItems.Where(n => n.IsAlreadyPresent).ToList() ?? new();
+                        }
+                        @if (_session?.NoteItems.Any() == true)
+                        {
+                            <h5 class="mt-3 mb-2">
+                                <i class="bi bi-chat-left-text me-1"></i>Notizen / Funksprüche
+                            </h5>
+
+                            @if (_newNotes.Any())
+                            {
+                                <div class="d-flex gap-2 mb-2 align-items-center">
+                                    <button class="btn btn-sm btn-outline-success"
+                                            @onclick="() => BulkSelectNotes(true)">
+                                        Alle auswählen
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary"
+                                            @onclick="() => BulkSelectNotes(false)">
+                                        Alle abwählen
+                                    </button>
+                                    <span class="text-muted small">
+                                        @_newNotes.Count(n => n.ShouldImport) / @_newNotes.Count neue Notizen ausgewählt
+                                    </span>
+                                </div>
+
+                                <div class="note-preview-list" style="max-height: 300px; overflow-y: auto;">
+                                    @foreach (var noteItem in _newNotes)
+                                    {
+                                        <div class="d-flex align-items-start gap-2 mb-2 p-2 border rounded @(noteItem.ShouldImport ? "" : "opacity-50")">
+                                            <input type="checkbox" class="form-check-input mt-1"
+                                                   @bind="noteItem.ShouldImport" />
+                                            <div>
+                                                <span class="text-muted small me-2">
+                                                    @noteItem.Note.Timestamp.ToString("dd.MM. HH:mm")
+                                                </span>
+                                                <span class="badge bg-secondary small me-1">
+                                                    @noteItem.Note.SourceTeamName
+                                                </span>
+                                                @noteItem.Note.Text
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            @if (_existingNotes.Any())
+                            {
+                                <p class="text-muted small mt-2">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    @_existingNotes.Count Notizen bereits vorhanden — werden übersprungen.
+                                </p>
+                            }
+                        }
+
+                        @* Suchgebiete *@
+                        @if (_session?.SearchAreaItems.Any() == true)
+                        {
+                            <h5 class="mt-3 mb-2"><i class="bi bi-map me-1"></i>Suchgebiete</h5>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-3">
+                                    <thead>
+                                        <tr>
+                                            <th>Importieren?</th>
+                                            <th>Name</th>
+                                            <th>Status</th>
+                                            <th>Konflikt / Aktion</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var areaItem in _session.SearchAreaItems)
+                                        {
+                                            @if (areaItem.ConflictType == SearchAreaConflict.SameIdExists)
+                                            {
+                                                <tr class="table-secondary text-muted">
+                                                    <td><i class="bi bi-skip-forward text-muted"></i></td>
+                                                    <td>@areaItem.ImportedArea.Name</td>
+                                                    <td><span class="badge bg-secondary">Vorhanden</span></td>
+                                                    <td><small>Gleiche ID bereits lokal — übersprungen</small></td>
+                                                </tr>
+                                            }
+                                            else if (areaItem.ConflictType == SearchAreaConflict.SameNameDifferentId)
+                                            {
+                                                <tr>
+                                                    <td>
+                                                        <div class="form-check form-switch mb-0">
+                                                            <input class="form-check-input" type="checkbox"
+                                                                   @bind="areaItem.ShouldImport" />
+                                                        </div>
+                                                    </td>
+                                                    <td>@areaItem.ImportedArea.Name</td>
+                                                    <td><span class="badge bg-warning text-dark">Namenskonflikt</span></td>
+                                                    <td>
+                                                        @if (areaItem.ShouldImport)
+                                                        {
+                                                            <select class="form-select form-select-sm"
+                                                                    @bind="areaItem.NameConflictResolution">
+                                                                <option value="@SearchAreaNameConflictResolution.KeepBoth">Beide behalten</option>
+                                                                <option value="@SearchAreaNameConflictResolution.Rename">Import umbenennen</option>
+                                                                <option value="@SearchAreaNameConflictResolution.ReplaceLocal">Lokal ersetzen</option>
+                                                            </select>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            }
+                                            else
+                                            {
+                                                <tr class="@(areaItem.ShouldImport ? "" : "table-secondary text-muted")">
+                                                    <td>
+                                                        <div class="form-check form-switch mb-0">
+                                                            <input class="form-check-input" type="checkbox"
+                                                                   @bind="areaItem.ShouldImport" />
+                                                        </div>
+                                                    </td>
+                                                    <td>@areaItem.ImportedArea.Name</td>
+                                                    <td><span class="badge bg-success">Neu</span></td>
+                                                    <td></td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                        @* GPS-Tracks / Marker *@
+                        @if (_session?.NewTrackSnapshotCount > 0 || _session?.NewMarkerCount > 0)
+                        {
+                            <div class="alert alert-secondary small">
+                                <i class="bi bi-geo-alt me-1"></i>
+                                Additiv übernommen:
+                                @_session.NewTrackSnapshotCount neue GPS-Tracks,
+                                @_session.NewMarkerCount neue Karten-Marker.
+                            </div>
+                        }
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button class="btn btn-outline-secondary"
+                                    @onclick="() => GoToStep(MergeWizardStep.MasterDataResolution)">
+                                <i class="bi bi-arrow-left me-1"></i>Zurück
+                            </button>
+                            <button class="btn btn-primary"
+                                    @onclick="() => GoToStep(MergeWizardStep.Confirmation)">
+                                Weiter <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ─── Schritt 4: Bestätigung ─── *@
+            @if (_currentStep == MergeWizardStep.Confirmation && _session != null)
+            {
+                <div class="card">
+                    <div class="card-header fw-semibold">
+                        <i class="bi bi-check2-square me-2"></i>Schritt 4 — Zusammenführung bestätigen
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <strong>Wichtiger Hinweis:</strong>
+                            Die folgenden Änderungen werden atomar übernommen. Das Importieren ist jederzeit
+                            mit einem einzigen Klick rückgängig machbar.
+                        </div>
+
+                        <h6 class="mt-3">Stammdaten</h6>
+                        <ul class="list-unstyled ms-3 small">
+                            @foreach (var item in _session.PersonalItems.Concat(_session.DogItems).Concat(_session.DroneItems))
+                            {
+                                <li>
+                                    <i class="bi @GetDecisionIcon(item.Decision) me-1 @GetDecisionColor(item.Decision)"></i>
+                                    <strong>@item.DisplayName</strong>
+                                    <span class="text-muted">(@GetDecisionLabel(item))</span>
+                                </li>
+                            }
+                        </ul>
+
+                        <h6 class="mt-3">Operative Daten</h6>
+                        <ul class="list-unstyled ms-3 small">
+                            <li>
+                                <i class="bi bi-people me-1 text-success"></i>
+                                @_session.TeamsToImport Teams werden hinzugefügt
+                            </li>
+                            <li>
+                                <i class="bi bi-chat-left-text me-1 text-success"></i>
+                                @_session.NotesToImport Notizen werden importiert
+                            </li>
+                            <li>
+                                <i class="bi bi-map me-1 text-success"></i>
+                                @_session.SearchAreasToImport Suchgebiete werden übernommen
+                            </li>
+                            <li>
+                                <i class="bi bi-geo-alt me-1 text-info"></i>
+                                @_session.NewMarkerCount Marker, @_session.NewTrackSnapshotCount GPS-Tracks (additiv)
+                            </li>
+                        </ul>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button class="btn btn-outline-secondary"
+                                    @onclick="() => GoToStep(MergeWizardStep.OperationalDataReview)">
+                                <i class="bi bi-arrow-left me-1"></i>Zurück
+                            </button>
+                            <button class="btn btn-success"
+                                    @onclick="ExecuteMergeAsync"
+                                    disabled="@_isLoading">
+                                @if (_isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    <span>Wird zusammengeführt…</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-diagram-2 me-1"></i>
+                                    <span>Zusammenführen</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ─── Schritt 5: Ergebnis ─── *@
+            @if (_currentStep == MergeWizardStep.Result && _session?.AppliedMerge != null)
+            {
+                var merge = _session.AppliedMerge;
+
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white fw-semibold">
+                        <i class="bi bi-check-circle me-2"></i>Zusammenführung abgeschlossen
+                    </div>
+                    <div class="card-body">
+                        <dl class="row small mb-3">
+                            <dt class="col-sm-4">Teilgruppe</dt>
+                            <dd class="col-sm-8">@merge.SubgroupName</dd>
+                            <dt class="col-sm-4">Zeitpunkt</dt>
+                            <dd class="col-sm-8">@merge.FormattedMergedAt</dd>
+                            <dt class="col-sm-4">Teams importiert</dt>
+                            <dd class="col-sm-8">@merge.TeamsAdded</dd>
+                            <dt class="col-sm-4">Notizen importiert</dt>
+                            <dd class="col-sm-8">@merge.NotesAdded</dd>
+                            <dt class="col-sm-4">Gebiete importiert</dt>
+                            <dd class="col-sm-8">@merge.SearchAreasAdded</dd>
+                            <dt class="col-sm-4">Marker / Tracks</dt>
+                            <dd class="col-sm-8">@merge.MarkersAdded Marker, @merge.TracksAdded Tracks</dd>
+                            <dt class="col-sm-4">Neu erstellte Stammdaten</dt>
+                            <dd class="col-sm-8">
+                                @merge.PersonalCreated Personal,
+                                @merge.DogsCreated Hunde,
+                                @merge.DronesCreated Drohnen
+                            </dd>
+                        </dl>
+
+                        @if (_revertSuccess)
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>
+                                Zusammenführung wurde erfolgreich rückgängig gemacht.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-secondary d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Diese Zusammenführung kann vollständig rückgängig gemacht werden.
+                                </span>
+                                <button class="btn btn-outline-danger btn-sm"
+                                        @onclick="RevertCurrentMergeAsync"
+                                        disabled="@_isLoading">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Rückgängig
+                                </button>
+                            </div>
+                        }
+
+                        <button class="btn btn-primary" @onclick="NavigateBack">
+                            <i class="bi bi-arrow-left me-1"></i>Zurück zum Einsatz
+                        </button>
+                    </div>
+                </div>
+            }
+        }
+
+        @* ── Neuer-Einsatz-Modus ── *@
+        @if (_importMode == "new-einsatz")
+        {
+            <button class="btn btn-link btn-sm ps-0 text-muted mb-3" @onclick="ResetImportMode">
+                <i class="bi bi-arrow-left me-1"></i>Modus ändern
+            </button>
+
+            @* Stepper *@
+            <div class="merge-stepper d-flex gap-0 mb-4 align-items-center">
+                @foreach (var step in NewEinsatzEffectiveSteps)
+                {
+                    <div class="merge-step @GetNewEinsatzStepClass(step.Number)">
+                        <div class="merge-step-circle">@step.Number</div>
+                        <div class="merge-step-label d-none d-md-block">@step.Label</div>
+                    </div>
+                    @if (step.Number < NewEinsatzEffectiveSteps.Count)
+                    {
+                        <div class="merge-step-connector @GetNewEinsatzConnectorClass(step.Number)"></div>
+                    }
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(_newEinsatzErrorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@_newEinsatzErrorMessage
+                </div>
+            }
+
+            @* ─── Schritt 1: Upload ─── *@
+            @if (_newEinsatzStep == 1)
+            {
+                <div class="card">
+                    <div class="card-header fw-semibold">
+                        <i class="bi bi-upload me-2"></i>Schritt 1 — Export-Datei hochladen
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">
+                            Wählen Sie die <code>.einsatz-export.json</code> Datei aus, die als
+                            eigenständiger Einsatz ins Archiv übernommen werden soll.
+                        </p>
+
+                        <div class="mb-3">
+                            <InputFile OnChange="HandleNewEinsatzFileUploadAsync"
+                                       accept=".json"
+                                       class="form-control"
+                                       disabled="@_newEinsatzIsLoading" />
+                        </div>
+
+                        @if (_newEinsatzIsLoading)
+                        {
+                            <div class="text-muted"><i class="bi bi-hourglass-split me-1"></i>Wird verarbeitet…</div>
+                        }
+
+                        @if (_newEinsatzPacket != null)
+                        {
+                            <div class="card bg-body-secondary mt-3">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-2">
+                                        <i class="bi bi-info-circle me-1"></i>Export-Zusammenfassung
+                                    </h6>
+                                    <dl class="row mb-0 small">
+                                        <dt class="col-sm-4">Teilgruppe</dt>
+                                        <dd class="col-sm-8">@_newEinsatzPacket.SubgroupName</dd>
+                                        <dt class="col-sm-4">EinsatzNummer</dt>
+                                        <dd class="col-sm-8">@_newEinsatzPacket.EinsatzNummer</dd>
+                                        <dt class="col-sm-4">Exportiert am</dt>
+                                        <dd class="col-sm-8">@_newEinsatzPacket.ExportedAt.ToString("dd.MM.yyyy HH:mm")</dd>
+                                        <dt class="col-sm-4">Teams</dt>
+                                        <dd class="col-sm-8">@_newEinsatzPacket.Teams.Count</dd>
+                                        <dt class="col-sm-4">Personal / Hunde</dt>
+                                        <dd class="col-sm-8">
+                                            @_newEinsatzPacket.Personal.Count Personal,
+                                            @_newEinsatzPacket.Dogs.Count Hunde,
+                                            @_newEinsatzPacket.Drones.Count Drohnen
+                                        </dd>
+                                        <dt class="col-sm-4">Notizen / Gebiete</dt>
+                                        <dd class="col-sm-8">
+                                            @_newEinsatzPacket.Notes.Count Notizen,
+                                            @_newEinsatzPacket.SearchAreas.Count Gebiete
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-end mt-3">
+                                <button class="btn btn-primary" @onclick="AdvanceFromNewEinsatzUpload">
+                                    Weiter <i class="bi bi-arrow-right ms-1"></i>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            @* ─── Schritt 2: Stammdaten zuordnen ─── *@
+            @if (_newEinsatzStep == 2 && _newEinsatzMergeSession != null)
+            {
+                <div class="card">
+                    <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-people me-2"></i>Schritt 2 — Stammdaten zuordnen</span>
+                        <span class="badge @(_newEinsatzMergeSession.AllMasterDataResolved ? "bg-success" : "bg-warning text-dark")">
+                            @_newEinsatzMergeSession.ResolvedMasterDataCount / @_newEinsatzMergeSession.TotalMasterDataCount zugeordnet
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Das Export-Paket enthält Personen, Hunde oder Drohnen. Entscheiden Sie für
+                            jeden Eintrag, ob er als neuer Datensatz angelegt, mit einem vorhandenen
+                            Eintrag verknüpft oder übersprungen werden soll.
+                            <strong>Die Entscheidungen werden erst beim abschließenden Speichern übernommen.</strong>
+                        </p>
+
+                        @* Personal *@
+                        @if (_newEinsatzMergeSession.PersonalItems.Any())
+                        {
+                            <h5 class="mt-3 mb-2"><i class="bi bi-person me-1"></i>Personal (@_newEinsatzMergeSession.PersonalItems.Count)</h5>
+                            @foreach (var item in _newEinsatzMergeSession.PersonalItems)
+                            {
+                                <MasterDataMergeItemCard Item="item"
+                                                         OnDecisionChanged="() => OnNewEinsatzMasterDataDecisionChanged()" />
+                            }
+                        }
+
+                        @* Hunde *@
+                        @if (_newEinsatzMergeSession.DogItems.Any())
+                        {
+                            <h5 class="mt-4 mb-2"><i class="bi bi-heart me-1"></i>Hunde (@_newEinsatzMergeSession.DogItems.Count)</h5>
+                            @foreach (var item in _newEinsatzMergeSession.DogItems)
+                            {
+                                <MasterDataMergeItemCard Item="item"
+                                                         OnDecisionChanged="() => OnNewEinsatzMasterDataDecisionChanged()" />
+                            }
+                        }
+
+                        @* Drohnen *@
+                        @if (_newEinsatzMergeSession.DroneItems.Any())
+                        {
+                            <h5 class="mt-4 mb-2"><i class="bi bi-rocket me-1"></i>Drohnen (@_newEinsatzMergeSession.DroneItems.Count)</h5>
+                            @foreach (var item in _newEinsatzMergeSession.DroneItems)
+                            {
+                                <MasterDataMergeItemCard Item="item"
+                                                         OnDecisionChanged="() => OnNewEinsatzMasterDataDecisionChanged()" />
+                            }
+                        }
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button class="btn btn-outline-secondary" @onclick="() => _newEinsatzStep = 1">
+                                <i class="bi bi-arrow-left me-1"></i>Zurück
+                            </button>
+                            <button class="btn btn-primary"
+                                    @onclick="() => _newEinsatzStep = 3"
+                                    disabled="@(!_newEinsatzMergeSession.AllMasterDataResolved)">
+                                Weiter <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ─── Schritt 3: Details ─── *@
+            @if (_newEinsatzStep == 3 && _newEinsatzPacket != null)
+            {
+                <div class="card">
+                    <div class="card-header fw-semibold">
+                        <i class="bi bi-pencil me-2"></i>Schritt 3 — Details
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Optionale Angaben für den neuen Archiv-Eintrag. Alle Felder können leer bleiben.
+                        </p>
+
+                        <div class="mb-3">
+                            <label class="form-label">Einsatzort</label>
+                            <input class="form-control"
+                                   type="text"
+                                   placeholder="@_newEinsatzPacket.SubgroupName"
+                                   @bind="_newEinsatzEinsatzort"
+                                   maxlength="120" />
+                            <div class="form-text">Leer lassen, um den Teilgruppenname „@_newEinsatzPacket.SubgroupName" zu verwenden.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Ergebnis</label>
+                            <input class="form-control"
+                                   type="text"
+                                   placeholder="z. B. Person gefunden, Erfolglos, Abgebrochen …"
+                                   @bind="_newEinsatzErgebnis"
+                                   maxlength="120" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Bemerkungen</label>
+                            <textarea class="form-control" rows="3"
+                                      @bind="_newEinsatzBemerkungen"
+                                      maxlength="2000"></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button class="btn btn-outline-secondary" @onclick="BackFromNewEinsatzDetails">
+                                <i class="bi bi-arrow-left me-1"></i>Zurück
+                            </button>
+                            <button class="btn btn-success"
+                                    @onclick="ExecuteNewEinsatzImportAsync"
+                                    disabled="@_newEinsatzIsLoading">
+                                @if (_newEinsatzIsLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    <span>Wird gespeichert…</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-folder-plus me-1"></i>
+                                    <span>Als neuen Einsatz speichern</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ─── Schritt 4: Ergebnis ─── *@
+            @if (_newEinsatzStep == 4 && _newEinsatzResult != null)
+            {
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white fw-semibold">
+                        <i class="bi bi-check-circle me-2"></i>Neuer Einsatz erfolgreich angelegt
+                    </div>
+                    <div class="card-body">
+                        <dl class="row small mb-3">
+                            <dt class="col-sm-4">Einsatz-Nr.</dt>
+                            <dd class="col-sm-8">@_newEinsatzResult.EinsatzNummer</dd>
+                            <dt class="col-sm-4">Einsatzort</dt>
+                            <dd class="col-sm-8">@_newEinsatzResult.Einsatzort</dd>
+                            <dt class="col-sm-4">Datum</dt>
+                            <dd class="col-sm-8">@_newEinsatzResult.EinsatzDatum.ToString("dd.MM.yyyy")</dd>
+                            <dt class="col-sm-4">Teams</dt>
+                            <dd class="col-sm-8">@_newEinsatzResult.AnzahlTeams</dd>
+                            <dt class="col-sm-4">Personal / Hunde</dt>
+                            <dd class="col-sm-8">@_newEinsatzResult.AnzahlPersonal Personal, @_newEinsatzResult.AnzahlHunde Hunde</dd>
+                            @if (!string.IsNullOrWhiteSpace(_newEinsatzResult.Ergebnis))
+                            {
+                                <dt class="col-sm-4">Ergebnis</dt>
+                                <dd class="col-sm-8">@_newEinsatzResult.Ergebnis</dd>
+                            }
+                        </dl>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a class="btn btn-primary" href="/einsatz-archiv">
+                                <i class="bi bi-archive me-1"></i>Zum Archiv
+                            </a>
+                            <button class="btn btn-outline-secondary" @onclick="ResetImportMode">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Weiteren Import starten
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+
+    </div>@* Ende Import-Tab *@
+
+    @* ══════════════════════════════════════════════════════════════
+       TAB: EXPORT
+       ══════════════════════════════════════════════════════════════ *@
+    <div class="@GetTabPaneClass("export")">
+
+        @if (!string.IsNullOrWhiteSpace(_exportStatusMessage))
+        {
+            <div class="alert @(_exportStatusIsError ? "alert-danger" : "alert-success") d-flex justify-content-between align-items-center mb-3">
+                <span>@_exportStatusMessage</span>
+                <button class="btn-close" @onclick="() => _exportStatusMessage = string.Empty"></button>
+            </div>
+        }
+
+        @if (!EinsatzService.Teams.Any())
+        {
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Es sind noch keine Teams im laufenden Einsatz vorhanden.
+                Teams können im <a href="/einsatz-monitor">Einsatz-Monitor</a> angelegt werden.
+            </div>
+        }
+        else
+        {
+            <div class="row g-4">
+
+                @* ── LINKE SPALTE: Konfiguration ── *@
+                <div class="col-lg-7">
+
+                    @* ── Schritt 1: Teilgruppe benennen ── *@
+                    <div class="card mb-3">
+                        <div class="card-header fw-semibold">
+                            <span class="badge bg-primary rounded-circle me-2">1</span>
+                            Teilgruppe benennen
+                        </div>
+                        <div class="card-body">
+                            <label class="form-label">Name der Teilgruppe / Staffel <span class="text-danger">*</span></label>
+                            <input class="form-control @(string.IsNullOrWhiteSpace(_subgroupName) && _exportValidationAttempted ? "is-invalid" : "")"
+                                   type="text"
+                                   placeholder="z. B. Staffel Nord, Gruppe 2, …"
+                                   @bind="_subgroupName"
+                                   @bind:event="oninput"
+                                   maxlength="80" />
+                            @if (string.IsNullOrWhiteSpace(_subgroupName) && _exportValidationAttempted)
+                            {
+                                <div class="invalid-feedback">Bitte einen Namen angeben.</div>
+                            }
+                            <div class="form-text">
+                                Der Name erscheint im Dateinamen und beim Import auf der Gegenseite.
+                            </div>
+                        </div>
+                    </div>
+
+                    @* ── Schritt 2: Teams auswählen ── *@
+                    <div class="card mb-3">
+                        <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge bg-primary rounded-circle me-2">2</span>
+                                Teams der Teilgruppe
+                                @if (_selectedTeamIds.Any())
+                                {
+                                    <span class="badge bg-success ms-2">@_selectedTeamIds.Count ausgewählt</span>
+                                }
+                                else if (_exportValidationAttempted)
+                                {
+                                    <span class="badge bg-danger ms-2">Kein Team ausgewählt</span>
+                                }
+                            </div>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-outline-secondary btn-sm" @onclick="SelectAllTeams">Alle</button>
+                                <button class="btn btn-outline-secondary btn-sm" @onclick="DeselectAllTeams">Keine</button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="list-group list-group-flush">
+                                @foreach (var team in EinsatzService.Teams.OrderBy(t => t.TeamName))
+                                {
+                                    var isSelected = _selectedTeamIds.Contains(team.TeamId);
+                                    <label class="list-group-item list-group-item-action d-flex align-items-start gap-3 py-2 px-3 cursor-pointer">
+                                        <input type="checkbox"
+                                               class="form-check-input mt-1 flex-shrink-0"
+                                               checked="@isSelected"
+                                               @onchange="() => ToggleTeam(team.TeamId)" />
+                                        <div class="flex-grow-1">
+                                            <div class="fw-semibold">@team.TeamName</div>
+                                            <div class="small text-muted">
+                                                @if (team.IsDroneTeam)
+                                                {
+                                                    <span><i class="bi bi-airplane me-1"></i>Drohne: @team.DroneType</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>
+                                                        @if (!string.IsNullOrEmpty(team.HundefuehrerName))
+                                                        {
+                                                            <span><i class="bi bi-person me-1"></i>@team.HundefuehrerName</span>
+                                                        }
+                                                        @if (!string.IsNullOrEmpty(team.DogName))
+                                                        {
+                                                            <span class="ms-2"><i class="bi bi-heart me-1"></i>@team.DogName</span>
+                                                        }
+                                                    </span>
+                                                }
+                                            </div>
+                                            @if (team.IsRunning)
+                                            {
+                                                <span class="badge bg-success small">Läuft</span>
+                                            }
+                                            else if (team.IsPausing)
+                                            {
+                                                <span class="badge bg-warning text-dark small">Pause</span>
+                                            }
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(team.SearchAreaName))
+                                        {
+                                            <span class="badge bg-secondary align-self-center">@team.SearchAreaName</span>
+                                        }
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    @* ── Schritt 3: Export-Optionen ── *@
+                    <div class="card mb-3">
+                        <div class="card-header fw-semibold">
+                            <span class="badge bg-primary rounded-circle me-2">3</span>
+                            Export-Optionen
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="opt-team-notes"
+                                               @bind="_exportOptions.IncludeTeamNotes" />
+                                        <label class="form-check-label" for="opt-team-notes">
+                                            Notizen / Funksprüche der gewählten Teams einschließen
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="opt-global-notes"
+                                               @bind="_exportOptions.IncludeGlobalNotes" />
+                                        <label class="form-check-label" for="opt-global-notes">
+                                            Alle globalen Notizen einschließen
+                                            <small class="text-muted">(inkl. nicht team-spezifischer Einträge)</small>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="opt-system-notes"
+                                               @bind="_exportOptions.IncludeSystemNotes" />
+                                        <label class="form-check-label" for="opt-system-notes">
+                                            System-Notizen einschließen
+                                            <small class="text-muted">(Timer-Starts, Warnungen, etc.)</small>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="opt-assigned-areas"
+                                               @bind="_exportOptions.IncludeAssignedSearchAreas" />
+                                        <label class="form-check-label" for="opt-assigned-areas">
+                                            Zugewiesene Suchgebiete einschließen
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="opt-all-areas"
+                                               @bind="_exportOptions.IncludeAllSearchAreas" />
+                                        <label class="form-check-label" for="opt-all-areas">
+                                            Alle Suchgebiete einschließen
+                                            <small class="text-muted">(unabhängig von Team-Zuordnung)</small>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="opt-markers"
+                                               @bind="_exportOptions.IncludeMapMarkers" />
+                                        <label class="form-check-label" for="opt-markers">
+                                            Karten-Marker einschließen
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="opt-tracks"
+                                               @bind="_exportOptions.IncludeTrackSnapshots" />
+                                        <label class="form-check-label" for="opt-tracks">
+                                            GPS-Tracks einschließen
+                                        </label>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                @* ── RECHTE SPALTE: Vorschau + Download ── *@
+                <div class="col-lg-5">
+                    <div class="card sticky-top" style="top: 1.5rem;">
+                        <div class="card-header fw-semibold">
+                            <i class="bi bi-file-earmark-zip me-1"></i>Export-Vorschau
+                        </div>
+                        <div class="card-body">
+
+                            @if (_exportPreview is not null)
+                            {
+                                <dl class="row mb-0 small">
+                                    <dt class="col-6 text-muted">Teilgruppe</dt>
+                                    <dd class="col-6">@_exportPreview.SubgroupName</dd>
+
+                                    <dt class="col-6 text-muted">Einsatz-Nr.</dt>
+                                    <dd class="col-6">@_exportPreview.EinsatzNummer</dd>
+
+                                    <dt class="col-6 text-muted">Teams</dt>
+                                    <dd class="col-6">@_exportPreview.Teams.Count</dd>
+
+                                    <dt class="col-6 text-muted">Personal</dt>
+                                    <dd class="col-6">@_exportPreview.Personal.Count</dd>
+
+                                    <dt class="col-6 text-muted">Hunde</dt>
+                                    <dd class="col-6">@_exportPreview.Dogs.Count</dd>
+
+                                    <dt class="col-6 text-muted">Drohnen</dt>
+                                    <dd class="col-6">@_exportPreview.Drones.Count</dd>
+
+                                    <dt class="col-6 text-muted">Notizen</dt>
+                                    <dd class="col-6">@_exportPreview.Notes.Count</dd>
+
+                                    <dt class="col-6 text-muted">Suchgebiete</dt>
+                                    <dd class="col-6">@_exportPreview.SearchAreas.Count</dd>
+
+                                    <dt class="col-6 text-muted">Marker</dt>
+                                    <dd class="col-6">@_exportPreview.MapMarkers.Count</dd>
+
+                                    <dt class="col-6 text-muted">GPS-Tracks</dt>
+                                    <dd class="col-6">@_exportPreview.TrackSnapshots.Count</dd>
+
+                                    <dt class="col-6 text-muted">Dateiname</dt>
+                                    <dd class="col-6 font-monospace" style="word-break: break-all; font-size: 0.7rem;">
+                                        @ExportService.GetFileName(_exportPreview)
+                                    </dd>
+                                </dl>
+
+                                @if (_exportPreviewSizeKb > 0)
+                                {
+                                    <div class="text-muted small mt-2">
+                                        <i class="bi bi-file-earmark me-1"></i>
+                                        Geschätzte Dateigröße: ~@_exportPreviewSizeKb KB
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <p class="text-muted small mb-2">
+                                    Wählen Sie mindestens ein Team und klicken Sie auf
+                                    <em>Vorschau aktualisieren</em>.
+                                </p>
+                            }
+
+                            <div class="d-grid gap-2 mt-3">
+                                <button class="btn btn-outline-secondary"
+                                        @onclick="RefreshExportPreviewAsync"
+                                        disabled="@(_selectedTeamIds.Count == 0 || string.IsNullOrWhiteSpace(_subgroupName) || _exportIsWorking)">
+                                    @if (_exportIsWorking && !_exportIsDownloading)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-arrow-clockwise me-1"></i>
+                                    }
+                                    Vorschau aktualisieren
+                                </button>
+
+                                <button class="btn btn-success btn-lg"
+                                        @onclick="ExportAndDownloadAsync"
+                                        disabled="@(_exportIsWorking)">
+                                    @if (_exportIsWorking && _exportIsDownloading)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                        <span>Exportiere…</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-download me-1"></i>
+                                        <span>Export herunterladen</span>
+                                    }
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+
+    </div>@* Ende Export-Tab *@
+
+</div>
+
+@code {
+    [Parameter] public string? ArchivedEinsatzId { get; set; }
+
+    // ── Tab-Zustand ──
+    private string _activeTab = "import";
+
+    private void SetActiveTab(string tab) => _activeTab = tab;
+    private string GetTabButtonClass(string tab) => _activeTab == tab ? "btn-primary" : "btn-outline-secondary";
+    private string GetTabPaneClass(string tab) => _activeTab == tab ? string.Empty : "d-none";
+
+    // ── Navigation ──
+    private void NavigateBack()
+    {
+        if (!string.IsNullOrEmpty(ArchivedEinsatzId))
+            Navigation.NavigateTo("/einsatz-archiv");
+        else
+            Navigation.NavigateTo("/einsatz-monitor");
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // IMPORT — Zustand & Logik
+    // ════════════════════════════════════════════════════════════
+
+    // ── Modus-Auswahl ──
+    private string? _importMode = null;  // null = noch nicht gewählt | "merge" | "new-einsatz"
+
+    private void SelectImportMode(string mode)
+    {
+        _importMode = mode;
+        _session = null;
+        _currentStep = MergeWizardStep.Upload;
+        _errorMessage = string.Empty;
+        _einsatzNrMismatch = false;
+        _revertSuccess = false;
+        _newEinsatzPacket = null;
+        _newEinsatzMergeSession = null;
+        _newEinsatzStep = 1;
+        _newEinsatzErrorMessage = string.Empty;
+        _newEinsatzResult = null;
+        _newEinsatzEinsatzort = string.Empty;
+        _newEinsatzErgebnis = string.Empty;
+        _newEinsatzBemerkungen = string.Empty;
+    }
+
+    private void ResetImportMode() => SelectImportMode(null!);
+
+    /// <summary>Maximale Upload-Dateigröße (10 MB).</summary>
+    private const long MaxUploadBytes = 10 * 1024 * 1024;
+
+    private SubgroupMergeSession? _session;
+    private MergeWizardStep _currentStep = MergeWizardStep.Upload;
+    private bool _isLoading = false;
+    private bool _einsatzNrMismatch = false;
+    private string _errorMessage = string.Empty;
+    private bool _revertSuccess = false;
+
+    private readonly List<(int Number, string Label)> _steps = new()
+    {
+        (1, "Upload"),
+        (2, "Stammdaten"),
+        (3, "Daten prüfen"),
+        (4, "Bestätigen"),
+        (5, "Ergebnis")
+    };
+
+    private async Task HandleFileUploadAsync(InputFileChangeEventArgs e)
+    {
+        _errorMessage = string.Empty;
+        _isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            using var ms = new System.IO.MemoryStream();
+            await e.File.OpenReadStream(maxAllowedSize: MaxUploadBytes).CopyToAsync(ms);
+            var bytes = ms.ToArray();
+
+            var packet = MergeService.ParseExportPacket(bytes);
+            if (packet == null)
+            {
+                _errorMessage = "Die Datei konnte nicht gelesen werden. Bitte eine gültige .einsatz-export.json Datei hochladen.";
+                return;
+            }
+
+            _session = await MergeService.CreateSessionAsync(packet, ArchivedEinsatzId);
+
+            var currentNr = ArchivedEinsatzId == null
+                ? EinsatzService.CurrentEinsatz.EinsatzNummer
+                : (await ArchivService.GetByIdAsync(ArchivedEinsatzId))?.EinsatzNummer ?? string.Empty;
+
+            _einsatzNrMismatch = !string.IsNullOrEmpty(packet.EinsatzNummer) &&
+                                  !string.IsNullOrEmpty(currentNr) &&
+                                  !string.Equals(packet.EinsatzNummer, currentNr, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Fehler beim Einlesen der Datei: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void AcknowledgeMismatch()
+    {
+        if (_session != null)
+            _session.EinsatzNrMismatchAcknowledged = true;
+    }
+
+    private bool CanProceedFromUpload =>
+        _session?.Packet != null &&
+        (!_einsatzNrMismatch || _session.EinsatzNrMismatchAcknowledged);
+
+    private void ProceedToMasterData()
+    {
+        if (!CanProceedFromUpload) return;
+        GoToStep(MergeWizardStep.MasterDataResolution);
+    }
+
+    private void OnMasterDataDecisionChanged()
+    {
+        if (_session != null)
+            MergeService.RebuildIdRemapping(_session);
+        StateHasChanged();
+    }
+
+    private void ProceedToOperationalData()
+    {
+        if (_session?.AllMasterDataResolved != true) return;
+        GoToStep(MergeWizardStep.OperationalDataReview);
+    }
+
+    private void BulkSelectNotes(bool select)
+    {
+        if (_session == null) return;
+        foreach (var n in _session.NoteItems.Where(x => !x.IsAlreadyPresent))
+            n.ShouldImport = select;
+    }
+
+    private async Task ExecuteMergeAsync()
+    {
+        if (_session == null) return;
+        _isLoading = true;
+        _errorMessage = string.Empty;
+
+        try
+        {
+            await MergeService.ApplyMergeAsync(_session);
+            _currentStep = MergeWizardStep.Result;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Zusammenführung fehlgeschlagen: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task RevertCurrentMergeAsync()
+    {
+        if (_session?.AppliedMerge == null) return;
+        _isLoading = true;
+
+        try
+        {
+            await MergeService.RevertMergeAsync(
+                _session.AppliedMerge.MergeId,
+                ArchivedEinsatzId);
+            _revertSuccess = true;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Rückgängig fehlgeschlagen: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void GoToStep(MergeWizardStep step)
+    {
+        _currentStep = step;
+        if (_session != null)
+            _session.CurrentStep = step;
+    }
+
+    private string GetStepClass(int stepNumber)
+    {
+        var current = (int)_currentStep;
+        if (stepNumber == current) return "active";
+        if (stepNumber < current) return "completed";
+        return "";
+    }
+
+    private string GetConnectorClass(int stepNumber)
+    {
+        var current = (int)_currentStep;
+        return stepNumber < current ? "completed" : "";
+    }
+
+    // ── Stepper-Helpers für Neuer-Einsatz-Modus ──
+
+    /// <summary>
+    /// Zeigt 4 Schritte wenn Stammdaten vorhanden, sonst 3 (Schritt 2 entfällt).
+    /// Verhindert, dass ein übersprungener Schritt im Stepper als „abgeschlossen" erscheint.
+    /// </summary>
+    private List<(int Number, string Label)> NewEinsatzEffectiveSteps =>
+        _newEinsatzMergeSession?.TotalMasterDataCount > 0
+            ? new() { (1, "Upload"), (2, "Stammdaten"), (3, "Details"), (4, "Ergebnis") }
+            : new() { (1, "Upload"), (2, "Details"), (3, "Ergebnis") };
+
+    /// <summary>
+    /// Konvertiert die interne Schritt-Nummer in die Stepper-Anzeigeposition.
+    /// Wenn kein Stammdaten-Schritt: intern 3→Anzeige 2, intern 4→Anzeige 3; sonst 1:1.
+    /// </summary>
+    private int NewEinsatzDisplayStep =>
+        _newEinsatzMergeSession?.TotalMasterDataCount > 0
+            ? _newEinsatzStep
+            : _newEinsatzStep switch
+            {
+                3 => 2,
+                4 => 3,
+                _ => _newEinsatzStep
+            };
+
+    private string GetNewEinsatzStepClass(int stepNumber)
+    {
+        var display = NewEinsatzDisplayStep;
+        if (stepNumber == display) return "active";
+        if (stepNumber < display) return "completed";
+        return "";
+    }
+
+    private string GetNewEinsatzConnectorClass(int stepNumber) =>
+        stepNumber < NewEinsatzDisplayStep ? "completed" : "";
+
+    private void AdvanceFromNewEinsatzUpload()
+    {
+        // Schritt 2 (Stammdaten) überspringen, wenn das Paket keine Stammdaten enthält
+        if (_newEinsatzMergeSession?.TotalMasterDataCount > 0)
+            _newEinsatzStep = 2;
+        else
+            _newEinsatzStep = 3;
+    }
+
+    private void BackFromNewEinsatzDetails()
+    {
+        // Wenn Stammdaten vorhanden waren, zurück zu Schritt 2, sonst zu Schritt 1
+        if (_newEinsatzMergeSession?.TotalMasterDataCount > 0)
+            _newEinsatzStep = 2;
+        else
+            _newEinsatzStep = 1;
+    }
+
+    private void OnNewEinsatzMasterDataDecisionChanged()
+    {
+        if (_newEinsatzMergeSession != null)
+            MergeService.RebuildIdRemapping(_newEinsatzMergeSession);
+        StateHasChanged();
+    }
+
+    private static string SafeId(string? id) =>
+        id is { Length: >= 8 } ? $"{id[..8]}…" : (id ?? "?");
+
+    private static string GetDecisionIcon(MergeDecision d) => d switch
+    {
+        MergeDecision.LinkToExisting => "bi-link-45deg",
+        MergeDecision.CreateNew => "bi-plus-circle",
+        MergeDecision.Skip => "bi-x-circle",
+        _ => "bi-question-circle"
+    };
+
+    private static string GetDecisionColor(MergeDecision d) => d switch
+    {
+        MergeDecision.LinkToExisting => "text-success",
+        MergeDecision.CreateNew => "text-primary",
+        MergeDecision.Skip => "text-secondary",
+        _ => ""
+    };
+
+    private static string GetDecisionLabel(MasterDataMergeItem item) => item.Decision switch
+    {
+        MergeDecision.LinkToExisting => $"Verknüpft mit {SafeId(item.SelectedLocalId)}",
+        MergeDecision.CreateNew => "Neu anlegen",
+        MergeDecision.Skip => "Überspringen",
+        _ => "Offen"
+    };
+
+    // ════════════════════════════════════════════════════════════
+    // IMPORT NEUER EINSATZ — Zustand & Logik
+    // ════════════════════════════════════════════════════════════
+
+    private SubgroupExportPacket? _newEinsatzPacket;
+    private SubgroupMergeSession? _newEinsatzMergeSession;
+    private int _newEinsatzStep = 1;  // 1=Upload, 2=Stammdaten, 3=Details, 4=Ergebnis
+    private bool _newEinsatzIsLoading;
+    private string _newEinsatzErrorMessage = string.Empty;
+    private string _newEinsatzEinsatzort = string.Empty;
+    private string _newEinsatzErgebnis = string.Empty;
+    private string _newEinsatzBemerkungen = string.Empty;
+    private ArchivedEinsatz? _newEinsatzResult;
+
+    // ── Stepper-Helpers für Neuer-Einsatz-Modus ──
+
+    private async Task HandleNewEinsatzFileUploadAsync(InputFileChangeEventArgs e)
+    {
+        _newEinsatzErrorMessage = string.Empty;
+        _newEinsatzIsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            using var ms = new System.IO.MemoryStream();
+            await e.File.OpenReadStream(maxAllowedSize: MaxUploadBytes).CopyToAsync(ms);
+            var bytes = ms.ToArray();
+
+            var packet = MergeService.ParseExportPacket(bytes);
+            if (packet == null)
+            {
+                _newEinsatzErrorMessage = "Die Datei konnte nicht gelesen werden. Bitte eine gültige .einsatz-export.json Datei hochladen.";
+                return;
+            }
+
+            _newEinsatzPacket = packet;
+            _newEinsatzEinsatzort = string.Empty; // cleared so placeholder shows SubgroupName
+
+            // Stammdaten-Merge-Items mit Vorschlägen befüllen (nur für Schritt 2 genutzt)
+            _newEinsatzMergeSession = await MergeService.CreateSessionAsync(packet, null);
+        }
+        catch (Exception ex)
+        {
+            _newEinsatzErrorMessage = $"Fehler beim Einlesen der Datei: {ex.Message}";
+        }
+        finally
+        {
+            _newEinsatzIsLoading = false;
+        }
+    }
+
+    private async Task ExecuteNewEinsatzImportAsync()
+    {
+        if (_newEinsatzPacket == null) return;
+        _newEinsatzIsLoading = true;
+        _newEinsatzErrorMessage = string.Empty;
+
+        try
+        {
+            // Stammdaten-Entscheidungen aus Schritt 2 anwenden (falls vorhanden)
+            if (_newEinsatzMergeSession != null && _newEinsatzMergeSession.TotalMasterDataCount > 0)
+                await ApplyNewEinsatzMasterDataAsync(_newEinsatzMergeSession);
+
+            _newEinsatzResult = await ArchivService.ImportPacketAsNewEinsatzAsync(
+                _newEinsatzPacket,
+                _newEinsatzEinsatzort,
+                _newEinsatzErgebnis,
+                _newEinsatzBemerkungen);
+            _newEinsatzStep = 4;
+        }
+        catch (Exception ex)
+        {
+            _newEinsatzErrorMessage = $"Import fehlgeschlagen: {ex.Message}";
+        }
+        finally
+        {
+            _newEinsatzIsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Wendet die Stammdaten-Entscheidungen aus Schritt 2 des „Neuer Einsatz"-Wizards an.
+    /// Legt neue Einträge an (CreateNew) und überschreibt ggf. lokale Felder (LinkToExisting + OverwriteLocalFields).
+    /// </summary>
+    private async Task ApplyNewEinsatzMasterDataAsync(SubgroupMergeSession session)
+    {
+        // ── Personal ──
+        foreach (var item in session.PersonalItems.Where(i => i.Decision == MergeDecision.CreateNew))
+        {
+            var src = (PersonalEntry)item.ImportedEntry;
+            await MasterDataService.AddPersonalAsync(new PersonalEntry
+            {
+                Id = Guid.NewGuid().ToString(),
+                Vorname = src.Vorname,
+                Nachname = src.Nachname,
+                Skills = src.Skills,
+                Notizen = src.Notizen,
+                IsActive = src.IsActive,
+                DiveraUserId = src.DiveraUserId
+            });
+        }
+
+        foreach (var item in session.PersonalItems.Where(i =>
+            i.Decision == MergeDecision.LinkToExisting &&
+            i.OverwriteLocalFields &&
+            !string.IsNullOrEmpty(i.SelectedLocalId)))
+        {
+            var local = await MasterDataService.GetPersonalByIdAsync(item.SelectedLocalId!);
+            if (local == null) continue;
+            var imported = (PersonalEntry)item.ImportedEntry;
+            local.Vorname = imported.Vorname;
+            local.Nachname = imported.Nachname;
+            local.Skills = imported.Skills;
+            if (!string.IsNullOrWhiteSpace(imported.Notizen))
+                local.Notizen = imported.Notizen;
+            await MasterDataService.UpdatePersonalAsync(local);
+        }
+
+        // ── Hunde ──
+        foreach (var item in session.DogItems.Where(i => i.Decision == MergeDecision.CreateNew))
+        {
+            var src = (DogEntry)item.ImportedEntry;
+            await MasterDataService.AddDogAsync(new DogEntry
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = src.Name,
+                Rasse = src.Rasse,
+                Alter = src.Alter,
+                Specializations = src.Specializations,
+                HundefuehrerIds = new System.Collections.Generic.List<string>(src.HundefuehrerIds),
+                Notizen = src.Notizen,
+                IsActive = src.IsActive
+            });
+        }
+
+        foreach (var item in session.DogItems.Where(i =>
+            i.Decision == MergeDecision.LinkToExisting &&
+            i.OverwriteLocalFields &&
+            !string.IsNullOrEmpty(i.SelectedLocalId)))
+        {
+            var local = await MasterDataService.GetDogByIdAsync(item.SelectedLocalId!);
+            if (local == null) continue;
+            var imported = (DogEntry)item.ImportedEntry;
+            local.Name = imported.Name;
+            local.Rasse = imported.Rasse;
+            local.Specializations = imported.Specializations;
+            if (!string.IsNullOrWhiteSpace(imported.Notizen))
+                local.Notizen = imported.Notizen;
+            await MasterDataService.UpdateDogAsync(local);
+        }
+
+        // ── Drohnen ──
+        foreach (var item in session.DroneItems.Where(i => i.Decision == MergeDecision.CreateNew))
+        {
+            var src = (DroneEntry)item.ImportedEntry;
+            await MasterDataService.AddDroneAsync(new DroneEntry
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = src.Name,
+                Modell = src.Modell,
+                Hersteller = src.Hersteller,
+                Seriennummer = src.Seriennummer,
+                DrohnenpilotId = src.DrohnenpilotId,
+                Notizen = src.Notizen,
+                IsActive = src.IsActive
+            });
+        }
+
+        foreach (var item in session.DroneItems.Where(i =>
+            i.Decision == MergeDecision.LinkToExisting &&
+            i.OverwriteLocalFields &&
+            !string.IsNullOrEmpty(i.SelectedLocalId)))
+        {
+            var local = await MasterDataService.GetDroneByIdAsync(item.SelectedLocalId!);
+            if (local == null) continue;
+            var imported = (DroneEntry)item.ImportedEntry;
+            local.Name = imported.Name;
+            local.Modell = imported.Modell;
+            local.Hersteller = imported.Hersteller;
+            if (!string.IsNullOrWhiteSpace(imported.Notizen))
+                local.Notizen = imported.Notizen;
+            await MasterDataService.UpdateDroneAsync(local);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // EXPORT — Zustand & Logik
+    // ════════════════════════════════════════════════════════════
+
+    private string _subgroupName = string.Empty;
+    private readonly HashSet<string> _selectedTeamIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SubgroupExportOptions _exportOptions = new();
+
+    private SubgroupExportPacket? _exportPreview;
+    private long _exportPreviewSizeKb;
+    private bool _exportIsWorking;
+    private bool _exportIsDownloading;
+    private bool _exportValidationAttempted;
+    private string _exportStatusMessage = string.Empty;
+    private bool _exportStatusIsError;
+
+    protected override void OnInitialized()
+    {
+        // Vorauswahl: alle Teams
+        foreach (var team in EinsatzService.Teams)
+            _selectedTeamIds.Add(team.TeamId);
+
+        // Vorbelegung mit Staffelname aus Einsatzdaten (falls vorhanden)
+        if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.StaffelName))
+            _subgroupName = EinsatzService.CurrentEinsatz.StaffelName;
+    }
+
+    private void ToggleTeam(string teamId)
+    {
+        if (_selectedTeamIds.Contains(teamId))
+            _selectedTeamIds.Remove(teamId);
+        else
+            _selectedTeamIds.Add(teamId);
+
+        _exportPreview = null;
+    }
+
+    private void SelectAllTeams()
+    {
+        foreach (var t in EinsatzService.Teams)
+            _selectedTeamIds.Add(t.TeamId);
+        _exportPreview = null;
+    }
+
+    private void DeselectAllTeams()
+    {
+        _selectedTeamIds.Clear();
+        _exportPreview = null;
+    }
+
+    private bool ValidateExport()
+    {
+        _exportValidationAttempted = true;
+        return !string.IsNullOrWhiteSpace(_subgroupName) && _selectedTeamIds.Any();
+    }
+
+    private async Task RefreshExportPreviewAsync()
+    {
+        if (!ValidateExport()) return;
+
+        _exportIsWorking = true;
+        StateHasChanged();
+
+        try
+        {
+            var packet = await ExportService.BuildExportPacketAsync(
+                _selectedTeamIds,
+                _subgroupName,
+                _exportOptions);
+
+            var bytes = ExportService.Serialize(packet);
+            _exportPreview = packet;
+            _exportPreviewSizeKb = bytes.Length / 1024 + 1;
+        }
+        catch (Exception ex)
+        {
+            _exportStatusMessage = $"Fehler bei der Vorschau: {ex.Message}";
+            _exportStatusIsError = true;
+        }
+        finally
+        {
+            _exportIsWorking = false;
+        }
+    }
+
+    private async Task ExportAndDownloadAsync()
+    {
+        if (!ValidateExport()) return;
+
+        _exportIsWorking = true;
+        _exportIsDownloading = true;
+        _exportStatusMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var packet = await ExportService.BuildExportPacketAsync(
+                _selectedTeamIds,
+                _subgroupName,
+                _exportOptions);
+
+            var bytes = ExportService.Serialize(packet);
+            var json = System.Text.Encoding.UTF8.GetString(bytes);
+            var fileName = ExportService.GetFileName(packet);
+
+            _exportPreview = packet;
+            _exportPreviewSizeKb = bytes.Length / 1024 + 1;
+
+            // JS-Download: window.downloadFile ist in wwwroot/js/layout-tools.js definiert
+            await JS.InvokeVoidAsync("downloadFile", fileName, json, "application/json");
+
+            _exportStatusMessage = $"Export erfolgreich: {fileName}";
+            _exportStatusIsError = false;
+        }
+        catch (Exception ex)
+        {
+            _exportStatusMessage = $"Export fehlgeschlagen: {ex.Message}";
+            _exportStatusIsError = true;
+        }
+        finally
+        {
+            _exportIsWorking = false;
+            _exportIsDownloading = false;
+        }
+    }
+}
+
+<style>
+    .merge-stepper {
+        flex-wrap: wrap;
+    }
+
+    .merge-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 40px;
+    }
+
+    .merge-step-circle {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+        background: var(--bs-secondary-bg);
+        border: 2px solid var(--bs-border-color);
+        color: var(--bs-secondary-color);
+        transition: all 0.2s;
+    }
+
+    .merge-step-label {
+        font-size: 0.7rem;
+        color: var(--bs-secondary-color);
+        margin-top: 4px;
+        text-align: center;
+        max-width: 80px;
+    }
+
+    .merge-step.active .merge-step-circle {
+        background: var(--bs-primary);
+        border-color: var(--bs-primary);
+        color: white;
+    }
+
+    .merge-step.active .merge-step-label {
+        color: var(--bs-primary);
+        font-weight: 600;
+    }
+
+    .merge-step.completed .merge-step-circle {
+        background: var(--bs-success);
+        border-color: var(--bs-success);
+        color: white;
+    }
+
+    .merge-step-connector {
+        flex: 1;
+        height: 2px;
+        background: var(--bs-border-color);
+        margin: 0 4px;
+        align-self: flex-start;
+        margin-top: 16px;
+    }
+
+    .merge-step-connector.completed {
+        background: var(--bs-success);
+    }
+
+    .merge-item-card {
+        border-left: 4px solid var(--bs-border-color);
+        transition: border-color 0.15s;
+    }
+
+    .import-mode-card {
+        cursor: pointer;
+        transition: transform 0.1s, box-shadow 0.1s;
+    }
+
+    .import-mode-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    }
+
+    .merge-item-card.resolved-link { border-left-color: var(--bs-success); }
+    .merge-item-card.resolved-create { border-left-color: var(--bs-primary); }
+    .merge-item-card.resolved-skip { border-left-color: var(--bs-secondary); }
+
+    .candidate-option {
+        cursor: pointer;
+        transition: background 0.1s;
+    }
+
+    .candidate-option:hover {
+        background: var(--bs-tertiary-bg);
+    }
+
+    .candidate-option.selected {
+        background: var(--bs-primary-bg-subtle);
+        border-color: var(--bs-primary) !important;
+    }
+</style>

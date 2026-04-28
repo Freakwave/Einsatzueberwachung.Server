@@ -1270,7 +1270,8 @@
 
             _session = await MergeService.CreateSessionAsync(packet, ArchivedEinsatzId);
 
-            // Pre-fill subgroup name from packet if available (export may include it from older versions)
+            // Pre-fill subgroup name from packet if available
+            // (backwards compatibility: exports created before this change included the name)
             if (!string.IsNullOrWhiteSpace(packet.SubgroupName))
                 _mergeSubgroupName = packet.SubgroupName;
 

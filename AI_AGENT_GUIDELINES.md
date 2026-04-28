@@ -35,14 +35,16 @@ Zusätzlich gibt es eine **separate mobile Version** (PWA), die auf folgende Fun
 - Funksprüche
 
 ### Tech-Stack
-- **Frontend**: Blazor Server (.NET 8) mit Razor Components
-- **Backend**: ASP.NET Core (.NET 8) auf Kestrel
-- **Datenbank**: Entity Framework Core mit SQLite (Standard) / PostgreSQL (optional)
-- **Echtzeit**: SignalR für Live-Updates
-- **Karten**: Leaflet.js
-- **UI**: Bootstrap 5.3+ mit Dark Mode
+- **Frontend**: Blazor Server (.NET 8/9) mit Razor Components + interaktiver Server-Render-Modus (`@rendermode InteractiveServer`)
+- **Backend**: ASP.NET Core (.NET 8/9) auf Kestrel mit REST-API-Controllern und Minimal-API-Endpoints
+- **Datenbank**: Entity Framework Core mit SQLite — `runtime-state.db` für Runtime-Zustand (über `RuntimeDbContext`), JSON-Dateien für Stammdaten und Einstellungen
+- **Echtzeit**: SignalR (`/hubs/einsatz`) für alle Live-Updates (Teams, Notizen, GPS, Radio)
+- **Karten**: Leaflet.js (interaktive Karte), OSM/Carto-Tiles für statischen PDF-Karten-Export
+- **UI**: Bootstrap 5.3+ mit Dark Mode, Bootstrap Icons (`bi-*`)
+- **Kompression**: Brotli + Gzip Response Compression für alle HTTP-Antworten
 - **Deployment**: systemd Service hinter Nginx Reverse Proxy auf Ubuntu 22.04/24.04 LTS
 - **VPN**: Zugriff nur über WireGuard/OpenVPN-Netzwerk
+- **Desktop-Client**: `Einsatzueberwachung.LiveTracking` — WPF-App (Windows, .NET 9) für USB-GPS-Halsband-Integration
 
 ### Sprache & Stil
 - **UI-Sprache**: Deutsch (identisch zum Original)
@@ -53,42 +55,133 @@ Zusätzlich gibt es eine **separate mobile Version** (PWA), die auf folgende Fun
 ### Architektur
 ```
 src/
-├── Einsatzueberwachung.Server/   ← ASP.NET Core Hauptanwendung
-│   ├── Components/Pages/          ← Razor Pages (alle 15 Seiten)
-│   ├── Components/Layout/         ← MainLayout, NavMenu
-│   ├── Hubs/                      ← SignalR Hubs
-│   └── wwwroot/                   ← CSS, JS, Leaflet
-├── Einsatzueberwachung.Domain/   ← Business-Logik (Services, Models, Interfaces)
-│   ├── Interfaces/
-│   ├── Models/ (+ Enums/)
+├── Einsatzueberwachung.Server/        ← ASP.NET Core Hauptanwendung
+│   ├── Components/
+│   │   ├── Pages/                      ← Razor Pages (alle Seiten)
+│   │   └── Layout/                     ← MainLayout, NavMenu, TrainerLayout
+│   ├── Controllers/                    ← REST-API Controller
+│   │   ├── EinsatzController           ← Einsatz-API
+│   │   ├── CollarWebhookController     ← GPS-Halsband Webhook-Empfang
+│   │   ├── RadioController             ← Funksprüche-API
+│   │   ├── ThreadsController           ← Antwort-Threads
+│   │   ├── DiveraController            ← Divera 24/7 Integration
+│   │   ├── TrainingController          ← Training-API (ext. Trainings-App)
+│   │   ├── TrainerAuthController       ← Trainer-Login/Logout
+│   │   └── UpdateController            ← GitHub-Update-Verwaltung
+│   ├── Data/
+│   │   └── RuntimeDbContext.cs         ← SQLite (Runtime-State, Radio, Replies)
+│   ├── Hubs/
+│   │   └── EinsatzHub.cs               ← SignalR Hub
+│   ├── Security/
+│   │   └── TrainerAuthOptions.cs       ← Cookie-Auth Konfiguration
 │   ├── Services/
-│   └── Validators/
-├── Einsatzueberwachung.Mobile/   ← Separate PWA (nur 4 Funktionen)
-└── Einsatzueberwachung.Tests/    ← Unit-Tests
-deploy/                            ← nginx, systemd, wireguard, setup.sh
+│   │   ├── Radio/                      ← RadioService (Funksprüche)
+│   │   ├── BrowserPreferencesService   ← Theme-Präferenzen (Scoped)
+│   │   ├── CollarTrackingRelayService  ← GPS → SignalR Relay (Hosted)
+│   │   ├── EinsatzHubRelayService      ← Domain-Events → SignalR (Hosted)
+│   │   ├── RuntimeStatePersistenceService ← SQLite-Persistenz (Hosted)
+│   │   ├── TeamTimerTickService        ← Timer-Ticks (Hosted)
+│   │   ├── UpdateAutoCheckService      ← GitHub-Update-Check (Hosted)
+│   │   └── OsmStaticMapRenderer        ← Karten-Tiles für PDF-Export
+│   ├── Training/                       ← Trainer-Modul
+│   │   ├── TrainingContracts.cs        ← DTOs & Records
+│   │   ├── TrainingApiOptions.cs       ← Konfiguration
+│   │   ├── TrainingExerciseService     ← Übungsverwaltung
+│   │   ├── TrainingScenarioSuggestion  ← KI-gestützte Szenario-Vorschläge
+│   │   └── TrainerNotificationService  ← Trainer-Benachrichtigungen
+│   ├── wwwroot/
+│   │   ├── js/                         ← collar-tracking.js, einsatz-map.js,
+│   │   │                               │   clock.js, keyboard-shortcuts.js,
+│   │   │                               │   layout-tools.js, theme-sync.js
+│   │   ├── audio/warnings/             ← funk.wav, glocke.wav, kritisch.wav
+│   │   ├── app.css, leaflet-custom.css, print-map.css
+│   │   └── leaflet-interop.js
+│   └── Program.cs                      ← DI + Middleware-Pipeline
+├── Einsatzueberwachung.Domain/        ← Business-Logik
+│   ├── Interfaces/                     ← IEinsatzService, ICollarTrackingService,
+│   │                                   │   IDiveraService, IWeatherService, etc.
+│   ├── Models/                         ← EinsatzData, Team, PersonalEntry, Note,
+│   │   │                               │   Collar, CollarLocation, SearchArea, etc.
+│   │   └── Divera/                     ← DiveraAlarm, DiveraMember, etc.
+│   └── Services/                       ← EinsatzService, CollarTrackingService,
+│                                       │   DiveraService, DwdWeatherService,
+│                                       │   GitHubUpdateService, UtmConverter, etc.
+├── Einsatzueberwachung.LiveTracking/  ← WPF Desktop-App (Windows-only!)
+│   │                                   ← Liest GPS-USB-Daten & sendet an Server-API
+│   └── Services/
+│       ├── GpsSimulationService        ← GPS-Simulation für Tests
+│       └── ServerApiClient             ← HTTP-Client zum Server
+└── Einsatzueberwachung.Tests/         ← Unit-Tests
+deploy/
+├── nginx/                              ← Nginx Reverse Proxy Config
+├── systemd/                            ← systemd Service Units
+├── wireguard/                          ← WireGuard VPN Beispiel-Config
+└── scripts/
+    ├── apply-update.sh                 ← Update einspielen
+    ├── backup.sh                       ← Datensicherung
+    └── health-check.sh                 ← Systemzustand prüfen
 ```
 
-### Seiten der Hauptanwendung (ALLE implementieren)
+### Seiten der Hauptanwendung (implementiert)
 1. **Home.razor** — Startseite/Dashboard
 2. **EinsatzStart.razor** — Neuen Einsatz starten
 3. **EinsatzMonitor.razor** — Hauptüberwachungsseite (Teams, Timer, Notizen, Funksprüche)
-4. **EinsatzKarte.razor** — Interaktive Karte (Leaflet.js)
+4. **EinsatzKarte.razor** — Interaktive Karte (Leaflet.js, GPS-Halsbänder, Polygone)
 5. **EinsatzBericht.razor** — Einsatzbericht / PDF-Export
 6. **EinsatzArchiv.razor** — Archiv vergangener Einsätze
 7. **Stammdaten.razor** — Personal-, Hunde- und Drohnen-Verwaltung
-8. **Einstellungen.razor** — QR-Code, Theme, Konfiguration, DB-Verwaltung
-9. **Wetter.razor** — Wetteranzeige
-10. **PopoutNotes.razor** — Popout-Fenster für Funksprüche & Notizen
-11. **PopoutTeams.razor** — Popout-Fenster für Team-Übersicht
-12. **MobileConnect.razor** — QR-Code Verbindungsseite für Mobile
-13. **MobileDashboard.razor** — Mobiles Dashboard
-14. **MobileKarte.razor** — Mobile Kartenansicht
-15. **Error.razor** — Fehlerseite
+8. **Einstellungen.razor** — QR-Code, Theme, Konfiguration, DB-Verwaltung, GitHub-Update, Divera-API-Key, Trainer-Zugang
+9. **Weather.razor** — Wetteranzeige (DWD/BrightSky API)
+10. **DiveraStatus.razor** — Divera 24/7: aktive Alarme & Verfügbarkeitsstatus (`/divera`)
+11. **Trainer.razor** — Trainer-Modul mit eigenem Layout (`/trainer`, passwortgeschützt)
+12. **PopoutNotes.razor** — Popout-Fenster für Funksprüche & Notizen
+13. **PopoutTeams.razor** — Popout-Fenster für Team-Übersicht
+14. **MobileDashboard.razor** — Mobiles Dashboard
+15. **MobileKarte.razor** — Mobile Kartenansicht
+16. **Error.razor** — Fehlerseite
+
+> ⚠️ `Einsatzueberwachung.Mobile` (separate PWA) wurde durch die Integration der mobilen Ansichten direkt im Server-Projekt ersetzt. Das separate Mobile-Projekt existiert nicht mehr.
+
+### REST-API Endpoints
+Alle REST-Endpoints sind über `/api/` erreichbar. Swagger-UI ist im Development-Modus unter `/swagger` verfügbar.
+
+| Prefix | Controller | Zweck |
+|---|---|---|
+| `/api/einsatz` | `EinsatzController` | Einsatz starten/beenden, aktuelle Daten |
+| `/api/collar` | `CollarWebhookController` | GPS-Halsband-Positionen empfangen (Webhook) |
+| `/api/radio` | `RadioController` | Funksprüche lesen/erstellen |
+| `/api/threads` | `ThreadsController` | Antwort-Threads auf Funksprüche |
+| `/api/divera` | `DiveraController` | Divera 24/7 Status & Alarme |
+| `/api/training` | `TrainingController` | Training-API für externe Trainings-App |
+| `/api/trainer` | `TrainerAuthController` | Trainer-Login/Logout (Cookie-Auth) |
+| `/api/update` | `UpdateController` | GitHub-Release-Check & Update-Anwendung |
+| `/downloads/*` | Minimal API | PDF, Excel, JSON, ZIP Downloads |
+| `/health` | Built-in | Health-Check Endpoint |
+| `/hubs/einsatz` | `EinsatzHub` | SignalR WebSocket Hub |
 
 ### Sicherheit
-- Niemals echte API-Keys, Passwörter oder sensible Daten ausgeben — Platzhalter oder `.env`/`appsettings.Production.json` verwenden
+- Niemals echte API-Keys, Passwörter oder sensible Daten ausgeben — Platzhalter oder `appsettings.Production.json` / Umgebungsvariablen verwenden
+- **Divera-API-Key** wird ausschließlich über `ISettingsService` aus `StaffelSettings.json` gelesen — NICHT aus `appsettings.json`
+- **Trainer-Passwort** steht in `appsettings.json` unter `TrainerAuth:Password` — in Produktion über Umgebungsvariable `TrainerAuth__Password` überschreiben
 - Keine öffentlichen Endpunkte — ausschließlich VPN-interner Zugriff
 - Keine Windows-Registry-Zugriffe, keine IIS-Konfiguration
+- Die Training-API kann schreibend gesperrt werden (`TrainingApi:AllowWriteOperations=false`); Ursprünge per `TrainingApi:AllowedOrigins` einschränken
+- Cookie-Authentifizierung für den Trainerbereich: `HttpOnly`, `SameSite=Strict`, 12h Session
+
+### Service-Registrierung Konventionen
+- **Singleton**: Alle Domain-Services (`IEinsatzService`, `IMasterDataService`, `ISettingsService`, `ICollarTrackingService`, `IDiveraService`, `IArchivService`, `ToastService`, `GitHubUpdateService`, etc.) — sie halten den globalen Anwendungszustand
+- **Scoped**: `BrowserPreferencesService` (pro HTTP-Request / Blazor-Circuit)
+- **Transient** via `IRadioService`: Scoped mit `AddScoped<IRadioService, RadioService>()` — hat Zugriff auf `DbContext`
+- **Hosted Services**: `EinsatzHubRelayService`, `CollarTrackingRelayService`, `TeamTimerTickService`, `UpdateAutoCheckService`, `RuntimeStatePersistenceService` — laufen als `BackgroundService`
+- **DbContext**: `IDbContextFactory<RuntimeDbContext>` (nicht direkt `DbContext`) — für Thread-Safety in Singleton-Kontext
+
+### Datenpersistenz
+- **Runtime-Zustand** (aktiver Einsatz, Teams, Notizen): SQLite via `RuntimeDbContext` → `runtime-state.db`
+- **Funksprüche & Replies**: SQLite via `RuntimeDbContext` (Tabellen: `radio_messages`, `radio_replies`)
+- **Stammdaten** (Personal, Hunde, Drohnen): JSON-Dateien im Daten-Verzeichnis
+- **Einstellungen**: `StaffelSettings.json` und `AppSettings.json` im Daten-Verzeichnis
+- **Archiv**: JSON-Dateien für archivierte Einsätze
+- Alle Dateipfade immer über `AppPathResolver.GetDataDirectory()` auflösen — niemals absolute Pfade hardcoden
 
 ### Zerstörerische Aktionen
 Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze System betreffen, **frage immer den Menschen um Erlaubnis**.
@@ -96,30 +189,56 @@ Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze 
 ### DO ✅
 - Gleiche Funktionalität und Aussehen wie Einsatzüberwachung.Web
 - Gleiche Razor Components (Blazor Server) mit identischer UI
-- Gleiche CSS-Klassen und Bootstrap 5.3+ Design
-- Gleiche SignalR Echtzeit-Logik
-- Gleiche Domain-Modelle (EinsatzData, Team, PersonalEntry, Note, etc.)
-- **Linux-kompatible Pfade** (`Path.Combine`, kein Backslash)
-- Systemd-fähige Konfiguration (kein interaktiver Modus)
-- UFW-Regeln statt Windows-Firewall
-- Nginx-kompatibel (Forwarded Headers, WebSocket Support)
-- Separate Mobile PWA mit nur den 4 Funktionen
+- Gleiche CSS-Klassen und Bootstrap 5.3+ Design mit Bootstrap Icons (`bi-*`)
+- Gleiche SignalR Echtzeit-Logik (alle Events über `EinsatzHub` und Relay-Services)
+- Gleiche Domain-Modelle (EinsatzData, Team, PersonalEntry, Note, Collar, etc.)
+- **Linux-kompatible Pfade** — immer `AppPathResolver.GetDataDirectory()` und `Path.Combine()` verwenden
+- Systemd-fähige Konfiguration (kein interaktiver Modus, kein Autostart via Windows-Mechanismen)
+- Nginx-kompatibel: `UseForwardedHeaders()` muss als erstes in der Middleware-Pipeline stehen
+- Neue REST-API-Endpunkte als Controller in `Controllers/` anlegen, nicht als Minimal-API (außer Download-Endpoints die bereits als Minimal-API existieren)
+- Trainer-Modul mit `[Authorize(Policy = "TrainerOnly")]` absichern und `TrainerLayout` verwenden
+- Training-API-Endpoints: immer `TrainingApi:Enabled` prüfen (→ 404 wenn deaktiviert), `AllowWriteOperations` für Schreibzugriffe prüfen
+- `IDbContextFactory<RuntimeDbContext>` verwenden (nicht direkt injizieren) wenn in Singleton-Services auf die DB zugegriffen wird
+- Neue Audio-Warnungen als `.wav` in `wwwroot/audio/warnings/` ablegen
+- Neue JS-Module als eigene Dateien in `wwwroot/js/` anlegen (kein eingebettetes JS in Razor-Dateien)
 
 ### DON'T ❌
-- Keine Windows-spezifischen Pfade (`C:\`, Backslashes)
+- Keine Windows-spezifischen Pfade (`C:\`, Backslashes) im Server-Projekt
 - Keine PowerShell/Batch-Scripts
-- Keine Windows-Registry-Zugriffe
+- Keine Windows-Registry-Zugriffe im Server-Projekt
 - Keine IIS-Konfiguration
 - Keine Desktop-Verknüpfungen (.lnk)
 - Keine Inno Setup Installer
-- Die Mobile-App darf NICHT alle Funktionen der Desktop-Version haben
-- Keine öffentlichen Endpunkte
+- Kein direktes Einbetten von JS-Code in `.razor`-Dateien — stattdessen JS-Interop-Module in `wwwroot/js/`
+- `EinsatzHub` nicht direkt aus Domain-Services aufrufen — immer über Relay-Services (`EinsatzHubRelayService`)
+- Keine öffentlichen Endpunkte — VPN-interner Zugriff vorausgesetzt
+- **`Einsatzueberwachung.LiveTracking`** ist eine Windows-WPF-App — dort KEINE Linux-spezifischen APIs verwenden; nur über HTTP-API mit dem Server kommunizieren
+- Divera-API-Key niemals in `appsettings.json` — nur über `ISettingsService` / `StaffelSettings.json`
 
-### Migrations-Reihenfolge
-**Phase 1: Grundstruktur** — Solution & Projekte, Domain-Layer, SQLite/EF Core, Program.cs  
-**Phase 2: Desktop Web-App** — Layout, Home, EinsatzStart, EinsatzMonitor, SignalR, Karte, Stammdaten, Einstellungen, Bericht, Archiv, Wetter, Popouts, Dark Mode, Keyboard Shortcuts  
-**Phase 3: Mobile PWA** — Eigenes Projekt, Bottom-Tab-Bar, 4 Funktionen, PWA Manifest + Service Worker  
-**Phase 4: Deployment** — Nginx, systemd, setup.sh, WireGuard, Backup, Health Checks
+### Feature-Überblick (implementiert)
+- **🌓 Dark Mode**: Persistente Einstellungen, Cross-Tab Sync via `theme-sync.js`
+- **🗺️ Interaktive Karten (Leaflet.js)**: Suchgebiete, Marker, Polygone, GPS-Halsband-Live-Tracking auf Karte
+- **📡 GPS-Halsband-Tracking**: Bis zu 20 Halsbänder gleichzeitig, Live-Position via Webhook-API, Bereichserkennung (im/außerhalb Suchgebiet), Relay via SignalR
+- **🐕 LiveTracking Desktop-App**: WPF-App liest USB-GPS-Gerät (Garmin Alpha) und sendet Positionen an Server-API; als ZIP-Download unter `/downloads/livetracking.zip`
+- **👥 Team-Management**: Teams anlegen/bearbeiten/löschen, Timer mit Farbcodierung (Grün→Orange→Rot), Blink-Animation, Pause-Funktion für Hunde
+- **📻 Funksprüche**: Chronologisch, mit Antwort-Threads, persistent in SQLite, Echtzeit-SignalR
+- **📝 Notizen**: Globale & team-spezifische Notizen, Zeitstempel, Antwort-Threads
+- **🔔 Audio-Warnungen**: `funk.wav` (Funkspruch), `glocke.wav` (Benachrichtigung), `kritisch.wav` (Kritischer Alarm)
+- **🔗 Divera 24/7**: Alarme und Verfügbarkeitsstatus via REST-API, konfigurierbarer API-Key
+- **🎓 Trainer-Modul**: Passwortgeschützter Bereich (`/trainer`), Übungsverwaltung, Szenario-Vorschläge (KI-gestützt), Trainer-Einträge, zeitgesteuerte Events
+- **📡 Training-API**: REST-API für externe Trainings-Apps (`/api/training/*`), read/write steuerbar
+- **🔄 GitHub Auto-Update**: Automatische Prüfung auf neue Releases, Update-Download und -Anwendung via `apply-update.sh`
+- **🗺️ Statische Karten für PDF**: OSM-Tiles via `OsmStaticMapRenderer` für PDF-Einsatzberichte
+- **📐 UTM-Koordinaten**: `UtmConverter` für UTM ↔ WGS84 Umrechnung
+- **🌤️ Wetter (DWD/BrightSky)**: Wetteranzeige für Einsatzort
+- **📊 Runtime-Persistenz**: Einsatzzustand überlebt Server-Neustarts (SQLite, alle 3 Sekunden gespeichert)
+- **⌨️ Keyboard Shortcuts**: `keyboard-shortcuts.js`
+- **📥 Downloads**: PDF-Berichte, Excel-Stammdaten, JSON-Export, ZIP-Backup, LiveTracking-App
+
+### Migrations-Reihenfolge (aktueller Stand)
+**Phase 1–2**: ✅ Abgeschlossen — Grundstruktur, alle Hauptseiten, SignalR, Dark Mode  
+**Phase 3**: ⚠️ Geändert — `Mobile PWA` ersetzt durch mobile Ansichten im Server-Projekt selbst  
+**Phase 4**: ✅ Deployment-Infrastruktur vorhanden (Nginx, systemd, WireGuard, Backup, Update-Skripte)
 
 ### Referenz-Repository
 - **Repo**: `Elemirus1996/Einsatzueberwachung.Web`
@@ -132,3 +251,7 @@ Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze 
 *(Liebe KI, füge hier neue Regeln im Format `[Datum] - [Regel]` hinzu, wenn du von Menschen korrigiert wurdest.)*
 
 * [2026-04-28] - Initialer Start des Agenten-Gedächtnisses. `AI_AGENT_GUIDELINES.md` wurde als zentrale "Single Source of Truth" angelegt und mit `.github/copilot-instructions.md` zusammengeführt.
+* [2026-04-28] - Projektstruktur aktualisiert: `Einsatzueberwachung.Mobile` (PWA) existiert nicht mehr. Mobile Ansichten sind direkt im Server-Projekt integriert. Stattdessen gibt es `Einsatzueberwachung.LiveTracking` (WPF, Windows-only) für USB-GPS-Geräte.
+* [2026-04-28] - Neue Features dokumentiert: GPS-Halsband-Tracking, Divera 24/7 Integration, Trainer-Modul, Training-API, GitHub Auto-Update, Audio-Warnungen, Runtime-Persistenz via SQLite.
+* [2026-04-28] - Wichtige Konvention: Domain-Services sind **Singletons**. Wer aus einem Singleton auf den `DbContext` zugreifen muss, nutzt `IDbContextFactory<RuntimeDbContext>` — niemals direkt den `DbContext` injizieren.
+* [2026-04-28] - Neue REST-Controller kommen in `src/Einsatzueberwachung.Server/Controllers/`. SignalR-Events werden nie direkt aus Domain-Services gesendet, sondern immer durch die zugehörigen Relay-`BackgroundService`s (`EinsatzHubRelayService`, `CollarTrackingRelayService`).

@@ -37,18 +37,25 @@ window.einsatzMap = (function () {
 
         const hybridLayer = L.layerGroup([satelliteLayer, labelsLayer]);
 
+        const topoLayer = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+            maxZoom: 17,
+            attribution: 'Kartendaten: &copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> | Kartenstil: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+        });
+
         streetLayer.addTo(map);
         currentBaseLayer = streetLayer;
         baseLayers = {
             streets: streetLayer,
             satellite: satelliteLayer,
-            hybrid: hybridLayer
+            hybrid: hybridLayer,
+            topo: topoLayer
         };
         baseLayerControl = L.control.layers(
             {
                 "Strassenkarte": streetLayer,
                 "Satellit": satelliteLayer,
-                "Hybrid": hybridLayer
+                "Hybrid": hybridLayer,
+                "Topografisch": topoLayer
             },
             null,
             { collapsed: false }
@@ -56,6 +63,8 @@ window.einsatzMap = (function () {
 
         areasLayer = L.layerGroup().addTo(map);
         draftLayer = L.layerGroup().addTo(map);
+
+        L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
 
         map.on("click", function (event) {
             if (!drawMode) {

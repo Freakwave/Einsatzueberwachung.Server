@@ -39,7 +39,7 @@ namespace Einsatzueberwachung.Domain.Models
         // Alle gespeicherten GPS-Tracks des Einsatzes
         public List<TeamTrackSnapshot> TrackSnapshots { get; set; }
 
-        // Protokoll aller Teilgruppen-Zusammenführungen für diesen Einsatz
+        // Protokoll aller Import-Zusammenführungen für diesen Einsatz
         public List<MergeHistoryEntry> MergeHistory { get; set; }
         
         // Koordinaten fuer Wetter-Abfrage

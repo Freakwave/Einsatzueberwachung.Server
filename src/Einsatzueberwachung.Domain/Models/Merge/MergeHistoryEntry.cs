@@ -8,7 +8,7 @@ using System.Collections.Generic;
 namespace Einsatzueberwachung.Domain.Models.Merge
 {
     /// <summary>
-    /// Protokolliert eine durchgeführte Teilgruppen-Zusammenführung.
+    /// Protokolliert eine durchgeführte Import-Zusammenführung.
     /// Speichert die IDs aller hinzugefügten Einträge, damit die Zusammenführung
     /// mit einem einzigen Button-Druck rückgängig gemacht werden kann.
     /// </summary>
@@ -20,8 +20,8 @@ namespace Einsatzueberwachung.Domain.Models.Merge
         /// <summary>Zeitpunkt der Zusammenführung.</summary>
         public DateTime MergedAt { get; set; } = DateTime.Now;
 
-        /// <summary>Name der Teilgruppe, deren Daten importiert wurden.</summary>
-        public string SubgroupName { get; set; } = string.Empty;
+        /// <summary>Optionaler Label-Name für diesen Import (z. B. "Staffel Nord"). Kann leer sein.</summary>
+        public string Label { get; set; } = string.Empty;
 
         /// <summary>Benutzername (falls verfügbar), der die Zusammenführung durchgeführt hat.</summary>
         public string? MergedBy { get; set; }

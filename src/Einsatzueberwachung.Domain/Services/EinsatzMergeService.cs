@@ -214,7 +214,7 @@ namespace Einsatzueberwachung.Domain.Services
             var historyEntry = new MergeHistoryEntry
             {
                 MergedAt = Now,
-                SubgroupName = session.Packet.SubgroupName
+                Label = session.Packet.Label
             };
 
             // ── 1. Stammdaten: neu erstellte Einträge anlegen und Remapping finalisieren ──
@@ -275,9 +275,9 @@ namespace Einsatzueberwachung.Domain.Services
             await PersistMergeHistoryEntryAsync(historyEntry, session.TargetArchivedEinsatzId);
 
             // Zusammenführungs-Systemnotiz schreiben
-            var label = string.IsNullOrWhiteSpace(session.Packet.SubgroupName)
+            var label = string.IsNullOrWhiteSpace(session.Packet.Label)
                 ? "Import"
-                : $"Import '{session.Packet.SubgroupName}'";
+                : $"Import '{session.Packet.Label}'";
             var summaryText = $"{label} zusammengeführt am " +
                               $"{historyEntry.MergedAt:dd.MM.yyyy HH:mm} — " +
                               $"{historyEntry.TeamsAdded} Teams, {historyEntry.NotesAdded} Notizen, " +
@@ -338,9 +338,9 @@ namespace Einsatzueberwachung.Domain.Services
                 entry.RevertedAt = Now;
 
                 // Systemnotiz über den Revert
-                var revertLabel = string.IsNullOrWhiteSpace(entry.SubgroupName)
+                var revertLabel = string.IsNullOrWhiteSpace(entry.Label)
                     ? "Import"
-                    : $"Import '{entry.SubgroupName}'";
+                    : $"Import '{entry.Label}'";
                 await _einsatzService.AddGlobalNoteAsync(
                     $"{revertLabel} vom {entry.FormattedMergedAt} rückgängig gemacht.",
                     GlobalNotesEntryType.System);

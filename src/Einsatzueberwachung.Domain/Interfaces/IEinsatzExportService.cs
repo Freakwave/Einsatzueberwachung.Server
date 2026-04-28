@@ -17,11 +17,11 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// Stammdaten werden automatisch aus den Team-Referenzen gesammelt.
         /// </summary>
         /// <param name="selectedTeamIds">IDs der zu exportierenden Teams.</param>
-        /// <param name="subgroupName">Optionaler Label-Name für das Paket (z. B. "Staffel Nord"). Kann leer sein.</param>
+        /// <param name="label">Optionaler Label-Name für das Paket (z. B. "Staffel Nord"). Kann leer sein.</param>
         /// <param name="options">Optionale Export-Einstellungen.</param>
         Task<EinsatzExportPacket> BuildExportPacketAsync(
             IEnumerable<string> selectedTeamIds,
-            string subgroupName,
+            string label,
             EinsatzExportOptions? options = null);
 
         /// <summary>
@@ -32,7 +32,7 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// <summary>
         /// Erstellt den vorgeschlagenen Dateinamen für ein Export-Paket.
         /// Format: <c>&lt;EinsatzNr&gt;_&lt;YYYYMMDD_HHmm&gt;.einsatz-export.json</c>
-        /// (oder <c>&lt;Label&gt;_&lt;EinsatzNr&gt;_…</c> wenn ein SubgroupName gesetzt ist).
+        /// (oder <c>&lt;Label&gt;_&lt;EinsatzNr&gt;_…</c> wenn ein Label gesetzt ist).
         /// </summary>
         string GetFileName(EinsatzExportPacket packet);
     }

@@ -114,8 +114,8 @@
                     <div class="d-flex gap-2 flex-wrap">
                         <button class="btn btn-sm btn-outline-success"
                                 @onclick="() => NavigateToMerge(_selected.Id)"
-                                title="Teilgruppe in diesen archivierten Einsatz integrieren">
-                            <i class="bi bi-diagram-2 me-1"></i>Teilgruppe integrieren
+                                title="Export-Datei in diesen archivierten Einsatz integrieren">
+                            <i class="bi bi-diagram-2 me-1"></i>Import integrieren
                         </button>
                         <a class="btn btn-sm btn-outline-primary" href="@GetArchivedPdfDownloadUrl(_selected.Id)" target="_blank" rel="noopener">PDF</a>
                         <button class="btn btn-sm btn-outline-secondary" @onclick="CloseDetails">Schliessen</button>
@@ -245,7 +245,7 @@
                             {
                                 <div class="list-group-item d-flex justify-content-between align-items-center @(merge.IsReverted ? "list-group-item-secondary" : "")">
                                     <div>
-                                        <span class="fw-semibold me-2">@merge.SubgroupName</span>
+                                        <span class="fw-semibold me-2">@merge.Label</span>
                                         <span class="text-muted small">@merge.FormattedMergedAt</span>
                                         <br />
                                         <small class="text-muted">@merge.Summary</small>

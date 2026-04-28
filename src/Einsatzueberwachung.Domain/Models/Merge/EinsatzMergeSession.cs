@@ -20,7 +20,7 @@ namespace Einsatzueberwachung.Domain.Models.Merge
     }
 
     /// <summary>
-    /// Hält den vollständigen Zustand einer laufenden Teilgruppen-Zusammenführung.
+    /// Hält den vollständigen Zustand einer laufenden Import-Zusammenführung.
     /// Transient (nur im Speicher) — wird nie persistiert.
     /// </summary>
     public class EinsatzMergeSession
@@ -28,7 +28,7 @@ namespace Einsatzueberwachung.Domain.Models.Merge
         /// <summary>Eindeutige Session-ID.</summary>
         public string SessionId { get; set; } = Guid.NewGuid().ToString();
 
-        /// <summary>Das importierte Export-Paket der Teilgruppe.</summary>
+        /// <summary>Das importierte Export-Paket.</summary>
         public EinsatzExportPacket Packet { get; set; } = null!;
 
         /// <summary>Gibt an, ob eine EinsatzNummer-Abweichung vom Benutzer bestätigt wurde.</summary>

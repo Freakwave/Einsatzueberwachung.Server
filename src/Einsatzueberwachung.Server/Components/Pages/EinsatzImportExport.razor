@@ -73,7 +73,7 @@
                             <i class="bi bi-diagram-2 display-4 text-primary mb-3 d-block"></i>
                             <h5 class="card-title">Als Unterabschnitt integrieren</h5>
                             <p class="card-text text-muted small">
-                                Teams, Stammdaten, Notizen und Suchgebiete einer Teilgruppe in den
+                                Teams, Stammdaten, Notizen und Suchgebiete aus einer Export-Datei in den
                                 laufenden oder archivierten Einsatz übernehmen.
                             </p>
                         </div>
@@ -140,7 +140,7 @@
                     </div>
                     <div class="card-body">
                         <p class="text-muted mb-3">
-                            Wählen Sie die <code>.einsatz-export.json</code> Datei der Teilgruppe aus.
+                            Wählen Sie die <code>.einsatz-export.json</code> Datei aus.
                         </p>
 
                         <div class="mb-3">
@@ -188,7 +188,7 @@
                                 <input class="form-control"
                                        type="text"
                                        placeholder="z. B. Staffel Nord, Gruppe 2, …"
-                                       @bind="_mergeSubgroupName"
+                                       @bind="_mergeLabel"
                                        maxlength="80" />
                                 <div class="form-text">
                                     Dieser Name wird im Zusammenführungs-Protokoll gespeichert.
@@ -584,8 +584,8 @@
                     </div>
                     <div class="card-body">
                         <dl class="row small mb-3">
-                            <dt class="col-sm-4">Teilgruppe</dt>
-                            <dd class="col-sm-8">@merge.SubgroupName</dd>
+                            <dt class="col-sm-4">Import-Label</dt>
+                            <dd class="col-sm-8">@merge.Label</dd>
                             <dt class="col-sm-4">Zeitpunkt</dt>
                             <dd class="col-sm-8">@merge.FormattedMergedAt</dd>
                             <dt class="col-sm-4">Teams importiert</dt>
@@ -1216,7 +1216,7 @@
         _errorMessage = string.Empty;
         _einsatzNrMismatch = false;
         _revertSuccess = false;
-        _mergeSubgroupName = string.Empty;
+        _mergeLabel = string.Empty;
         _newEinsatzPacket = null;
         _newEinsatzMergeSession = null;
         _newEinsatzStep = 1;
@@ -1238,7 +1238,7 @@
     private bool _einsatzNrMismatch = false;
     private string _errorMessage = string.Empty;
     private bool _revertSuccess = false;
-    private string _mergeSubgroupName = string.Empty;
+    private string _mergeLabel = string.Empty;
 
     private readonly List<(int Number, string Label)> _steps = new()
     {
@@ -1270,10 +1270,9 @@
 
             _session = await MergeService.CreateSessionAsync(packet, ArchivedEinsatzId);
 
-            // Pre-fill subgroup name from packet if available
-            // (backwards compatibility: exports created before this change included the name)
-            if (!string.IsNullOrWhiteSpace(packet.SubgroupName))
-                _mergeSubgroupName = packet.SubgroupName;
+            // Pre-fill label from packet if available
+            if (!string.IsNullOrWhiteSpace(packet.Label))
+                _mergeLabel = packet.Label;
 
             var currentNr = ArchivedEinsatzId == null
                 ? EinsatzService.CurrentEinsatz.EinsatzNummer
@@ -1335,8 +1334,8 @@
         _isLoading = true;
         _errorMessage = string.Empty;
 
-        // Apply the user-entered subgroup name to the packet for the merge history
-        _session.Packet.SubgroupName = _mergeSubgroupName.Trim();
+        // Apply the user-entered label to the packet for the merge history
+        _session.Packet.Label = _mergeLabel.Trim();
 
         try
         {
@@ -1520,7 +1519,7 @@
             }
 
             _newEinsatzPacket = packet;
-            _newEinsatzEinsatzort = string.Empty; // cleared so placeholder shows SubgroupName
+            _newEinsatzEinsatzort = string.Empty; // cleared so placeholder shows EinsatzNummer
 
             // Stammdaten-Merge-Items mit Vorschlägen befüllen (nur für Schritt 2 genutzt)
             _newEinsatzMergeSession = await MergeService.CreateSessionAsync(packet, null);

@@ -208,9 +208,9 @@ namespace Einsatzueberwachung.Domain.Services
                 ArchivedAt = Now,
                 EinsatzNummer = packet.EinsatzNummer,
                 Einsatzort = !string.IsNullOrWhiteSpace(einsatzort) ? einsatzort :
-                             !string.IsNullOrWhiteSpace(packet.SubgroupName) ? packet.SubgroupName :
+                             !string.IsNullOrWhiteSpace(packet.Label) ? packet.Label :
                              packet.EinsatzNummer,
-                StaffelName = packet.SubgroupName,
+                StaffelName = packet.Label,
                 IstEinsatz = true,
                 EinsatzDatum = packet.ExportedAt.ToLocalTime().Date,
                 AlarmierungsZeit = packet.ExportedAt.ToLocalTime(),

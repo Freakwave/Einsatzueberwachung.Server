@@ -42,7 +42,7 @@ namespace Einsatzueberwachung.Domain.Services
 
         public async Task<EinsatzExportPacket> BuildExportPacketAsync(
             IEnumerable<string> selectedTeamIds,
-            string subgroupName,
+            string label,
             EinsatzExportOptions? options = null)
         {
             options ??= new EinsatzExportOptions();
@@ -56,7 +56,7 @@ namespace Einsatzueberwachung.Domain.Services
 
             var packet = new EinsatzExportPacket
             {
-                SubgroupName = subgroupName.Trim(),
+                Label = label.Trim(),
                 ExportedAt = DateTime.UtcNow,
                 EinsatzNummer = einsatz.EinsatzNummer
             };
@@ -104,9 +104,9 @@ namespace Einsatzueberwachung.Domain.Services
             var safeNr = MakeSafeFileName(packet.EinsatzNummer);
             var timestamp = packet.ExportedAt.ToLocalTime().ToString("yyyyMMdd_HHmm");
 
-            if (!string.IsNullOrWhiteSpace(packet.SubgroupName))
+            if (!string.IsNullOrWhiteSpace(packet.Label))
             {
-                var safeName = MakeSafeFileName(packet.SubgroupName);
+                var safeName = MakeSafeFileName(packet.Label);
                 return $"{safeName}_{safeNr}_{timestamp}.einsatz-export.json";
             }
 

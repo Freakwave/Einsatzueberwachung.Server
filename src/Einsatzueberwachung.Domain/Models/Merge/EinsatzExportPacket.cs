@@ -15,10 +15,10 @@ namespace Einsatzueberwachung.Domain.Models.Merge
         public string SchemaVersion { get; set; } = "1.0";
 
         /// <summary>
-        /// Optionaler Name, der beim Import vergeben wurde (z. B. "Staffel Nord", "Unterabschnitt Mitte").
-        /// Leer bei Exporten, die ohne explizite Namensangabe erstellt wurden.
+        /// Optionaler Label-Name für dieses Export-Paket (z. B. "Staffel Nord", "Unterabschnitt Mitte").
+        /// Wird beim Import vom Benutzer vergeben. Leer wenn kein Name gesetzt wurde.
         /// </summary>
-        public string SubgroupName { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
 
         /// <summary>Zeitpunkt des Exports (UTC).</summary>
         public DateTime ExportedAt { get; set; } = DateTime.UtcNow;

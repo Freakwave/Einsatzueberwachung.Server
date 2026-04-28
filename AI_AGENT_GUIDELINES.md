@@ -183,6 +183,28 @@ Alle REST-Endpoints sind über `/api/` erreichbar. Swagger-UI ist im Development
 - **Archiv**: JSON-Dateien für archivierte Einsätze
 - Alle Dateipfade immer über `AppPathResolver.GetDataDirectory()` auflösen — niemals absolute Pfade hardcoden
 
+### Inkrementelle Architektur-Verbesserung (Boy Scout Rule) 🏕️
+**Hinterlasse jede Datei, die du anfasst, ein kleines bisschen besser als du sie vorgefunden hast.**
+
+Das bedeutet konkret: Wenn du eine Datei ohnehin bearbeitest, darfst und sollst du gleichzeitig *kleine* Verbesserungen vornehmen — aber **niemals** ein großes Refactoring starten, nur weil du die Datei schon offen hast.
+
+**Erlaubte Mini-Refactorings beim Anfassen einer Datei:**
+- Eine übergroße Methode (>50 Zeilen) in private Hilfsmethoden aufteilen
+- Duplizierte Logik in eine eigene Methode extrahieren
+- Magic Strings/Numbers durch benannte Konstanten ersetzen
+- Fehlende `private`/`readonly`-Modifier ergänzen
+- Veraltete Kommentare korrigieren oder entfernen
+- Eine Klasse mit zu vielen Verantwortlichkeiten aufteilen, *wenn* das schnell und risikoarm geht
+- Unnötige `using`-Direktiven entfernen
+- Einen neuen Dienst in eine eigene Datei auslagern statt ihn an eine bereits große Datei anzuhängen
+
+**Verboten (immer Rückfrage beim Menschen):**
+- Umbenennung von öffentlichen API-Klassen, Interfaces oder Methoden (bricht ggf. Clients)
+- Verschieben ganzer Namespaces oder Projekte
+- Änderung der Datenbankstruktur (`RuntimeDbContext`, Migrations)
+- Komplettes Umschreiben einer Seite oder eines Services
+- Umbau der Middleware-Pipeline in `Program.cs`
+
 ### Zerstörerische Aktionen
 Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze System betreffen, **frage immer den Menschen um Erlaubnis**.
 
@@ -255,3 +277,4 @@ Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze 
 * [2026-04-28] - Neue Features dokumentiert: GPS-Halsband-Tracking, Divera 24/7 Integration, Trainer-Modul, Training-API, GitHub Auto-Update, Audio-Warnungen, Runtime-Persistenz via SQLite.
 * [2026-04-28] - Wichtige Konvention: Domain-Services sind **Singletons**. Wer aus einem Singleton auf den `DbContext` zugreifen muss, nutzt `IDbContextFactory<RuntimeDbContext>` — niemals direkt den `DbContext` injizieren.
 * [2026-04-28] - Neue REST-Controller kommen in `src/Einsatzueberwachung.Server/Controllers/`. SignalR-Events werden nie direkt aus Domain-Services gesendet, sondern immer durch die zugehörigen Relay-`BackgroundService`s (`EinsatzHubRelayService`, `CollarTrackingRelayService`).
+* [2026-04-28] - Boy Scout Rule eingeführt: Bei jeder Änderung kleine Architektur-Verbesserungen an der berührten Datei vornehmen (Methoden extrahieren, Duplikate entfernen, Magic Strings ersetzen, etc.) — aber keine großen Umstrukturierungen ohne Rückfrage.

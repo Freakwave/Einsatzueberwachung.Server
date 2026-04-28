@@ -20,6 +20,12 @@ namespace Einsatzueberwachung.Domain.Interfaces
         event Action<string, string, CollarLocation>? OutOfBoundsDetected;
         /// <summary>Wird auslöst wenn der Positionsverlauf eines Halsbands gelöscht wird</summary>
         event Action<string>? CollarHistoryCleared;
+
+        /// <summary>Wird ausgelöst wenn ein Team-Track als Snapshot gesichert wurde (nach Stopp)</summary>
+        event Action<TeamTrackSnapshot>? TrackSnapshotSaved;
+
+        /// <summary>Benachrichtigt Listener über einen neu gespeicherten Track-Snapshot</summary>
+        void NotifySnapshotSaved(TeamTrackSnapshot snapshot);
         /// <summary>Neue GPS-Position von der externen Software empfangen</summary>
         Task<CollarLocation> ReceiveLocationAsync(string collarId, string collarName, double latitude, double longitude);
 

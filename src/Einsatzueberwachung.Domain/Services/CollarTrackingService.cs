@@ -22,6 +22,7 @@ namespace Einsatzueberwachung.Domain.Services
         public event Action<string, CollarLocation>? CollarLocationReceived;
         public event Action<string, string, CollarLocation>? OutOfBoundsDetected;
         public event Action<string>? CollarHistoryCleared;
+        public event Action<TeamTrackSnapshot>? TrackSnapshotSaved;
 
         public IReadOnlyList<Collar> Collars => _collars.Values.ToList().AsReadOnly();
 
@@ -153,6 +154,11 @@ namespace Einsatzueberwachung.Domain.Services
                 }
             }
             CollarHistoryCleared?.Invoke(collarId);
+        }
+
+        public void NotifySnapshotSaved(TeamTrackSnapshot snapshot)
+        {
+            TrackSnapshotSaved?.Invoke(snapshot);
         }
 
         public void ClearAll()

@@ -189,10 +189,11 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         map.addControl(drawControl);
             
         // Event-Listener fuer gezeichnete Shapes
+        let drawShapeCreated = false; // Flag: wurde draw durch vollständiges Zeichnen beendet?
         map.on(L.Draw.Event.CREATED, function(e) {
             const layer = e.layer;
             drawnItems.addLayer(layer);
-                
+            drawShapeCreated = true; // Form wurde erstellt, kein Cancel
             // Callback an Blazor
             const geoJSON = layer.toGeoJSON();
             if (dotNetReference) {
@@ -289,10 +290,15 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         });
 
         // Draw aktiviert / deaktiviert
-        map.on('draw:drawstart', function() { drawModeActive = true; });
+        map.on('draw:drawstart', function() { drawModeActive = true; drawShapeCreated = false; });
         map.on('draw:drawstop', function() {
             drawModeActive = false;
             hideLiveArea();
+            // Nur bei echtem Abbruch (Escape / cancelDrawMode) → Blazor informieren
+            if (!drawShapeCreated && dotNetReference) {
+                dotNetReference.invokeMethodAsync('OnDrawCanceled');
+            }
+            drawShapeCreated = false;
         });
 
         // Edit beendet (Speichern oder Abbrechen) → ausblenden
@@ -877,6 +883,27 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         } catch (err) {
             console.error('Fehler beim Aktivieren des Draw-Modus:', err);
             console.error('Error stack:', err.stack);
+            return false;
+        }
+    },
+
+    // Bricht den aktiven Zeichen-Modus ab (vom X-Button oder programmatisch)
+    cancelDrawMode: function(mapId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return false;
+            const drawMode = mapData.drawControl._toolbars && mapData.drawControl._toolbars.draw;
+            if (drawMode) {
+                if (drawMode._modes.polygon && drawMode._modes.polygon.handler._enabled) {
+                    drawMode._modes.polygon.handler.disable();
+                }
+                if (drawMode._modes.rectangle && drawMode._modes.rectangle.handler._enabled) {
+                    drawMode._modes.rectangle.handler.disable();
+                }
+            }
+            return true;
+        } catch (err) {
+            console.error('Fehler beim Abbrechen des Draw-Modus:', err);
             return false;
         }
     },

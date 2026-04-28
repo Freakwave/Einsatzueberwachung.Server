@@ -555,6 +555,50 @@
         }
     }
 
+    @if (_showCollarSelectModal)
+    {
+        var collarSelectTeam = _collarSelectTeamId != null
+            ? EinsatzService.Teams.FirstOrDefault(t => t.TeamId == _collarSelectTeamId)
+            : null;
+        <div class="modal-overlay" @onclick="CollarSelectCancel">
+            <div class="modal-modern" style="max-width:460px" @onclick:stopPropagation="true">
+                <div class="modal-modern-header">
+                    <h4 class="mb-0"><i class="bi bi-broadcast me-2"></i>GPS-Halsband zuweisen</h4>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="CollarSelectCancel">×</button>
+                </div>
+                <div class="modal-modern-body">
+                    <p class="text-muted small mb-3">
+                        Team <strong>@(collarSelectTeam?.TeamName ?? "?")</strong> hat noch kein Halsband.
+                        Bitte jetzt zuweisen oder ohne Halsband starten.
+                    </p>
+                    <label class="form-label">GPS-Halsband</label>
+                    <select class="form-select mb-0" @bind="_collarSelectCollarId">
+                        <option value="">-- Kein Halsband (ohne Tracking starten) --</option>
+                        @foreach (var collar in CollarTrackingService.GetAvailableCollars().OrderBy(c => c.CollarName))
+                        {
+                            <option value="@collar.Id">@collar.CollarName [@collar.Id]</option>
+                        }
+                    </select>
+                </div>
+                <div class="modal-modern-footer">
+                    <button class="btn btn-outline-secondary" @onclick="CollarSelectCancel">Abbrechen</button>
+                    @if (string.IsNullOrEmpty(_collarSelectCollarId))
+                    {
+                        <button class="btn btn-warning" @onclick="CollarSelectStartWithoutAsync">
+                            <i class="bi bi-play-fill me-1"></i>Ohne Halsband starten
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-success" @onclick="CollarSelectConfirmAsync">
+                            <i class="bi bi-broadcast me-1"></i>Zuweisen &amp; starten
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
     @if (_showEditEinsatzModal)
     {
         <div class="modal-overlay" @onclick="CloseEditEinsatzModal">
@@ -841,6 +885,11 @@
     private bool _showCloseMissionModal;
     private bool _showPauseResetModal;
     private bool _showEditEinsatzModal;
+
+    // Halsband-Auswahl beim Start (falls noch kein Halsband zugewiesen)
+    private bool _showCollarSelectModal;
+    private string? _collarSelectTeamId;
+    private string _collarSelectCollarId = string.Empty;
     private string _editEinsatzMessage = string.Empty;
     private bool _editEinsatzIsError;
     private EditEinsatzForm _editEinsatzForm = new();
@@ -1592,8 +1641,18 @@
 
     private async Task StartTeamAsync(string teamId)
     {
-        // Bei Suchstart: Halsband-History löschen für frischen Track
         var team = EinsatzService.Teams.FirstOrDefault(t => t.TeamId == teamId);
+
+        // Kein Halsband zugewiesen → Dialog zur Auswahl einblenden (nur für Hundeteams)
+        if (team != null && !team.IsDroneTeam && !team.IsSupportTeam && string.IsNullOrEmpty(team.CollarId))
+        {
+            _collarSelectTeamId = teamId;
+            _collarSelectCollarId = string.Empty;
+            _showCollarSelectModal = true;
+            return;
+        }
+
+        // Bei Suchstart: Halsband-History löschen für frischen Track
         if (team != null && !string.IsNullOrEmpty(team.CollarId))
         {
             CollarTrackingService.ClearCollarHistory(team.CollarId);
@@ -1650,7 +1709,19 @@
 
                 team.TrackSnapshots.Add(snapshot);
                 EinsatzService.CurrentEinsatz.TrackSnapshots.Add(snapshot);
+
+                // Listener über neuen Snapshot informieren (z.B. für Karten-Darstellung)
+                CollarTrackingService.NotifySnapshotSaved(snapshot);
+
+                // Live-Track von der Karte entfernen — der Snapshot-Track ersetzt ihn
+                CollarTrackingService.ClearCollarHistory(snapshot.CollarId);
             }
+        }
+
+        // Halsband nach dem Stopp automatisch freigeben (übergabe an nächstes Team möglich)
+        if (team?.CollarId != null)
+        {
+            await CollarTrackingService.UnassignCollarAsync(team.CollarId);
         }
 
         await EinsatzService.StopTeamTimerAsync(teamId);
@@ -1659,6 +1730,66 @@
     private async Task ResetTeamAsync(string teamId)
     {
         await EinsatzService.ResetTeamTimerAsync(teamId);
+    }
+
+    // --- Halsband-Auswahl Modal (wird gezeigt wenn beim Start kein Halsband zugewiesen ist) ---
+
+    private async Task CollarSelectConfirmAsync()
+    {
+        if (_collarSelectTeamId == null) return;
+
+        if (!string.IsNullOrEmpty(_collarSelectCollarId))
+        {
+            await CollarTrackingService.AssignCollarToTeamAsync(_collarSelectCollarId, _collarSelectTeamId);
+        }
+
+        _showCollarSelectModal = false;
+
+        // Jetzt Start durchführen (Halsband ist jetzt zugewiesen oder bewusst ausgelassen)
+        var team = EinsatzService.Teams.FirstOrDefault(t => t.TeamId == _collarSelectTeamId);
+        if (team != null && !string.IsNullOrEmpty(team.CollarId))
+        {
+            CollarTrackingService.ClearCollarHistory(team.CollarId);
+        }
+
+        try
+        {
+            await EinsatzService.StartTeamTimerAsync(_collarSelectTeamId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _teamStatusMessage = ex.Message;
+            _teamStatusIsError = true;
+        }
+
+        _collarSelectTeamId = null;
+        _collarSelectCollarId = string.Empty;
+    }
+
+    private async Task CollarSelectStartWithoutAsync()
+    {
+        if (_collarSelectTeamId == null) return;
+        _showCollarSelectModal = false;
+
+        try
+        {
+            await EinsatzService.StartTeamTimerAsync(_collarSelectTeamId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _teamStatusMessage = ex.Message;
+            _teamStatusIsError = true;
+        }
+
+        _collarSelectTeamId = null;
+        _collarSelectCollarId = string.Empty;
+    }
+
+    private void CollarSelectCancel()
+    {
+        _showCollarSelectModal = false;
+        _collarSelectTeamId = null;
+        _collarSelectCollarId = string.Empty;
     }
 
     private Task RequestResetTeamAsync(string teamId)

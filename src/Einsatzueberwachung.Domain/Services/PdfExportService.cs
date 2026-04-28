@@ -383,14 +383,14 @@ namespace Einsatzueberwachung.Domain.Services
                 var einsatzPath = AppPathResolver.GetReportDirectory();
                 var filePath = Path.Combine(einsatzPath, filename);
                 var tracks = includeTracks ? archivedEinsatz.TrackSnapshots : null;
-                byte[]? archivedTrackMapImage = null;
 
-                if (tracks?.Any(track => track.Points.Count >= 2) == true && _mapRenderer != null)
+                // Kartenbilder für Tracks rendern (je Track ein eigenes Bild)
+                if (tracks?.Any(t => t.Points.Count >= 2) == true && _mapRenderer != null)
                 {
-                    archivedTrackMapImage = await _mapRenderer.RenderCombinedTrackMapAsync(tracks, archivedEinsatz.ElwPosition);
+                    await RenderTrackMapsAsync(tracks);
                 }
 
-                var pdfDocument = CreateArchivedEinsatzDocument(archivedEinsatz, staffelInfo, tracks, archivedTrackMapImage);
+                var pdfDocument = CreateArchivedEinsatzDocument(archivedEinsatz, staffelInfo, tracks);
 
                 await Task.Run(() =>
                 {
@@ -426,14 +426,14 @@ namespace Einsatzueberwachung.Domain.Services
         {
             var staffelInfo = await ResolveStaffelInfoAsync(archivedEinsatz);
             var tracks = includeTracks ? archivedEinsatz.TrackSnapshots : null;
-            byte[]? archivedTrackMapImage = null;
 
-            if (tracks?.Any(track => track.Points.Count >= 2) == true && _mapRenderer != null)
+            // Kartenbilder für Tracks rendern (je Track ein eigenes Bild)
+            if (tracks?.Any(t => t.Points.Count >= 2) == true && _mapRenderer != null)
             {
-                archivedTrackMapImage = await _mapRenderer.RenderCombinedTrackMapAsync(tracks, archivedEinsatz.ElwPosition);
+                await RenderTrackMapsAsync(tracks);
             }
 
-            var pdfDocument = CreateArchivedEinsatzDocument(archivedEinsatz, staffelInfo, tracks, archivedTrackMapImage);
+            var pdfDocument = CreateArchivedEinsatzDocument(archivedEinsatz, staffelInfo, tracks);
             
             return await Task.Run(() =>
             {
@@ -453,10 +453,17 @@ namespace Einsatzueberwachung.Domain.Services
         {
             var staffelInfo = await ResolveStaffelInfoAsync(einsatzData);
             var tracks = includeTracks ? einsatzData.TrackSnapshots : null;
+
+            // Kartenbilder für Tracks rendern (je Track ein eigenes Bild)
+            if (tracks?.Any(t => t.Points.Count >= 2) == true && _mapRenderer != null)
+            {
+                await RenderTrackMapsAsync(tracks);
+            }
+
+            var pdfDocument = CreateEinsatzDocument(einsatzData, teams, notes, staffelInfo, tracks);
             return await Task.Run(() =>
             {
                 using var stream = new MemoryStream();
-                var pdfDocument = CreateEinsatzDocument(einsatzData, teams, notes, staffelInfo, tracks);
                 pdfDocument.GeneratePdf(stream);
                 
                 return stream.ToArray();
@@ -522,7 +529,7 @@ namespace Einsatzueberwachung.Domain.Services
         /// <summary>
         /// Erstellt das PDF-Dokument für einen archivierten Einsatz
         /// </summary>
-        private Document CreateArchivedEinsatzDocument(ArchivedEinsatz einsatz, StaffelInfo staffelInfo, List<TeamTrackSnapshot>? tracks = null, byte[]? archivedTrackMapImage = null)
+        private Document CreateArchivedEinsatzDocument(ArchivedEinsatz einsatz, StaffelInfo staffelInfo, List<TeamTrackSnapshot>? tracks = null)
         {
             return Document.Create(container =>
             {
@@ -561,7 +568,7 @@ namespace Einsatzueberwachung.Domain.Services
                             if (tracks?.Any() == true)
                             {
                                 column.Item().PageBreak();
-                                column.Item().PaddingVertical(10).Element(c => ComposeArchivedGpsTrackMap(c, einsatz, tracks, archivedTrackMapImage));
+                                column.Item().PaddingVertical(10).Element(c => ComposeGpsTracks(c, tracks));
                             }
                             if (einsatz.GlobalNotesEntries?.Any() == true)
                             {

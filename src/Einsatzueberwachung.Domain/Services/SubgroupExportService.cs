@@ -101,10 +101,16 @@ namespace Einsatzueberwachung.Domain.Services
 
         public string GetFileName(SubgroupExportPacket packet)
         {
-            var safeName = MakeSafeFileName(packet.SubgroupName);
             var safeNr = MakeSafeFileName(packet.EinsatzNummer);
             var timestamp = packet.ExportedAt.ToLocalTime().ToString("yyyyMMdd_HHmm");
-            return $"{safeName}_{safeNr}_{timestamp}.einsatz-export.json";
+
+            if (!string.IsNullOrWhiteSpace(packet.SubgroupName))
+            {
+                var safeName = MakeSafeFileName(packet.SubgroupName);
+                return $"{safeName}_{safeNr}_{timestamp}.einsatz-export.json";
+            }
+
+            return $"export_{safeNr}_{timestamp}.einsatz-export.json";
         }
 
         // ─────────────────────────────────────────────────────────────────────

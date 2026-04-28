@@ -1,0 +1,165 @@
+/* ========================================
+   GPS-Tab – Halsband-Liste
+   ======================================== */
+
+.gps-tab-content {
+    padding: 8px;
+}
+
+.collar-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.collar-item:hover {
+    background: var(--bs-secondary-bg, #e9ecef);
+}
+
+.collar-item:active {
+    transform: translateY(1px);
+}
+
+.collar-name {
+    flex: 1;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.collar-team {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* ========================================
+   Abgeschlossene Suchen – Snapshot Items
+   ======================================== */
+
+.snapshot-item {
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 4px;
+    font-size: 0.8rem;
+}
+
+.snapshot-summary {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    cursor: pointer;
+    padding: 6px 8px 6px 0;
+    transition: background-color 0.15s;
+}
+
+.snapshot-summary:hover {
+    background: var(--bs-secondary-bg, #e9ecef);
+}
+
+.snapshot-expanded-header {
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.snapshot-color-bar {
+    width: 4px;
+    min-height: 100%;
+    border-radius: 2px 0 0 2px;
+    flex-shrink: 0;
+    margin-right: 8px;
+    align-self: stretch;
+}
+
+.snapshot-meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.snapshot-team-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.snapshot-sub {
+    font-size: 0.72rem;
+    color: var(--bs-secondary-color, #6c757d);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.snapshot-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.snapshot-detail {
+    padding: 8px;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    font-size: 0.78rem;
+}
+
+.snapshot-stats-table {
+    font-size: 0.78rem;
+    margin-bottom: 6px;
+}
+
+.snapshot-stats-table td:first-child {
+    width: 80px;
+    padding-right: 8px;
+}
+
+.snapshot-points-scroll {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 4px;
+}
+
+.snapshot-points-table {
+    font-size: 0.72rem;
+    margin: 0;
+}
+
+.snapshot-points-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bs-secondary-bg, #e9ecef);
+    z-index: 1;
+    font-size: 0.7rem;
+    padding: 2px 4px;
+}
+
+.snapshot-points-table td {
+    padding: 1px 4px;
+    vertical-align: middle;
+}
+
+/* ========================================
+   Pulse-Badge für OOB-Warnung
+   ======================================== */
+
+@keyframes pulse-badge {
+    0%   { opacity: 1; }
+    50%  { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
+.pulse-badge {
+    animation: pulse-badge 1.2s ease-in-out infinite;
+}

@@ -196,7 +196,7 @@ namespace Einsatzueberwachung.Domain.Services
         }
 
         public async Task<ArchivedEinsatz> ImportPacketAsNewEinsatzAsync(
-            SubgroupExportPacket packet,
+            EinsatzExportPacket packet,
             string einsatzort = "",
             string ergebnis = "",
             string bemerkungen = "")
@@ -207,7 +207,9 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 ArchivedAt = Now,
                 EinsatzNummer = packet.EinsatzNummer,
-                Einsatzort = !string.IsNullOrWhiteSpace(einsatzort) ? einsatzort : packet.SubgroupName,
+                Einsatzort = !string.IsNullOrWhiteSpace(einsatzort) ? einsatzort :
+                             !string.IsNullOrWhiteSpace(packet.SubgroupName) ? packet.SubgroupName :
+                             packet.EinsatzNummer,
                 StaffelName = packet.SubgroupName,
                 IstEinsatz = true,
                 EinsatzDatum = packet.ExportedAt.ToLocalTime().Date,

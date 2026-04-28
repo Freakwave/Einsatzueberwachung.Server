@@ -1,4 +1,4 @@
-// Export-Paket einer Teilgruppe — Root-Objekt der .einsatz-export.json Datei
+// EinsatzExportPacket — Root-Objekt der .einsatz-export.json Datei
 
 using System;
 using System.Collections.Generic;
@@ -6,15 +6,18 @@ using System.Collections.Generic;
 namespace Einsatzueberwachung.Domain.Models.Merge
 {
     /// <summary>
-    /// Das Stammobjekt einer von einer Teilgruppe exportierten Datei.
+    /// Das Stammobjekt einer exportierten Einsatz-Datei.
     /// Enthält alle Stamm- und Einsatzdaten, die zusammengeführt werden sollen.
     /// </summary>
-    public class SubgroupExportPacket
+    public class EinsatzExportPacket
     {
         /// <summary>Schema-Version für Vorwärtskompatibilität (aktuell "1.0").</summary>
         public string SchemaVersion { get; set; } = "1.0";
 
-        /// <summary>Name der exportierenden Teilgruppe / Staffel.</summary>
+        /// <summary>
+        /// Optionaler Name, der beim Import vergeben wurde (z. B. "Staffel Nord", "Unterabschnitt Mitte").
+        /// Leer bei Exporten, die ohne explizite Namensangabe erstellt wurden.
+        /// </summary>
         public string SubgroupName { get; set; } = string.Empty;
 
         /// <summary>Zeitpunkt des Exports (UTC).</summary>

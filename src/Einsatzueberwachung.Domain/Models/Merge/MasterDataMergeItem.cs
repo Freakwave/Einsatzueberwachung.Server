@@ -45,7 +45,7 @@ namespace Einsatzueberwachung.Domain.Models.Merge
     /// </summary>
     public class MasterDataMergeItem
     {
-        /// <summary>ID des importierten Eintrags (aus dem SubgroupExportPacket).</summary>
+        /// <summary>ID des importierten Eintrags (aus dem EinsatzExportPacket).</summary>
         public string ImportedId { get; set; } = string.Empty;
 
         /// <summary>Anzeigename des importierten Eintrags.</summary>

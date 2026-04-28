@@ -64,7 +64,7 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// <param name="ergebnis">Optionales Ergebnis (z.B. "Person gefunden").</param>
         /// <param name="bemerkungen">Optionale Bemerkungen.</param>
         Task<ArchivedEinsatz> ImportPacketAsNewEinsatzAsync(
-            SubgroupExportPacket packet,
+            EinsatzExportPacket packet,
             string einsatzort = "",
             string ergebnis = "",
             string bemerkungen = "");

@@ -1,4 +1,4 @@
-// SubgroupMergeSession — Transiente In-Memory-Zustandsverwaltung für den Merge-Wizard
+// EinsatzMergeSession — Transiente In-Memory-Zustandsverwaltung für den Merge-Wizard
 // Wird NICHT persistiert. Lebt nur für die Dauer einer Wizard-Sitzung.
 
 using System;
@@ -23,13 +23,13 @@ namespace Einsatzueberwachung.Domain.Models.Merge
     /// Hält den vollständigen Zustand einer laufenden Teilgruppen-Zusammenführung.
     /// Transient (nur im Speicher) — wird nie persistiert.
     /// </summary>
-    public class SubgroupMergeSession
+    public class EinsatzMergeSession
     {
         /// <summary>Eindeutige Session-ID.</summary>
         public string SessionId { get; set; } = Guid.NewGuid().ToString();
 
         /// <summary>Das importierte Export-Paket der Teilgruppe.</summary>
-        public SubgroupExportPacket Packet { get; set; } = null!;
+        public EinsatzExportPacket Packet { get; set; } = null!;
 
         /// <summary>Gibt an, ob eine EinsatzNummer-Abweichung vom Benutzer bestätigt wurde.</summary>
         public bool EinsatzNrMismatchAcknowledged { get; set; } = false;

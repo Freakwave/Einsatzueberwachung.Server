@@ -1,4 +1,4 @@
-// SubgroupExportService — Erstellt ein portables Export-Paket aus dem laufenden Einsatz
+// EinsatzExportService — Erstellt ein portables Export-Paket aus dem laufenden Einsatz
 
 using System;
 using System.Collections.Generic;
@@ -15,9 +15,9 @@ using Einsatzueberwachung.Domain.Models.Merge;
 namespace Einsatzueberwachung.Domain.Services
 {
     /// <summary>
-    /// Implementiert den Teilgruppen-Export aus dem aktiven Einsatz.
+    /// Implementiert den Einsatz-Export aus dem aktiven Einsatz.
     /// </summary>
-    public class SubgroupExportService : ISubgroupExportService
+    public class EinsatzExportService : IEinsatzExportService
     {
         private readonly IEinsatzService _einsatzService;
         private readonly IMasterDataService _masterDataService;
@@ -28,7 +28,7 @@ namespace Einsatzueberwachung.Domain.Services
             PropertyNamingPolicy = null   // PascalCase – identisch mit Import-Erwartung
         };
 
-        public SubgroupExportService(
+        public EinsatzExportService(
             IEinsatzService einsatzService,
             IMasterDataService masterDataService)
         {
@@ -40,12 +40,12 @@ namespace Einsatzueberwachung.Domain.Services
         // BuildExportPacketAsync
         // ─────────────────────────────────────────────────────────────────────
 
-        public async Task<SubgroupExportPacket> BuildExportPacketAsync(
+        public async Task<EinsatzExportPacket> BuildExportPacketAsync(
             IEnumerable<string> selectedTeamIds,
             string subgroupName,
-            SubgroupExportOptions? options = null)
+            EinsatzExportOptions? options = null)
         {
-            options ??= new SubgroupExportOptions();
+            options ??= new EinsatzExportOptions();
 
             var teamIdSet = new HashSet<string>(selectedTeamIds, StringComparer.OrdinalIgnoreCase);
             var selectedTeams = _einsatzService.Teams
@@ -54,7 +54,7 @@ namespace Einsatzueberwachung.Domain.Services
 
             var einsatz = _einsatzService.CurrentEinsatz;
 
-            var packet = new SubgroupExportPacket
+            var packet = new EinsatzExportPacket
             {
                 SubgroupName = subgroupName.Trim(),
                 ExportedAt = DateTime.UtcNow,
@@ -93,13 +93,13 @@ namespace Einsatzueberwachung.Domain.Services
         // Serialize / GetFileName
         // ─────────────────────────────────────────────────────────────────────
 
-        public byte[] Serialize(SubgroupExportPacket packet)
+        public byte[] Serialize(EinsatzExportPacket packet)
         {
             var json = JsonSerializer.Serialize(packet, JsonOptions);
             return Encoding.UTF8.GetBytes(json);
         }
 
-        public string GetFileName(SubgroupExportPacket packet)
+        public string GetFileName(EinsatzExportPacket packet)
         {
             var safeNr = MakeSafeFileName(packet.EinsatzNummer);
             var timestamp = packet.ExportedAt.ToLocalTime().ToString("yyyyMMdd_HHmm");
@@ -117,7 +117,7 @@ namespace Einsatzueberwachung.Domain.Services
         // Private helpers
         // ─────────────────────────────────────────────────────────────────────
 
-        private async Task CollectStammdatenAsync(SubgroupExportPacket packet, List<Team> teams)
+        private async Task CollectStammdatenAsync(EinsatzExportPacket packet, List<Team> teams)
         {
             var personalIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var dogIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -179,10 +179,10 @@ namespace Einsatzueberwachung.Domain.Services
         }
 
         private static void CollectNotes(
-            SubgroupExportPacket packet,
+            EinsatzExportPacket packet,
             HashSet<string> teamIdSet,
             List<GlobalNotesEntry> allNotes,
-            SubgroupExportOptions options)
+            EinsatzExportOptions options)
         {
             foreach (var note in allNotes)
             {
@@ -212,10 +212,10 @@ namespace Einsatzueberwachung.Domain.Services
         }
 
         private static void CollectSearchAreas(
-            SubgroupExportPacket packet,
+            EinsatzExportPacket packet,
             HashSet<string> teamIdSet,
             List<SearchArea> allAreas,
-            SubgroupExportOptions options)
+            EinsatzExportOptions options)
         {
             foreach (var area in allAreas)
             {
@@ -233,7 +233,7 @@ namespace Einsatzueberwachung.Domain.Services
         }
 
         private static void CollectTrackSnapshots(
-            SubgroupExportPacket packet,
+            EinsatzExportPacket packet,
             List<Team> selectedTeams,
             HashSet<string> teamIdSet,
             EinsatzData einsatz)
@@ -264,13 +264,13 @@ namespace Einsatzueberwachung.Domain.Services
             }
         }
 
-        private const string FallbackSubgroupName = "unbekannt";
+        private const string FallbackLabelName = "unbekannt";
         private const string FallbackExportName = "export";
 
         private static string MakeSafeFileName(string input)
         {
             if (string.IsNullOrWhiteSpace(input))
-                return FallbackSubgroupName;
+                return FallbackLabelName;
 
             var invalid = Path.GetInvalidFileNameChars();
             var sb = new StringBuilder(input.Length);

@@ -1,4 +1,4 @@
-// Service-Interface für die Teilgruppen-Zusammenführung
+// Service-Interface für die Einsatz-Zusammenführung
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -8,9 +8,9 @@ using Einsatzueberwachung.Domain.Models.Merge;
 namespace Einsatzueberwachung.Domain.Interfaces
 {
     /// <summary>
-    /// Verwaltet den vollständigen Merge-Workflow für Teilgruppen-Exporte.
+    /// Verwaltet den vollständigen Merge-Workflow für Einsatz-Exporte.
     /// </summary>
-    public interface ISubgroupMergeService
+    public interface IEinsatzMergeService
     {
         /// <summary>
         /// Erstellt eine neue Merge-Session aus einem importierten Export-Paket.
@@ -19,8 +19,8 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// </summary>
         /// <param name="packet">Das importierte Export-Paket.</param>
         /// <param name="targetArchivedEinsatzId">null = aktiver Einsatz, sonst ID des archivierten Einsatzes.</param>
-        Task<SubgroupMergeSession> CreateSessionAsync(
-            SubgroupExportPacket packet,
+        Task<EinsatzMergeSession> CreateSessionAsync(
+            EinsatzExportPacket packet,
             string? targetArchivedEinsatzId = null);
 
         /// <summary>
@@ -28,14 +28,14 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// nachdem der Benutzer eine Stammdaten-Entscheidung getroffen hat.
         /// Muss nach jeder Änderung an einer MasterDataMergeItem-Entscheidung aufgerufen werden.
         /// </summary>
-        void RebuildIdRemapping(SubgroupMergeSession session);
+        void RebuildIdRemapping(EinsatzMergeSession session);
 
         /// <summary>
         /// Führt eine vollständig vorbereitete Session atomar aus.
         /// Alle Stammdaten-Items müssen entschieden sein.
         /// </summary>
         /// <returns>Der Protokolleintrag für die abgeschlossene Zusammenführung.</returns>
-        Task<MergeHistoryEntry> ApplyMergeAsync(SubgroupMergeSession session);
+        Task<MergeHistoryEntry> ApplyMergeAsync(EinsatzMergeSession session);
 
         /// <summary>
         /// Macht eine Zusammenführung vollständig rückgängig anhand des Protokolleintrags.
@@ -53,6 +53,6 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// <summary>
         /// Liest und deserialisiert ein Upload-Paket aus dem JSON-Byte-Array.
         /// </summary>
-        SubgroupExportPacket? ParseExportPacket(byte[] json);
+        EinsatzExportPacket? ParseExportPacket(byte[] json);
     }
 }

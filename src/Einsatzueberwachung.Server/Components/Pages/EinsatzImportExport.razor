@@ -7,8 +7,8 @@
 @using Einsatzueberwachung.Domain.Interfaces
 @using Microsoft.AspNetCore.Components.Forms
 
-@inject ISubgroupMergeService MergeService
-@inject ISubgroupExportService ExportService
+@inject IEinsatzMergeService MergeService
+@inject IEinsatzExportService ExportService
 @inject IEinsatzService EinsatzService
 @inject IMasterDataService MasterDataService
 @inject IArchivService ArchivService
@@ -1232,7 +1232,7 @@
     /// <summary>Maximale Upload-Dateigröße (10 MB).</summary>
     private const long MaxUploadBytes = 10 * 1024 * 1024;
 
-    private SubgroupMergeSession? _session;
+    private EinsatzMergeSession? _session;
     private MergeWizardStep _currentStep = MergeWizardStep.Upload;
     private bool _isLoading = false;
     private bool _einsatzNrMismatch = false;
@@ -1488,8 +1488,8 @@
     // IMPORT NEUER EINSATZ — Zustand & Logik
     // ════════════════════════════════════════════════════════════
 
-    private SubgroupExportPacket? _newEinsatzPacket;
-    private SubgroupMergeSession? _newEinsatzMergeSession;
+    private EinsatzExportPacket? _newEinsatzPacket;
+    private EinsatzMergeSession? _newEinsatzMergeSession;
     private int _newEinsatzStep = 1;  // 1=Upload, 2=Stammdaten, 3=Details, 4=Ergebnis
     private bool _newEinsatzIsLoading;
     private string _newEinsatzErrorMessage = string.Empty;
@@ -1568,7 +1568,7 @@
     /// Wendet die Stammdaten-Entscheidungen aus Schritt 2 des „Neuer Einsatz"-Wizards an.
     /// Legt neue Einträge an (CreateNew) und überschreibt ggf. lokale Felder (LinkToExisting + OverwriteLocalFields).
     /// </summary>
-    private async Task ApplyNewEinsatzMasterDataAsync(SubgroupMergeSession session)
+    private async Task ApplyNewEinsatzMasterDataAsync(EinsatzMergeSession session)
     {
         // ── Personal ──
         foreach (var item in session.PersonalItems.Where(i => i.Decision == MergeDecision.CreateNew))
@@ -1674,9 +1674,9 @@
     // ════════════════════════════════════════════════════════════
 
     private readonly HashSet<string> _selectedTeamIds = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SubgroupExportOptions _exportOptions = new();
+    private readonly EinsatzExportOptions _exportOptions = new();
 
-    private SubgroupExportPacket? _exportPreview;
+    private EinsatzExportPacket? _exportPreview;
     private long _exportPreviewSizeKb;
     private bool _exportIsWorking;
     private bool _exportIsDownloading;

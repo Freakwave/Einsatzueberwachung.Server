@@ -472,6 +472,19 @@ namespace Einsatzueberwachung.Domain.Services
                 }
             }
 
+            // Fallback: Wenn kein Hundeführer bekannt ist, aber der beste Treffer einen Score
+            // von 100 % hat (gleiche ID + gleicher Name), trotzdem vorauswählen.
+            if (item.Decision == MergeDecision.Undecided && item.Suggestions.Count > 0)
+            {
+                var best = item.Suggestions[0];
+                if (best.ConfidenceScore >= 1.0 &&
+                    string.Equals(imported.Name, best.DisplayName, StringComparison.OrdinalIgnoreCase))
+                {
+                    item.Decision = MergeDecision.LinkToExisting;
+                    item.SelectedLocalId = best.LocalId;
+                }
+            }
+
             return item;
         }
 
@@ -520,22 +533,26 @@ namespace Einsatzueberwachung.Domain.Services
             string reason = "PARTIAL";
             string label = "Ähnlicher Name";
 
+            var importedName = imported.FullName.ToLowerInvariant();
+            var localName = local.FullName.ToLowerInvariant();
+            bool exactName = importedName == localName;
+            bool partialName = !exactName && ContainsPartialName(importedName, localName);
+
             if (imported.Id == local.Id)
             {
-                score += 0.85;
+                // ID-Treffer ist nur ein starkes Signal wenn auch der Name übereinstimmt.
+                // Ohne Namensübereinstimmung könnte es eine zufällige ID-Kollision sein.
+                score += (exactName || partialName) ? 0.85 : 0.15;
                 reason = "SAME_ID";
                 label = "Gleiche ID";
             }
 
-            var importedName = imported.FullName.ToLowerInvariant();
-            var localName = local.FullName.ToLowerInvariant();
-
-            if (importedName == localName)
+            if (exactName)
             {
                 score += 0.70;
                 if (reason != "SAME_ID") { reason = "EXACT_NAME"; label = "Gleicher Name"; }
             }
-            else if (ContainsPartialName(importedName, localName))
+            else if (partialName)
             {
                 score += 0.35;
                 if (reason == "PARTIAL") { reason = "PARTIAL_NAME"; label = "Ähnlicher Name"; }
@@ -565,22 +582,26 @@ namespace Einsatzueberwachung.Domain.Services
             string reason = "PARTIAL";
             string label = "Ähnlicher Name";
 
+            var importedName = imported.Name.ToLowerInvariant();
+            var localName = local.Name.ToLowerInvariant();
+            bool exactName = importedName == localName;
+            bool partialName = !exactName && ContainsPartialName(importedName, localName);
+
             if (imported.Id == local.Id)
             {
-                score += 0.85;
+                // ID-Treffer ist nur ein starkes Signal wenn auch der Name übereinstimmt.
+                // Ohne Namensübereinstimmung könnte es eine zufällige ID-Kollision sein.
+                score += (exactName || partialName) ? 0.85 : 0.15;
                 reason = "SAME_ID";
                 label = "Gleiche ID";
             }
 
-            var importedName = imported.Name.ToLowerInvariant();
-            var localName = local.Name.ToLowerInvariant();
-
-            if (importedName == localName)
+            if (exactName)
             {
                 score += 0.70;
                 if (reason != "SAME_ID") { reason = "EXACT_NAME"; label = "Gleicher Name"; }
             }
-            else if (ContainsPartialName(importedName, localName))
+            else if (partialName)
             {
                 score += 0.35;
                 if (reason == "PARTIAL") { reason = "PARTIAL_NAME"; label = "Ähnlicher Name"; }
@@ -611,22 +632,26 @@ namespace Einsatzueberwachung.Domain.Services
             string reason = "PARTIAL";
             string label = "Ähnlicher Name";
 
+            var importedName = imported.DisplayName.ToLowerInvariant();
+            var localName = local.DisplayName.ToLowerInvariant();
+            bool exactName = importedName == localName;
+            bool partialName = !exactName && ContainsPartialName(importedName, localName);
+
             if (imported.Id == local.Id)
             {
-                score += 0.85;
+                // ID-Treffer ist nur ein starkes Signal wenn auch der Name übereinstimmt.
+                // Ohne Namensübereinstimmung könnte es eine zufällige ID-Kollision sein.
+                score += (exactName || partialName) ? 0.85 : 0.15;
                 reason = "SAME_ID";
                 label = "Gleiche ID";
             }
 
-            var importedName = imported.DisplayName.ToLowerInvariant();
-            var localName = local.DisplayName.ToLowerInvariant();
-
-            if (importedName == localName)
+            if (exactName)
             {
                 score += 0.70;
                 if (reason != "SAME_ID") { reason = "EXACT_NAME"; label = "Gleicher Name"; }
             }
-            else if (ContainsPartialName(importedName, localName))
+            else if (partialName)
             {
                 score += 0.35;
                 if (reason == "PARTIAL") { reason = "PARTIAL_NAME"; label = "Ähnlicher Name"; }

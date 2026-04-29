@@ -1054,4 +1054,85 @@ public class EinsatzMergeServiceRevertTests
         Assert.Equal(MergeDecision.Undecided, item.Decision);
         Assert.Null(item.SelectedLocalId);
     }
+
+    // ── Test 25: Gleiche ID, anderer Name → niedriger Score (kein 90%-Fehlalarm) ──
+
+    [Fact]
+    public async Task CreateSession_PersonalItem_LowScore_WhenSameIdButDifferentName()
+    {
+        var (merge, _, md, _) = CreateServices();
+
+        var localPerson = new PersonalEntry
+        {
+            Id = "shared-id",
+            Vorname = "Bernd",
+            Nachname = "Huber",
+            Skills = PersonalSkills.Hundefuehrer
+        };
+        md.Personal.Add(localPerson);
+
+        // Importierte Person: gleiche ID (zufällige Kollision), anderer Name, gleiche Skills
+        var importedPerson = new PersonalEntry
+        {
+            Id = "shared-id",
+            Vorname = "Klaus",
+            Nachname = "Meier",
+            Skills = PersonalSkills.Hundefuehrer
+        };
+
+        var packet = new EinsatzExportPacket
+        {
+            EinsatzNummer = "2026-001",
+            Personal = new List<PersonalEntry> { importedPerson }
+        };
+
+        var session = await merge.CreateSessionAsync(packet);
+
+        Assert.Single(session.PersonalItems);
+        var item = session.PersonalItems[0];
+        // Muss Undecided bleiben — Namensabweichung verhindert Auto-Preselect
+        Assert.Equal(MergeDecision.Undecided, item.Decision);
+        Assert.Null(item.SelectedLocalId);
+        // Score darf nicht hoch sein (maximal ID-Stummel 0.15 + Skills 0.05 = 0.20)
+        Assert.True(item.Suggestions.Count == 0 || item.Suggestions[0].ConfidenceScore <= 0.25,
+            $"Erwarteter Score ≤ 0.25, tatsächlich: {(item.Suggestions.Count > 0 ? item.Suggestions[0].ConfidenceScore : 0.0):F2}");
+    }
+
+    // ── Test 26: Hund gleiche ID + gleicher Name, kein Hundeführer → trotzdem vorauswählen ──
+
+    [Fact]
+    public async Task CreateSession_DogItem_AutoPreselected_WhenSameIdAndNameButNoHandler()
+    {
+        var (merge, _, md, _) = CreateServices();
+
+        var localDog = new DogEntry
+        {
+            Id = "dog-same-id",
+            Name = "Bello",
+            HundefuehrerIds = new List<string>()
+        };
+        md.Dogs.Add(localDog);
+
+        // Import: gleiche ID + gleicher Name, kein Hundeführer
+        var importDog = new DogEntry
+        {
+            Id = "dog-same-id",
+            Name = "Bello",
+            HundefuehrerIds = new List<string>()
+        };
+
+        var packet = new EinsatzExportPacket
+        {
+            EinsatzNummer = "2026-001",
+            Dogs = new List<DogEntry> { importDog }
+        };
+
+        var session = await merge.CreateSessionAsync(packet);
+
+        Assert.Single(session.DogItems);
+        var item = session.DogItems[0];
+        // Score = 1.0 (gleiche ID + gleicher Name) → Fallback-Vorauswahl
+        Assert.Equal(MergeDecision.LinkToExisting, item.Decision);
+        Assert.Equal("dog-same-id", item.SelectedLocalId);
+    }
 }

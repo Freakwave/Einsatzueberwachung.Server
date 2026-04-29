@@ -88,7 +88,7 @@ namespace Einsatzueberwachung.Domain.Services
                 .ToList();
 
             session.DogItems = packet.Dogs
-                .Select(d => BuildDogMergeItem(d, localDogs))
+                .Select(d => BuildDogMergeItem(d, localDogs, packet.Personal, localPersonal))
                 .ToList();
 
             session.DroneItems = packet.Drones
@@ -413,10 +413,28 @@ namespace Einsatzueberwachung.Domain.Services
                 .Take(5)
                 .ToList();
 
+            // Auto-Vorauswahl: bester Kandidat, bei dem Vorname UND Nachname exakt übereinstimmen
+            var localById = local.ToDictionary(p => p.Id);
+            var bestNameMatch = item.Suggestions
+                .Select(c => localById.TryGetValue(c.LocalId, out var lp) ? lp : null)
+                .FirstOrDefault(p => p != null &&
+                    string.Equals(imported.Vorname, p.Vorname, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(imported.Nachname, p.Nachname, StringComparison.OrdinalIgnoreCase));
+
+            if (bestNameMatch != null)
+            {
+                item.Decision = MergeDecision.LinkToExisting;
+                item.SelectedLocalId = bestNameMatch.Id;
+            }
+
             return item;
         }
 
-        private static MasterDataMergeItem BuildDogMergeItem(DogEntry imported, List<DogEntry> local)
+        private static MasterDataMergeItem BuildDogMergeItem(
+            DogEntry imported,
+            List<DogEntry> local,
+            List<PersonalEntry> importedPersonal,
+            List<PersonalEntry> localPersonal)
         {
             var item = new MasterDataMergeItem
             {
@@ -434,7 +452,45 @@ namespace Einsatzueberwachung.Domain.Services
                 .Take(5)
                 .ToList();
 
+            // Auto-Vorauswahl: bester Kandidat, bei dem Hundename UND
+            // mind. ein Hundeführer-Name übereinstimmen
+            var importedHandlerNames = ResolveHandlerNames(imported.HundefuehrerIds, importedPersonal);
+            if (importedHandlerNames.Count > 0)
+            {
+                var localById = local.ToDictionary(d => d.Id);
+                var bestMatch = item.Suggestions
+                    .Select(c => localById.TryGetValue(c.LocalId, out var ld) ? ld : null)
+                    .FirstOrDefault(d => d != null &&
+                        string.Equals(imported.Name, d.Name, StringComparison.OrdinalIgnoreCase) &&
+                        ResolveHandlerNames(d.HundefuehrerIds, localPersonal)
+                            .Overlaps(importedHandlerNames));
+
+                if (bestMatch != null)
+                {
+                    item.Decision = MergeDecision.LinkToExisting;
+                    item.SelectedLocalId = bestMatch.Id;
+                }
+            }
+
             return item;
+        }
+
+        /// <summary>
+        /// Löst eine Liste von Hundeführer-IDs in eine Menge von Vollnamen auf.
+        /// Unbekannte IDs werden ignoriert.
+        /// </summary>
+        private static HashSet<string> ResolveHandlerNames(
+            IEnumerable<string> handlerIds,
+            List<PersonalEntry> personal)
+        {
+            var byId = personal.ToDictionary(p => p.Id);
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var id in handlerIds)
+            {
+                if (byId.TryGetValue(id, out var p))
+                    names.Add(p.FullName);
+            }
+            return names;
         }
 
         private static MasterDataMergeItem BuildDroneMergeItem(DroneEntry imported, List<DroneEntry> local)

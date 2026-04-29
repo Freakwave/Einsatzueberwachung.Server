@@ -756,4 +756,302 @@ public class EinsatzMergeServiceRevertTests
         Assert.Single(md.Dogs);
         Assert.Equal(localDog.Id, md.Dogs[0].Id);
     }
+
+    // ── Test 17: Auto-Preselect Personal — gleicher Vor- und Nachname, andere ID ──
+
+    [Fact]
+    public async Task CreateSession_PersonalItem_AutoPreselected_WhenVornameAndNachnameMatch()
+    {
+        var (merge, _, md, _) = CreateServices();
+
+        var localPerson = new PersonalEntry
+        {
+            Id = "local-p-1",
+            Vorname = "Hans",
+            Nachname = "Müller"
+        };
+        md.Personal.Add(localPerson);
+
+        // Importierte Person: gleicher Name, andere ID
+        var importedPerson = new PersonalEntry
+        {
+            Id = "import-p-99",
+            Vorname = "Hans",
+            Nachname = "Müller"
+        };
+
+        var packet = new EinsatzExportPacket
+        {
+            EinsatzNummer = "2026-001",
+            Personal = new List<PersonalEntry> { importedPerson }
+        };
+
+        var session = await merge.CreateSessionAsync(packet);
+
+        Assert.Single(session.PersonalItems);
+        var item = session.PersonalItems[0];
+        Assert.Equal(MergeDecision.LinkToExisting, item.Decision);
+        Assert.Equal("local-p-1", item.SelectedLocalId);
+    }
+
+    [Fact]
+    public async Task CreateSession_PersonalItem_NotAutoPreselected_WhenNachnameDoesNotMatch()
+    {
+        var (merge, _, md, _) = CreateServices();
+
+        var localPerson = new PersonalEntry
+        {
+            Id = "local-p-1",
+            Vorname = "Hans",
+            Nachname = "Müller"
+        };
+        md.Personal.Add(localPerson);
+
+        // Importierte Person: gleicher Vorname, anderer Nachname
+        var importedPerson = new PersonalEntry
+        {
+            Id = "import-p-99",
+            Vorname = "Hans",
+            Nachname = "Schmidt"
+        };
+
+        var packet = new EinsatzExportPacket
+        {
+            EinsatzNummer = "2026-001",
+            Personal = new List<PersonalEntry> { importedPerson }
+        };
+
+        var session = await merge.CreateSessionAsync(packet);
+
+        Assert.Single(session.PersonalItems);
+        var item = session.PersonalItems[0];
+        Assert.Equal(MergeDecision.Undecided, item.Decision);
+        Assert.Null(item.SelectedLocalId);
+    }
+
+    [Fact]
+    public async Task CreateSession_PersonalItem_AutoPreselected_WhenSameIdAndName()
+    {
+        var (merge, _, md, _) = CreateServices();
+
+        var localPerson = new PersonalEntry
+        {
+            Id = "same-id",
+            Vorname = "Anna",
+            Nachname = "Bauer"
+        };
+        md.Personal.Add(localPerson);
+
+        var importedPerson = new PersonalEntry
+        {
+            Id = "same-id",
+            Vorname = "Anna",
+            Nachname = "Bauer"
+        };
+
+        var packet = new EinsatzExportPacket
+        {
+            EinsatzNummer = "2026-001",
+            Personal = new List<PersonalEntry> { importedPerson }
+        };
+
+        var session = await merge.CreateSessionAsync(packet);
+
+        var item = session.PersonalItems[0];
+        Assert.Equal(MergeDecision.LinkToExisting, item.Decision);
+        Assert.Equal("same-id", item.SelectedLocalId);
+    }
+
+    // ── Test 20: Auto-Preselect Hund — gleicher Hundename + Hundeführer-Name ──
+
+    [Fact]
+    public async Task CreateSession_DogItem_AutoPreselected_WhenNameAndHandlerMatch()
+    {
+        var (merge, _, md, _) = CreateServices();
+
+        var localHandler = new PersonalEntry
+        {
+            Id = "local-handler-1",
+            Vorname = "Maria",
+            Nachname = "Weber"
+        };
+        md.Personal.Add(localHandler);
+
+        var localDog = new DogEntry
+        {
+            Id = "local-dog-1",
+            Name = "Rex",
+            HundefuehrerIds = new List<string> { "local-handler-1" }
+        };
+        md.Dogs.Add(localDog);
+
+        // Import: gleicher Hundename, Hundeführer hat gleichen Namen aber andere ID
+        var importHandler = new PersonalEntry
+        {
+            Id = "import-handler-99",
+            Vorname = "Maria",
+            Nachname = "Weber"
+        };
+        var importDog = new DogEntry
+        {
+            Id = "import-dog-99",
+            Name = "Rex",
+            HundefuehrerIds = new List<string> { "import-handler-99" }
+        };
+
+        var packet = new EinsatzExportPacket
+        {
+            EinsatzNummer = "2026-001",
+            Personal = new List<PersonalEntry> { importHandler },
+            Dogs = new List<DogEntry> { importDog }
+        };
+
+        var session = await merge.CreateSessionAsync(packet);
+
+        Assert.Single(session.DogItems);
+        var item = session.DogItems[0];
+        Assert.Equal(MergeDecision.LinkToExisting, item.Decision);
+        Assert.Equal("local-dog-1", item.SelectedLocalId);
+    }
+
+    [Fact]
+    public async Task CreateSession_DogItem_NotAutoPreselected_WhenNameMatchesButHandlerDoesNot()
+    {
+        var (merge, _, md, _) = CreateServices();
+
+        var localHandler = new PersonalEntry
+        {
+            Id = "local-handler-1",
+            Vorname = "Maria",
+            Nachname = "Weber"
+        };
+        md.Personal.Add(localHandler);
+
+        var localDog = new DogEntry
+        {
+            Id = "local-dog-1",
+            Name = "Rex",
+            HundefuehrerIds = new List<string> { "local-handler-1" }
+        };
+        md.Dogs.Add(localDog);
+
+        // Import: gleicher Hundename, aber anderer Hundeführer
+        var importHandler = new PersonalEntry
+        {
+            Id = "import-handler-99",
+            Vorname = "Klaus",
+            Nachname = "Fischer"
+        };
+        var importDog = new DogEntry
+        {
+            Id = "import-dog-99",
+            Name = "Rex",
+            HundefuehrerIds = new List<string> { "import-handler-99" }
+        };
+
+        var packet = new EinsatzExportPacket
+        {
+            EinsatzNummer = "2026-001",
+            Personal = new List<PersonalEntry> { importHandler },
+            Dogs = new List<DogEntry> { importDog }
+        };
+
+        var session = await merge.CreateSessionAsync(packet);
+
+        var item = session.DogItems[0];
+        Assert.Equal(MergeDecision.Undecided, item.Decision);
+        Assert.Null(item.SelectedLocalId);
+    }
+
+    [Fact]
+    public async Task CreateSession_DogItem_NotAutoPreselected_WhenHandlerMatchesButNameDoesNot()
+    {
+        var (merge, _, md, _) = CreateServices();
+
+        var localHandler = new PersonalEntry
+        {
+            Id = "local-handler-1",
+            Vorname = "Maria",
+            Nachname = "Weber"
+        };
+        md.Personal.Add(localHandler);
+
+        var localDog = new DogEntry
+        {
+            Id = "local-dog-1",
+            Name = "Rex",
+            HundefuehrerIds = new List<string> { "local-handler-1" }
+        };
+        md.Dogs.Add(localDog);
+
+        // Import: anderer Hundename, gleicher Hundeführer
+        var importHandler = new PersonalEntry
+        {
+            Id = "import-handler-99",
+            Vorname = "Maria",
+            Nachname = "Weber"
+        };
+        var importDog = new DogEntry
+        {
+            Id = "import-dog-99",
+            Name = "Boxi",
+            HundefuehrerIds = new List<string> { "import-handler-99" }
+        };
+
+        var packet = new EinsatzExportPacket
+        {
+            EinsatzNummer = "2026-001",
+            Personal = new List<PersonalEntry> { importHandler },
+            Dogs = new List<DogEntry> { importDog }
+        };
+
+        var session = await merge.CreateSessionAsync(packet);
+
+        var item = session.DogItems[0];
+        Assert.Equal(MergeDecision.Undecided, item.Decision);
+        Assert.Null(item.SelectedLocalId);
+    }
+
+    [Fact]
+    public async Task CreateSession_DogItem_NotAutoPreselected_WhenImportDogHasNoHandler()
+    {
+        var (merge, _, md, _) = CreateServices();
+
+        var localHandler = new PersonalEntry
+        {
+            Id = "local-handler-1",
+            Vorname = "Maria",
+            Nachname = "Weber"
+        };
+        md.Personal.Add(localHandler);
+
+        var localDog = new DogEntry
+        {
+            Id = "local-dog-1",
+            Name = "Rex",
+            HundefuehrerIds = new List<string> { "local-handler-1" }
+        };
+        md.Dogs.Add(localDog);
+
+        // Import: gleicher Hundename, aber kein Hundeführer angegeben
+        var importDog = new DogEntry
+        {
+            Id = "import-dog-99",
+            Name = "Rex",
+            HundefuehrerIds = new List<string>()
+        };
+
+        var packet = new EinsatzExportPacket
+        {
+            EinsatzNummer = "2026-001",
+            Dogs = new List<DogEntry> { importDog }
+        };
+
+        var session = await merge.CreateSessionAsync(packet);
+
+        var item = session.DogItems[0];
+        // Ohne Hundeführer-Info kein Auto-Preselect, auch wenn der Name passt
+        Assert.Equal(MergeDecision.Undecided, item.Decision);
+        Assert.Null(item.SelectedLocalId);
+    }
 }

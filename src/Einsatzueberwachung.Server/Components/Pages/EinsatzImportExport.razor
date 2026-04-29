@@ -7,8 +7,8 @@
 @using Einsatzueberwachung.Domain.Interfaces
 @using Microsoft.AspNetCore.Components.Forms
 
-@inject ISubgroupMergeService MergeService
-@inject ISubgroupExportService ExportService
+@inject IEinsatzMergeService MergeService
+@inject IEinsatzExportService ExportService
 @inject IEinsatzService EinsatzService
 @inject IMasterDataService MasterDataService
 @inject IArchivService ArchivService
@@ -73,7 +73,7 @@
                             <i class="bi bi-diagram-2 display-4 text-primary mb-3 d-block"></i>
                             <h5 class="card-title">Als Unterabschnitt integrieren</h5>
                             <p class="card-text text-muted small">
-                                Teams, Stammdaten, Notizen und Suchgebiete einer Teilgruppe in den
+                                Teams, Stammdaten, Notizen und Suchgebiete aus einer Export-Datei in den
                                 laufenden oder archivierten Einsatz übernehmen.
                             </p>
                         </div>
@@ -140,7 +140,7 @@
                     </div>
                     <div class="card-body">
                         <p class="text-muted mb-3">
-                            Wählen Sie die <code>.einsatz-export.json</code> Datei der Teilgruppe aus.
+                            Wählen Sie die <code>.einsatz-export.json</code> Datei aus.
                         </p>
 
                         <div class="mb-3">
@@ -163,8 +163,6 @@
                                         <i class="bi bi-info-circle me-1"></i>Export-Zusammenfassung
                                     </h6>
                                     <dl class="row mb-0 small">
-                                        <dt class="col-sm-4">Teilgruppe</dt>
-                                        <dd class="col-sm-8">@_session.Packet.SubgroupName</dd>
                                         <dt class="col-sm-4">EinsatzNummer</dt>
                                         <dd class="col-sm-8">@_session.Packet.EinsatzNummer</dd>
                                         <dt class="col-sm-4">Exportiert am</dt>
@@ -182,6 +180,18 @@
                                             @_session.Packet.SearchAreas.Count Gebiete
                                         </dd>
                                     </dl>
+                                </div>
+                            </div>
+
+                            <div class="mb-3 mt-3">
+                                <label class="form-label">Name des Unterabschnitts <span class="text-muted fw-normal">(optional)</span></label>
+                                <input class="form-control"
+                                       type="text"
+                                       placeholder="z. B. Staffel Nord, Gruppe 2, …"
+                                       @bind="_mergeLabel"
+                                       maxlength="80" />
+                                <div class="form-text">
+                                    Dieser Name wird im Zusammenführungs-Protokoll gespeichert.
                                 </div>
                             </div>
 
@@ -574,8 +584,8 @@
                     </div>
                     <div class="card-body">
                         <dl class="row small mb-3">
-                            <dt class="col-sm-4">Teilgruppe</dt>
-                            <dd class="col-sm-8">@merge.SubgroupName</dd>
+                            <dt class="col-sm-4">Import-Label</dt>
+                            <dd class="col-sm-8">@merge.Label</dd>
                             <dt class="col-sm-4">Zeitpunkt</dt>
                             <dd class="col-sm-8">@merge.FormattedMergedAt</dd>
                             <dt class="col-sm-4">Teams importiert</dt>
@@ -686,8 +696,6 @@
                                         <i class="bi bi-info-circle me-1"></i>Export-Zusammenfassung
                                     </h6>
                                     <dl class="row mb-0 small">
-                                        <dt class="col-sm-4">Teilgruppe</dt>
-                                        <dd class="col-sm-8">@_newEinsatzPacket.SubgroupName</dd>
                                         <dt class="col-sm-4">EinsatzNummer</dt>
                                         <dd class="col-sm-8">@_newEinsatzPacket.EinsatzNummer</dd>
                                         <dt class="col-sm-4">Exportiert am</dt>
@@ -800,10 +808,10 @@
                             <label class="form-label">Einsatzort</label>
                             <input class="form-control"
                                    type="text"
-                                   placeholder="@_newEinsatzPacket.SubgroupName"
+                                   placeholder="z. B. Wald Nordhang, Stadtgebiet Mitte, …"
                                    @bind="_newEinsatzEinsatzort"
                                    maxlength="120" />
-                            <div class="form-text">Leer lassen, um den Teilgruppenname „@_newEinsatzPacket.SubgroupName" zu verwenden.</div>
+                            <div class="form-text">Leer lassen, um die EinsatzNummer „@_newEinsatzPacket.EinsatzNummer" als Bezeichnung zu verwenden.</div>
                         </div>
 
                         <div class="mb-3">
@@ -914,36 +922,12 @@
                 @* ── LINKE SPALTE: Konfiguration ── *@
                 <div class="col-lg-7">
 
-                    @* ── Schritt 1: Teilgruppe benennen ── *@
-                    <div class="card mb-3">
-                        <div class="card-header fw-semibold">
-                            <span class="badge bg-primary rounded-circle me-2">1</span>
-                            Teilgruppe benennen
-                        </div>
-                        <div class="card-body">
-                            <label class="form-label">Name der Teilgruppe / Staffel <span class="text-danger">*</span></label>
-                            <input class="form-control @(string.IsNullOrWhiteSpace(_subgroupName) && _exportValidationAttempted ? "is-invalid" : "")"
-                                   type="text"
-                                   placeholder="z. B. Staffel Nord, Gruppe 2, …"
-                                   @bind="_subgroupName"
-                                   @bind:event="oninput"
-                                   maxlength="80" />
-                            @if (string.IsNullOrWhiteSpace(_subgroupName) && _exportValidationAttempted)
-                            {
-                                <div class="invalid-feedback">Bitte einen Namen angeben.</div>
-                            }
-                            <div class="form-text">
-                                Der Name erscheint im Dateinamen und beim Import auf der Gegenseite.
-                            </div>
-                        </div>
-                    </div>
-
-                    @* ── Schritt 2: Teams auswählen ── *@
+                            @* ── Schritt 1: Teams auswählen ── *@
                     <div class="card mb-3">
                         <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                             <div>
-                                <span class="badge bg-primary rounded-circle me-2">2</span>
-                                Teams der Teilgruppe
+                                <span class="badge bg-primary rounded-circle me-2">1</span>
+                                Teams auswählen
                                 @if (_selectedTeamIds.Any())
                                 {
                                     <span class="badge bg-success ms-2">@_selectedTeamIds.Count ausgewählt</span>
@@ -1008,10 +992,10 @@
                         </div>
                     </div>
 
-                    @* ── Schritt 3: Export-Optionen ── *@
+                    @* ── Schritt 2: Export-Optionen ── *@
                     <div class="card mb-3">
                         <div class="card-header fw-semibold">
-                            <span class="badge bg-primary rounded-circle me-2">3</span>
+                            <span class="badge bg-primary rounded-circle me-2">2</span>
                             Export-Optionen
                         </div>
                         <div class="card-body">
@@ -1107,9 +1091,6 @@
                             @if (_exportPreview is not null)
                             {
                                 <dl class="row mb-0 small">
-                                    <dt class="col-6 text-muted">Teilgruppe</dt>
-                                    <dd class="col-6">@_exportPreview.SubgroupName</dd>
-
                                     <dt class="col-6 text-muted">Einsatz-Nr.</dt>
                                     <dd class="col-6">@_exportPreview.EinsatzNummer</dd>
 
@@ -1162,7 +1143,7 @@
                             <div class="d-grid gap-2 mt-3">
                                 <button class="btn btn-outline-secondary"
                                         @onclick="RefreshExportPreviewAsync"
-                                        disabled="@(_selectedTeamIds.Count == 0 || string.IsNullOrWhiteSpace(_subgroupName) || _exportIsWorking)">
+                                        disabled="@(_selectedTeamIds.Count == 0 || _exportIsWorking)">
                                     @if (_exportIsWorking && !_exportIsDownloading)
                                     {
                                         <span class="spinner-border spinner-border-sm me-1"></span>
@@ -1235,6 +1216,7 @@
         _errorMessage = string.Empty;
         _einsatzNrMismatch = false;
         _revertSuccess = false;
+        _mergeLabel = string.Empty;
         _newEinsatzPacket = null;
         _newEinsatzMergeSession = null;
         _newEinsatzStep = 1;
@@ -1250,12 +1232,13 @@
     /// <summary>Maximale Upload-Dateigröße (10 MB).</summary>
     private const long MaxUploadBytes = 10 * 1024 * 1024;
 
-    private SubgroupMergeSession? _session;
+    private EinsatzMergeSession? _session;
     private MergeWizardStep _currentStep = MergeWizardStep.Upload;
     private bool _isLoading = false;
     private bool _einsatzNrMismatch = false;
     private string _errorMessage = string.Empty;
     private bool _revertSuccess = false;
+    private string _mergeLabel = string.Empty;
 
     private readonly List<(int Number, string Label)> _steps = new()
     {
@@ -1286,6 +1269,10 @@
             }
 
             _session = await MergeService.CreateSessionAsync(packet, ArchivedEinsatzId);
+
+            // Pre-fill label from packet if available
+            if (!string.IsNullOrWhiteSpace(packet.Label))
+                _mergeLabel = packet.Label;
 
             var currentNr = ArchivedEinsatzId == null
                 ? EinsatzService.CurrentEinsatz.EinsatzNummer
@@ -1346,6 +1333,9 @@
         if (_session == null) return;
         _isLoading = true;
         _errorMessage = string.Empty;
+
+        // Apply the user-entered label to the packet for the merge history
+        _session.Packet.Label = _mergeLabel.Trim();
 
         try
         {
@@ -1497,8 +1487,8 @@
     // IMPORT NEUER EINSATZ — Zustand & Logik
     // ════════════════════════════════════════════════════════════
 
-    private SubgroupExportPacket? _newEinsatzPacket;
-    private SubgroupMergeSession? _newEinsatzMergeSession;
+    private EinsatzExportPacket? _newEinsatzPacket;
+    private EinsatzMergeSession? _newEinsatzMergeSession;
     private int _newEinsatzStep = 1;  // 1=Upload, 2=Stammdaten, 3=Details, 4=Ergebnis
     private bool _newEinsatzIsLoading;
     private string _newEinsatzErrorMessage = string.Empty;
@@ -1529,7 +1519,7 @@
             }
 
             _newEinsatzPacket = packet;
-            _newEinsatzEinsatzort = string.Empty; // cleared so placeholder shows SubgroupName
+            _newEinsatzEinsatzort = string.Empty; // cleared so placeholder shows EinsatzNummer
 
             // Stammdaten-Merge-Items mit Vorschlägen befüllen (nur für Schritt 2 genutzt)
             _newEinsatzMergeSession = await MergeService.CreateSessionAsync(packet, null);
@@ -1577,7 +1567,7 @@
     /// Wendet die Stammdaten-Entscheidungen aus Schritt 2 des „Neuer Einsatz"-Wizards an.
     /// Legt neue Einträge an (CreateNew) und überschreibt ggf. lokale Felder (LinkToExisting + OverwriteLocalFields).
     /// </summary>
-    private async Task ApplyNewEinsatzMasterDataAsync(SubgroupMergeSession session)
+    private async Task ApplyNewEinsatzMasterDataAsync(EinsatzMergeSession session)
     {
         // ── Personal ──
         foreach (var item in session.PersonalItems.Where(i => i.Decision == MergeDecision.CreateNew))
@@ -1682,11 +1672,10 @@
     // EXPORT — Zustand & Logik
     // ════════════════════════════════════════════════════════════
 
-    private string _subgroupName = string.Empty;
     private readonly HashSet<string> _selectedTeamIds = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SubgroupExportOptions _exportOptions = new();
+    private readonly EinsatzExportOptions _exportOptions = new();
 
-    private SubgroupExportPacket? _exportPreview;
+    private EinsatzExportPacket? _exportPreview;
     private long _exportPreviewSizeKb;
     private bool _exportIsWorking;
     private bool _exportIsDownloading;
@@ -1699,10 +1688,6 @@
         // Vorauswahl: alle Teams
         foreach (var team in EinsatzService.Teams)
             _selectedTeamIds.Add(team.TeamId);
-
-        // Vorbelegung mit Staffelname aus Einsatzdaten (falls vorhanden)
-        if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.StaffelName))
-            _subgroupName = EinsatzService.CurrentEinsatz.StaffelName;
     }
 
     private void ToggleTeam(string teamId)
@@ -1731,7 +1716,7 @@
     private bool ValidateExport()
     {
         _exportValidationAttempted = true;
-        return !string.IsNullOrWhiteSpace(_subgroupName) && _selectedTeamIds.Any();
+        return _selectedTeamIds.Any();
     }
 
     private async Task RefreshExportPreviewAsync()
@@ -1745,7 +1730,7 @@
         {
             var packet = await ExportService.BuildExportPacketAsync(
                 _selectedTeamIds,
-                _subgroupName,
+                string.Empty,
                 _exportOptions);
 
             var bytes = ExportService.Serialize(packet);
@@ -1776,7 +1761,7 @@
         {
             var packet = await ExportService.BuildExportPacketAsync(
                 _selectedTeamIds,
-                _subgroupName,
+                string.Empty,
                 _exportOptions);
 
             var bytes = ExportService.Serialize(packet);

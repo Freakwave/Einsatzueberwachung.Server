@@ -1,4 +1,4 @@
-// SubgroupMergeService — Kern-Implementierung der Teilgruppen-Zusammenführung
+// EinsatzMergeService — Kern-Implementierung der Einsatz-Zusammenführung
 // Enthält: Vorschlags-Engine, atomare Apply-Logik, Revert-Mechanismus
 
 using System;
@@ -14,9 +14,9 @@ using Einsatzueberwachung.Domain.Models.Merge;
 namespace Einsatzueberwachung.Domain.Services
 {
     /// <summary>
-    /// Implementiert den vollständigen Merge-Workflow für Teilgruppen-Exporte.
+    /// Implementiert den vollständigen Merge-Workflow für Einsatz-Exporte.
     /// </summary>
-    public class SubgroupMergeService : ISubgroupMergeService
+    public class EinsatzMergeService : IEinsatzMergeService
     {
         private readonly IEinsatzService _einsatzService;
         private readonly IMasterDataService _masterDataService;
@@ -34,7 +34,7 @@ namespace Einsatzueberwachung.Domain.Services
 
         private DateTime Now => _timeService?.Now ?? DateTime.Now;
 
-        public SubgroupMergeService(
+        public EinsatzMergeService(
             IEinsatzService einsatzService,
             IMasterDataService masterDataService,
             IArchivService archivService,
@@ -50,11 +50,11 @@ namespace Einsatzueberwachung.Domain.Services
         // ParseExportPacket
         // ─────────────────────────────────────────────────────────────────────
 
-        public SubgroupExportPacket? ParseExportPacket(byte[] json)
+        public EinsatzExportPacket? ParseExportPacket(byte[] json)
         {
             try
             {
-                return JsonSerializer.Deserialize<SubgroupExportPacket>(json, JsonOptions);
+                return JsonSerializer.Deserialize<EinsatzExportPacket>(json, JsonOptions);
             }
             catch
             {
@@ -66,11 +66,11 @@ namespace Einsatzueberwachung.Domain.Services
         // CreateSessionAsync
         // ─────────────────────────────────────────────────────────────────────
 
-        public async Task<SubgroupMergeSession> CreateSessionAsync(
-            SubgroupExportPacket packet,
+        public async Task<EinsatzMergeSession> CreateSessionAsync(
+            EinsatzExportPacket packet,
             string? targetArchivedEinsatzId = null)
         {
-            var session = new SubgroupMergeSession
+            var session = new EinsatzMergeSession
             {
                 Packet = packet,
                 TargetArchivedEinsatzId = targetArchivedEinsatzId,
@@ -170,7 +170,7 @@ namespace Einsatzueberwachung.Domain.Services
         // RebuildIdRemapping
         // ─────────────────────────────────────────────────────────────────────
 
-        public void RebuildIdRemapping(SubgroupMergeSession session)
+        public void RebuildIdRemapping(EinsatzMergeSession session)
         {
             session.IdRemapping.Clear();
 
@@ -206,7 +206,7 @@ namespace Einsatzueberwachung.Domain.Services
         // ApplyMergeAsync
         // ─────────────────────────────────────────────────────────────────────
 
-        public async Task<MergeHistoryEntry> ApplyMergeAsync(SubgroupMergeSession session)
+        public async Task<MergeHistoryEntry> ApplyMergeAsync(EinsatzMergeSession session)
         {
             if (!session.AllMasterDataResolved)
                 throw new InvalidOperationException("Nicht alle Stammdaten-Einträge wurden zugeordnet.");
@@ -214,7 +214,7 @@ namespace Einsatzueberwachung.Domain.Services
             var historyEntry = new MergeHistoryEntry
             {
                 MergedAt = Now,
-                SubgroupName = session.Packet.SubgroupName
+                Label = session.Packet.Label
             };
 
             // ── 1. Stammdaten: neu erstellte Einträge anlegen und Remapping finalisieren ──
@@ -275,7 +275,10 @@ namespace Einsatzueberwachung.Domain.Services
             await PersistMergeHistoryEntryAsync(historyEntry, session.TargetArchivedEinsatzId);
 
             // Zusammenführungs-Systemnotiz schreiben
-            var summaryText = $"Teilgruppe '{session.Packet.SubgroupName}' zusammengeführt am " +
+            var label = string.IsNullOrWhiteSpace(session.Packet.Label)
+                ? "Import"
+                : $"Import '{session.Packet.Label}'";
+            var summaryText = $"{label} zusammengeführt am " +
                               $"{historyEntry.MergedAt:dd.MM.yyyy HH:mm} — " +
                               $"{historyEntry.TeamsAdded} Teams, {historyEntry.NotesAdded} Notizen, " +
                               $"{historyEntry.SearchAreasAdded} Gebiete integriert.";
@@ -335,8 +338,11 @@ namespace Einsatzueberwachung.Domain.Services
                 entry.RevertedAt = Now;
 
                 // Systemnotiz über den Revert
+                var revertLabel = string.IsNullOrWhiteSpace(entry.Label)
+                    ? "Import"
+                    : $"Import '{entry.Label}'";
                 await _einsatzService.AddGlobalNoteAsync(
-                    $"Zusammenführung '{entry.SubgroupName}' vom {entry.FormattedMergedAt} rückgängig gemacht.",
+                    $"{revertLabel} vom {entry.FormattedMergedAt} rückgängig gemacht.",
                     GlobalNotesEntryType.System);
             }
             else
@@ -602,7 +608,7 @@ namespace Einsatzueberwachung.Domain.Services
         // ─────────────────────────────────────────────────────────────────────
 
         private async Task ApplyToActiveEinsatzAsync(
-            SubgroupMergeSession session,
+            EinsatzMergeSession session,
             Dictionary<string, string> remapping,
             MergeHistoryEntry historyEntry)
         {
@@ -685,7 +691,7 @@ namespace Einsatzueberwachung.Domain.Services
         }
 
         private async Task ApplyToArchivedEinsatzAsync(
-            SubgroupMergeSession session,
+            EinsatzMergeSession session,
             Dictionary<string, string> remapping,
             MergeHistoryEntry historyEntry)
         {

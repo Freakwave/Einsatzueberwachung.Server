@@ -65,11 +65,11 @@ namespace Einsatzueberwachung.Domain.Models
         public List<TeamTrackSnapshot> TrackSnapshots { get; set; } = new();
 
         // === Zusammenführungs-Protokoll ===
-        /// <summary>Zeitpunkt der letzten Teilgruppen-Zusammenführung (null = noch nie zusammengeführt).</summary>
+        /// <summary>Zeitpunkt der letzten Import-Zusammenführung (null = noch nie zusammengeführt).</summary>
         public DateTime? LastMergedAt { get; set; }
 
         /// <summary>
-        /// Protokoll aller Teilgruppen-Zusammenführungen für diesen archivierten Einsatz.
+        /// Protokoll aller Import-Zusammenführungen für diesen archivierten Einsatz.
         /// Ermöglicht das rückstandslose Rückgängigmachen einzelner Zusammenführungen.
         /// </summary>
         public List<MergeHistoryEntry> MergeHistory { get; set; } = new();

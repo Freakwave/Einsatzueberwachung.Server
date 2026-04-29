@@ -60,11 +60,11 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// ohne Zusammenführung mit einem bestehenden Einsatz.
         /// </summary>
         /// <param name="packet">Das importierte Export-Paket.</param>
-        /// <param name="einsatzort">Optionaler Einsatzort (Standard: SubgroupName aus dem Paket).</param>
+        /// <param name="einsatzort">Optionaler Einsatzort (Standard: Label aus dem Paket, sonst EinsatzNummer).</param>
         /// <param name="ergebnis">Optionales Ergebnis (z.B. "Person gefunden").</param>
         /// <param name="bemerkungen">Optionale Bemerkungen.</param>
         Task<ArchivedEinsatz> ImportPacketAsNewEinsatzAsync(
-            SubgroupExportPacket packet,
+            EinsatzExportPacket packet,
             string einsatzort = "",
             string ergebnis = "",
             string bemerkungen = "");

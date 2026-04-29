@@ -16,7 +16,6 @@
         </div>
         <div class="d-flex gap-2">
             <button class="btn btn-outline-secondary" @onclick="LoadAsync">Neu laden</button>
-            <a class="btn btn-outline-success" href="/downloads/einsatz-archiv.json" target="_blank" rel="noopener">Archiv als JSON exportieren</a>
         </div>
     </div>
 
@@ -98,6 +97,9 @@
                             <td>@item.Ergebnis</td>
                             <td class="d-flex flex-wrap gap-2">
                                 <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowDetailsAsync(item.Id)">Details</button>
+                                <button class="btn btn-sm btn-outline-success" @onclick="() => NavigateToExport(item.Id)" title="Als .einsatz-export.json herunterladen">
+                                    <i class="bi bi-download me-1"></i>Exportieren
+                                </button>
                                 <button class="btn btn-sm btn-outline-danger" @onclick="() => PromptDelete(item)">Loeschen</button>
                             </td>
                         </tr>
@@ -116,6 +118,11 @@
                                 @onclick="() => NavigateToMerge(_selected.Id)"
                                 title="Export-Datei in diesen archivierten Einsatz integrieren">
                             <i class="bi bi-diagram-2 me-1"></i>Import integrieren
+                        </button>
+                        <button class="btn btn-sm btn-outline-success"
+                                @onclick="() => NavigateToExport(_selected.Id)"
+                                title="Als .einsatz-export.json herunterladen">
+                            <i class="bi bi-download me-1"></i>Exportieren
                         </button>
                         <a class="btn btn-sm btn-outline-primary" href="@GetArchivedPdfDownloadUrl(_selected.Id)" target="_blank" rel="noopener">PDF</a>
                         <button class="btn btn-sm btn-outline-secondary" @onclick="CloseDetails">Schliessen</button>
@@ -457,6 +464,11 @@
     private void NavigateToMerge(string archivedEinsatzId)
     {
         Navigation.NavigateTo($"/einsatz-import-export/{archivedEinsatzId}");
+    }
+
+    private void NavigateToExport(string archivedEinsatzId)
+    {
+        Navigation.NavigateTo($"/einsatz-import-export?tab=export&exportArchivId={archivedEinsatzId}");
     }
 
     private async Task RevertArchivedMergeAsync(string archivedEinsatzId, string mergeId)

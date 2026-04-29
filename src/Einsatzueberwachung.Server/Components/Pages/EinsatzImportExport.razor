@@ -47,8 +47,7 @@
         <button class="btn @GetTabButtonClass("import")" @onclick='() => SetActiveTab("import")'>
             <i class="bi bi-upload me-1"></i>Import
         </button>
-        <button class="btn @GetTabButtonClass("export")" @onclick='() => SetActiveTab("export")'
-                disabled="@(!string.IsNullOrEmpty(ArchivedEinsatzId))">
+        <button class="btn @GetTabButtonClass("export")" @onclick='() => SetActiveTab("export")'>
             <i class="bi bi-download me-1"></i>Export
         </button>
     </div>
@@ -907,7 +906,77 @@
             </div>
         }
 
-        @if (!EinsatzService.Teams.Any())
+        @* ── Quelle auswählen ── *@
+        <div class="card mb-3">
+            <div class="card-header fw-semibold">
+                <span class="badge bg-primary rounded-circle me-2">1</span>
+                Quelle auswählen
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-column gap-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="exportSource" id="src-current"
+                               value="current"
+                               checked="@(_exportSource == "current")"
+                               @onchange="OnExportSourceChangedAsync" />
+                        <label class="form-check-label" for="src-current">
+                            <strong>Laufender Einsatz</strong>
+                            <span class="text-muted ms-2">@EinsatzService.CurrentEinsatz.EinsatzNummer — @EinsatzService.CurrentEinsatz.Einsatzort</span>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="exportSource" id="src-archive"
+                               value="archive"
+                               checked="@(_exportSource == "archive")"
+                               @onchange="OnExportSourceChangedAsync" />
+                        <label class="form-check-label" for="src-archive">
+                            <strong>Archivierter Einsatz</strong>
+                        </label>
+                    </div>
+                </div>
+
+                @if (_exportSource == "archive")
+                {
+                    <div class="mt-3">
+                        @if (_exportArchiveLoading)
+                        {
+                            <div class="text-muted"><span class="spinner-border spinner-border-sm me-1"></span>Archiv wird geladen…</div>
+                        }
+                        else if (_exportArchiveList.Count == 0)
+                        {
+                            <div class="alert alert-warning mb-0">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Keine archivierten Einsätze vorhanden.
+                            </div>
+                        }
+                        else
+                        {
+                            <label class="form-label fw-semibold">Einsatz aus dem Archiv wählen</label>
+                            <select class="form-select"
+                                    value="@(_exportSelectedArchive?.Id ?? string.Empty)"
+                                    @onchange="OnArchiveSelectionChangedAsync">
+                                <option value="">— Bitte wählen —</option>
+                                @foreach (var entry in _exportArchiveList.OrderByDescending(e => e.EinsatzDatum))
+                                {
+                                    <option value="@entry.Id">
+                                        @entry.EinsatzDatum.ToString("dd.MM.yyyy") — @entry.EinsatzNummer — @entry.Einsatzort
+                                    </option>
+                                }
+                            </select>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* ── Teams und Optionen (abhängig von der Quelle) ── *@
+        @{
+            var showCurrentTeams = _exportSource == "current" && EinsatzService.Teams.Any();
+            var showArchiveTeams = _exportSource == "archive" && _exportSelectedArchive != null && _exportSelectedArchive.Teams.Any();
+            var hasNoTeams = (_exportSource == "current" && !EinsatzService.Teams.Any()) ||
+                             (_exportSource == "archive" && _exportSelectedArchive != null && !_exportSelectedArchive.Teams.Any());
+        }
+
+        @if (_exportSource == "current" && !EinsatzService.Teams.Any())
         {
             <div class="alert alert-warning">
                 <i class="bi bi-exclamation-triangle me-2"></i>
@@ -915,22 +984,26 @@
                 Teams können im <a href="/einsatz-monitor">Einsatz-Monitor</a> angelegt werden.
             </div>
         }
-        else
+
+        @if (showCurrentTeams || showArchiveTeams)
         {
             <div class="row g-4">
 
                 @* ── LINKE SPALTE: Konfiguration ── *@
                 <div class="col-lg-7">
 
-                            @* ── Schritt 1: Teams auswählen ── *@
+                    @* ── Teams auswählen ── *@
                     <div class="card mb-3">
                         <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                             <div>
-                                <span class="badge bg-primary rounded-circle me-2">1</span>
+                                <span class="badge bg-primary rounded-circle me-2">2</span>
                                 Teams auswählen
-                                @if (_selectedTeamIds.Any())
+                                @{
+                                    var selCount = _exportSource == "archive" ? _selectedArchiveTeamIds.Count : _selectedTeamIds.Count;
+                                }
+                                @if (selCount > 0)
                                 {
-                                    <span class="badge bg-success ms-2">@_selectedTeamIds.Count ausgewählt</span>
+                                    <span class="badge bg-success ms-2">@selCount ausgewählt</span>
                                 }
                                 else if (_exportValidationAttempted)
                                 {
@@ -938,64 +1011,108 @@
                                 }
                             </div>
                             <div class="d-flex gap-1">
-                                <button class="btn btn-outline-secondary btn-sm" @onclick="SelectAllTeams">Alle</button>
-                                <button class="btn btn-outline-secondary btn-sm" @onclick="DeselectAllTeams">Keine</button>
+                                @if (_exportSource == "archive")
+                                {
+                                    <button class="btn btn-outline-secondary btn-sm" @onclick="SelectAllArchiveTeams">Alle</button>
+                                    <button class="btn btn-outline-secondary btn-sm" @onclick="DeselectAllArchiveTeams">Keine</button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-outline-secondary btn-sm" @onclick="SelectAllTeams">Alle</button>
+                                    <button class="btn btn-outline-secondary btn-sm" @onclick="DeselectAllTeams">Keine</button>
+                                }
                             </div>
                         </div>
                         <div class="card-body p-0">
                             <div class="list-group list-group-flush">
-                                @foreach (var team in EinsatzService.Teams.OrderBy(t => t.TeamName))
+                                @if (_exportSource == "archive" && _exportSelectedArchive != null)
                                 {
-                                    var isSelected = _selectedTeamIds.Contains(team.TeamId);
-                                    <label class="list-group-item list-group-item-action d-flex align-items-start gap-3 py-2 px-3 cursor-pointer">
-                                        <input type="checkbox"
-                                               class="form-check-input mt-1 flex-shrink-0"
-                                               checked="@isSelected"
-                                               @onchange="() => ToggleTeam(team.TeamId)" />
-                                        <div class="flex-grow-1">
-                                            <div class="fw-semibold">@team.TeamName</div>
-                                            <div class="small text-muted">
-                                                @if (team.IsDroneTeam)
-                                                {
-                                                    <span><i class="bi bi-airplane me-1"></i>Drohne: @team.DroneType</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>
-                                                        @if (!string.IsNullOrEmpty(team.HundefuehrerName))
+                                    @foreach (var team in _exportSelectedArchive.Teams.OrderBy(t => t.TeamName))
+                                    {
+                                        var isSelected = _selectedArchiveTeamIds.Contains(team.TeamId);
+                                        <label class="list-group-item list-group-item-action d-flex align-items-start gap-3 py-2 px-3 cursor-pointer">
+                                            <input type="checkbox"
+                                                   class="form-check-input mt-1 flex-shrink-0"
+                                                   checked="@isSelected"
+                                                   @onchange="() => ToggleArchiveTeam(team.TeamId)" />
+                                            <div class="flex-grow-1">
+                                                <div class="fw-semibold">@team.TeamName</div>
+                                                <div class="small text-muted">
+                                                    @if (!string.IsNullOrEmpty(team.DroneName))
+                                                    {
+                                                        <span><i class="bi bi-airplane me-1"></i>Drohne: @team.DroneName</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        @if (team.MemberNames.Any())
                                                         {
-                                                            <span><i class="bi bi-person me-1"></i>@team.HundefuehrerName</span>
+                                                            <span><i class="bi bi-person me-1"></i>@string.Join(", ", team.MemberNames)</span>
                                                         }
                                                         @if (!string.IsNullOrEmpty(team.DogName))
                                                         {
                                                             <span class="ms-2"><i class="bi bi-heart me-1"></i>@team.DogName</span>
                                                         }
-                                                    </span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </label>
+                                    }
+                                }
+                                else
+                                {
+                                    @foreach (var team in EinsatzService.Teams.OrderBy(t => t.TeamName))
+                                    {
+                                        var isSelected = _selectedTeamIds.Contains(team.TeamId);
+                                        <label class="list-group-item list-group-item-action d-flex align-items-start gap-3 py-2 px-3 cursor-pointer">
+                                            <input type="checkbox"
+                                                   class="form-check-input mt-1 flex-shrink-0"
+                                                   checked="@isSelected"
+                                                   @onchange="() => ToggleTeam(team.TeamId)" />
+                                            <div class="flex-grow-1">
+                                                <div class="fw-semibold">@team.TeamName</div>
+                                                <div class="small text-muted">
+                                                    @if (team.IsDroneTeam)
+                                                    {
+                                                        <span><i class="bi bi-airplane me-1"></i>Drohne: @team.DroneType</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>
+                                                            @if (!string.IsNullOrEmpty(team.HundefuehrerName))
+                                                            {
+                                                                <span><i class="bi bi-person me-1"></i>@team.HundefuehrerName</span>
+                                                            }
+                                                            @if (!string.IsNullOrEmpty(team.DogName))
+                                                            {
+                                                                <span class="ms-2"><i class="bi bi-heart me-1"></i>@team.DogName</span>
+                                                            }
+                                                        </span>
+                                                    }
+                                                </div>
+                                                @if (team.IsRunning)
+                                                {
+                                                    <span class="badge bg-success small">Läuft</span>
+                                                }
+                                                else if (team.IsPausing)
+                                                {
+                                                    <span class="badge bg-warning text-dark small">Pause</span>
                                                 }
                                             </div>
-                                            @if (team.IsRunning)
+                                            @if (!string.IsNullOrEmpty(team.SearchAreaName))
                                             {
-                                                <span class="badge bg-success small">Läuft</span>
+                                                <span class="badge bg-secondary align-self-center">@team.SearchAreaName</span>
                                             }
-                                            else if (team.IsPausing)
-                                            {
-                                                <span class="badge bg-warning text-dark small">Pause</span>
-                                            }
-                                        </div>
-                                        @if (!string.IsNullOrEmpty(team.SearchAreaName))
-                                        {
-                                            <span class="badge bg-secondary align-self-center">@team.SearchAreaName</span>
-                                        }
-                                    </label>
+                                        </label>
+                                    }
                                 }
                             </div>
                         </div>
                     </div>
 
-                    @* ── Schritt 2: Export-Optionen ── *@
+                    @* ── Export-Optionen ── *@
                     <div class="card mb-3">
                         <div class="card-header fw-semibold">
-                            <span class="badge bg-primary rounded-circle me-2">2</span>
+                            <span class="badge bg-primary rounded-circle me-2">3</span>
                             Export-Optionen
                         </div>
                         <div class="card-body">
@@ -1060,6 +1177,10 @@
                                                @bind="_exportOptions.IncludeMapMarkers" />
                                         <label class="form-check-label" for="opt-markers">
                                             Karten-Marker einschließen
+                                            @if (_exportSource == "archive")
+                                            {
+                                                <small class="text-muted">(nicht in archivierten Einsätzen gespeichert)</small>
+                                            }
                                         </label>
                                     </div>
                                 </div>
@@ -1140,10 +1261,16 @@
                                 </p>
                             }
 
+                            @{
+                                var canExport = _exportSource == "archive"
+                                    ? _exportSelectedArchive != null && _selectedArchiveTeamIds.Count > 0
+                                    : _selectedTeamIds.Count > 0;
+                            }
+
                             <div class="d-grid gap-2 mt-3">
                                 <button class="btn btn-outline-secondary"
                                         @onclick="RefreshExportPreviewAsync"
-                                        disabled="@(_selectedTeamIds.Count == 0 || _exportIsWorking)">
+                                        disabled="@(!canExport || _exportIsWorking)">
                                     @if (_exportIsWorking && !_exportIsDownloading)
                                     {
                                         <span class="spinner-border spinner-border-sm me-1"></span>
@@ -1185,6 +1312,12 @@
 @code {
     [Parameter] public string? ArchivedEinsatzId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? InitialTab { get; set; }
+
+    [SupplyParameterFromQuery(Name = "exportArchivId")]
+    public string? ExportArchivId { get; set; }
+
     // ── Tab-Zustand ──
     private string _activeTab = "import";
 
@@ -1195,10 +1328,29 @@
     // ── Navigation ──
     private void NavigateBack()
     {
-        if (!string.IsNullOrEmpty(ArchivedEinsatzId))
+        if (!string.IsNullOrEmpty(ArchivedEinsatzId) || !string.IsNullOrEmpty(ExportArchivId))
             Navigation.NavigateTo("/einsatz-archiv");
         else
             Navigation.NavigateTo("/einsatz-monitor");
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Tab per Query-Parameter vorwählen
+        if (!string.IsNullOrEmpty(InitialTab))
+            _activeTab = InitialTab;
+
+        // Archiv-Export per Query-Parameter vorwählen
+        if (!string.IsNullOrEmpty(ExportArchivId) && _exportArchiveList.Count == 0)
+        {
+            _activeTab = "export";
+            _exportSource = "archive";
+            await LoadArchiveListAsync();
+            if (_exportArchiveList.Any())
+            {
+                await SelectArchiveAsync(ExportArchivId);
+            }
+        }
     }
 
     // ════════════════════════════════════════════════════════════
@@ -1672,7 +1824,13 @@
     // EXPORT — Zustand & Logik
     // ════════════════════════════════════════════════════════════
 
+    private string _exportSource = "current"; // "current" | "archive"
+    private List<ArchivedEinsatz> _exportArchiveList = new();
+    private ArchivedEinsatz? _exportSelectedArchive;
+    private bool _exportArchiveLoading;
+
     private readonly HashSet<string> _selectedTeamIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _selectedArchiveTeamIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly EinsatzExportOptions _exportOptions = new();
 
     private EinsatzExportPacket? _exportPreview;
@@ -1685,9 +1843,53 @@
 
     protected override void OnInitialized()
     {
-        // Vorauswahl: alle Teams
+        // Vorauswahl: alle Teams des laufenden Einsatzes
         foreach (var team in EinsatzService.Teams)
             _selectedTeamIds.Add(team.TeamId);
+    }
+
+    private async Task OnExportSourceChangedAsync(ChangeEventArgs e)
+    {
+        _exportSource = e.Value?.ToString() ?? "current";
+        _exportPreview = null;
+        _exportValidationAttempted = false;
+
+        if (_exportSource == "archive" && _exportArchiveList.Count == 0)
+            await LoadArchiveListAsync();
+    }
+
+    private async Task LoadArchiveListAsync()
+    {
+        _exportArchiveLoading = true;
+        StateHasChanged();
+        _exportArchiveList = await ArchivService.GetAllArchivedAsync();
+        _exportArchiveLoading = false;
+    }
+
+    private async Task SelectArchiveAsync(string id)
+    {
+        _exportSelectedArchive = _exportArchiveList.FirstOrDefault(a => a.Id == id)
+                                 ?? await ArchivService.GetByIdAsync(id);
+        _selectedArchiveTeamIds.Clear();
+        if (_exportSelectedArchive != null)
+        {
+            foreach (var t in _exportSelectedArchive.Teams)
+                _selectedArchiveTeamIds.Add(t.TeamId);
+        }
+        _exportPreview = null;
+    }
+
+    private async Task OnArchiveSelectionChangedAsync(ChangeEventArgs e)
+    {
+        var id = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(id))
+            await SelectArchiveAsync(id);
+        else
+        {
+            _exportSelectedArchive = null;
+            _selectedArchiveTeamIds.Clear();
+            _exportPreview = null;
+        }
     }
 
     private void ToggleTeam(string teamId)
@@ -1696,6 +1898,16 @@
             _selectedTeamIds.Remove(teamId);
         else
             _selectedTeamIds.Add(teamId);
+
+        _exportPreview = null;
+    }
+
+    private void ToggleArchiveTeam(string teamId)
+    {
+        if (_selectedArchiveTeamIds.Contains(teamId))
+            _selectedArchiveTeamIds.Remove(teamId);
+        else
+            _selectedArchiveTeamIds.Add(teamId);
 
         _exportPreview = null;
     }
@@ -1713,9 +1925,25 @@
         _exportPreview = null;
     }
 
+    private void SelectAllArchiveTeams()
+    {
+        if (_exportSelectedArchive == null) return;
+        foreach (var t in _exportSelectedArchive.Teams)
+            _selectedArchiveTeamIds.Add(t.TeamId);
+        _exportPreview = null;
+    }
+
+    private void DeselectAllArchiveTeams()
+    {
+        _selectedArchiveTeamIds.Clear();
+        _exportPreview = null;
+    }
+
     private bool ValidateExport()
     {
         _exportValidationAttempted = true;
+        if (_exportSource == "archive")
+            return _exportSelectedArchive != null && _selectedArchiveTeamIds.Any();
         return _selectedTeamIds.Any();
     }
 
@@ -1728,10 +1956,21 @@
 
         try
         {
-            var packet = await ExportService.BuildExportPacketAsync(
-                _selectedTeamIds,
-                string.Empty,
-                _exportOptions);
+            EinsatzExportPacket packet;
+            if (_exportSource == "archive" && _exportSelectedArchive != null)
+            {
+                packet = await ExportService.BuildExportPacketFromArchiveAsync(
+                    _exportSelectedArchive,
+                    _selectedArchiveTeamIds,
+                    _exportOptions);
+            }
+            else
+            {
+                packet = await ExportService.BuildExportPacketAsync(
+                    _selectedTeamIds,
+                    string.Empty,
+                    _exportOptions);
+            }
 
             var bytes = ExportService.Serialize(packet);
             _exportPreview = packet;
@@ -1759,10 +1998,21 @@
 
         try
         {
-            var packet = await ExportService.BuildExportPacketAsync(
-                _selectedTeamIds,
-                string.Empty,
-                _exportOptions);
+            EinsatzExportPacket packet;
+            if (_exportSource == "archive" && _exportSelectedArchive != null)
+            {
+                packet = await ExportService.BuildExportPacketFromArchiveAsync(
+                    _exportSelectedArchive,
+                    _selectedArchiveTeamIds,
+                    _exportOptions);
+            }
+            else
+            {
+                packet = await ExportService.BuildExportPacketAsync(
+                    _selectedTeamIds,
+                    string.Empty,
+                    _exportOptions);
+            }
 
             var bytes = ExportService.Serialize(packet);
             var json = System.Text.Encoding.UTF8.GetString(bytes);

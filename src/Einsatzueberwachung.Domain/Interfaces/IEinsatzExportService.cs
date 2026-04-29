@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Einsatzueberwachung.Domain.Models;
 using Einsatzueberwachung.Domain.Models.Merge;
 
 namespace Einsatzueberwachung.Domain.Interfaces
@@ -13,7 +14,7 @@ namespace Einsatzueberwachung.Domain.Interfaces
     public interface IEinsatzExportService
     {
         /// <summary>
-        /// Erstellt ein Export-Paket für die angegebenen Teams.
+        /// Erstellt ein Export-Paket für die angegebenen Teams aus dem laufenden Einsatz.
         /// Stammdaten werden automatisch aus den Team-Referenzen gesammelt.
         /// </summary>
         /// <param name="selectedTeamIds">IDs der zu exportierenden Teams.</param>
@@ -22,6 +23,18 @@ namespace Einsatzueberwachung.Domain.Interfaces
         Task<EinsatzExportPacket> BuildExportPacketAsync(
             IEnumerable<string> selectedTeamIds,
             string label,
+            EinsatzExportOptions? options = null);
+
+        /// <summary>
+        /// Erstellt ein Export-Paket aus einem archivierten Einsatz.
+        /// Da archivierte Teams keine vollen Stammdaten-IDs enthalten, bleibt der Stammdaten-Abschnitt leer.
+        /// </summary>
+        /// <param name="archived">Der archivierte Einsatz als Datenquelle.</param>
+        /// <param name="selectedTeamIds">IDs der zu exportierenden Teams.</param>
+        /// <param name="options">Optionale Export-Einstellungen.</param>
+        Task<EinsatzExportPacket> BuildExportPacketFromArchiveAsync(
+            ArchivedEinsatz archived,
+            IEnumerable<string> selectedTeamIds,
             EinsatzExportOptions? options = null);
 
         /// <summary>

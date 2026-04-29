@@ -90,8 +90,85 @@ namespace Einsatzueberwachung.Domain.Services
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Serialize / GetFileName
+        // BuildExportPacketFromArchiveAsync
         // ─────────────────────────────────────────────────────────────────────
+
+        public Task<EinsatzExportPacket> BuildExportPacketFromArchiveAsync(
+            ArchivedEinsatz archived,
+            IEnumerable<string> selectedTeamIds,
+            EinsatzExportOptions? options = null)
+        {
+            options ??= new EinsatzExportOptions();
+
+            var teamIdSet = new HashSet<string>(selectedTeamIds, StringComparer.OrdinalIgnoreCase);
+            var selectedTeams = archived.Teams
+                .Where(t => teamIdSet.Contains(t.TeamId))
+                .ToList();
+
+            var packet = new EinsatzExportPacket
+            {
+                ExportedAt = DateTime.UtcNow,
+                EinsatzNummer = archived.EinsatzNummer
+            };
+
+            // ── 1. Teams (ArchivedTeam → Team) ──
+            // Stammdaten-IDs sind in archivierten Teams nicht vorhanden, daher bleibt Personal/Hunde/Drohnen leer.
+            foreach (var archivedTeam in selectedTeams)
+                packet.Teams.Add(ConvertArchivedTeamToTeam(archivedTeam));
+
+            // ── 2. Notizen ──
+            CollectNotes(packet, teamIdSet, archived.GlobalNotesEntries ?? new(), options);
+
+            // ── 3. Suchgebiete ──
+            CollectSearchAreas(packet, teamIdSet, archived.SearchAreas ?? new(), options);
+
+            // ── 4. GPS-Tracks ──
+            if (options.IncludeTrackSnapshots)
+            {
+                var collectedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var archivedTeam in selectedTeams)
+                {
+                    foreach (var snap in archivedTeam.TrackSnapshots ?? new())
+                    {
+                        if (collectedIds.Add(snap.Id))
+                            packet.TrackSnapshots.Add(snap);
+                    }
+                }
+
+                foreach (var snap in archived.TrackSnapshots ?? new())
+                {
+                    if (collectedIds.Contains(snap.Id)) continue;
+                    if (!string.IsNullOrEmpty(snap.TeamId) && teamIdSet.Contains(snap.TeamId))
+                    {
+                        if (collectedIds.Add(snap.Id))
+                            packet.TrackSnapshots.Add(snap);
+                    }
+                }
+            }
+
+            // Karten-Marker sind nicht in ArchivedEinsatz gespeichert → werden übersprungen.
+
+            return Task.FromResult(packet);
+        }
+
+        private static Team ConvertArchivedTeamToTeam(ArchivedTeam archivedTeam)
+        {
+            var isDrone = !string.IsNullOrEmpty(archivedTeam.DroneName);
+            return new Team
+            {
+                TeamId = archivedTeam.TeamId,
+                TeamName = archivedTeam.TeamName,
+                HundefuehrerName = archivedTeam.MemberNames.ElementAtOrDefault(0) ?? string.Empty,
+                HelferName = archivedTeam.MemberNames.ElementAtOrDefault(1) ?? string.Empty,
+                DogName = archivedTeam.DogName ?? string.Empty,
+                IsDroneTeam = isDrone,
+                DroneType = archivedTeam.DroneName ?? string.Empty,
+                TrackSnapshots = archivedTeam.TrackSnapshots?.ToList() ?? new()
+            };
+        }
+
+
 
         public byte[] Serialize(EinsatzExportPacket packet)
         {

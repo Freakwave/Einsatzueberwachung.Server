@@ -1,6 +1,7 @@
 using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
 using Einsatzueberwachung.Domain.Models.Enums;
+using Einsatzueberwachung.Server.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Einsatzueberwachung.Server.Controllers;
@@ -8,47 +9,30 @@ namespace Einsatzueberwachung.Server.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public class ThreadsController : ControllerBase
+public class ThreadsController(IEinsatzService einsatzService) : ControllerBase
 {
-    private readonly IEinsatzService _einsatzService;
-    private readonly ILogger<ThreadsController> _logger;
-
-    public ThreadsController(IEinsatzService einsatzService, ILogger<ThreadsController> logger)
-    {
-        _einsatzService = einsatzService;
-        _logger = logger;
-    }
-
     [HttpGet]
     public IActionResult GetNotes([FromQuery] string filter = "alle")
     {
-        try
+        IEnumerable<GlobalNotesEntry> query = einsatzService.GlobalNotes;
+        var normalized = filter.Trim().ToLowerInvariant();
+
+        if (normalized == "funk")
         {
-            IEnumerable<GlobalNotesEntry> query = _einsatzService.GlobalNotes;
-            var normalized = filter.Trim().ToLowerInvariant();
-
-            if (normalized == "funk")
-            {
-                query = query.Where(n => string.Equals(n.SourceType, "Funk", StringComparison.OrdinalIgnoreCase));
-            }
-            else if (normalized == "notiz")
-            {
-                query = query.Where(n => !string.Equals(n.SourceType, "Funk", StringComparison.OrdinalIgnoreCase));
-            }
-
-            var notes = query
-                .OrderByDescending(n => n.Timestamp)
-                .Take(200)
-                .Select(ToNoteDto)
-                .ToList();
-
-            return Ok(new { notes, count = notes.Count });
+            query = query.Where(n => string.Equals(n.SourceType, "Funk", StringComparison.OrdinalIgnoreCase));
         }
-        catch (Exception ex)
+        else if (normalized == "notiz")
         {
-            _logger.LogError(ex, "Fehler beim Abrufen der Threads");
-            return StatusCode(500, new { error = ex.Message });
+            query = query.Where(n => !string.Equals(n.SourceType, "Funk", StringComparison.OrdinalIgnoreCase));
         }
+
+        var notes = query
+            .OrderByDescending(n => n.Timestamp)
+            .Take(200)
+            .Select(ToNoteDto)
+            .ToList();
+
+        return Ok(new { notes, count = notes.Count });
     }
 
     [HttpPost]
@@ -56,27 +40,19 @@ public class ThreadsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.Text))
         {
-            return BadRequest(new { error = "Text darf nicht leer sein." });
+            return BadRequest(new ErrorResponse("Text darf nicht leer sein."));
         }
 
-        try
-        {
-            var sourceType = string.IsNullOrWhiteSpace(request.SourceType) ? "Notiz" : request.SourceType.Trim();
-            var note = await _einsatzService.AddGlobalNoteWithSourceAsync(
-                request.Text.Trim(),
-                string.IsNullOrWhiteSpace(request.SourceTeamId) ? "mobile" : request.SourceTeamId.Trim(),
-                string.IsNullOrWhiteSpace(request.SourceTeamName) ? "Mobile" : request.SourceTeamName.Trim(),
-                sourceType,
-                ParseNoteType(sourceType),
-                string.IsNullOrWhiteSpace(request.CreatedBy) ? "Mobile" : request.CreatedBy.Trim());
+        var sourceType = string.IsNullOrWhiteSpace(request.SourceType) ? "Notiz" : request.SourceType.Trim();
+        var note = await einsatzService.AddGlobalNoteWithSourceAsync(
+            request.Text.Trim(),
+            string.IsNullOrWhiteSpace(request.SourceTeamId) ? "mobile" : request.SourceTeamId.Trim(),
+            string.IsNullOrWhiteSpace(request.SourceTeamName) ? "Mobile" : request.SourceTeamName.Trim(),
+            sourceType,
+            ParseNoteType(sourceType),
+            string.IsNullOrWhiteSpace(request.CreatedBy) ? "Mobile" : request.CreatedBy.Trim());
 
-            return CreatedAtAction(nameof(GetNotes), new { filter = "alle" }, ToNoteDto(note));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Fehler beim Erstellen einer Notiz");
-            return StatusCode(500, new { error = ex.Message });
-        }
+        return CreatedAtAction(nameof(GetNotes), new { filter = "alle" }, ToNoteDto(note));
     }
 
     [HttpPost("{noteId}/replies")]
@@ -84,12 +60,12 @@ public class ThreadsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.Text))
         {
-            return BadRequest(new { error = "Antworttext darf nicht leer sein." });
+            return BadRequest(new ErrorResponse("Antworttext darf nicht leer sein."));
         }
 
         try
         {
-            var reply = await _einsatzService.AddReplyToNoteAsync(
+            var reply = await einsatzService.AddReplyToNoteAsync(
                 noteId,
                 request.Text.Trim(),
                 string.IsNullOrWhiteSpace(request.SourceTeamId) ? "mobile" : request.SourceTeamId.Trim(),
@@ -100,12 +76,7 @@ public class ThreadsController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Fehler beim Erstellen einer Antwort fuer {NoteId}", noteId);
-            return StatusCode(500, new { error = ex.Message });
+            return NotFound(new ErrorResponse(ex.Message));
         }
     }
 

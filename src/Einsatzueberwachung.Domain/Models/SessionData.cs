@@ -68,6 +68,16 @@ namespace Einsatzueberwachung.Domain.Models
         // Zeitzone für Server-seitige Zeitstempel (IANA-ID, z.B. "Europe/Berlin")
         public string TimeZoneId { get; set; }
 
+        // Karten-Standardposition
+        public double MapDefaultLat { get; set; }
+        public double MapDefaultLng { get; set; }
+        public int MapDefaultZoom { get; set; }
+
+        // Pausen-Konfiguration für Hundeteams
+        public int PauseThresholdMinutes { get; set; }
+        public int PauseMinutesShortRun { get; set; }
+        public int PauseMinutesLongRun { get; set; }
+
         // Divera 24/7 Integration
         public bool DiveraEnabled { get; set; }
         /// <summary>Staffel/Einheit API-Key — fuer Alarmabfrage (Web-API-Accesskey)</summary>
@@ -112,6 +122,16 @@ namespace Einsatzueberwachung.Domain.Models
                 "Suche gestartet",
                 "Suche beendet"
             };
+
+            // Karten-Standardposition (Speyer als Beispiel-Default)
+            MapDefaultLat = 49.3188;
+            MapDefaultLng = 8.4312;
+            MapDefaultZoom = 13;
+
+            // Pausen-Defaults für Hundeteams
+            PauseThresholdMinutes = 20;
+            PauseMinutesShortRun = 60;
+            PauseMinutesLongRun = 180;
 
             // Divera 24/7 Defaults
             DiveraEnabled = false;

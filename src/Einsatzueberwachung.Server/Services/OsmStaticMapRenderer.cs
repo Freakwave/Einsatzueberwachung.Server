@@ -1,4 +1,4 @@
-using Einsatzueberwachung.Domain.Interfaces;
+﻿using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
@@ -606,7 +606,7 @@ public sealed class OsmStaticMapRenderer : IStaticMapRenderer, IDisposable
 
     private static SKColor ParseColor(string hex)
     {
-        if (string.IsNullOrEmpty(hex) || hex.Length < 7)
+        if (string.IsNullOrWhiteSpace(hex) || hex.Length < 7)
             return new SKColor(255, 68, 68);
 
         try

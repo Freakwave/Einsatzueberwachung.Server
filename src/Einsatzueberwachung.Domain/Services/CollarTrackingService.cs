@@ -1,4 +1,4 @@
-// Implementierung des GPS-Halsband Tracking-Service
+﻿// Implementierung des GPS-Halsband Tracking-Service
 // Thread-safe Singleton, verwaltet bis zu 20 gleichzeitige Halsbänder
 // Prüft bei jeder neuen Position ob der Hund im Suchgebiet ist
 
@@ -48,7 +48,7 @@ namespace Einsatzueberwachung.Domain.Services
 
             // Nur in History speichern wenn das zugewiesene Team aktiv sucht (IsRunning)
             var isRecording = false;
-            if (collar.IsAssigned && !string.IsNullOrEmpty(collar.AssignedTeamId))
+            if (collar.IsAssigned && !string.IsNullOrWhiteSpace(collar.AssignedTeamId))
             {
                 var team = _einsatzService.Teams.FirstOrDefault(t => t.TeamId == collar.AssignedTeamId);
                 isRecording = team?.IsRunning == true;
@@ -67,7 +67,7 @@ namespace Einsatzueberwachung.Domain.Services
             CollarLocationReceived?.Invoke(collarId, location);
 
             // Falls dem Halsband ein Team zugewiesen ist: Bounds-Check
-            if (collar.IsAssigned && !string.IsNullOrEmpty(collar.AssignedTeamId))
+            if (collar.IsAssigned && !string.IsNullOrWhiteSpace(collar.AssignedTeamId))
             {
                 CheckBounds(collar.AssignedTeamId, collarId, location);
             }
@@ -109,7 +109,7 @@ namespace Einsatzueberwachung.Domain.Services
         {
             if (_collars.TryGetValue(collarId, out var collar))
             {
-                if (!string.IsNullOrEmpty(collar.AssignedTeamId))
+                if (!string.IsNullOrWhiteSpace(collar.AssignedTeamId))
                 {
                     var team = _einsatzService.Teams.FirstOrDefault(t => t.TeamId == collar.AssignedTeamId);
                     if (team != null)
@@ -170,7 +170,7 @@ namespace Einsatzueberwachung.Domain.Services
         private void CheckBounds(string teamId, string collarId, CollarLocation location)
         {
             var team = _einsatzService.Teams.FirstOrDefault(t => t.TeamId == teamId);
-            if (team == null || string.IsNullOrEmpty(team.SearchAreaId))
+            if (team == null || string.IsNullOrWhiteSpace(team.SearchAreaId))
                 return;
 
             var searchArea = _einsatzService.CurrentEinsatz.SearchAreas

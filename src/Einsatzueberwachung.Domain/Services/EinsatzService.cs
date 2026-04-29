@@ -212,14 +212,26 @@ namespace Einsatzueberwachung.Domain.Services
             return Task.CompletedTask;
         }
 
-        public Task<Team> AddTeamAsync(Team team)
+        public async Task<Team> AddTeamAsync(Team team)
         {
             // Erstellungszeit in der konfigurierten Zeitzone setzen
             if (_timeService is not null)
                 team.CreatedAt = _timeService.Now;
 
+            // Konfigurierte Pausenwerte auf das Team anwenden
+            if (_settingsService is not null)
+            {
+                var appSettings = await _settingsService.GetAppSettingsAsync();
+                if (appSettings.PauseThresholdMinutes > 0)
+                    team.PauseThresholdMinutes = appSettings.PauseThresholdMinutes;
+                if (appSettings.PauseMinutesShortRun > 0)
+                    team.PauseMinutesShortRun = appSettings.PauseMinutesShortRun;
+                if (appSettings.PauseMinutesLongRun > 0)
+                    team.PauseMinutesLongRun = appSettings.PauseMinutesLongRun;
+            }
+
             // Wenn der Hund bereits in Pause ist, den Pausenstatus übernehmen
-            if (!string.IsNullOrEmpty(team.DogId)
+            if (!string.IsNullOrWhiteSpace(team.DogId)
                 && _dogPauses.TryGetValue(team.DogId, out var dogPause)
                 && !dogPause.IsPauseComplete)
             {
@@ -235,7 +247,7 @@ namespace Einsatzueberwachung.Domain.Services
 
             TeamAdded?.Invoke(team);
 
-            return Task.FromResult(team);
+            return team;
         }
 
         public Task RemoveTeamAsync(string teamId)
@@ -281,7 +293,7 @@ namespace Einsatzueberwachung.Domain.Services
             if (team == null) return;
 
             // Sicherstellen, dass der Hund nicht bereits in einem anderen laufenden Team eingesetzt ist
-            if (!string.IsNullOrEmpty(team.DogId))
+            if (!string.IsNullOrWhiteSpace(team.DogId))
             {
                 var conflict = _teams.FirstOrDefault(t => t.TeamId != teamId && t.DogId == team.DogId && t.IsRunning);
                 if (conflict != null)
@@ -306,7 +318,7 @@ namespace Einsatzueberwachung.Domain.Services
             team.StopTimer();
 
             // Hundebezogene Pause: Pausendatensatz speichern und alle Schwesterteams synchronisieren
-            if (team.IsPausing && !string.IsNullOrEmpty(team.DogId) && team.PauseStartTime.HasValue)
+            if (team.IsPausing && !string.IsNullOrWhiteSpace(team.DogId) && team.PauseStartTime.HasValue)
             {
                 var record = new DogPauseRecord
                 {
@@ -338,7 +350,7 @@ namespace Einsatzueberwachung.Domain.Services
             // SilentReset() verhindert unerwuenschte Notizeintraege ("Timer zurueckgesetzt") fuer
             // automatisch synchronisierte Teams. TeamUpdated wird danach manuell gefeuert,
             // damit die UI-Clients den neuen Zustand erhalten.
-            if (!string.IsNullOrEmpty(dogId))
+            if (!string.IsNullOrWhiteSpace(dogId))
             {
                 _dogPauses.Remove(dogId);
                 foreach (var sibling in _teams.Where(t => t.TeamId != teamId && t.DogId == dogId && t.IsPausing).ToList())
@@ -359,7 +371,7 @@ namespace Einsatzueberwachung.Domain.Services
                 Timestamp = _timeService?.Now ?? DateTime.Now
             };
 
-            if (!string.IsNullOrEmpty(teamId))
+            if (!string.IsNullOrWhiteSpace(teamId))
             {
                 var team = _teams.FirstOrDefault(t => t.TeamId == teamId);
                 if (team != null)
@@ -376,13 +388,13 @@ namespace Einsatzueberwachung.Domain.Services
 
         public Task<List<GlobalNotesEntry>> GetFilteredNotesAsync(string? teamId = null)
         {
-            if (string.IsNullOrEmpty(teamId))
+            if (string.IsNullOrWhiteSpace(teamId))
             {
                 return Task.FromResult(_globalNotes.OrderByDescending(n => n.Timestamp).ToList());
             }
 
             var filtered = _globalNotes
-                .Where(n => string.IsNullOrEmpty(n.SourceTeamId) || n.SourceTeamId == teamId)
+                .Where(n => string.IsNullOrWhiteSpace(n.SourceTeamId) || n.SourceTeamId == teamId)
                 .OrderByDescending(n => n.Timestamp)
                 .ToList();
 
@@ -522,7 +534,7 @@ namespace Einsatzueberwachung.Domain.Services
         public Task<MapMarker> AddMapMarkerAsync(MapMarker marker)
         {
             // UTM-Koordinaten berechnen falls noch nicht gesetzt
-            if (string.IsNullOrEmpty(marker.UtmZone))
+            if (string.IsNullOrWhiteSpace(marker.UtmZone))
             {
                 var (zone, band, easting, northing) = UtmConverter.LatLongToUtm(marker.Latitude, marker.Longitude);
                 marker.UtmZone = UtmConverter.FormatUtmZone(zone, band);
@@ -840,13 +852,13 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 foreach (var record in snapshot.DogPauses)
                 {
-                    if (!string.IsNullOrEmpty(record.DogId))
+                    if (!string.IsNullOrWhiteSpace(record.DogId))
                         _dogPauses[record.DogId] = record;
                 }
             }
             else
             {
-                foreach (var team in _teams.Where(team => team.IsPausing && !string.IsNullOrEmpty(team.DogId) && team.PauseStartTime.HasValue))
+                foreach (var team in _teams.Where(team => team.IsPausing && !string.IsNullOrWhiteSpace(team.DogId) && team.PauseStartTime.HasValue))
                 {
                     if (!_dogPauses.TryGetValue(team.DogId, out var existing) || team.RunTimeBeforePause > existing.RunTimeBeforePause)
                     {
@@ -885,7 +897,7 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 foreach (var area in _currentEinsatz.SearchAreas)
                 {
-                    if (!string.IsNullOrEmpty(area.GeoJsonData) &&
+                    if (!string.IsNullOrWhiteSpace(area.GeoJsonData) &&
                         (area.Coordinates == null || area.Coordinates.Count == 0 ||
                          area.Coordinates.All(c => c.Latitude == 0 && c.Longitude == 0)))
                     {
@@ -926,14 +938,14 @@ namespace Einsatzueberwachung.Domain.Services
 
         public DogPauseRecord? GetDogPause(string dogId)
         {
-            if (string.IsNullOrEmpty(dogId))
+            if (string.IsNullOrWhiteSpace(dogId))
                 return null;
             return _dogPauses.TryGetValue(dogId, out var record) ? record : null;
         }
 
         public bool IsDogRunning(string dogId)
         {
-            if (string.IsNullOrEmpty(dogId))
+            if (string.IsNullOrWhiteSpace(dogId))
                 return false;
             return _teams.Any(t => t.DogId == dogId && t.IsRunning);
         }

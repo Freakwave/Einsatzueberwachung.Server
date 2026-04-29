@@ -25,6 +25,12 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// Erstellt eine leere Excel-Vorlage für den Import
         /// </summary>
         Task<byte[]> CreateImportTemplateAsync();
+
+        /// <summary>
+        /// Exportiert einen laufenden oder abgeschlossenen Einsatz als Excel-Datei
+        /// (Teams, Zeiterfassung, Notizen, Funksprüche)
+        /// </summary>
+        Task<byte[]> ExportEinsatzAsync(EinsatzData einsatz, List<Team> teams, List<GlobalNotesEntry> notes);
     }
 
     public class ImportResult

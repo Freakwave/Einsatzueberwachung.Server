@@ -1,4 +1,4 @@
-// Archiv-Service - Speichert und verwaltet abgeschlossene Einsaetze
+﻿// Archiv-Service - Speichert und verwaltet abgeschlossene Einsaetze
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
 using Einsatzueberwachung.Domain.Models.Merge;
+using Microsoft.Extensions.Logging;
 
 namespace Einsatzueberwachung.Domain.Services
 {
@@ -17,6 +18,7 @@ namespace Einsatzueberwachung.Domain.Services
         private readonly string _archivDirectory;
         private readonly string _archivFilePath;
         private readonly ITimeService? _timeService;
+        private readonly ILogger<ArchivService>? _logger;
         private List<ArchivedEinsatz> _archiv = new();
         private bool _isLoaded = false;
 
@@ -26,9 +28,10 @@ namespace Einsatzueberwachung.Domain.Services
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
-        public ArchivService(ITimeService? timeService = null)
+        public ArchivService(ITimeService? timeService = null, ILogger<ArchivService>? logger = null)
         {
             _timeService = timeService;
+            _logger = logger;
             _archivDirectory = AppPathResolver.GetArchiveDirectory();
             _archivFilePath = Path.Combine(_archivDirectory, "einsatz_archiv.json");
         }
@@ -46,8 +49,9 @@ namespace Einsatzueberwachung.Domain.Services
                     var json = await File.ReadAllTextAsync(_archivFilePath);
                     _archiv = JsonSerializer.Deserialize<List<ArchivedEinsatz>>(json, JsonOptions) ?? new();
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    _logger?.LogWarning(ex, "Archivdatei konnte nicht geladen werden, starte mit leerem Archiv");
                     _archiv = new();
                 }
             }
@@ -160,6 +164,12 @@ namespace Einsatzueberwachung.Domain.Services
             if (!string.IsNullOrWhiteSpace(criteria.Einsatzort))
             {
                 query = query.Where(e => e.Einsatzort.ToLowerInvariant().Contains(criteria.Einsatzort.ToLowerInvariant()));
+            }
+
+            // Einsatzleiter-Filter
+            if (!string.IsNullOrWhiteSpace(criteria.Einsatzleiter))
+            {
+                query = query.Where(e => e.Einsatzleiter.ToLowerInvariant().Contains(criteria.Einsatzleiter.ToLowerInvariant()));
             }
 
             return query.OrderByDescending(e => e.EinsatzDatum).ToList();
@@ -352,7 +362,7 @@ namespace Einsatzueberwachung.Domain.Services
 
             // Haeufigster Erfolgstyp
             var ergebnisGruppen = _archiv
-                .Where(e => !string.IsNullOrEmpty(e.Ergebnis))
+                .Where(e => !string.IsNullOrWhiteSpace(e.Ergebnis))
                 .GroupBy(e => e.Ergebnis)
                 .OrderByDescending(g => g.Count())
                 .FirstOrDefault();

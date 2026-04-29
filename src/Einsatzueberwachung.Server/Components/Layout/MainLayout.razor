@@ -13,12 +13,12 @@
     </div>
 
     <main>
-        <div class="mission-topbar">
+        <div class="mission-topbar @(HasActiveEinsatz ? "mission-active" : "")">
             <button class="mission-topbar-close"
                     type="button"
-                    title="Zur Startseite"
+                    title="@(HasActiveEinsatz ? "Zur Startseite (Einsatz läuft weiter)" : "Zur Startseite")"
                     @onclick="GoHome">
-                <i class="bi bi-x-lg"></i>
+                <i class="bi bi-house-door"></i>
             </button>
 
             <div class="mission-status-strip" aria-live="polite">
@@ -44,12 +44,16 @@
             </div>
 
             <div class="mission-topbar-actions">
-                <button class="btn btn-sm btn-outline-secondary"
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
                         type="button"
-                        title="@(BrowserPrefs.Preferences.ThemeMode == "Auto" ? "Theme: Automatisch (Systemmodus)" : BrowserPrefs.Preferences.ThemeMode == "Scheduled" ? "Theme: Zeitsteuerung aktiv" : "Dark Mode umschalten")"
+                        title="@(BrowserPrefs.Preferences.ThemeMode == "Auto" ? "Theme: Automatisch (Systemmodus) — in Einstellungen ändern" : BrowserPrefs.Preferences.ThemeMode == "Scheduled" ? "Theme: Zeitsteuerung aktiv — in Einstellungen ändern" : (_isDarkMode ? "Dark Mode deaktivieren" : "Dark Mode aktivieren"))"
                         disabled="@(BrowserPrefs.Preferences.ThemeMode != "Manual")"
                         @onclick="ToggleThemeAsync">
-                    <i class="bi @( _isDarkMode ? "bi-sun" : "bi-moon-stars")"></i>
+                    <i class="bi @(_isDarkMode ? "bi-sun" : "bi-moon-stars")"></i>
+                    @if (BrowserPrefs.Preferences.ThemeMode != "Manual")
+                    {
+                        <span class="topbar-theme-mode-label">@(BrowserPrefs.Preferences.ThemeMode == "Auto" ? "Auto" : "Plan")</span>
+                    }
                 </button>
 
                 <button class="btn btn-sm btn-outline-secondary"
@@ -96,7 +100,7 @@
     <div class="global-warning-overlay" @onclick="DismissExerciseEndedPopup">
         <div class="global-warning-popup" @onclick:stopPropagation="true">
             <div class="global-warning-header" style="background: var(--bs-success, #198754);">
-                <h4 class="mb-0"><i class="bi bi-flag-fill me-2"></i>Uebung beendet</h4>
+                <h4 class="mb-0"><i class="bi bi-flag-fill me-2"></i>Übung beendet</h4>
             </div>
             <div class="global-warning-body">
                 <p class="mb-2"><strong>@_exerciseEndedName</strong></p>
@@ -239,7 +243,7 @@
             if (isSecondWarning)
             {
                 _criticalWarningTitle = $"{team.TeamName} hat kritische Warnstufe erreicht";
-                _criticalWarningMessage = $"Timer: {team.ElapsedTime:hh\\:mm\\:ss} · Bitte Teamstatus pruefen.";
+                _criticalWarningMessage = $"Timer: {team.ElapsedTime:hh\\:mm\\:ss} · Bitte Teamstatus prüfen.";
                 _showCriticalWarningPopup = true;
             }
 

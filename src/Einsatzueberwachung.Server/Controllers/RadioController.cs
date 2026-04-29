@@ -1,3 +1,4 @@
+using Einsatzueberwachung.Server.Models;
 using Einsatzueberwachung.Server.Services.Radio;
 using Microsoft.AspNetCore.Mvc;
 
@@ -27,7 +28,7 @@ public sealed class RadioController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(body.Text))
         {
-            return BadRequest(new { error = "Text darf nicht leer sein." });
+            return BadRequest(new ErrorResponse("Text darf nicht leer sein."));
         }
 
         var request = new CreateRadioMessageRequest(
@@ -45,7 +46,7 @@ public sealed class RadioController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(body.Text))
         {
-            return BadRequest(new { error = "Antworttext darf nicht leer sein." });
+            return BadRequest(new ErrorResponse("Antworttext darf nicht leer sein."));
         }
 
         try
@@ -61,7 +62,7 @@ public sealed class RadioController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { error = ex.Message });
+            return NotFound(new ErrorResponse(ex.Message));
         }
     }
 

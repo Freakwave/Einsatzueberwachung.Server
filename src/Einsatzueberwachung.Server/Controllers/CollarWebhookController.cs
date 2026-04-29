@@ -2,7 +2,7 @@
 // Empfängt Live-Positionen von der externen Halsband-Software (bis zu 20 Halsbänder gleichzeitig)
 
 using Einsatzueberwachung.Domain.Interfaces;
-using Einsatzueberwachung.Domain.Models;
+using Einsatzueberwachung.Server.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Einsatzueberwachung.Server.Controllers;
@@ -13,12 +13,10 @@ namespace Einsatzueberwachung.Server.Controllers;
 public class CollarWebhookController : ControllerBase
 {
     private readonly ICollarTrackingService _trackingService;
-    private readonly ILogger<CollarWebhookController> _logger;
 
-    public CollarWebhookController(ICollarTrackingService trackingService, ILogger<CollarWebhookController> logger)
+    public CollarWebhookController(ICollarTrackingService trackingService)
     {
         _trackingService = trackingService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -29,34 +27,26 @@ public class CollarWebhookController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.Id))
         {
-            return BadRequest(new { error = "Id ist erforderlich." });
+            return BadRequest(new ErrorResponse("Id ist erforderlich."));
         }
 
         if (request.Coordinates == null)
         {
-            return BadRequest(new { error = "Coordinates sind erforderlich." });
+            return BadRequest(new ErrorResponse("Coordinates sind erforderlich."));
         }
 
-        try
-        {
-            var location = await _trackingService.ReceiveLocationAsync(
-                request.Id,
-                request.CollarName ?? request.Id,
-                request.Coordinates.Lat,
-                request.Coordinates.Lng);
+        var location = await _trackingService.ReceiveLocationAsync(
+            request.Id,
+            request.CollarName ?? request.Id,
+            request.Coordinates.Lat,
+            request.Coordinates.Lng);
 
-            return Ok(new
-            {
-                message = "Position empfangen",
-                collarId = request.Id,
-                timestamp = location.Timestamp
-            });
-        }
-        catch (Exception ex)
+        return Ok(new
         {
-            _logger.LogError(ex, "Fehler beim Empfangen der GPS-Position für Halsband {CollarId}", request.Id);
-            return StatusCode(500, new { error = ex.Message });
-        }
+            message = "Position empfangen",
+            collarId = request.Id,
+            timestamp = location.Timestamp
+        });
     }
 
     /// <summary>

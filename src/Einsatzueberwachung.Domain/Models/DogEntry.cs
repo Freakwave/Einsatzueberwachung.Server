@@ -34,7 +34,7 @@ namespace Einsatzueberwachung.Domain.Models
             get => null; // Nie serialisieren
             set
             {
-                if (!string.IsNullOrEmpty(value) && !HundefuehrerIds.Contains(value))
+                if (!string.IsNullOrWhiteSpace(value) && !HundefuehrerIds.Contains(value))
                 {
                     HundefuehrerIds.Add(value);
                 }

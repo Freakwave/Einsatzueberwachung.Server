@@ -5,8 +5,10 @@
 @using Einsatzueberwachung.Domain.Models
 @inject IEinsatzService EinsatzService
 @inject ICollarTrackingService CollarTrackingService
+@inject ISettingsService SettingsService
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
+@inject ILogger<EinsatzKarte> Logger
 @rendermode InteractiveServer
 @implements IAsyncDisposable
 
@@ -38,8 +40,13 @@
                     title="@(_hasElwPosition ? "ELW verschieben" : "ELW setzen")">
                 <i class="bi bi-geo-fill"></i> @(_hasElwPosition ? "ELW verschieben" : "ELW setzen")
             </button>
-            <button class="btn btn-sm btn-outline-warning" @onclick="PrintMap" title="Drucken">
-                <i class="bi bi-printer"></i>
+            <button class="btn btn-sm btn-outline-info"
+                    @onclick="ToggleMarkerPanel"
+                    title="Koordinaten-Marker">
+                <i class="bi bi-crosshair"></i> Punkte
+            </button>
+            <button class="btn btn-sm btn-outline-warning" @onclick="PrintMap" title="Drucken" aria-label="Karte drucken">
+                <i class="bi bi-printer" aria-hidden="true"></i>
             </button>
             <button class="btn btn-sm @(_trackingVisible ? "btn-success" : "btn-outline-secondary")" 
                     @onclick="ToggleTrackingLayer"
@@ -49,7 +56,7 @@
         </div>
     </header>
 
-    @if (!string.IsNullOrEmpty(_searchMessage))
+    @if (!string.IsNullOrWhiteSpace(_searchMessage))
     {
         <div class="search-message">
             <span>@_searchMessage</span>
@@ -207,7 +214,7 @@
                             <strong>@area.Name</strong>
                         </td>
                         <td>
-                            @if (!string.IsNullOrEmpty(area.AssignedTeamName))
+                            @if (!string.IsNullOrWhiteSpace(area.AssignedTeamName))
                             {
                                 <span class="team-name">@area.AssignedTeamName</span>
                             }
@@ -227,6 +234,29 @@
         </table>
     }
 </div>
+
+@if (_deleteCandidate != null)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-trash me-2 text-danger"></i>Suchgebiet löschen</h5>
+                    <button type="button" class="btn-close" @onclick="() => _deleteCandidate = null"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Soll das Suchgebiet <strong>@_deleteCandidate.Name</strong> wirklich gelöscht werden?</p>
+                    <p class="text-muted mb-0">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => _deleteCandidate = null">Abbrechen</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDeleteSearchAreaAsync">Löschen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @if (_showDialog)
 {
@@ -315,6 +345,7 @@
     private SearchArea _currentArea = new();
     private SearchArea? _editingArea = null;
     private string _selectedTeamId = "";
+    private SearchArea? _deleteCandidate;
     private string _addressSearch = "";
     private string _searchMessage = "";
     private CancellationTokenSource? _searchMessageCts;
@@ -372,23 +403,29 @@
     // Referenz auf KartePunkteTab für JSInvokable-Callbacks
     private KartePunkteTab? _punkteTab;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _searchAreas = EinsatzService.CurrentEinsatz.SearchAreas.ToList();
         _teams = EinsatzService.Teams;
         _collars = CollarTrackingService.Collars.ToList();
         _mapMarkers = EinsatzService.CurrentEinsatz.MapMarkers.ToList();
-        
+
         // DotNetObjectReference für Callbacks erstellen
         _dotNetReference = DotNetObjectReference.Create(this);
-        
+
+        // Standardposition aus Einstellungen laden
+        var settings = await SettingsService.GetAppSettingsAsync();
+        _mapCenterLat = settings.MapDefaultLat;
+        _mapCenterLng = settings.MapDefaultLng;
+        _mapZoom = settings.MapDefaultZoom;
+
         // Wenn Einsatzort-Adresse vorhanden, versuche zu geocoden
-        if (!string.IsNullOrEmpty(EinsatzService.CurrentEinsatz.MapAddress))
+        if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.MapAddress))
         {
             _addressSearch = EinsatzService.CurrentEinsatz.MapAddress;
         }
-        
-        // Prüfe ob ELW-Position vorhanden
+
+        // ELW-Position hat Vorrang vor Standardposition
         _hasElwPosition = EinsatzService.CurrentEinsatz.ElwPosition.HasValue;
         if (_hasElwPosition && EinsatzService.CurrentEinsatz.ElwPosition.HasValue)
         {
@@ -409,7 +446,7 @@
                     "einsatzMap", _mapCenterLat, _mapCenterLng, _mapZoom, _dotNetReference);
                 
                 // Bestehende Suchgebiete zur Karte HinzuFügen
-                foreach (var area in _searchAreas.Where(a => !string.IsNullOrEmpty(a.GeoJsonData)))
+                foreach (var area in _searchAreas.Where(a => !string.IsNullOrWhiteSpace(a.GeoJsonData)))
                 {
                     await JSRuntime.InvokeVoidAsync("LeafletMap.addSearchArea",
                         "einsatzMap", area.Id, area.GeoJsonData, area.Color, area.Name);
@@ -424,7 +461,7 @@
                 }
                 
                 // Einsatzort-Marker setzen falls vorhanden
-                if (!string.IsNullOrEmpty(_addressSearch))
+                if (!string.IsNullOrWhiteSpace(_addressSearch))
                 {
                     await SearchAddress();
                 }
@@ -482,7 +519,7 @@
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fehler beim Initialisieren der Karte: {ex.Message}");
+                Logger.LogWarning(ex, "Fehler beim Initialisieren der Karte");
             }
         }
     }
@@ -522,8 +559,8 @@
         }
         catch (Exception ex)
         {
-            SetSearchMessage($"Fehler: {ex.Message}");
-            Console.WriteLine($"Fehler beim Geocoding: {ex.Message}");
+            _searchMessage = $"Fehler: {ex.Message}";
+            Logger.LogWarning(ex, "Fehler beim Geocoding");
         }
     }
 
@@ -538,7 +575,7 @@
         };
         
         // Extrahiere Koordinaten aus GeoJSON wenn vorhanden
-        if (!string.IsNullOrEmpty(_lastDrawnGeoJson))
+        if (!string.IsNullOrWhiteSpace(_lastDrawnGeoJson))
         {
             ExtractCoordinatesFromGeoJson(_currentArea);
         }
@@ -604,7 +641,7 @@
     private async Task SaveArea()
     {
         // Team zuweisen
-        if (!string.IsNullOrEmpty(_selectedTeamId))
+        if (!string.IsNullOrWhiteSpace(_selectedTeamId))
         {
             var team = _teams.FirstOrDefault(t => t.TeamId == _selectedTeamId);
             if (team != null)
@@ -621,7 +658,7 @@
             
             // Auf Karte aktualisieren
             await JSRuntime.InvokeVoidAsync("LeafletMap.removeSearchArea", "einsatzMap", _currentArea.Id);
-            if (!string.IsNullOrEmpty(_currentArea.GeoJsonData))
+            if (!string.IsNullOrWhiteSpace(_currentArea.GeoJsonData))
             {
                 await JSRuntime.InvokeVoidAsync("LeafletMap.addSearchArea",
                     "einsatzMap", _currentArea.Id, _currentArea.GeoJsonData, _currentArea.Color, _currentArea.Name);
@@ -632,7 +669,7 @@
             // Neu erstellen
             await EinsatzService.AddSearchAreaAsync(_currentArea);
             
-            if (!string.IsNullOrEmpty(_currentArea.GeoJsonData))
+            if (!string.IsNullOrWhiteSpace(_currentArea.GeoJsonData))
             {
                 await JSRuntime.InvokeVoidAsync("LeafletMap.addSearchArea",
                     "einsatzMap", _currentArea.Id, _currentArea.GeoJsonData, _currentArea.Color, _currentArea.Name);
@@ -649,8 +686,16 @@
         await CloseDialog();
     }
 
-    private async Task DeleteSearchArea(SearchArea area)
+    private void DeleteSearchArea(SearchArea area)
     {
+        _deleteCandidate = area;
+    }
+
+    private async Task ConfirmDeleteSearchAreaAsync()
+    {
+        if (_deleteCandidate == null) return;
+        var area = _deleteCandidate;
+        _deleteCandidate = null;
         await EinsatzService.DeleteSearchAreaAsync(area.Id);
         await JSRuntime.InvokeVoidAsync("LeafletMap.removeSearchArea", "einsatzMap", area.Id);
         _searchAreas = EinsatzService.CurrentEinsatz.SearchAreas.ToList();
@@ -674,8 +719,8 @@
         }
         catch (Exception ex)
         {
-            SetSearchMessage($"Fehler beim GPX-Export: {ex.Message}");
-            Console.WriteLine($"GPX-Export Fehler: {ex.Message}");
+            _searchMessage = $"Fehler beim GPX-Export: {ex.Message}";
+            Logger.LogWarning(ex, "GPX-Export Fehler");
             StateHasChanged();
         }
     }
@@ -714,7 +759,7 @@
         
         // Wenn Dialog geschlossen wird UND die Zeichnung wurde NICHT gespeichert:
         // Ungespeicherte Zeichnung entfernen (damit nicht mehrere Zeichnungen auf der Karte bleiben)
-        if (!_drawingSaved && !string.IsNullOrEmpty(_lastDrawnGeoJson))
+        if (!_drawingSaved && !string.IsNullOrWhiteSpace(_lastDrawnGeoJson))
         {
             await JSRuntime.InvokeVoidAsync("LeafletMap.clearAllDrawings", "einsatzMap");
             _lastDrawnGeoJson = "";
@@ -764,8 +809,8 @@
         }
         catch (Exception ex)
         {
-            SetSearchMessage($"Fehler: {ex.Message}");
-            Console.WriteLine($"ELW-Marker Fehler: {ex.Message}");
+            _searchMessage = $"Fehler: {ex.Message}";
+            Logger.LogWarning(ex, "ELW-Marker Fehler");
         }
     }
 
@@ -782,8 +827,8 @@
         }
         catch (Exception ex)
         {
-            SetSearchMessage($"Fehler beim Drucken: {ex.Message}");
-            Console.WriteLine($"Druck-Fehler: {ex.Message}");
+            _searchMessage = $"Fehler beim Drucken: {ex.Message}";
+            Logger.LogWarning(ex, "Druck-Fehler");
         }
     }
 
@@ -799,8 +844,8 @@
         }
         catch (Exception ex)
         {
-            SetSearchMessage($"Fehler: {ex.Message}");
-            Console.WriteLine(ex.Message);
+            _searchMessage = $"Fehler: {ex.Message}";
+            Logger.LogWarning(ex, "Unbekannter Kartenfehler");
         }
     }
 
@@ -819,12 +864,12 @@
         return InvokeAsync(StateHasChanged);
     }
 
-    private string GetRandomColor()
-    {
-        var colors = new[] { "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E2" };
-        var random = new Random();
-        return colors[random.Next(colors.Length)];
-    }
+    private static readonly string[] ColorPalette = [
+        "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8",
+        "#F7DC6F", "#BB8FCE", "#85C1E2", "#FF8800", "#44FF88"
+    ];
+
+    private static string GetRandomColor() => ColorPalette[Random.Shared.Next(ColorPalette.Length)];
 
     // --- Koordinaten-Marker Methoden ---
 
@@ -1001,28 +1046,12 @@
                 return area.Color;
         }
 
-        // 10 klar unterscheidbare Farben (maximaler Hue-Abstand, gut sichtbar auf Karten)
-        var palette = new[]
-        {
-            "#E63946", // Rot
-            "#0077B6", // Dunkelblau
-            "#2DC653", // Grün
-            "#FF851B", // Orange
-            "#9B5DE5", // Violett
-            "#00B4D8", // Cyan
-            "#F72585", // Pink
-            "#FFD166", // Gelb
-            "#06D6A0", // Mint
-            "#FF6B35"  // Tiefes Orange
-        };
-
         // Ersten 10: feste Farbe nach Listenposition (deterministisch, keine Kollisionen)
         var idx = _collars.FindIndex(c => c.Id == collarId);
-        if (idx >= 0 && idx < palette.Length)
-            return palette[idx];
+        if (idx >= 0 && idx < ColorPalette.Length)
+            return ColorPalette[idx];
 
-        // Mehr als 10 Halsbänder: Hash-Fallback auf die gleiche Palette
-        return palette[Math.Abs(collarId.GetHashCode()) % palette.Length];
+        return ColorPalette[Math.Abs(collarId.GetHashCode()) % ColorPalette.Length];
     }
 
     private async Task ZoomToCollarAsync(Collar collar)
@@ -1233,7 +1262,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Fehler beim Extrahieren der Koordinaten: {ex.Message}");
+            Logger.LogWarning(ex, "Fehler beim Extrahieren der Koordinaten");
         }
     }
 
@@ -1245,7 +1274,7 @@
             return true; // kein Team = kann nicht OOB sein
 
         var team = _teams.FirstOrDefault(t => t.TeamId == collar.AssignedTeamId);
-        if (team == null || string.IsNullOrEmpty(team.SearchAreaId))
+        if (team == null || string.IsNullOrWhiteSpace(team.SearchAreaId))
             return true; // kein Suchgebiet zugewiesen
 
         var area = _searchAreas.FirstOrDefault(a => a.Id == team.SearchAreaId);
@@ -1277,7 +1306,7 @@
     public async Task OnShapeCreated(string geoJson)
     {
         _drawingActive = false;
-        Console.WriteLine($"Shape created: {geoJson}");
+        Logger.LogDebug("Shape created: {GeoJson}", geoJson);
         _lastDrawnGeoJson = geoJson;
         _drawingSaved = false; // Neue Zeichnung wurde noch nicht gespeichert
         
@@ -1293,7 +1322,7 @@
     [JSInvokable]
     public async Task OnElwMarkerMoved(double lat, double lng)
     {
-        Console.WriteLine($"ELW moved to: {lat}, {lng}");
+        Logger.LogDebug("ELW moved to: {Lat}, {Lng}", lat, lng);
         
         // Speichere neue Position (löst EinsatzChanged aus → Persistierung)
         await EinsatzService.SetElwPositionAsync(lat, lng);

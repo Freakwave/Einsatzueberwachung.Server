@@ -161,9 +161,26 @@
 
                     <h3 class="h5 mb-3"><i class="bi bi-journal-text me-1"></i>Schnell-Notizen</h3>
                     <div class="mb-3">
-                        <label class="form-label">Vorlagen (eine Zeile pro Eintrag)</label>
-                        <InputTextArea class="form-control" rows="6" @bind-Value="_quickNoteTemplatesText" />
-                        <div class="form-text">Diese Liste wird im Einsatzmonitor als Schnell-Notiz-Buttons angezeigt.</div>
+                        <label class="form-label">Vorlagen</label>
+                        <div class="list-group mb-2">
+                            @for (int i = 0; i < _quickNoteList.Count; i++)
+                            {
+                                var idx = i;
+                                <div class="list-group-item d-flex align-items-center gap-2 py-1 px-2">
+                                    <input class="form-control form-control-sm" value="@_quickNoteList[idx]"
+                                           @onchange="e => _quickNoteList[idx] = e.Value?.ToString() ?? string.Empty" />
+                                    <button class="btn btn-sm btn-outline-danger flex-shrink-0" type="button"
+                                            @onclick="() => _quickNoteList.RemoveAt(idx)" title="Entfernen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                        <button class="btn btn-sm btn-outline-success" type="button"
+                                @onclick="() => _quickNoteList.Add(string.Empty)">
+                            <i class="bi bi-plus-circle me-1"></i>Vorlage hinzufügen
+                        </button>
+                        <div class="form-text">Diese Buttons erscheinen im Einsatzmonitor als Schnell-Notiz-Schaltflächen.</div>
                     </div>
 
                     <hr />
@@ -205,6 +222,46 @@
                             <label class="form-label">Zweite Warnung (Minuten)</label>
                             <InputNumber class="form-control" @bind-Value="_appSettings.DefaultSecondWarningMinutes" />
                             <div class="form-text">Standard: 60 Minuten</div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h3 class="h5 mb-3"><i class="bi bi-map me-1"></i>Karten-Standardposition</h3>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Breitengrad (Lat)</label>
+                            <InputNumber class="form-control" @bind-Value="_appSettings.MapDefaultLat" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Längengrad (Lng)</label>
+                            <InputNumber class="form-control" @bind-Value="_appSettings.MapDefaultLng" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Zoom-Stufe</label>
+                            <InputNumber class="form-control" @bind-Value="_appSettings.MapDefaultZoom" />
+                            <div class="form-text">5–18, Standard: 13</div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h3 class="h5 mb-3"><i class="bi bi-hourglass-split me-1"></i>Hundepausen</h3>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Schwellwert (Min.)</label>
+                            <InputNumber class="form-control" @bind-Value="_appSettings.PauseThresholdMinutes" />
+                            <div class="form-text">Laufzeit bis zur kurzen Pause. Standard: 20</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Kurze Pause (Min.)</label>
+                            <InputNumber class="form-control" @bind-Value="_appSettings.PauseMinutesShortRun" />
+                            <div class="form-text">Pausenpflicht bei kurzer Laufzeit. Standard: 60</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Lange Pause (Min.)</label>
+                            <InputNumber class="form-control" @bind-Value="_appSettings.PauseMinutesLongRun" />
+                            <div class="form-text">Pausenpflicht bei langer Laufzeit. Standard: 180</div>
                         </div>
                     </div>
 
@@ -579,6 +636,7 @@
     private bool _audioTestError;
     private UpdateRuntimeStatus _updateStatus = new();
     private string _quickNoteTemplatesText = string.Empty;
+    private List<string> _quickNoteList = new();
 
     // Divera 24/7 Felder
     private bool _showDiveraKey;
@@ -592,6 +650,7 @@
         _appSettings = await SettingsService.GetAppSettingsAsync();
         EnsureQuickNoteTemplatesInitialized(_appSettings);
         _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
+        _quickNoteList = new List<string>(_appSettings.QuickNoteTemplates);
         _currentServerTime = TimeService.Now.ToString("dd.MM.yyyy HH:mm:ss");
         _dataDirectory = AppPathResolver.GetDataDirectory();
         _reportDirectory = AppPathResolver.GetReportDirectory();
@@ -662,12 +721,17 @@
     private async Task SaveAsync()
     {
         // --- Server-globale Einstellungen (Timer, Updates, Schnell-Notizen) ---
-        _appSettings.QuickNoteTemplates = ParseQuickNoteTemplates(_quickNoteTemplatesText);
+        _appSettings.QuickNoteTemplates = _quickNoteList
+            .Select(t => t.Trim())
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         if (_appSettings.QuickNoteTemplates.Count == 0)
         {
             _appSettings.QuickNoteTemplates = GetDefaultQuickNoteTemplates();
-            _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
+            _quickNoteList = new List<string>(_appSettings.QuickNoteTemplates);
         }
+        _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
 
         await SettingsService.SaveStaffelSettingsAsync(_staffelSettings);
         await SettingsService.SaveAppSettingsAsync(_appSettings);
@@ -799,6 +863,7 @@
         _appSettings = await SettingsService.GetAppSettingsAsync();
         EnsureQuickNoteTemplatesInitialized(_appSettings);
         _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
+        _quickNoteList = new List<string>(_appSettings.QuickNoteTemplates);
         _sessionImportJson = string.Empty;
         SetMaintenanceStatus("Daten wurden auf Standard zurueckgesetzt.", false);
     }
@@ -877,6 +942,7 @@
             _appSettings = await SettingsService.GetAppSettingsAsync();
             EnsureQuickNoteTemplatesInitialized(_appSettings);
             _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
+            _quickNoteList = new List<string>(_appSettings.QuickNoteTemplates);
             SetMaintenanceStatus("AppSettings wurden importiert.", false);
         }
         catch (Exception ex)
@@ -1004,6 +1070,7 @@
             _appSettings = await SettingsService.GetAppSettingsAsync();
             EnsureQuickNoteTemplatesInitialized(_appSettings);
             _quickNoteTemplatesText = string.Join(Environment.NewLine, _appSettings.QuickNoteTemplates);
+            _quickNoteList = new List<string>(_appSettings.QuickNoteTemplates);
 
             if (importedCount == 0)
             {

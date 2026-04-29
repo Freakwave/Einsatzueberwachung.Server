@@ -27,7 +27,7 @@
 <div class="sidebar-nav @(IsCollapsed ? "sidebar-collapsed" : "sidebar-expanded")">
     <nav class="nav flex-column nav-wrapper">
         <div class="nav-item px-2">
-            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All" title="Home">
                 <span class="nav-icon"><i class="bi bi-house-door-fill"></i></span>
                 <span class="nav-text">Home</span>
             </NavLink>
@@ -36,45 +36,45 @@
         <div class="nav-section-header nav-section-label">EINSATZ</div>
 
         <div class="nav-item px-2">
-            <NavLink class="nav-link" href="/einsatz-start">
+            <NavLink class="nav-link" href="/einsatz-start" title="Neuer Einsatz">
                 <span class="nav-icon"><i class="bi bi-exclamation-triangle-fill text-warning"></i></span>
                 <span class="nav-text">Neuer Einsatz</span>
             </NavLink>
         </div>
         <div class="nav-item px-2">
-            <NavLink class="nav-link" href="/einsatz-monitor">
+            <NavLink class="nav-link" href="/einsatz-monitor" title="Monitor">
                 <span class="nav-icon"><i class="bi bi-alarm"></i></span>
                 <span class="nav-text">Monitor</span>
             </NavLink>
         </div>
         <div class="nav-item px-2">
-            <NavLink class="nav-link" href="/einsatz-karte">
+            <NavLink class="nav-link" href="/einsatz-karte" title="Karte">
                 <span class="nav-icon"><i class="bi bi-map-fill"></i></span>
                 <span class="nav-text">Karte</span>
             </NavLink>
         </div>
         @* Bericht vorübergehend deaktiviert – wird in einer späteren Version fertiggestellt
         <div class="nav-item px-2">
-            <NavLink class="nav-link" href="/einsatz-bericht">
+            <NavLink class="nav-link" href="/einsatz-bericht" title="Bericht">
                 <span class="nav-icon"><i class="bi bi-file-earmark-text-fill"></i></span>
                 <span class="nav-text">Bericht</span>
             </NavLink>
         </div>
         *@
         <div class="nav-item px-2">
-            <NavLink class="nav-link" href="/einsatz-archiv">
+            <NavLink class="nav-link" href="/einsatz-archiv" title="Archiv">
                 <span class="nav-icon"><i class="bi bi-archive-fill"></i></span>
                 <span class="nav-text">Archiv</span>
             </NavLink>
         </div>
         <div class="nav-item px-2">
-            <NavLink class="nav-link" href="/wetter">
+            <NavLink class="nav-link" href="/wetter" title="Wetter">
                 <span class="nav-icon"><i class="bi bi-cloud-sun-fill"></i></span>
                 <span class="nav-text">Wetter</span>
             </NavLink>
         </div>
         <div class="nav-item px-2">
-            <NavLink class="nav-link" href="/divera">
+            <NavLink class="nav-link" href="/divera" title="Divera 24/7">
                 <span class="nav-icon"><i class="bi bi-broadcast-pin"></i></span>
                 <span class="nav-text">Divera 24/7</span>
             </NavLink>
@@ -83,13 +83,19 @@
         <div class="nav-section-header nav-section-label">VERWALTUNG</div>
 
         <div class="nav-item px-2">
-            <NavLink class="nav-link" href="/stammdaten">
+            <NavLink class="nav-link" href="/stammdaten" title="Stammdaten">
                 <span class="nav-icon"><i class="bi bi-journal-medical"></i></span>
                 <span class="nav-text">Stammdaten</span>
             </NavLink>
         </div>
         <div class="nav-item px-2">
-            <NavLink class="nav-link" href="/einstellungen">
+            <NavLink class="nav-link" href="/audit-log" title="Audit-Log">
+                <span class="nav-icon"><i class="bi bi-journal-text"></i></span>
+                <span class="nav-text">Audit-Log</span>
+            </NavLink>
+        </div>
+        <div class="nav-item px-2">
+            <NavLink class="nav-link" href="/einstellungen" title="Einstellungen">
                 <span class="nav-icon"><i class="bi bi-gear-fill"></i></span>
                 <span class="nav-text">Einstellungen</span>
             </NavLink>

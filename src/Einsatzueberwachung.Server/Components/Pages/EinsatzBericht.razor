@@ -13,9 +13,14 @@
             <h1 class="mb-1"><i class="bi bi-file-earmark-text me-2"></i>Einsatzbericht</h1>
             <p class="text-muted mb-0">Zusammenfassung und Export</p>
         </div>
-        <a class="btn btn-success" href="/downloads/einsatz-bericht.pdf" target="_blank" rel="noopener">
-            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Als PDF exportieren
-        </a>
+        <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-success" href="/downloads/einsatz-bericht.pdf" target="_blank" rel="noopener">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i>Als PDF exportieren
+            </a>
+            <a class="btn btn-outline-success" href="/downloads/einsatz-bericht.xlsx" target="_blank" rel="noopener">
+                <i class="bi bi-file-earmark-excel me-1"></i>Als Excel exportieren
+            </a>
+        </div>
     </div>
 
     <div class="row g-3 mb-3">
@@ -67,9 +72,19 @@
     </div>
 
     <div class="d-flex gap-2 flex-wrap report-actions">
-        <button class="btn btn-primary" @onclick="ExportAsync">PDF erzeugen</button>
-        <button class="btn btn-outline-success" @onclick="ArchiveAndEndAsync">Einsatz beenden und archivieren</button>
-        <button class="btn btn-outline-warning" @onclick="ArchiveAndResetAsync">Archivieren und neuen Einsatz vorbereiten</button>
+        <button class="btn btn-primary" @onclick="ExportAsync" disabled="@_isExporting">
+            @if (_isExporting)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                <span>PDF wird erstellt...</span>
+            }
+            else
+            {
+                <span>PDF erzeugen</span>
+            }
+        </button>
+        <button class="btn btn-outline-success" @onclick="() => ShowConfirm(ConfirmMode.End)">Einsatz beenden und archivieren</button>
+        <button class="btn btn-outline-warning" @onclick="() => ShowConfirm(ConfirmMode.Reset)">Archivieren und neuen Einsatz vorbereiten</button>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(_status))
@@ -78,7 +93,50 @@
     }
 </div>
 
+@if (_showConfirm)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @if (_confirmMode == ConfirmMode.Reset)
+                        {
+                            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-2"></i>
+                        }
+                        @_confirmTitle
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CancelConfirm"></button>
+                </div>
+                <div class="modal-body">
+                    <p>@_confirmMessage</p>
+                    @if (_confirmMode == ConfirmMode.Reset)
+                    {
+                        <div class="alert alert-warning py-2 mb-0">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            Alle aktiven Einsatzdaten (Teams, Notizen, Suchgebiete) werden gelöscht und können nicht wiederhergestellt werden.
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CancelConfirm">Abbrechen</button>
+                    <button class="btn @(_confirmMode == ConfirmMode.Reset ? "btn-warning" : "btn-success")" @onclick="ExecuteConfirmedActionAsync">
+                        @(_confirmMode == ConfirmMode.Reset ? "Archivieren & Zurücksetzen" : "Beenden & Archivieren")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
+    private enum ConfirmMode { End, Reset }
+
     private string _status = string.Empty;
     private string _ergebnis = "";
     private string _bemerkungen = "";
@@ -86,6 +144,37 @@
     private int _trackCount => EinsatzService.CurrentEinsatz.TrackSnapshots?.Count ?? 0;
 
     private bool _isExporting;
+    private bool _showConfirm;
+    private ConfirmMode _confirmMode;
+    private string _confirmTitle = string.Empty;
+    private string _confirmMessage = string.Empty;
+
+    private void ShowConfirm(ConfirmMode mode)
+    {
+        _confirmMode = mode;
+        if (mode == ConfirmMode.End)
+        {
+            _confirmTitle = "Einsatz beenden und archivieren";
+            _confirmMessage = $"Soll der Einsatz \"{EinsatzService.CurrentEinsatz.Einsatzort}\" jetzt abgeschlossen und archiviert werden?";
+        }
+        else
+        {
+            _confirmTitle = "Archivieren und Einsatz zurücksetzen";
+            _confirmMessage = $"Soll der Einsatz \"{EinsatzService.CurrentEinsatz.Einsatzort}\" archiviert und das System für einen neuen Einsatz vorbereitet werden?";
+        }
+        _showConfirm = true;
+    }
+
+    private void CancelConfirm() => _showConfirm = false;
+
+    private async Task ExecuteConfirmedActionAsync()
+    {
+        _showConfirm = false;
+        if (_confirmMode == ConfirmMode.End)
+            await ArchiveAndEndAsync();
+        else
+            await ArchiveAndResetAsync();
+    }
 
     private async Task ExportAsync()
     {

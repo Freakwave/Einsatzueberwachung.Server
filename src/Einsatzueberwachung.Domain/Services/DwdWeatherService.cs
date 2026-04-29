@@ -1,4 +1,4 @@
-// DWD Weather Service - Wetterdaten vom Deutschen Wetterdienst
+﻿// DWD Weather Service - Wetterdaten vom Deutschen Wetterdienst
 // Verwendet die BrightSky API (Open Source Proxy fuer DWD Open Data)
 // https://brightsky.dev/
 
@@ -345,7 +345,7 @@ namespace Einsatzueberwachung.Domain.Services
 
             // Wetterlage
             var schlechtesWetter = new[] { "rain", "snow", "sleet", "hail", "thunderstorm", "fog" };
-            if (!string.IsNullOrEmpty(condition) && schlechtesWetter.Contains(condition.ToLowerInvariant()))
+            if (!string.IsNullOrWhiteSpace(condition) && schlechtesWetter.Contains(condition.ToLowerInvariant()))
             {
                 var wetterHinweis = condition.ToLowerInvariant() switch
                 {
@@ -447,8 +447,9 @@ namespace Einsatzueberwachung.Domain.Services
 
                 return forecast;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger?.LogWarning(ex, "Fehler beim Abrufen der Wettervorhersage");
                 return null;
             }
         }
@@ -497,7 +498,7 @@ namespace Einsatzueberwachung.Domain.Services
 
         private string MapConditionToGerman(string? condition)
         {
-            if (string.IsNullOrEmpty(condition))
+            if (string.IsNullOrWhiteSpace(condition))
                 return "Unbekannt";
 
             return condition.ToLowerInvariant() switch

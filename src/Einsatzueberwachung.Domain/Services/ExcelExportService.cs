@@ -1,4 +1,4 @@
-// Excel Import/Export Service für Stammdaten
+﻿// Excel Import/Export Service für Stammdaten
 // Verwendet ClosedXML für Excel-Operationen
 
 using System;
@@ -227,7 +227,7 @@ namespace Einsatzueberwachung.Domain.Services
                     var vorname = row.Cell(colVorname).GetString().Trim();
                     var nachname = row.Cell(colNachname).GetString().Trim();
 
-                    if (string.IsNullOrEmpty(vorname) && string.IsNullOrEmpty(nachname))
+                    if (string.IsNullOrWhiteSpace(vorname) && string.IsNullOrWhiteSpace(nachname))
                         continue; // Leere Zeile überspringen
 
                     // Prüfen ob Person bereits existiert
@@ -272,7 +272,7 @@ namespace Einsatzueberwachung.Domain.Services
                 try
                 {
                     var name = row.Cell(1).GetString().Trim();
-                    if (string.IsNullOrEmpty(name))
+                    if (string.IsNullOrWhiteSpace(name))
                         continue;
 
                     // Prüfen ob Hund bereits existiert
@@ -290,7 +290,7 @@ namespace Einsatzueberwachung.Domain.Services
                     var hundefuehrerNames = hundefuehrerCell
                         .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
                         .Select(n => n.Trim())
-                        .Where(n => !string.IsNullOrEmpty(n))
+                        .Where(n => !string.IsNullOrWhiteSpace(n))
                         .ToList();
                     var hundefuehrerIds = new List<string>();
                     var missingNames = new List<string>();
@@ -341,13 +341,13 @@ namespace Einsatzueberwachung.Domain.Services
                     var name = row.Cell(1).GetString().Trim();
                     var seriennummer = row.Cell(4).GetString().Trim();
                     
-                    if (string.IsNullOrEmpty(name) && string.IsNullOrEmpty(seriennummer))
+                    if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(seriennummer))
                         continue;
 
                     // Prüfen ob Drohne bereits existiert (nach Name oder Seriennummer)
                     var existing = existingDrones.FirstOrDefault(d => 
-                        (!string.IsNullOrEmpty(name) && d.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrEmpty(seriennummer) && d.Seriennummer.Equals(seriennummer, StringComparison.OrdinalIgnoreCase)));
+                        (!string.IsNullOrWhiteSpace(name) && d.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
+                        (!string.IsNullOrWhiteSpace(seriennummer) && d.Seriennummer.Equals(seriennummer, StringComparison.OrdinalIgnoreCase)));
 
                     if (existing != null)
                     {
@@ -373,7 +373,7 @@ namespace Einsatzueberwachung.Domain.Services
                     await _masterDataService.AddDroneAsync(drone);
                     result.DrohnenImported++;
 
-                    if (!string.IsNullOrEmpty(pilotName) && pilot == null)
+                    if (!string.IsNullOrWhiteSpace(pilotName) && pilot == null)
                     {
                         result.Warnings.Add($"Drohnenpilot '{pilotName}' für Drohne '{name}' nicht gefunden");
                     }
@@ -474,6 +474,89 @@ namespace Einsatzueberwachung.Domain.Services
             wsDrohnen.Cell(2, 7).Value = "Ja";
 
             wsDrohnen.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            return Task.FromResult(stream.ToArray());
+        }
+
+        public Task<byte[]> ExportEinsatzAsync(EinsatzData einsatz, List<Team> teams, List<GlobalNotesEntry> notes)
+        {
+            using var workbook = new XLWorkbook();
+
+            // Blatt 1: Einsatzübersicht
+            var wsInfo = workbook.Worksheets.Add("Einsatz");
+            wsInfo.Cell(1, 1).Value = "Einsatzübersicht";
+            wsInfo.Cell(1, 1).Style.Font.Bold = true;
+            wsInfo.Cell(1, 1).Style.Font.FontSize = 14;
+
+            var infoRows = new[]
+            {
+                ("Einsatznummer", einsatz.EinsatzNummer),
+                ("Typ", einsatz.IstEinsatz ? "Einsatz" : "Übung"),
+                ("Einsatzort", einsatz.Einsatzort),
+                ("Alarmiert", einsatz.Alarmiert),
+                ("Einsatzleiter", einsatz.Einsatzleiter),
+                ("Führungsassistent", einsatz.Fuehrungsassistent),
+                ("Exportiert am", DateTime.Now.ToString("dd.MM.yyyy HH:mm"))
+            };
+
+            int r = 3;
+            foreach (var (label, value) in infoRows)
+            {
+                wsInfo.Cell(r, 1).Value = label;
+                wsInfo.Cell(r, 1).Style.Font.Bold = true;
+                wsInfo.Cell(r, 2).Value = value ?? "";
+                r++;
+            }
+            wsInfo.Columns().AdjustToContents();
+
+            // Blatt 2: Teams / Zeiterfassung
+            var wsTeams = workbook.Worksheets.Add("Teams");
+            string[] teamHeaders = ["Team", "Typ", "Hund", "Hundeführer", "Helfer", "Suchgebiet", "Laufzeit", "Status", "Notizen"];
+            for (int i = 0; i < teamHeaders.Length; i++)
+                wsTeams.Cell(1, i + 1).Value = teamHeaders[i];
+            var teamHeaderRange = wsTeams.Range(1, 1, 1, teamHeaders.Length);
+            teamHeaderRange.Style.Font.Bold = true;
+            teamHeaderRange.Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+
+            int tr = 2;
+            foreach (var team in teams.OrderBy(t => t.TeamName))
+            {
+                string typ = team.IsDroneTeam ? "Drohnenteam" : team.IsSupportTeam ? "Unterstützung" : "Hundeteam";
+                string status = team.IsRunning ? "Läuft" : team.IsPausing ? "Pause" : "Gestoppt";
+                wsTeams.Cell(tr, 1).Value = team.TeamName;
+                wsTeams.Cell(tr, 2).Value = typ;
+                wsTeams.Cell(tr, 3).Value = team.DogName ?? "";
+                wsTeams.Cell(tr, 4).Value = team.HundefuehrerName ?? "";
+                wsTeams.Cell(tr, 5).Value = team.HelferName ?? "";
+                wsTeams.Cell(tr, 6).Value = team.SearchAreaName ?? "";
+                wsTeams.Cell(tr, 7).Value = team.ElapsedTime.ToString(@"hh\:mm\:ss");
+                wsTeams.Cell(tr, 8).Value = status;
+                wsTeams.Cell(tr, 9).Value = team.Notes ?? "";
+                tr++;
+            }
+            wsTeams.Columns().AdjustToContents();
+
+            // Blatt 3: Notizen & Funksprüche
+            var wsNotes = workbook.Worksheets.Add("Notizen");
+            string[] noteHeaders = ["Zeit", "Typ", "Quelle", "Text"];
+            for (int i = 0; i < noteHeaders.Length; i++)
+                wsNotes.Cell(1, i + 1).Value = noteHeaders[i];
+            var noteHeaderRange = wsNotes.Range(1, 1, 1, noteHeaders.Length);
+            noteHeaderRange.Style.Font.Bold = true;
+            noteHeaderRange.Style.Fill.BackgroundColor = XLColor.LightYellow;
+
+            int nr = 2;
+            foreach (var note in notes.OrderBy(n => n.Timestamp))
+            {
+                wsNotes.Cell(nr, 1).Value = note.Timestamp.ToString("dd.MM.yyyy HH:mm:ss");
+                wsNotes.Cell(nr, 2).Value = note.SourceType ?? "";
+                wsNotes.Cell(nr, 3).Value = note.SourceTeamName ?? "";
+                wsNotes.Cell(nr, 4).Value = note.Text ?? "";
+                nr++;
+            }
+            wsNotes.Columns().AdjustToContents();
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);

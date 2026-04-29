@@ -1,4 +1,4 @@
-@page "/stammdaten"
+﻿@page "/stammdaten"
 @rendermode InteractiveServer
 
 @inject IMasterDataService MasterDataService
@@ -833,7 +833,7 @@
             .Select(id => _personal.FirstOrDefault(p => p.Id == id)?.FullName)
             .Where(n => n != null);
         var result = string.Join(", ", names);
-        return string.IsNullOrEmpty(result) ? "-" : result;
+        return string.IsNullOrWhiteSpace(result) ? "-" : result;
     }
 
     private void ToggleHundefuehrer(string personalId, bool enabled)

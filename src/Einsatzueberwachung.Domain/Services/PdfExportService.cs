@@ -174,7 +174,7 @@ namespace Einsatzueberwachung.Domain.Services
                         {
                             if (team.IsDroneTeam)
                                 col.Item().Text($"Drohne: {team.DroneType}").FontSize(9);
-                            else if (!string.IsNullOrEmpty(team.DogName))
+                            else if (!string.IsNullOrWhiteSpace(team.DogName))
                             {
                                 col.Item().Text(team.DogName).FontSize(9);
                                 col.Item().Text($"({team.DogSpecialization.GetShortName()})").FontSize(8).Italic();
@@ -186,7 +186,7 @@ namespace Einsatzueberwachung.Domain.Services
                         table.Cell().Element(c => CellStyle(c, bg)).Column(col =>
                         {
                             col.Item().Text(team.HundefuehrerName).FontSize(9);
-                            if (!string.IsNullOrEmpty(team.HelferName))
+                            if (!string.IsNullOrWhiteSpace(team.HelferName))
                                 col.Item().Text($"Helfer: {team.HelferName}").FontSize(8).Italic();
                         });
 
@@ -863,9 +863,9 @@ namespace Einsatzueberwachung.Domain.Services
 
                         table.Cell().Element(c => RowCell(c, bg)).Column(col =>
                         {
-                            if (!string.IsNullOrEmpty(team.DroneName))
+                            if (!string.IsNullOrWhiteSpace(team.DroneName))
                                 col.Item().Text($"Drohne: {team.DroneName}").FontSize(9);
-                            else if (!string.IsNullOrEmpty(team.DogName))
+                            else if (!string.IsNullOrWhiteSpace(team.DogName))
                                 col.Item().Text(team.DogName).FontSize(9);
                             else
                                 col.Item().Text("-").FontSize(9);
@@ -1009,7 +1009,7 @@ namespace Einsatzueberwachung.Domain.Services
                         .Bold()
                         .FontColor(textColor);
                     
-                    if (!string.IsNullOrEmpty(einsatz.Bemerkungen))
+                    if (!string.IsNullOrWhiteSpace(einsatz.Bemerkungen))
                     {
                         col.Item().PaddingTop(10).Text("Bemerkungen:")
                             .FontSize(10)
@@ -1109,7 +1109,7 @@ namespace Einsatzueberwachung.Domain.Services
 
                         table.Cell().Element(c => RowCell(c, bg)).Text(track.TeamName).FontSize(9);
                         table.Cell().Element(c => RowCell(c, bg)).Text(track.CollarName).FontSize(9);
-                        table.Cell().Element(c => RowCell(c, bg)).Text(string.IsNullOrEmpty(track.SearchAreaName) ? "-" : track.SearchAreaName).FontSize(9);
+                        table.Cell().Element(c => RowCell(c, bg)).Text(string.IsNullOrWhiteSpace(track.SearchAreaName) ? "-" : track.SearchAreaName).FontSize(9);
                         table.Cell().Element(c => RowCell(c, bg)).AlignCenter().Text(track.FormattedDistance).FontSize(9);
                         table.Cell().Element(c => RowCell(c, bg)).AlignCenter().Text(track.FormattedDuration).FontSize(9);
                         table.Cell().Element(c => RowCell(c, bg)).AlignCenter().Text($"{track.Points.Count}").FontSize(9);
@@ -1138,7 +1138,7 @@ namespace Einsatzueberwachung.Domain.Services
                         });
 
                         // GPS-Track + Suchgebiet als Kartenbild (OSM-Tiles) oder SVG-Fallback
-                        if (!string.IsNullOrEmpty(track.MapImageBase64))
+                        if (!string.IsNullOrWhiteSpace(track.MapImageBase64))
                         {
                             var imageBytes = Convert.FromBase64String(track.MapImageBase64);
                             trackCol.Item().PaddingTop(5).Image(imageBytes).FitWidth();
@@ -1156,7 +1156,7 @@ namespace Einsatzueberwachung.Domain.Services
                             if (track.SearchAreaCoordinates?.Count >= 3)
                             {
                                 row.AutoItem().PaddingLeft(10).Text($"▪ Suchgebiet: {track.SearchAreaName}").FontSize(7)
-                                    .FontColor(!string.IsNullOrEmpty(track.SearchAreaColor) ? track.SearchAreaColor : Colors.Blue.Medium);
+                                    .FontColor(!string.IsNullOrWhiteSpace(track.SearchAreaColor) ? track.SearchAreaColor : Colors.Blue.Medium);
                             }
                             row.RelativeItem();
                         });
@@ -1255,7 +1255,7 @@ namespace Einsatzueberwachung.Domain.Services
                 if (!renderedAreas.Add(areaKey))
                     continue;
 
-                var areaColor = !string.IsNullOrEmpty(track.SearchAreaColor) ? track.SearchAreaColor : "#3388ff";
+                var areaColor = !string.IsNullOrWhiteSpace(track.SearchAreaColor) ? track.SearchAreaColor : "#3388ff";
                 var safeAreaColor = System.Security.SecurityElement.Escape(areaColor);
                 var areaPoints = string.Join(" ", track.SearchAreaCoordinates!.Select(coord =>
                     $"{ToX(coord.Longitude).ToString("F1", inv)},{ToY(coord.Latitude).ToString("F1", inv)}"));
@@ -1372,7 +1372,7 @@ namespace Einsatzueberwachung.Domain.Services
             // Suchgebiet-Polygon (halbtransparent mit Füllmuster)
             if (hasArea)
             {
-                var areaColor = !string.IsNullOrEmpty(track.SearchAreaColor) ? track.SearchAreaColor : "#3388ff";
+                var areaColor = !string.IsNullOrWhiteSpace(track.SearchAreaColor) ? track.SearchAreaColor : "#3388ff";
                 var safeAreaColor = System.Security.SecurityElement.Escape(areaColor);
                 var areaPoints = string.Join(" ", track.SearchAreaCoordinates!.Select(c =>
                     $"{ToX(c.Longitude).ToString("F1", inv)},{ToY(c.Latitude).ToString("F1", inv)}"));
@@ -1434,7 +1434,7 @@ namespace Einsatzueberwachung.Domain.Services
 
         private static (byte r, byte g, byte b) ParseHexColor(string hex)
         {
-            if (string.IsNullOrEmpty(hex) || hex.Length < 7)
+            if (string.IsNullOrWhiteSpace(hex) || hex.Length < 7)
                 return (255, 68, 68); // default red
 
             try

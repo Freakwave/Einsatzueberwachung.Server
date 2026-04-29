@@ -1,4 +1,4 @@
-// Repräsentiert einen Koordinaten-Marker auf der Karte
+﻿// Repräsentiert einen Koordinaten-Marker auf der Karte
 // Kann per Mausklick oder durch Eingabe von Dezimal-/UTM-Koordinaten erstellt werden
 
 using System;
@@ -41,7 +41,7 @@ namespace Einsatzueberwachung.Domain.Models
         }
 
         public string FormattedLatLng => $"{Latitude:F6}° / {Longitude:F6}°";
-        public string FormattedUtm => !string.IsNullOrEmpty(UtmZone)
+        public string FormattedUtm => !string.IsNullOrWhiteSpace(UtmZone)
             ? $"{UtmZone} {UtmEasting:F0} E / {UtmNorthing:F0} N"
             : "";
         public string FormattedTimestamp => CreatedAt.ToString("HH:mm:ss");

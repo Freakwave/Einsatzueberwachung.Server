@@ -25,16 +25,26 @@
         </div>
         <div class="card-body">
             <div class="row g-2">
-                <div class="col-12 col-md-4">
-                    <InputText class="form-control" @bind-Value="_search" placeholder="Suche nach Ort, Leiter, Ergebnis" />
+                <div class="col-12 col-md-3">
+                    <InputText class="form-control" @bind-Value="_search" placeholder="Suche nach Ort, Ergebnis..." />
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-2">
+                    <InputText class="form-control" @bind-Value="_einsatzleiterFilter" placeholder="Einsatzleiter" />
+                </div>
+                <div class="col-6 col-md-2">
+                    <select class="form-select" @bind="_typFilter">
+                        <option value="">Alle Typen</option>
+                        <option value="einsatz">Nur Einsätze</option>
+                        <option value="uebung">Nur Übungen</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
                     <InputDate class="form-control" @bind-Value="_fromDate" />
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-6 col-md-2">
                     <InputDate class="form-control" @bind-Value="_toDate" />
                 </div>
-                <div class="col-12 col-md-2 d-grid">
+                <div class="col-6 col-md-1 d-grid">
                     <button class="btn btn-outline-primary" @onclick="SearchAsync">Filtern</button>
                 </div>
             </div>
@@ -57,6 +67,50 @@
                 <div class="card archive-stat-card"><div class="card-body"><div class="text-muted small">Dauer (avg)</div><div class="archive-stat-value">@_stats.DurchschnittlicheDauer.ToString(@"hh\:mm")</div></div></div>
             </div>
         </div>
+
+        @if (_stats.EinsaetzeProJahr.Count > 0 || _stats.EinsaetzeProMonat.Count > 0)
+        {
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between">
+                    <span class="fw-semibold"><i class="bi bi-bar-chart-line me-2 text-primary"></i>Verlauf</span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn @(_trendView == "monat" ? "btn-primary" : "btn-outline-primary")"
+                                @onclick='() => _trendView = "monat"'>Monatlich</button>
+                        <button class="btn @(_trendView == "jahr" ? "btn-primary" : "btn-outline-primary")"
+                                @onclick='() => _trendView = "jahr"'>Jährlich</button>
+                    </div>
+                </div>
+                <div class="card-body pt-0">
+                    @{
+                        var trendData = _trendView == "jahr"
+                            ? _stats.EinsaetzeProJahr.OrderBy(kv => kv.Key).ToList()
+                            : _stats.EinsaetzeProMonat.OrderBy(kv => kv.Key).TakeLast(12).ToList();
+                        var maxVal = trendData.Count > 0 ? trendData.Max(kv => kv.Value) : 1;
+                    }
+                    @if (trendData.Count == 0)
+                    {
+                        <p class="text-muted small mb-0">Keine Trenddaten vorhanden.</p>
+                    }
+                    else
+                    {
+                        <div class="d-flex align-items-end gap-1" style="height: 100px; overflow-x: auto;">
+                            @foreach (var kv in trendData)
+                            {
+                                var heightPct = maxVal > 0 ? (int)(kv.Value * 100.0 / maxVal) : 0;
+                                var label = _trendView == "jahr" ? kv.Key : kv.Key.Length >= 7 ? kv.Key[2..7] : kv.Key;
+                                <div class="d-flex flex-column align-items-center" style="min-width: 32px; flex: 1 0 32px; max-width: 60px;">
+                                    <span class="text-muted" style="font-size: 0.65rem;">@kv.Value</span>
+                                    <div class="bg-primary rounded-top w-100"
+                                         style="height: @(heightPct)px; transition: height 0.3s; min-height: 2px;"
+                                         title="@kv.Key: @kv.Value"></div>
+                                    <span class="text-muted text-truncate w-100 text-center" style="font-size: 0.6rem;">@label</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
     }
 
     @if (!string.IsNullOrWhiteSpace(_status))
@@ -74,6 +128,18 @@
     }
     else
     {
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small">
+                @if (_entries.Count == _totalCount)
+                {
+                    <text>@_totalCount Eintr@(_totalCount == 1 ? "ag" : "äge")</text>
+                }
+                else
+                {
+                    <text>@_entries.Count von @_totalCount Einträgen</text>
+                }
+            </span>
+        </div>
         <div class="table-responsive archive-table-wrap">
             <table class="table table-striped archive-table">
                 <thead>
@@ -373,11 +439,15 @@
 @code {
     private bool _loading = true;
     private List<ArchivedEinsatz> _entries = new();
+    private int _totalCount;
     private ArchivStatistics? _stats;
     private string _search = string.Empty;
+    private string _einsatzleiterFilter = string.Empty;
+    private string _typFilter = string.Empty;
     private DateTime? _fromDate;
     private DateTime? _toDate;
     private string _status = string.Empty;
+    private string _trendView = "monat";
     private ArchivedEinsatz? _selected;
     private ArchivedEinsatz? _deleteCandidate;
     private TeamTrackSnapshot? _archiveTrackPopup;
@@ -392,6 +462,7 @@
     {
         _loading = true;
         _entries = await ArchivService.GetAllArchivedAsync();
+        _totalCount = _entries.Count;
         _stats = await ArchivService.GetStatisticsAsync();
         _loading = false;
     }
@@ -403,7 +474,9 @@
         {
             Suchtext = string.IsNullOrWhiteSpace(_search) ? null : _search.Trim(),
             VonDatum = _fromDate,
-            BisDatum = _toDate
+            BisDatum = _toDate,
+            NurEinsaetze = _typFilter == "einsatz" ? true : _typFilter == "uebung" ? false : null,
+            Einsatzleiter = string.IsNullOrWhiteSpace(_einsatzleiterFilter) ? null : _einsatzleiterFilter.Trim()
         };
 
         _entries = await ArchivService.SearchAsync(criteria);

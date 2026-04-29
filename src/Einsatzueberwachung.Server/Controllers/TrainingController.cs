@@ -385,11 +385,6 @@ public sealed class TrainingController : ControllerBase
         {
             return NotFound(new { error = ex.Message });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Training write operation failed for exercise {ExerciseId}", exerciseId);
-            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Training write operation failed." });
-        }
     }
 
     private static string ResolveTeamStatus(Einsatzueberwachung.Domain.Models.Team team)

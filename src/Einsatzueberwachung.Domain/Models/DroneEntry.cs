@@ -25,7 +25,7 @@ namespace Einsatzueberwachung.Domain.Models
             IsActive = true;
         }
 
-        public string DisplayName => !string.IsNullOrEmpty(Name) ? Name : Modell;
+        public string DisplayName => !string.IsNullOrWhiteSpace(Name) ? Name : Modell;
         public string FullDescription => $"{Hersteller} {Modell}".Trim();
     }
 }

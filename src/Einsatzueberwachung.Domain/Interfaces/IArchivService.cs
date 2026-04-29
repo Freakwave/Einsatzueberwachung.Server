@@ -86,6 +86,7 @@ namespace Einsatzueberwachung.Domain.Interfaces
         public bool? NurEinsaetze { get; set; } // true = nur Einsaetze, false = nur Uebungen, null = alle
         public string? Ergebnis { get; set; }
         public string? Einsatzort { get; set; }
+        public string? Einsatzleiter { get; set; }
     }
 
     /// <summary>

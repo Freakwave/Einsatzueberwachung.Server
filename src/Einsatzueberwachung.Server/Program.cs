@@ -1,4 +1,5 @@
 using Einsatzueberwachung.Server.Components;
+using Einsatzueberwachung.Server.Middleware;
 using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Services;
 using Einsatzueberwachung.Server.Hubs;
@@ -174,12 +175,15 @@ builder.Services.AddSingleton<IMasterDataService, MasterDataService>();
 builder.Services.AddSingleton<ISettingsService, SettingsService>();
 builder.Services.AddSingleton<ITimeService, AppTimeService>();
 builder.Services.AddSingleton<IEinsatzService, EinsatzService>();
+builder.Services.AddSingleton<IDashboardLayoutService, DashboardLayoutService>();
 builder.Services.AddSingleton<ICollarTrackingService, CollarTrackingService>();
 builder.Services.AddSingleton<IPdfExportService, PdfExportService>();
 builder.Services.AddSingleton<IExcelExportService, ExcelExportService>();
 builder.Services.AddSingleton<IArchivService, ArchivService>();
 builder.Services.AddSingleton<IEinsatzMergeService, EinsatzMergeService>();
 builder.Services.AddSingleton<IEinsatzExportService, EinsatzExportService>();
+builder.Services.AddSingleton<IAuditLogService, AuditLogService>();
+builder.Services.AddHostedService<AuditLogRelayService>();
 builder.Services.AddSingleton<ToastService>();
 builder.Services.AddScoped<BrowserPreferencesService>();
 builder.Services.AddScoped<IRadioService, RadioService>();
@@ -224,6 +228,8 @@ var app = builder.Build();
 
 // Forwarded Headers MUSS als erstes kommen (Nginx!)
 app.UseForwardedHeaders();
+
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 // Response Compression aktivieren
 app.UseResponseCompression();
@@ -307,6 +313,18 @@ app.MapGet("/downloads/einsatz-archiv.json", async (IArchivService archivService
 {
     var bytes = await archivService.ExportAllAsJsonAsync();
     return Results.File(bytes, "application/json", $"einsatz-archiv-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+});
+
+app.MapGet("/downloads/einsatz-bericht.xlsx", async (IEinsatzService einsatzService, IExcelExportService excelExportService) =>
+{
+    var einsatz = einsatzService.CurrentEinsatz;
+    var teams = einsatzService.Teams;
+    var notes = einsatzService.GlobalNotes;
+    var fileNamePart = string.IsNullOrWhiteSpace(einsatz.EinsatzNummer)
+        ? $"einsatzbericht-{DateTime.Now:yyyyMMdd-HHmmss}"
+        : einsatz.EinsatzNummer.Replace("/", "-").Replace(" ", "_");
+    var bytes = await excelExportService.ExportEinsatzAsync(einsatz, teams, notes);
+    return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{fileNamePart}.xlsx");
 });
 
 app.MapGet("/downloads/app-settings.json", async (ISettingsService settingsService) =>

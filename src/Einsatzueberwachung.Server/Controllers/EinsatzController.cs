@@ -1,5 +1,6 @@
 using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
+using Einsatzueberwachung.Server.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Einsatzueberwachung.Server.Controllers;
@@ -11,39 +12,29 @@ public class EinsatzController : ControllerBase
 {
     private readonly IEinsatzService _einsatzService;
     private readonly ITimeService _timeService;
-    private readonly ILogger<EinsatzController> _logger;
 
-    public EinsatzController(IEinsatzService einsatzService, ITimeService timeService, ILogger<EinsatzController> logger)
+    public EinsatzController(IEinsatzService einsatzService, ITimeService timeService)
     {
         _einsatzService = einsatzService;
         _timeService = timeService;
-        _logger = logger;
     }
 
     [HttpGet("current")]
     public IActionResult GetCurrentEinsatz()
     {
-        try
-        {
-            var einsatz = _einsatzService.CurrentEinsatz;
-            var hasActiveEinsatz =
-                !string.IsNullOrWhiteSpace(einsatz.Einsatzort)
-                || !string.IsNullOrWhiteSpace(einsatz.Einsatzleiter)
-                || _einsatzService.Teams.Count > 0;
+        var einsatz = _einsatzService.CurrentEinsatz;
+        var hasActiveEinsatz =
+            !string.IsNullOrWhiteSpace(einsatz.Einsatzort)
+            || !string.IsNullOrWhiteSpace(einsatz.Einsatzleiter)
+            || _einsatzService.Teams.Count > 0;
 
-            var response = new CurrentEinsatzResponse(
-                hasActiveEinsatz,
-                hasActiveEinsatz ? ToEinsatzDto(einsatz) : null,
-                _einsatzService.Teams.Count,
-                _einsatzService.Teams.Count(t => t.IsRunning));
+        var response = new CurrentEinsatzResponse(
+            hasActiveEinsatz,
+            hasActiveEinsatz ? ToEinsatzDto(einsatz) : null,
+            _einsatzService.Teams.Count,
+            _einsatzService.Teams.Count(t => t.IsRunning));
 
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Fehler beim Abrufen des aktuellen Einsatzes");
-            return StatusCode(500, new { error = ex.Message });
-        }
+        return Ok(response);
     }
 
     [HttpPost("start")]
@@ -51,73 +42,57 @@ public class EinsatzController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.Einsatzort) || string.IsNullOrWhiteSpace(request.Einsatzleiter))
         {
-            return BadRequest(new { error = "Einsatzort und Einsatzleiter sind erforderlich." });
+            return BadRequest(new ErrorResponse("Einsatzort und Einsatzleiter sind erforderlich."));
         }
 
-        try
+        var now = _timeService.Now;
+        var einsatz = new EinsatzData
         {
-            var now = _timeService.Now;
-            var einsatz = new EinsatzData
-            {
-                EinsatzNummer = string.IsNullOrWhiteSpace(request.EinsatzNummer)
-                    ? $"E-{now:yyyyMMdd-HHmmss}"
-                    : request.EinsatzNummer.Trim(),
-                Einsatzleiter = request.Einsatzleiter.Trim(),
-                Fuehrungsassistent = request.Fuehrungsassistent?.Trim() ?? string.Empty,
-                Alarmiert = string.IsNullOrWhiteSpace(request.Alarmiert)
-                    ? now.ToString("dd.MM.yyyy HH:mm")
-                    : request.Alarmiert.Trim(),
-                Einsatzort = request.Einsatzort.Trim(),
-                MapAddress = request.Einsatzort.Trim(),
-                IstEinsatz = request.IstEinsatz,
-                EinsatzDatum = request.EinsatzDatum ?? now,
-                AlarmierungsZeit = request.EinsatzDatum ?? now,
-                ExportPfad = string.Empty
-            };
+            EinsatzNummer = string.IsNullOrWhiteSpace(request.EinsatzNummer)
+                ? $"E-{now:yyyyMMdd-HHmmss}"
+                : request.EinsatzNummer.Trim(),
+            Einsatzleiter = request.Einsatzleiter.Trim(),
+            Fuehrungsassistent = request.Fuehrungsassistent?.Trim() ?? string.Empty,
+            Alarmiert = string.IsNullOrWhiteSpace(request.Alarmiert)
+                ? now.ToString("dd.MM.yyyy HH:mm")
+                : request.Alarmiert.Trim(),
+            Einsatzort = request.Einsatzort.Trim(),
+            MapAddress = request.Einsatzort.Trim(),
+            IstEinsatz = request.IstEinsatz,
+            EinsatzDatum = request.EinsatzDatum ?? now,
+            AlarmierungsZeit = request.EinsatzDatum ?? now,
+            ExportPfad = string.Empty
+        };
 
-            await _einsatzService.StartEinsatzAsync(einsatz);
+        await _einsatzService.StartEinsatzAsync(einsatz);
 
-            if (!string.IsNullOrWhiteSpace(request.Bemerkung))
-            {
-                await _einsatzService.AddGlobalNoteWithSourceAsync(
-                    request.Bemerkung.Trim(),
-                    "api",
-                    "Mobile",
-                    "Notiz",
-                    Domain.Models.Enums.GlobalNotesEntryType.Manual,
-                    "Mobile");
-            }
-
-            return Ok(new
-            {
-                message = "Einsatz gestartet",
-                einsatz = ToEinsatzDto(_einsatzService.CurrentEinsatz)
-            });
-        }
-        catch (Exception ex)
+        if (!string.IsNullOrWhiteSpace(request.Bemerkung))
         {
-            _logger.LogError(ex, "Fehler beim Starten des Einsatzes");
-            return StatusCode(500, new { error = ex.Message });
+            await _einsatzService.AddGlobalNoteWithSourceAsync(
+                request.Bemerkung.Trim(),
+                "api",
+                "Mobile",
+                "Notiz",
+                Domain.Models.Enums.GlobalNotesEntryType.Manual,
+                "Mobile");
         }
+
+        return Ok(new
+        {
+            message = "Einsatz gestartet",
+            einsatz = ToEinsatzDto(_einsatzService.CurrentEinsatz)
+        });
     }
 
     [HttpGet("teams")]
     public IActionResult GetTeams()
     {
-        try
-        {
-            var teams = _einsatzService.Teams
-                .OrderBy(t => t.TeamName)
-                .Select(ToTeamDto)
-                .ToList();
+        var teams = _einsatzService.Teams
+            .OrderBy(t => t.TeamName)
+            .Select(ToTeamDto)
+            .ToList();
 
-            return Ok(new { teams });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Fehler beim Abrufen der Teams");
-            return StatusCode(500, new { error = ex.Message });
-        }
+        return Ok(new { teams });
     }
 
     [HttpPost("teams/{teamId}/start")]
@@ -131,28 +106,15 @@ public class EinsatzController : ControllerBase
         catch (InvalidOperationException ex)
         {
             // Bekannter Konflikt (z.B. Hund läuft bereits in einem anderen Team) → 409
-            return Conflict(new { error = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Fehler beim Starten des Timers fuer Team {TeamId}", teamId);
-            return StatusCode(500, new { error = ex.Message });
+            return Conflict(new ErrorResponse(ex.Message));
         }
     }
 
     [HttpPost("teams/{teamId}/stop")]
     public async Task<IActionResult> StopTeamTimer(string teamId)
     {
-        try
-        {
-            await _einsatzService.StopTeamTimerAsync(teamId);
-            return Ok(new { message = "Timer gestoppt", teamId });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Fehler beim Stoppen des Timers fuer Team {TeamId}", teamId);
-            return StatusCode(500, new { error = ex.Message });
-        }
+        await _einsatzService.StopTeamTimerAsync(teamId);
+        return Ok(new { message = "Timer gestoppt", teamId });
     }
 
     private static EinsatzDto ToEinsatzDto(EinsatzData einsatz)

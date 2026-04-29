@@ -52,6 +52,11 @@ namespace Einsatzueberwachung.Domain.Models
         public TimeSpan RunTimeBeforePause { get; set; }
         public int RequiredPauseMinutes { get; set; }
 
+        // Konfigurierbare Pausen-Schwellwerte (werden von EinsatzService aus AppSettings gesetzt)
+        public int PauseThresholdMinutes { get; set; } = 20;
+        public int PauseMinutesShortRun { get; set; } = 60;
+        public int PauseMinutesLongRun { get; set; } = 180;
+
         public TimeSpan PausedDuration => IsPausing && PauseStartTime.HasValue
             ? DateTime.Now - PauseStartTime.Value
             : TimeSpan.Zero;
@@ -62,7 +67,7 @@ namespace Einsatzueberwachung.Domain.Models
 
         public bool IsPauseComplete => IsPausing && PausedDuration.TotalMinutes >= RequiredPauseMinutes;
 
-        private bool IsHundeteam => !IsDroneTeam && !IsSupportTeam && !string.IsNullOrEmpty(DogId);
+        private bool IsHundeteam => !IsDroneTeam && !IsSupportTeam && !string.IsNullOrWhiteSpace(DogId);
 
         public event Action<Team>? TimerStarted;
         public event Action<Team>? TimerStopped;
@@ -125,7 +130,7 @@ namespace Einsatzueberwachung.Domain.Models
 
                 if (IsHundeteam && ElapsedTime.TotalMinutes >= 10)
                 {
-                    EnterPauseMode();
+                    EnterPauseMode(pauseThreshold: PauseThresholdMinutes, pauseShort: PauseMinutesShortRun, pauseLong: PauseMinutesLongRun);
                 }
             }
         }
@@ -143,10 +148,10 @@ namespace Einsatzueberwachung.Domain.Models
             TimerReset?.Invoke(this);
         }
 
-        public void EnterPauseMode(DateTime? now = null)
+        public void EnterPauseMode(DateTime? now = null, int pauseThreshold = 20, int pauseShort = 60, int pauseLong = 180)
         {
             RunTimeBeforePause = ElapsedTime;
-            RequiredPauseMinutes = ElapsedTime.TotalMinutes <= 20 ? 60 : 180;
+            RequiredPauseMinutes = ElapsedTime.TotalMinutes <= pauseThreshold ? pauseShort : pauseLong;
             PauseStartTime = now ?? DateTime.Now;
             IsPausing = true;
         }

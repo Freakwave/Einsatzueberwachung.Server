@@ -1,4 +1,4 @@
-// Archivierter Einsatz - Speichert abgeschlossene Einsaetze fuer Historien-Ansicht
+﻿// Archivierter Einsatz - Speichert abgeschlossene Einsaetze fuer Historien-Ansicht
 
 using System;
 using System.Collections.Generic;
@@ -194,11 +194,11 @@ namespace Einsatzueberwachung.Domain.Models
             };
 
             // Personal hinzufuegen
-            if (!string.IsNullOrEmpty(team.HundefuehrerName))
+            if (!string.IsNullOrWhiteSpace(team.HundefuehrerName))
             {
                 archived.MemberNames.Add(team.HundefuehrerName);
             }
-            if (!string.IsNullOrEmpty(team.HelferName))
+            if (!string.IsNullOrWhiteSpace(team.HelferName))
             {
                 archived.MemberNames.Add(team.HelferName);
             }

@@ -99,6 +99,65 @@
                     </div>
                 </div>
             </div>
+
+            @* ── Import-Historie (Rückgängig-Machen) ── *@
+            @if (string.IsNullOrEmpty(ArchivedEinsatzId))
+            {
+                <hr class="mt-4" />
+                <h5 class="mb-3"><i class="bi bi-clock-history me-2"></i>Import-Historie</h5>
+                @if (_mergeHistoryLoading)
+                {
+                    <div class="text-muted small">
+                        <span class="spinner-border spinner-border-sm me-1"></span>Wird geladen…
+                    </div>
+                }
+                else if (_mergeHistory.Count == 0)
+                {
+                    <p class="text-muted small">Für diesen Einsatz wurden noch keine Importe durchgeführt.</p>
+                }
+                else
+                {
+                    <div class="list-group">
+                        @foreach (var merge in _mergeHistory)
+                        {
+                            <div class="list-group-item d-flex justify-content-between align-items-start gap-3">
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold">
+                                        @(string.IsNullOrEmpty(merge.Label) ? "(kein Label)" : merge.Label)
+                                        @if (merge.IsReverted)
+                                        {
+                                            <span class="badge bg-secondary ms-2">Rückgängig gemacht</span>
+                                        }
+                                    </div>
+                                    <div class="small text-muted">
+                                        @merge.FormattedMergedAt &bull; @merge.Summary
+                                    </div>
+                                    @if (_historyRevertErrors.TryGetValue(merge.MergeId, out var err))
+                                    {
+                                        <div class="text-danger small mt-1">@err</div>
+                                    }
+                                </div>
+                                @if (!merge.IsReverted)
+                                {
+                                    <button class="btn btn-outline-danger btn-sm flex-shrink-0"
+                                            @onclick="() => RevertHistoryMergeAsync(merge.MergeId)"
+                                            disabled="@_revertingHistoryIds.Contains(merge.MergeId)">
+                                        @if (_revertingHistoryIds.Contains(merge.MergeId))
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i>
+                                        }
+                                        <span>Rückgängig</span>
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            }
         }
 
         @* ── Unterabschnitt-Modus (bestehender Merge-Wizard) ── *@
@@ -1496,6 +1555,12 @@
     private bool _revertSuccess = false;
     private string _mergeLabel = string.Empty;
 
+    // ── Import-Historie ──
+    private List<MergeHistoryEntry> _mergeHistory = new();
+    private bool _mergeHistoryLoading = false;
+    private readonly HashSet<string> _revertingHistoryIds = new();
+    private readonly Dictionary<string, string> _historyRevertErrors = new();
+
     private readonly List<(int Number, string Label)> _steps = new()
     {
         (1, "Upload"),
@@ -1597,6 +1662,7 @@
         {
             await MergeService.ApplyMergeAsync(_session);
             _currentStep = MergeWizardStep.Result;
+            await LoadMergeHistoryAsync();
         }
         catch (Exception ex)
         {
@@ -1619,6 +1685,7 @@
                 _session.AppliedMerge.MergeId,
                 EffectiveMergeTargetId);
             _revertSuccess = true;
+            await LoadMergeHistoryAsync();
         }
         catch (Exception ex)
         {
@@ -1627,6 +1694,33 @@
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private async Task LoadMergeHistoryAsync()
+    {
+        if (!string.IsNullOrEmpty(ArchivedEinsatzId)) return;
+        _mergeHistoryLoading = true;
+        _mergeHistory = await MergeService.GetMergeHistoryAsync(null);
+        _mergeHistoryLoading = false;
+    }
+
+    private async Task RevertHistoryMergeAsync(string mergeId)
+    {
+        _revertingHistoryIds.Add(mergeId);
+        _historyRevertErrors.Remove(mergeId);
+        try
+        {
+            await MergeService.RevertMergeAsync(mergeId, null);
+            await LoadMergeHistoryAsync();
+        }
+        catch (Exception ex)
+        {
+            _historyRevertErrors[mergeId] = $"Rückgängig fehlgeschlagen: {ex.Message}";
+        }
+        finally
+        {
+            _revertingHistoryIds.Remove(mergeId);
         }
     }
 
@@ -1945,11 +2039,13 @@
     private string _exportStatusMessage = string.Empty;
     private bool _exportStatusIsError;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         // Vorauswahl: alle Teams des laufenden Einsatzes
         foreach (var team in EinsatzService.Teams)
             _selectedTeamIds.Add(team.TeamId);
+
+        await LoadMergeHistoryAsync();
     }
 
     private async Task OnExportSourceChangedAsync(ChangeEventArgs e)

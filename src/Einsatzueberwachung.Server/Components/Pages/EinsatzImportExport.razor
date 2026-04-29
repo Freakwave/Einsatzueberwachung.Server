@@ -28,11 +28,7 @@
             <h1 class="mb-0 h3">
                 <i class="bi bi-arrow-left-right me-2"></i>Einsatz Import/Export
             </h1>
-            @if (_importMode == "merge" && _mergeTargetId != null && !string.IsNullOrEmpty(_mergeTargetId))
-            {
-                <small class="text-muted">Ziel: Archivierter Einsatz</small>
-            }
-            else if (!string.IsNullOrEmpty(ArchivedEinsatzId))
+            @if (!string.IsNullOrEmpty(ArchivedEinsatzId) || (_importMode == "merge" && !string.IsNullOrEmpty(EffectiveMergeTargetId)))
             {
                 <small class="text-muted">Ziel: Archivierter Einsatz</small>
             }
@@ -199,7 +195,7 @@
             @if (_currentStep == MergeWizardStep.Upload)
             {
                 @* Guard: archiviertes Ziel muss gewählt sein *@
-                @if (_mergeTargetId != null && string.IsNullOrEmpty(_mergeTargetId))
+                @if (_mergeTargetId == string.Empty)
                 {
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-1"></i>

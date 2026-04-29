@@ -1,0 +1,152 @@
+@page "/audit-log"
+@rendermode InteractiveServer
+@inject IAuditLogService AuditLogService
+
+<PageTitle>Audit-Log</PageTitle>
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4 page-headline-row">
+        <div>
+            <h1 class="h3 mb-1"><i class="bi bi-journal-text me-2"></i>Audit-Log</h1>
+            <p class="text-muted mb-0">Protokoll aller Änderungen im laufenden Einsatz</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" @onclick="Refresh">
+                <i class="bi bi-arrow-clockwise me-1"></i>Aktualisieren
+            </button>
+            <button class="btn btn-outline-danger btn-sm" @onclick="ConfirmClear">
+                <i class="bi bi-trash me-1"></i>Löschen
+            </button>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-center">
+                <div class="col-12 col-md-4">
+                    <input class="form-control form-control-sm" placeholder="Suche..." @bind="_search" @bind:event="oninput" />
+                </div>
+                <div class="col-auto">
+                    <select class="form-select form-select-sm" @bind="_kategorie">
+                        <option value="">Alle Kategorien</option>
+                        <option value="Einsatz">Einsatz</option>
+                        <option value="Team">Team</option>
+                        <option value="Notiz">Notiz</option>
+                        <option value="System">System</option>
+                    </select>
+                </div>
+                <div class="col-auto ms-auto text-muted small">
+                    @_filtered.Count von @_entries.Count Einträgen
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (_entries.Count == 0)
+    {
+        <p class="text-muted">Noch keine Einträge vorhanden.</p>
+    }
+    else if (_filtered.Count == 0)
+    {
+        <p class="text-muted">Keine Einträge für diesen Filter.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 140px;">Zeit</th>
+                        <th style="width: 90px;">Kategorie</th>
+                        <th style="width: 160px;">Aktion</th>
+                        <th style="width: 140px;">Team/Quelle</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in _filtered)
+                    {
+                        <tr>
+                            <td class="text-muted small font-monospace">@entry.Timestamp.ToString("dd.MM. HH:mm:ss")</td>
+                            <td><span class="badge @GetKategorieBadge(entry.Kategorie)">@entry.Kategorie</span></td>
+                            <td class="small fw-semibold">@entry.Aktion</td>
+                            <td class="small text-muted">@(entry.TeamName ?? "—")</td>
+                            <td class="small">@entry.Details</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (_showClearConfirm)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Audit-Log löschen</h5>
+                    <button type="button" class="btn-close" @onclick="() => _showClearConfirm = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Alle @_entries.Count Einträge wirklich löschen?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary btn-sm" @onclick="() => _showClearConfirm = false">Abbrechen</button>
+                    <button class="btn btn-danger btn-sm" @onclick="ClearLog">Löschen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AuditLogEntry> _entries = new();
+    private List<AuditLogEntry> _filtered = new();
+    private string _search = string.Empty;
+    private string _kategorie = string.Empty;
+    private bool _showClearConfirm;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Refresh();
+    }
+
+    private async Task Refresh()
+    {
+        _entries = await AuditLogService.GetEntriesAsync(500);
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        _filtered = _entries
+            .Where(e => string.IsNullOrWhiteSpace(_search) ||
+                        e.Aktion.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                        e.Details.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                        (e.TeamName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false))
+            .Where(e => string.IsNullOrWhiteSpace(_kategorie) ||
+                        e.Kategorie.ToString() == _kategorie)
+            .ToList();
+    }
+
+    private void ConfirmClear() => _showClearConfirm = true;
+
+    private async Task ClearLog()
+    {
+        AuditLogService.Clear();
+        _showClearConfirm = false;
+        await Refresh();
+    }
+
+    private static string GetKategorieBadge(AuditLogKategorie k) => k switch
+    {
+        AuditLogKategorie.Einsatz => "bg-primary",
+        AuditLogKategorie.Team    => "bg-success",
+        AuditLogKategorie.Notiz  => "bg-info text-dark",
+        AuditLogKategorie.System => "bg-secondary",
+        _ => "bg-secondary"
+    };
+}

@@ -1341,15 +1341,12 @@
             _activeTab = InitialTab;
 
         // Archiv-Export per Query-Parameter vorwählen
-        if (!string.IsNullOrEmpty(ExportArchivId) && _exportArchiveList.Count == 0)
+        if (!string.IsNullOrEmpty(ExportArchivId) && _exportArchiveList.Count == 0 && !_exportArchiveLoading)
         {
             _activeTab = "export";
             _exportSource = "archive";
             await LoadArchiveListAsync();
-            if (_exportArchiveList.Any())
-            {
-                await SelectArchiveAsync(ExportArchivId);
-            }
+            await SelectArchiveAsync(ExportArchivId);
         }
     }
 

@@ -155,6 +155,7 @@ namespace Einsatzueberwachung.Domain.Services
         private static Team ConvertArchivedTeamToTeam(ArchivedTeam archivedTeam)
         {
             var isDrone = !string.IsNullOrEmpty(archivedTeam.DroneName);
+            // ArchivedTeam.MemberNames: index 0 = Hundeführer, index 1 = Helfer (see ArchivedTeam.FromTeam)
             return new Team
             {
                 TeamId = archivedTeam.TeamId,

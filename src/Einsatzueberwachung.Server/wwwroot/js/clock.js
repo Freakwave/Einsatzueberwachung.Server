@@ -38,3 +38,21 @@ if (document.readyState === 'loading') {
 } else {
     initializeClock();
 }
+
+// EL-Dashboard Uhr (schreibt in beliebige Element-ID)
+// Muss als window-Property deklariert sein, damit Blazor JS-Interop es findet
+window.elDashboard = {
+    _intervalId: null,
+    startClock(elementId) {
+        if (this._intervalId !== null) clearInterval(this._intervalId);
+        const update = () => {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            el.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        };
+        update();
+        this._intervalId = setInterval(update, 1000);
+    }
+};

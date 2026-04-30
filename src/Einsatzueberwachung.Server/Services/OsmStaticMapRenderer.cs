@@ -1,5 +1,6 @@
 ﻿using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
+using Einsatzueberwachung.Domain.Models.Enums;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
 
@@ -457,6 +458,250 @@ public sealed class OsmStaticMapRenderer : IStaticMapRenderer, IDisposable
         }
     }
 
+    public async Task<byte[]?> RenderSearchAreaMapAsync(
+        List<SearchArea> searchAreas,
+        (double Latitude, double Longitude)? elwPosition,
+        MapTileType tileType = MapTileType.Streets,
+        int width = 1500,
+        int height = 1060)
+    {
+        var validAreas = searchAreas.Where(a => a.Coordinates?.Count >= 3).ToList();
+        if (validAreas.Count == 0 && !elwPosition.HasValue)
+            return null;
+
+        var tileConfig = GetSearchAreaTileConfig(tileType);
+        var tilePixelSize = tileConfig.PixelSize;
+
+        try
+        {
+            var allLats = validAreas.SelectMany(a => a.Coordinates.Select(c => c.Latitude)).ToList();
+            var allLons = validAreas.SelectMany(a => a.Coordinates.Select(c => c.Longitude)).ToList();
+
+            if (elwPosition.HasValue)
+            {
+                allLats.Add(elwPosition.Value.Latitude);
+                allLons.Add(elwPosition.Value.Longitude);
+            }
+
+            if (allLats.Count == 0) return null;
+
+            var minLat = allLats.Min();
+            var maxLat = allLats.Max();
+            var minLon = allLons.Min();
+            var maxLon = allLons.Max();
+
+            var latPad = Math.Max((maxLat - minLat) * 0.12, 0.002);
+            var lonPad = Math.Max((maxLon - minLon) * 0.12, 0.003);
+            minLat -= latPad; maxLat += latPad;
+            minLon -= lonPad; maxLon += lonPad;
+
+            var zoom = CalculateZoom(minLat, maxLat, minLon, maxLon, width, height);
+
+            var absCropLeft = LonToTileXFloat(minLon, zoom) * tilePixelSize;
+            var absCropTop = LatToTileYFloat(maxLat, zoom) * tilePixelSize;
+            var absCropRight = LonToTileXFloat(maxLon, zoom) * tilePixelSize;
+            var absCropBottom = LatToTileYFloat(minLat, zoom) * tilePixelSize;
+
+            var cropW = absCropRight - absCropLeft;
+            var cropH = absCropBottom - absCropTop;
+            var targetAspect = (double)width / height;
+            var cropAspect = cropW / cropH;
+
+            if (cropAspect < targetAspect)
+            {
+                var newW = cropH * targetAspect;
+                var delta = (newW - cropW) / 2.0;
+                absCropLeft -= delta;
+                absCropRight += delta;
+            }
+            else
+            {
+                var newH = cropW / targetAspect;
+                var delta = (newH - cropH) / 2.0;
+                absCropTop -= delta;
+                absCropBottom += delta;
+            }
+
+            var minTileX = (int)Math.Floor(absCropLeft / tilePixelSize);
+            var maxTileX = (int)Math.Floor(absCropRight / tilePixelSize);
+            var minTileY = (int)Math.Floor(absCropTop / tilePixelSize);
+            var maxTileY = (int)Math.Floor(absCropBottom / tilePixelSize);
+
+            var tiles = await DownloadTilesWithConfigAsync(minTileX, maxTileX, minTileY, maxTileY, zoom, tileConfig.UrlTemplates);
+
+            var tileCountX = maxTileX - minTileX + 1;
+            var tileCountY = maxTileY - minTileY + 1;
+            var fullW = tileCountX * tilePixelSize;
+            var fullH = tileCountY * tilePixelSize;
+
+            using var fullBitmap = new SKBitmap(fullW, fullH);
+            using (var tileCanvas = new SKCanvas(fullBitmap))
+            {
+                tileCanvas.Clear(new SKColor(228, 228, 228));
+                foreach (var ((tx, ty), tileData) in tiles)
+                {
+                    if (tileData == null) continue;
+                    using var tileBitmap = SKBitmap.Decode(tileData);
+                    if (tileBitmap == null) continue;
+                    tileCanvas.DrawBitmap(tileBitmap, (tx - minTileX) * tilePixelSize, (ty - minTileY) * tilePixelSize);
+                }
+            }
+
+            var cropLeft = (float)(absCropLeft - minTileX * tilePixelSize);
+            var cropTop = (float)(absCropTop - minTileY * tilePixelSize);
+            var cropRight = (float)(absCropRight - minTileX * tilePixelSize);
+            var cropBottom = (float)(absCropBottom - minTileY * tilePixelSize);
+
+            using var outputBitmap = new SKBitmap(width, height);
+            using var canvas = new SKCanvas(outputBitmap);
+            canvas.DrawBitmap(fullBitmap, new SKRect(cropLeft, cropTop, cropRight, cropBottom), new SKRect(0, 0, width, height));
+
+            var scaleX = width / (cropRight - cropLeft);
+            var scaleY = height / (cropBottom - cropTop);
+            float ToX(double lon) => ((float)((LonToTileXFloat(lon, zoom) - minTileX) * tilePixelSize) - cropLeft) * scaleX;
+            float ToY(double lat) => ((float)((LatToTileYFloat(lat, zoom) - minTileY) * tilePixelSize) - cropTop) * scaleY;
+
+            // Suchgebiete zeichnen: erst alle Füllungen, dann alle Ränder, dann alle Labels
+            foreach (var area in validAreas)
+            {
+                var areaPoints = area.Coordinates
+                    .Select(c => new SKPoint(ToX(c.Longitude), ToY(c.Latitude)))
+                    .ToArray();
+
+                var color = ParseColor(string.IsNullOrWhiteSpace(area.Color) ? "#2196F3" : area.Color);
+
+                using var areaPath = new SKPath();
+                areaPath.MoveTo(areaPoints[0]);
+                for (var i = 1; i < areaPoints.Length; i++)
+                    areaPath.LineTo(areaPoints[i]);
+                areaPath.Close();
+
+                using var fillPaint = new SKPaint
+                {
+                    Style = SKPaintStyle.Fill,
+                    Color = color.WithAlpha(55),
+                    IsAntialias = true
+                };
+                canvas.DrawPath(areaPath, fillPaint);
+            }
+
+            foreach (var area in validAreas)
+            {
+                var areaPoints = area.Coordinates
+                    .Select(c => new SKPoint(ToX(c.Longitude), ToY(c.Latitude)))
+                    .ToArray();
+
+                var color = ParseColor(string.IsNullOrWhiteSpace(area.Color) ? "#2196F3" : area.Color);
+
+                using var areaPath = new SKPath();
+                areaPath.MoveTo(areaPoints[0]);
+                for (var i = 1; i < areaPoints.Length; i++)
+                    areaPath.LineTo(areaPoints[i]);
+                areaPath.Close();
+
+                using var strokePaint = new SKPaint
+                {
+                    Style = SKPaintStyle.Stroke,
+                    Color = color,
+                    StrokeWidth = 3f,
+                    IsAntialias = true
+                };
+                canvas.DrawPath(areaPath, strokePaint);
+            }
+
+            foreach (var area in validAreas)
+            {
+                var color = ParseColor(string.IsNullOrWhiteSpace(area.Color) ? "#2196F3" : area.Color);
+                var centroidLat = area.Coordinates.Average(c => c.Latitude);
+                var centroidLon = area.Coordinates.Average(c => c.Longitude);
+                DrawAreaLabel(canvas, new SKPoint(ToX(centroidLon), ToY(centroidLat)), area.Name, color);
+            }
+
+            if (elwPosition.HasValue)
+            {
+                DrawMarker(
+                    canvas,
+                    new SKPoint(ToX(elwPosition.Value.Longitude), ToY(elwPosition.Value.Latitude)),
+                    new SKColor(220, 20, 60),
+                    "ELW");
+            }
+
+            DrawNorthArrow(canvas, width, height);
+
+            using var attrFont = new SKFont(SKTypeface.Default, 10);
+            using var attrPaint = new SKPaint { Color = new SKColor(80, 80, 80), IsAntialias = true };
+            using var attrBgPaint = new SKPaint { Style = SKPaintStyle.Fill, Color = new SKColor(255, 255, 255, 180) };
+            var attribution = tileConfig.Attribution;
+            attrFont.MeasureText(attribution, out var textBounds);
+            var attrX = width - textBounds.Width - 6;
+            var attrY = height - 6;
+            canvas.DrawRect(attrX - 3, attrY - textBounds.Height - 2, textBounds.Width + 6, textBounds.Height + 4, attrBgPaint);
+            canvas.DrawText(attribution, attrX, attrY, SKTextAlign.Left, attrFont, attrPaint);
+
+            using var image = SKImage.FromBitmap(outputBitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Png, 92);
+            return data.ToArray();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Fehler beim Rendern der Suchgebiets-Planungskarte");
+            return null;
+        }
+    }
+
+    private static void DrawAreaLabel(SKCanvas canvas, SKPoint center, string text, SKColor areaColor)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+
+        using var typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold);
+        using var font = new SKFont(typeface, 16);
+
+        font.MeasureText(text, out var bounds);
+        var pad = 5f;
+        var bgRect = new SKRoundRect(
+            new SKRect(
+                center.X - bounds.Width / 2f - pad,
+                center.Y - bounds.Height / 2f - pad,
+                center.X + bounds.Width / 2f + pad,
+                center.Y + bounds.Height / 2f + pad),
+            4f, 4f);
+
+        using var bgPaint = new SKPaint { Style = SKPaintStyle.Fill, Color = new SKColor(255, 255, 255, 215), IsAntialias = true };
+        canvas.DrawRoundRect(bgRect, bgPaint);
+
+        using var borderPaint = new SKPaint { Style = SKPaintStyle.Stroke, Color = areaColor, StrokeWidth = 1.5f, IsAntialias = true };
+        canvas.DrawRoundRect(bgRect, borderPaint);
+
+        using var textPaint = new SKPaint { Color = new SKColor(30, 30, 30), IsAntialias = true };
+        canvas.DrawText(text, center.X, center.Y + bounds.Height / 2f - 2f, SKTextAlign.Center, font, textPaint);
+    }
+
+    private static void DrawNorthArrow(SKCanvas canvas, int width, int height)
+    {
+        var cx = width - 38f;
+        var cy = 42f;
+        const float r = 26f;
+
+        using var bgPaint = new SKPaint { Style = SKPaintStyle.Fill, Color = new SKColor(255, 255, 255, 200), IsAntialias = true };
+        using var borderPaint = new SKPaint { Style = SKPaintStyle.Stroke, Color = new SKColor(120, 120, 120), StrokeWidth = 1f, IsAntialias = true };
+        canvas.DrawCircle(cx, cy, r, bgPaint);
+        canvas.DrawCircle(cx, cy, r, borderPaint);
+
+        // Pfeil (Dreieck zeigt nach oben = Norden)
+        using var arrowPath = new SKPath();
+        arrowPath.MoveTo(cx, cy - r + 7f);
+        arrowPath.LineTo(cx - 7f, cy + 6f);
+        arrowPath.LineTo(cx + 7f, cy + 6f);
+        arrowPath.Close();
+        using var arrowPaint = new SKPaint { Style = SKPaintStyle.Fill, Color = new SKColor(50, 80, 200), IsAntialias = true };
+        canvas.DrawPath(arrowPath, arrowPaint);
+
+        using var typeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold);
+        using var nFont = new SKFont(typeface, 12f);
+        using var nPaint = new SKPaint { Color = new SKColor(50, 80, 200), IsAntialias = true };
+        canvas.DrawText("N", cx, cy - r + 6f, SKTextAlign.Center, nFont, nPaint);
+    }
+
     private static void DrawMarker(SKCanvas canvas, SKPoint center, SKColor color, string label)
     {
         // Weißer Rand
@@ -500,7 +745,99 @@ public sealed class OsmStaticMapRenderer : IStaticMapRenderer, IDisposable
             SKTextAlign.Left, labelFont, textPaint);
     }
 
+    // ─── Tile-Konfiguration (je Kartentyp) ─────────────────────
+
+    private record SearchAreaTileConfig(string[] UrlTemplates, int PixelSize, string Attribution);
+
+    private static SearchAreaTileConfig GetSearchAreaTileConfig(MapTileType tileType) => tileType switch
+    {
+        MapTileType.Satellite => new(
+            [
+                "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            ],
+            256,
+            "© Esri, Maxar, Earthstar Geographics"),
+
+        MapTileType.Topographic => new(
+            [
+                "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
+                "https://b.tile.opentopomap.org/{z}/{x}/{y}.png",
+                "https://c.tile.opentopomap.org/{z}/{x}/{y}.png"
+            ],
+            256,
+            "© OpenStreetMap contributors | © OpenTopoMap (CC-BY-SA)"),
+
+        _ => new(
+            [
+                "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+                "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+                "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png"
+            ],
+            512,
+            "© OpenStreetMap © CARTO")
+    };
+
     // ─── Tile Download ──────────────────────────────────────────
+
+    private async Task<Dictionary<(int x, int y), byte[]?>> DownloadTilesWithConfigAsync(
+        int minX, int maxX, int minY, int maxY, int zoom, string[] urlTemplates)
+    {
+        var result = new Dictionary<(int, int), byte[]?>();
+        var semaphore = new SemaphoreSlim(2);
+        var tasks = new List<(int x, int y, Task<byte[]?> task)>();
+
+        for (int x = minX; x <= maxX; x++)
+        {
+            for (int y = minY; y <= maxY; y++)
+            {
+                var cx = x; var cy = y;
+                tasks.Add((cx, cy, ThrottledDownloadWithConfig(semaphore, cx, cy, zoom, urlTemplates)));
+            }
+        }
+
+        await Task.WhenAll(tasks.Select(t => t.task));
+
+        foreach (var (x, y, task) in tasks)
+            result[(x, y)] = task.Result;
+
+        semaphore.Dispose();
+        return result;
+    }
+
+    private async Task<byte[]?> ThrottledDownloadWithConfig(SemaphoreSlim semaphore, int x, int y, int zoom, string[] urlTemplates)
+    {
+        await semaphore.WaitAsync();
+        try
+        {
+            return await DownloadTileWithConfigAsync(x, y, zoom, urlTemplates);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
+    }
+
+    private async Task<byte[]?> DownloadTileWithConfigAsync(int x, int y, int zoom, string[] urlTemplates)
+    {
+        foreach (var template in urlTemplates)
+        {
+            try
+            {
+                var url = template
+                    .Replace("{z}", zoom.ToString())
+                    .Replace("{x}", x.ToString())
+                    .Replace("{y}", y.ToString());
+                var response = await _httpClient.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                    return await response.Content.ReadAsByteArrayAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Tile {Zoom}/{X}/{Y} konnte nicht geladen werden", zoom, x, y);
+            }
+        }
+        return null;
+    }
 
     private async Task<Dictionary<(int x, int y), byte[]?>> DownloadTilesAsync(
         int minX, int maxX, int minY, int maxY, int zoom)

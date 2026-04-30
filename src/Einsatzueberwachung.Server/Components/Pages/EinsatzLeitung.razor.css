@@ -1,0 +1,705 @@
+/* ================================================================
+   EL-Dashboard — iPad-optimiertes Layout für die Einsatzleitung
+   ================================================================ */
+
+/* ── Shell ─────────────────────────────────────────────────────── */
+.el-dashboard {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;          /* dynamic viewport height – wichtig für iPad */
+    width: 100%;
+    overflow: hidden;
+    background: var(--bs-body-bg, #f5f5f5);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* ── Kopfzeile ──────────────────────────────────────────────────── */
+.el-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.6rem 1.2rem;
+    background: #0d1f3c;
+    color: #fff;
+    flex-shrink: 0;
+    min-height: 60px;
+}
+
+.el-header-left { flex: 1; min-width: 0; }
+
+.el-header-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.el-header-sub { font-size: .78rem; color: rgba(255,255,255,.65); margin-top: 1px; }
+
+.el-badge-stichwort {
+    background: #dc3545;
+    color: #fff;
+    padding: 1px 8px;
+    border-radius: 20px;
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .5px;
+}
+
+.el-header-center { flex: 0 0 auto; }
+
+.el-status-pills {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.el-status-pill {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: .82rem;
+    font-weight: 600;
+}
+
+.el-pill-running { background: #198754; color: #fff; }
+.el-pill-warning { background: #ffc107; color: #000; }
+.el-pill-ready   { background: rgba(255,255,255,.15); color: rgba(255,255,255,.8); }
+
+.el-header-right {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.el-clock {
+    font-family: 'Courier New', monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #fff;
+    opacity: .9;
+}
+
+.el-offline-badge {
+    background: #dc3545;
+    color: #fff;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: .75rem;
+    font-weight: 600;
+    animation: blink-offline 1.5s step-start infinite;
+}
+
+@keyframes blink-offline {
+    50% { opacity: .4; }
+}
+
+.el-offline .el-header { border-bottom: 3px solid #dc3545; }
+
+/* ── Main / Scrollbarer Inhaltsbereich ─────────────────────────── */
+.el-main {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+.el-tab-content {
+    padding: 1rem 1rem 1.5rem;
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+.el-fade-in {
+    animation: fadeIn 0.18s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* ── Bottom-Tab-Bar ─────────────────────────────────────────────── */
+.el-tabbar {
+    display: flex;
+    background: #0d1f3c;
+    border-top: 1px solid rgba(255,255,255,.1);
+    flex-shrink: 0;
+    /* Safe area für iPhone/iPad Home-Indicator */
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.el-tab-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 0.55rem 0.25rem;
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,.5);
+    font-size: .68rem;
+    font-weight: 500;
+    cursor: pointer;
+    position: relative;
+    transition: color .15s, background .15s;
+    min-height: 56px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.el-tab-btn i { font-size: 1.3rem; }
+
+.el-tab-btn:active { background: rgba(255,255,255,.05); }
+
+.el-tab-active {
+    color: #fff !important;
+}
+
+.el-tab-active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 15%;
+    right: 15%;
+    height: 3px;
+    background: #2196F3;
+    border-radius: 0 0 3px 3px;
+}
+
+.el-tab-badge {
+    position: absolute;
+    top: 6px;
+    right: calc(50% - 18px);
+    background: #dc3545;
+    color: #fff;
+    border-radius: 10px;
+    padding: 0 5px;
+    font-size: .62rem;
+    font-weight: 700;
+    line-height: 1.4;
+    min-width: 16px;
+    text-align: center;
+}
+
+/* ── Kacheln Übersicht ─────────────────────────────────────────── */
+.el-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 500px) {
+    .el-stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.el-stat-card {
+    border-radius: 12px;
+    padding: 1rem 0.75rem;
+    text-align: center;
+}
+
+.el-stat-running { background: rgba(25,135,84,.15); border: 1.5px solid #198754; }
+.el-stat-warning { background: rgba(255,193,7,.15);  border: 1.5px solid #ffc107; }
+.el-stat-ready   { background: rgba(13,110,253,.1);  border: 1.5px solid rgba(13,110,253,.3); }
+.el-stat-muted   { background: rgba(108,117,125,.1); border: 1.5px solid rgba(108,117,125,.3); }
+
+.el-stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.el-stat-label {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    opacity: .7;
+    margin-top: 4px;
+}
+
+/* ── Kritischer Banner ─────────────────────────────────────────── */
+.el-critical-banner {
+    background: #dc3545;
+    color: #fff;
+    padding: 0.6rem 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    animation: pulse-critical 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-critical {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .75; }
+}
+
+/* ── Karten ────────────────────────────────────────────────────── */
+.el-card {
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.el-card-header {
+    display: flex;
+    align-items: center;
+    padding: 0.65rem 0.9rem;
+    font-weight: 600;
+    font-size: .9rem;
+    background: rgba(0,0,0,.03);
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.el-card-body { padding: 0.75rem 0.9rem; }
+
+.el-card-vermissten { margin-bottom: 1rem; }
+
+.el-card-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed var(--bs-border-color, #dee2e6);
+    border-radius: 12px;
+    padding: 1rem;
+    background: transparent;
+    color: var(--bs-body-color, #666);
+    cursor: pointer;
+    font-size: .9rem;
+    transition: border-color .15s, background .15s;
+}
+
+.el-card-empty:active { background: rgba(0,0,0,.04); }
+
+.el-risk-badge {
+    background: #dc3545;
+    color: #fff;
+    font-size: .7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+/* ── Notiz-Zeilen in Übersicht ─────────────────────────────────── */
+.el-note-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--bs-border-color, #eee);
+    font-size: .84rem;
+}
+
+.el-note-row:last-child { border-bottom: none; }
+
+.el-note-time { color: #888; flex-shrink: 0; font-size: .75rem; padding-top: 1px; }
+.el-note-source { font-weight: 600; flex-shrink: 0; min-width: 60px; }
+.el-note-text { flex: 1; }
+
+/* ── Team-Karten ───────────────────────────────────────────────── */
+.el-team-card {
+    display: flex;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    margin-bottom: 0.75rem;
+    transition: box-shadow .15s;
+}
+
+.el-team-card:active { box-shadow: 0 0 0 3px rgba(33,150,243,.3); }
+
+.el-team-status-bar { width: 6px; flex-shrink: 0; }
+
+.el-team-body { flex: 1; padding: 0.75rem 0.9rem; }
+
+.el-team-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.el-team-name { font-size: 1rem; font-weight: 700; }
+
+.el-team-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 3px;
+    font-size: .78rem;
+    color: #666;
+}
+
+.el-team-timer {
+    font-family: 'Courier New', monospace;
+    font-size: 1.15rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.el-timer-running  { color: #198754; }
+.el-timer-warning  { color: #e67e00; }
+.el-timer-critical { color: #dc3545; animation: blink-critical .8s step-start infinite; }
+.el-timer-default  { color: #6c757d; }
+
+@keyframes blink-critical {
+    50% { opacity: .3; }
+}
+
+.el-team-status-label { margin-top: 6px; }
+
+.el-team-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: .72rem;
+    font-weight: 600;
+}
+
+.el-badge-critical { background: #dc3545; color: #fff; }
+.el-badge-warn     { background: #ffc107; color: #000; }
+.el-badge-running  { background: #198754; color: #fff; }
+.el-badge-pause    { background: #546e7a; color: #fff; }
+.el-badge-ready    { background: #6c757d; color: #fff; }
+
+/* Variante-Hintergründe der Teamkarte */
+.el-team-critical { border-color: #f5c6cb; }
+.el-team-warning  { border-color: #ffeeba; }
+.el-team-running  { border-color: #c3e6cb; }
+
+/* ── Formular-Bereich (Vermissteninfo) ─────────────────────────── */
+.el-form-container {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.el-section {
+    margin-bottom: 1.25rem;
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.el-section-title {
+    font-weight: 600;
+    font-size: .85rem;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 0.6rem 0.9rem;
+    background: rgba(0,0,0,.03);
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+    color: #555;
+}
+
+.el-field-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    padding: 0.75rem 0.9rem;
+}
+
+.el-field { display: flex; flex-direction: column; }
+.el-field label { font-size: .75rem; font-weight: 600; margin-bottom: 3px; color: #666; }
+.el-field-sm   { flex: 0 0 calc(50% - 0.3rem); }
+.el-field-md   { flex: 1 1 180px; }
+.el-field-lg   { flex: 1 1 260px; }
+.el-field-full { flex: 1 1 100%; }
+
+@media (max-width: 540px) {
+    .el-field-sm, .el-field-md, .el-field-lg { flex: 1 1 100%; }
+}
+
+.el-input {
+    border: 1.5px solid var(--bs-border-color, #ced4da);
+    border-radius: 8px;
+    padding: 0.5rem 0.65rem;
+    font-size: 0.9rem;
+    background: var(--bs-body-bg, #fff);
+    color: var(--bs-body-color, #212529);
+    width: 100%;
+    min-height: 44px;           /* Touch-Target-Mindestgröße */
+    transition: border-color .15s, box-shadow .15s;
+    -webkit-appearance: none;
+}
+
+.el-input:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 0 3px rgba(33,150,243,.2);
+}
+
+.el-input-danger { border-color: #dc3545; background: rgba(220,53,69,.05); }
+
+.el-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.5rem 0.9rem 0.75rem;
+}
+
+.el-check-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: .9rem;
+    transition: background .12s;
+    min-height: 44px;
+}
+
+.el-check-item:active { background: rgba(0,0,0,.05); }
+
+.el-check-item input[type=checkbox] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+    accent-color: #2196F3;
+}
+
+.el-save-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────── */
+.el-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 1.2rem;
+    border-radius: 8px;
+    border: none;
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 44px;
+    transition: opacity .15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.el-btn:active { opacity: .75; }
+.el-btn-primary { background: #2196F3; color: #fff; }
+
+/* ── Notizen-Tab ────────────────────────────────────────────────── */
+.el-subtab-bar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.el-subtab {
+    flex: 1;
+    padding: 0.55rem;
+    border-radius: 8px;
+    border: 1.5px solid var(--bs-border-color, #dee2e6);
+    background: transparent;
+    font-size: .85rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--bs-body-color, #333);
+    transition: background .12s, color .12s;
+    min-height: 44px;
+}
+
+.el-subtab-active {
+    background: #0d1f3c;
+    color: #fff;
+    border-color: #0d1f3c;
+}
+
+.el-note-input-area {
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 12px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.el-note-prefix-row {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.6rem;
+}
+
+.el-prefix-btn {
+    padding: 0.35rem 0.85rem;
+    border-radius: 20px;
+    border: 1.5px solid var(--bs-border-color, #ced4da);
+    background: transparent;
+    font-size: .8rem;
+    cursor: pointer;
+    min-height: 36px;
+    transition: background .12s, border-color .12s, color .12s;
+    color: var(--bs-body-color, #333);
+}
+
+.el-prefix-active {
+    background: #0d1f3c;
+    border-color: #0d1f3c;
+    color: #fff;
+}
+
+.el-note-input-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+
+.el-textarea {
+    flex: 1;
+    border: 1.5px solid var(--bs-border-color, #ced4da);
+    border-radius: 8px;
+    padding: 0.5rem 0.65rem;
+    font-size: .9rem;
+    resize: none;
+    background: var(--bs-body-bg, #fff);
+    color: var(--bs-body-color, #212529);
+}
+
+.el-textarea:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 0 3px rgba(33,150,243,.2);
+}
+
+.el-btn-send {
+    padding: 0.5rem 0.75rem;
+    min-height: 44px;
+    border-radius: 8px;
+}
+
+.el-notes-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.el-notiz-card {
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+}
+
+.el-notiz-shared {
+    border-left: 4px solid #2196F3;
+}
+
+.el-notiz-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 4px;
+}
+
+.el-notiz-time   { color: #888; font-size: .75rem; }
+.el-notiz-source { font-weight: 700; font-size: .8rem; }
+.el-notiz-text   { font-size: .88rem; }
+
+.el-notiz-prefix {
+    font-size: .72rem;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 20px;
+}
+
+.el-notiz-prefix-anruf   { background: rgba(13,110,253,.15); color: #0d6efd; }
+.el-notiz-prefix-funk    { background: rgba(13,202,240,.15); color: #0dcaf0; }
+.el-notiz-prefix-wichtig { background: rgba(220,53,69,.15);  color: #dc3545; }
+
+.el-notiz-delete {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    padding: 4px;
+    font-size: .85rem;
+    transition: color .12s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.el-notiz-delete:active { color: #dc3545; }
+
+.el-notes-filter-row {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.el-filter-btn {
+    padding: 0.35rem 0.85rem;
+    border-radius: 20px;
+    border: 1.5px solid var(--bs-border-color, #ced4da);
+    background: transparent;
+    font-size: .8rem;
+    cursor: pointer;
+    min-height: 36px;
+    transition: background .12s, color .12s;
+    color: var(--bs-body-color, #333);
+}
+
+.el-filter-btn.active {
+    background: #0d1f3c;
+    border-color: #0d1f3c;
+    color: #fff;
+}
+
+/* ── Karten-Tab ────────────────────────────────────────────────── */
+.el-tab-karte {
+    padding: 0 !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.el-karte-hint {
+    padding: 0.4rem 0.9rem;
+    font-size: .8rem;
+    background: rgba(33,150,243,.08);
+    border-bottom: 1px solid rgba(33,150,243,.2);
+    color: #444;
+    flex-shrink: 0;
+}
+
+.el-karte-frame {
+    flex: 1;
+    border: none;
+    width: 100%;
+}
+
+.el-karte-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    cursor: not-allowed;
+    background: transparent;
+}
+
+/* ── Leerzustand ────────────────────────────────────────────────── */
+.el-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    text-align: center;
+}
+
+/* ── Monitor-Panel: Vermissteninfo ─────────────────────────────── */
+.vermissten-panel-view { padding: 0.25rem 0; }
+.vermissten-field-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .4px; color: #888; margin-top: 0.35rem; }
+.vermissten-field-value { font-size: .88rem; }

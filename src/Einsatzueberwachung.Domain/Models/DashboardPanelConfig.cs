@@ -23,6 +23,7 @@ namespace Einsatzueberwachung.Domain.Models
         public const string Wetter       = "wetter";
         public const string Suchgebiete  = "suchgebiete";
         public const string Minimap      = "minimap";
+        public const string Vermissten   = "vermissten";
 
         public static readonly Dictionary<string, string> Labels = new()
         {
@@ -32,6 +33,7 @@ namespace Einsatzueberwachung.Domain.Models
             [Wetter]       = "Wetter",
             [Suchgebiete]  = "Suchgebiete",
             [Minimap]      = "Karte (Mini)",
+            [Vermissten]   = "Vermissteninfo",
         };
     }
 }

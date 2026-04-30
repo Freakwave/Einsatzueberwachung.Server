@@ -2307,6 +2307,11 @@ a.list-group-item {
    MAP PAGE LAYOUT - Sauberes 2-Spalten Design
    ======================================== */
 
+/* Embed-Modus: Karte ohne Sidebar/Topbar (iframe im EL-Dashboard) */
+body.map-embed-mode .sidebar { display: none !important; }
+body.map-embed-mode .mission-topbar { display: none !important; }
+body.map-embed-mode .page { height: 100vh; }
+
 /* Wenn die Karteseite aktiv ist: main darf nicht scrollen und app-content hat kein Padding */
 main:has(.map-page-layout) {
     overflow: hidden;

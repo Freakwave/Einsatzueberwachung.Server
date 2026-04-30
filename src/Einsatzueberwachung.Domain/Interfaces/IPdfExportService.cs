@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Einsatzueberwachung.Domain.Models;
+using Einsatzueberwachung.Domain.Models.Enums;
 
 namespace Einsatzueberwachung.Domain.Interfaces
 {
@@ -32,6 +33,17 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// </summary>
         Task<byte[]> ExportEinsatzToPdfBytesAsync(EinsatzData einsatzData, List<Team> teams, List<GlobalNotesEntry> notes);
         Task<byte[]> ExportEinsatzToPdfBytesAsync(EinsatzData einsatzData, List<Team> teams, List<GlobalNotesEntry> notes, bool includeTracks);
+
+        /// <summary>
+        /// Exportiert eine zweiseitige Einsatzkarte als PDF (Seite 1: Karte, Seite 2: Suchgebietsliste).
+        /// Optimiert für Duplexdruck auf A4 Landscape.
+        /// filterTeamId: wenn gesetzt, werden nur Suchgebiete dieses Teams angezeigt.
+        /// </summary>
+        Task<byte[]> ExportEinsatzKarteToPdfBytesAsync(
+            EinsatzData einsatzData,
+            List<Team> teams,
+            MapTileType tileType = MapTileType.Streets,
+            string? filterTeamId = null);
     }
 
     public class PdfExportResult

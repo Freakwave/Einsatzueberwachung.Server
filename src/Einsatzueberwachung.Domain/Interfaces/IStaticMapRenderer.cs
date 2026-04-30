@@ -1,4 +1,5 @@
 using Einsatzueberwachung.Domain.Models;
+using Einsatzueberwachung.Domain.Models.Enums;
 
 namespace Einsatzueberwachung.Domain.Interfaces;
 
@@ -27,4 +28,15 @@ public interface IStaticMapRenderer
         (double Latitude, double Longitude)? elwPosition,
         int width = 1200,
         int height = 780);
+
+    /// <summary>
+    /// Rendert eine Planungskarte mit allen Suchgebieten, Gebietsbeschriftungen und ELW-Marker.
+    /// Wird für den Einsatzkarten-PDF-Ausdruck verwendet (vor dem Ausrücken der Teams).
+    /// </summary>
+    Task<byte[]?> RenderSearchAreaMapAsync(
+        List<SearchArea> searchAreas,
+        (double Latitude, double Longitude)? elwPosition,
+        MapTileType tileType = MapTileType.Streets,
+        int width = 1500,
+        int height = 1060);
 }

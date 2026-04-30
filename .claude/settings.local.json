@@ -9,7 +9,8 @@
       "Bash(dotnet run *)",
       "Bash(tasklist)",
       "Bash(xargs ls *)",
-      "Bash(node --check /Users/paul/Einsatzueberwachung.Server/Einsatzueberwachung.Server/src/Einsatzueberwachung.Server/wwwroot/leaflet-interop.js)"
+      "Bash(node --check /Users/paul/Einsatzueberwachung.Server/Einsatzueberwachung.Server/src/Einsatzueberwachung.Server/wwwroot/leaflet-interop.js)",
+      "Bash(dotnet test *)"
     ]
   }
 }

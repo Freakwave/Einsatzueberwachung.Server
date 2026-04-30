@@ -292,6 +292,29 @@ app.MapGet("/downloads/einsatz-bericht.pdf", async (IEinsatzService einsatzServi
     return Results.File(bytes, "application/pdf", $"{fileNamePart}.pdf");
 });
 
+app.MapGet("/downloads/einsatz-karte.pdf", async (
+    IEinsatzService einsatzService,
+    IPdfExportService pdfExportService,
+    string? mapType = null,
+    string? teamId = null) =>
+{
+    var tileType = mapType switch
+    {
+        "satellite" => Einsatzueberwachung.Domain.Models.Enums.MapTileType.Satellite,
+        "topo" => Einsatzueberwachung.Domain.Models.Enums.MapTileType.Topographic,
+        _ => Einsatzueberwachung.Domain.Models.Enums.MapTileType.Streets
+    };
+
+    var einsatz = einsatzService.CurrentEinsatz;
+    var bytes = await pdfExportService.ExportEinsatzKarteToPdfBytesAsync(
+        einsatz, einsatzService.Teams, tileType, teamId);
+
+    var fileNamePart = string.IsNullOrWhiteSpace(einsatz.EinsatzNummer)
+        ? $"einsatz-karte-{DateTime.Now:yyyyMMdd-HHmmss}"
+        : $"einsatz-karte-{einsatz.EinsatzNummer}";
+    return Results.File(bytes, "application/pdf", $"{fileNamePart}.pdf");
+});
+
 app.MapGet("/downloads/einsatz-archiv/{id}.pdf", async (string id, IArchivService archivService, IPdfExportService pdfExportService) =>
 {
     var archivedEinsatz = await archivService.GetByIdAsync(id);

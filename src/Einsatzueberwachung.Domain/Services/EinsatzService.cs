@@ -51,6 +51,8 @@ namespace Einsatzueberwachung.Domain.Services
         public event Action<Team>? TeamUpdated;
         public event Action<GlobalNotesEntry>? NoteAdded;
         public event Action<Team, bool>? TeamWarningTriggered;
+        public event Action? VermisstenInfoChanged;
+        public event Action? ElNotizAdded;
 
         public EinsatzService(ISettingsService? settingsService = null, ITimeService? timeService = null)
         {
@@ -771,6 +773,41 @@ namespace Einsatzueberwachung.Domain.Services
             return Task.FromResult(note.Replies.OrderBy(r => r.Timestamp).ToList());
         }
         
+        public Task UpdateVermisstenInfoAsync(VermisstenInfo info)
+        {
+            info.ZuletztAktualisiert = _timeService?.Now ?? DateTime.Now;
+            _currentEinsatz.VermisstenInfo = info;
+            VermisstenInfoChanged?.Invoke();
+            EinsatzChanged?.Invoke();
+            return Task.CompletedTask;
+        }
+
+        public Task AddElNotizAsync(string text, string prefix = "")
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return Task.CompletedTask;
+
+            var entry = new ElNotizEntry
+            {
+                Text = text.Trim(),
+                Prefix = prefix,
+                Timestamp = _timeService?.Now ?? DateTime.Now
+            };
+            _currentEinsatz.ElNotizen ??= new System.Collections.Generic.List<ElNotizEntry>();
+            _currentEinsatz.ElNotizen.Insert(0, entry);
+            ElNotizAdded?.Invoke();
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteElNotizAsync(string notizId)
+        {
+            _currentEinsatz.ElNotizen ??= new System.Collections.Generic.List<ElNotizEntry>();
+            var entry = _currentEinsatz.ElNotizen.FirstOrDefault(n => n.Id == notizId);
+            if (entry != null)
+                _currentEinsatz.ElNotizen.Remove(entry);
+            return Task.CompletedTask;
+        }
+
         public void ResetEinsatz()
         {
             // Alle Timer stoppen
@@ -793,7 +830,9 @@ namespace Einsatzueberwachung.Domain.Services
             _currentEinsatz = new EinsatzData
             {
                 EinsatzDatum = _timeService?.Now ?? DateTime.Now,
-                IstEinsatz = true
+                IstEinsatz = true,
+                VermisstenInfo = null,
+                ElNotizen = new System.Collections.Generic.List<ElNotizEntry>()
             };
 
             EnsureCurrentEinsatzTeamReference();

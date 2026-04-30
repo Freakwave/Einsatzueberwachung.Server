@@ -45,7 +45,7 @@
                     title="Koordinaten-Marker">
                 <i class="bi bi-crosshair"></i> Punkte
             </button>
-            <button class="btn btn-sm btn-outline-warning" @onclick="PrintMap" title="Drucken" aria-label="Karte drucken">
+            <button class="btn btn-sm btn-outline-warning" @onclick="() => _showKarteDialog = true" title="Einsatzkarte drucken">
                 <i class="bi bi-printer" aria-hidden="true"></i>
             </button>
             <button class="btn btn-sm @(_trackingVisible ? "btn-success" : "btn-outline-secondary")" 
@@ -183,97 +183,6 @@
     </div>
 </div>
 
-<!-- Seite 2: Druckbare Suchgebiete-Liste (nur beim Drucken sichtbar, ausgeblendet im Bildschirm) -->
-<div class="print-list-page print-list-template" aria-hidden="true">
-    <div class="print-list-header">
-        <h2>
-            <i class="bi bi-geo-alt-fill"></i> Suchgebiete
-            @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.EinsatzNummer))
-            {
-                <span> &ndash; @EinsatzService.CurrentEinsatz.EinsatzNummer</span>
-            }
-        </h2>
-        <p>
-            @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzort))
-            {
-                <span>@EinsatzService.CurrentEinsatz.Einsatzort</span>
-                @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Stichwort))
-                {
-                    <span> | @EinsatzService.CurrentEinsatz.Stichwort</span>
-                }
-                <span> | </span>
-            }
-            @EinsatzService.CurrentEinsatz.EinsatzDatum.ToString("dd.MM.yyyy HH:mm") Uhr
-        </p>
-        <p>
-            @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzleiter))
-            {
-                <span><strong>EL:</strong> @EinsatzService.CurrentEinsatz.Einsatzleiter</span>
-            }
-            @if (_searchAreas.Any())
-            {
-                <span>
-                    @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzleiter)) { <span> &bull; </span> }
-                    @_searchAreas.Count Suchgebiet@(_searchAreas.Count == 1 ? "" : "e")
-                    (@_searchAreas.Count(a => a.IsCompleted) abgeschlossen)
-                    &bull; @GetTotalArea()
-                </span>
-            }
-        </p>
-    </div>
-
-    @if (_searchAreas.Any())
-    {
-        <table class="search-areas-table">
-            <thead>
-                <tr>
-                    <th style="width: 4%;">Nr.</th>
-                    <th style="width: 24%;">Suchgebiet</th>
-                    <th style="width: 9%;">Status</th>
-                    <th style="width: 24%;">Team</th>
-                    <th style="width: 18%;">Hund</th>
-                    <th style="width: 21%;">Halsband</th>
-                </tr>
-            </thead>
-            <tbody>
-                @{ var index = 1; }
-                @foreach (var area in _searchAreas.OrderBy(a => a.Name))
-                {
-                    <tr>
-                        <td>@index</td>
-                        <td>
-                            <span class="color-box" style="background-color: @area.Color;"></span>
-                            <strong>@area.Name</strong>
-                        </td>
-                        <td>
-                            @if (area.IsCompleted)
-                            {
-                                <span class="status-completed">&#10003; Fertig</span>
-                            }
-                            else
-                            {
-                                <span class="status-in-progress">Läuft</span>
-                            }
-                        </td>
-                        <td>
-                            @if (!string.IsNullOrWhiteSpace(area.AssignedTeamName))
-                            {
-                                <span class="team-name">@area.AssignedTeamName</span>
-                            }
-                            else
-                            {
-                                <span style="color: #888; font-style: italic;">Nicht zugewiesen</span>
-                            }
-                        </td>
-                        <td>@GetPrintDogName(area)</td>
-                        <td>@GetPrintCollarName(area)</td>
-                    </tr>
-                    index++;
-                }
-            </tbody>
-        </table>
-    }
-</div>
 
 @if (_deleteCandidate != null)
 {
@@ -292,6 +201,66 @@
                 <div class="modal-footer">
                     <button class="btn btn-secondary" @onclick="() => _deleteCandidate = null">Abbrechen</button>
                     <button class="btn btn-danger" @onclick="ConfirmDeleteSearchAreaAsync">Löschen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_showKarteDialog)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-printer me-2"></i>Einsatzkarte drucken</h5>
+                    <button type="button" class="btn-close" @onclick="() => _showKarteDialog = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Kartentyp</label>
+                        <div class="d-grid gap-1">
+                            <label class="border rounded px-3 py-2 @(_karteTileType == "streets" ? "border-warning bg-warning bg-opacity-10" : "") cursor-pointer">
+                                <input type="radio" name="karteMapType" class="me-2" value="streets"
+                                       checked="@(_karteTileType == "streets")"
+                                       @onchange='() => _karteTileType = "streets"' />
+                                <i class="bi bi-map me-1"></i>Straßenkarte
+                            </label>
+                            <label class="border rounded px-3 py-2 @(_karteTileType == "satellite" ? "border-warning bg-warning bg-opacity-10" : "") cursor-pointer">
+                                <input type="radio" name="karteMapType" class="me-2" value="satellite"
+                                       checked="@(_karteTileType == "satellite")"
+                                       @onchange='() => _karteTileType = "satellite"' />
+                                <i class="bi bi-globe me-1"></i>Satellit
+                            </label>
+                            <label class="border rounded px-3 py-2 @(_karteTileType == "topo" ? "border-warning bg-warning bg-opacity-10" : "") cursor-pointer">
+                                <input type="radio" name="karteMapType" class="me-2" value="topo"
+                                       checked="@(_karteTileType == "topo")"
+                                       @onchange='() => _karteTileType = "topo"' />
+                                <i class="bi bi-bar-chart-steps me-1"></i>Topografisch
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold">Team</label>
+                        <select class="form-select form-select-sm" @bind="_karteTeamFilter">
+                            <option value="">Alle Teams</option>
+                            @foreach (var team in _teams.Where(t => !string.IsNullOrWhiteSpace(t.TeamName)).OrderBy(t => t.TeamName))
+                            {
+                                <option value="@team.TeamId">@team.TeamName</option>
+                            }
+                        </select>
+                        @if (!string.IsNullOrWhiteSpace(_karteTeamFilter))
+                        {
+                            <small class="text-muted">Nur Suchgebiete dieses Teams werden gedruckt.</small>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary btn-sm" @onclick="() => _showKarteDialog = false">Abbrechen</button>
+                    <a class="btn btn-warning btn-sm" href="@BuildKarteUrl()" target="_blank" @onclick="() => _showKarteDialog = false">
+                        <i class="bi bi-download me-1"></i>PDF herunterladen
+                    </a>
                 </div>
             </div>
         </div>
@@ -376,47 +345,19 @@
     </div>
 }
 
-@if (_showPrintDialog)
-{
-    <div class="modal-backdrop show"></div>
-    <div class="modal show d-block" tabindex="-1">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-printer me-2"></i>Kartenansicht wählen</h5>
-                    <button type="button" class="btn-close" @onclick="() => _showPrintDialog = false"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-outline-secondary text-start" @onclick='() => ExecutePrintAsync("streets")'>
-                            <i class="bi bi-map me-2"></i>Straßenkarte
-                        </button>
-                        <button class="btn btn-outline-secondary text-start" @onclick='() => ExecutePrintAsync("hybrid")'>
-                            <i class="bi bi-layers me-2"></i>Hybrid (Satellit + Straßen)
-                        </button>
-                        <button class="btn btn-outline-secondary text-start" @onclick='() => ExecutePrintAsync("satellite")'>
-                            <i class="bi bi-globe me-2"></i>Satellit
-                        </button>
-                        <button class="btn btn-outline-secondary text-start" @onclick='() => ExecutePrintAsync("topo")'>
-                            <i class="bi bi-bar-chart-steps me-2"></i>Topografisch
-                        </button>
-                    </div>
-                </div>
-                <div class="modal-footer justify-content-start">
-                    <small class="text-muted">Die Karte wird mit der aktuellen Ansicht gedruckt.</small>
-                </div>
-            </div>
-        </div>
-    </div>
-}
 
 @code {
+    [SupplyParameterFromQuery(Name = "embed")]
+    private bool _embedMode { get; set; }
+
     private const double CoordinateEpsilon = 0.0000001;
 
     private List<SearchArea> _searchAreas = new();
     private List<Team> _teams = new();
     private bool _showDialog = false;
-    private bool _showPrintDialog = false;
+    private bool _showKarteDialog = false;
+    private string _karteTileType = "streets";
+    private string _karteTeamFilter = "";
     private SearchArea _currentArea = new();
     private SearchArea? _editingArea = null;
     private string _selectedTeamId = "";
@@ -588,8 +529,16 @@
                 foreach (var marker in _mapMarkers)
                 {
                     await JSRuntime.InvokeVoidAsync("LeafletMap.setCoordinateMarker",
-                        "einsatzMap", marker.Id, marker.Latitude, marker.Longitude, 
+                        "einsatzMap", marker.Id, marker.Latitude, marker.Longitude,
                         marker.Label, marker.Description, marker.Color);
+                }
+
+                // Embed-Modus: Sidebar und Topbar ausblenden, danach Karte neu messen
+                if (_embedMode)
+                {
+                    await JSRuntime.InvokeVoidAsync("layoutTools.setEmbedMode", true);
+                    await Task.Delay(50); // CSS-Transition abwarten
+                    await JSRuntime.InvokeVoidAsync("LeafletMap.invalidateSize", "einsatzMap");
                 }
             }
             catch (Exception ex)
@@ -889,28 +838,10 @@
         }
     }
 
-    private Task PrintMap()
+    private string BuildKarteUrl()
     {
-        _showPrintDialog = true;
-        return Task.CompletedTask;
-    }
-
-    private async Task ExecutePrintAsync(string layerName)
-    {
-        _showPrintDialog = false;
-        SetSearchMessage("Karte wird für Druck vorbereitet ...");
-        StateHasChanged();
-        try
-        {
-            await JSRuntime.InvokeVoidAsync("LeafletMap.printMap", "einsatzMap", layerName);
-            _searchMessage = string.Empty;
-        }
-        catch (TaskCanceledException) { _searchMessage = string.Empty; }
-        catch (Exception ex)
-        {
-            _searchMessage = $"Fehler beim Drucken: {ex.Message}";
-            Logger.LogWarning(ex, "Druck-Fehler");
-        }
+        var teamParam = string.IsNullOrWhiteSpace(_karteTeamFilter) ? "" : $"&teamId={Uri.EscapeDataString(_karteTeamFilter)}";
+        return $"/downloads/einsatz-karte.pdf?mapType={_karteTileType}{teamParam}";
     }
 
     // Draw-Modi aktivieren
@@ -1141,48 +1072,6 @@
         await JSRuntime.InvokeVoidAsync("CollarTracking.zoomToCollar", "einsatzMap", collar.Id);
     }
 
-    private Team? GetAssignedTeamForPrint(SearchArea area)
-    {
-        if (!string.IsNullOrWhiteSpace(area.AssignedTeamId))
-        {
-            return _teams.FirstOrDefault(team => team.TeamId == area.AssignedTeamId);
-        }
-
-        if (!string.IsNullOrWhiteSpace(area.AssignedTeamName))
-        {
-            return _teams.FirstOrDefault(team => string.Equals(team.TeamName, area.AssignedTeamName, StringComparison.OrdinalIgnoreCase));
-        }
-
-        return null;
-    }
-
-    private string GetPrintDogName(SearchArea area)
-    {
-        var team = GetAssignedTeamForPrint(area);
-        return string.IsNullOrWhiteSpace(team?.DogName) ? "-" : team.DogName;
-    }
-
-    private string GetPrintCollarName(SearchArea area)
-    {
-        var team = GetAssignedTeamForPrint(area);
-        if (team == null)
-        {
-            return "-";
-        }
-
-        if (!string.IsNullOrWhiteSpace(team.CollarName) && !string.IsNullOrWhiteSpace(team.CollarId))
-        {
-            return $"{team.CollarName} [{team.CollarId}]";
-        }
-
-        if (!string.IsNullOrWhiteSpace(team.CollarName))
-        {
-            return team.CollarName;
-        }
-
-        return string.IsNullOrWhiteSpace(team.CollarId) ? "-" : team.CollarId;
-    }
-
     /// <summary>Gibt "Hundename (Teamname)" für einen Collar zurück, oder collarId als Fallback.</summary>
     private string GetDogLabelForCollar(string collarId)
     {
@@ -1298,22 +1187,6 @@
         }
         catch (Exception) { }
         await InvokeAsync(StateHasChanged);
-    }
-    
-    private string GetTotalArea()
-    {
-        if (!_searchAreas.Any()) return "0 m²";
-        
-        var totalSquareMeters = _searchAreas.Sum(a => a.AreaInSquareMeters);
-        
-        if (totalSquareMeters < 1)
-            return "< 1 m²";
-        else if (totalSquareMeters < 50000)
-            return $"{totalSquareMeters:N0} m²";
-        else if (totalSquareMeters < 1000000)
-            return $"{(totalSquareMeters / 10000.0):N2} ha";
-        else
-            return $"{(totalSquareMeters / 1000000.0):N2} km²";
     }
     
     private void ExtractCoordinatesFromGeoJson(SearchArea area)

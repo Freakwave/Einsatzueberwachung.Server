@@ -1435,6 +1435,224 @@ namespace Einsatzueberwachung.Domain.Services
             return svg.ToString();
         }
 
+        // ─────────────────────────────────────────────────────────────────────────
+        // Einsatzkarte (Duplexdruck: Seite 1 = Karte, Seite 2 = Suchgebietsliste)
+        // ─────────────────────────────────────────────────────────────────────────
+
+        public async Task<byte[]> ExportEinsatzKarteToPdfBytesAsync(
+            EinsatzData einsatzData,
+            List<Team> teams,
+            MapTileType tileType = MapTileType.Streets,
+            string? filterTeamId = null)
+        {
+            var staffelInfo = await ResolveStaffelInfoAsync(einsatzData);
+
+            var allAreas = einsatzData.SearchAreas ?? new List<SearchArea>();
+            var filteredAreas = string.IsNullOrWhiteSpace(filterTeamId)
+                ? allAreas
+                : allAreas.Where(a => a.AssignedTeamId == filterTeamId ||
+                    (!string.IsNullOrWhiteSpace(a.AssignedTeamName) &&
+                     teams.Any(t => t.TeamId == filterTeamId &&
+                                    string.Equals(t.TeamName, a.AssignedTeamName, StringComparison.OrdinalIgnoreCase))))
+                          .ToList();
+
+            var filteredTeams = string.IsNullOrWhiteSpace(filterTeamId)
+                ? teams
+                : teams.Where(t => t.TeamId == filterTeamId).ToList();
+
+            byte[]? mapBytes = null;
+            if (_mapRenderer != null)
+            {
+                mapBytes = await _mapRenderer.RenderSearchAreaMapAsync(filteredAreas, einsatzData.ElwPosition, tileType);
+            }
+
+            var capturedMapBytes = mapBytes;
+            return await Task.Run(() =>
+            {
+                using var stream = new MemoryStream();
+                Document.Create(container =>
+                {
+                    // ─── Seite 1: Karte (A4 Landscape) ──────────────────────────
+                    container.Page(page =>
+                    {
+                        page.Size(PageSizes.A4.Landscape());
+                        page.MarginTop(4, Unit.Millimetre);
+                        page.MarginBottom(6, Unit.Millimetre);
+                        page.MarginHorizontal(10, Unit.Millimetre);
+                        page.PageColor(Colors.White);
+
+                        page.Header().PaddingBottom(3)
+                            .Element(c => ComposeKarteHeader(c, einsatzData, staffelInfo));
+
+                        page.Content().Element(c =>
+                        {
+                            if (capturedMapBytes != null)
+                            {
+                                c.Image(capturedMapBytes).FitArea();
+                            }
+                            else
+                            {
+                                c.Background(Colors.Grey.Lighten3)
+                                 .AlignCenter().AlignMiddle()
+                                 .Text("Keine Suchgebiete oder ELW-Position vorhanden")
+                                 .FontSize(14).FontColor(Colors.Grey.Darken2);
+                            }
+                        });
+                    });
+
+                    // ─── Seite 2: Suchgebietsliste (A4 Landscape) ───────────────
+                    container.Page(page =>
+                    {
+                        page.Size(PageSizes.A4.Landscape());
+                        page.Margin(12, Unit.Millimetre);
+                        page.PageColor(Colors.White);
+                        page.DefaultTextStyle(x => x.FontSize(10));
+
+                        page.Content().Element(c => ComposeKarteListe(c, einsatzData, filteredAreas, filteredTeams));
+                    });
+                }).GeneratePdf(stream);
+
+                return stream.ToArray();
+            });
+        }
+
+        private static void ComposeKarteHeader(IContainer container, EinsatzData einsatzData, StaffelInfo staffelInfo)
+        {
+            container.Background("#2C3E50").Padding(6).Row(row =>
+            {
+                row.RelativeItem().Column(col =>
+                {
+                    col.Item().Row(r =>
+                    {
+                        if (!string.IsNullOrWhiteSpace(staffelInfo.Name))
+                        {
+                            r.AutoItem().Text(staffelInfo.Name).FontSize(9).FontColor(Colors.White).Italic();
+                            r.AutoItem().Text("  |  ").FontSize(9).FontColor(Colors.Grey.Lighten2);
+                        }
+                        if (!string.IsNullOrWhiteSpace(einsatzData.EinsatzNummer))
+                        {
+                            r.AutoItem().Text($"Einsatz {einsatzData.EinsatzNummer}").FontSize(9).Bold().FontColor(Colors.White);
+                            r.AutoItem().Text("  |  ").FontSize(9).FontColor(Colors.Grey.Lighten2);
+                        }
+                        if (!string.IsNullOrWhiteSpace(einsatzData.Einsatzort))
+                        {
+                            r.AutoItem().Text(einsatzData.Einsatzort).FontSize(9).FontColor(Colors.White);
+                            r.AutoItem().Text("  |  ").FontSize(9).FontColor(Colors.Grey.Lighten2);
+                        }
+                        if (!string.IsNullOrWhiteSpace(einsatzData.Einsatzleiter))
+                        {
+                            r.AutoItem().Text($"EL: {einsatzData.Einsatzleiter}").FontSize(9).FontColor(Colors.White);
+                        }
+                    });
+                });
+
+                row.AutoItem().AlignRight().Column(col =>
+                {
+                    col.Item().AlignRight().Text("EINSATZKARTE").FontSize(11).Bold().FontColor(Colors.White);
+                    col.Item().AlignRight().Text($"Stand: {DateTime.Now:dd.MM.yyyy HH:mm} Uhr").FontSize(8).FontColor(Colors.Grey.Lighten2);
+                });
+            });
+        }
+
+        private static void ComposeKarteListe(IContainer container, EinsatzData einsatzData, List<SearchArea> searchAreas, List<Team> teams)
+        {
+            container.Column(col =>
+            {
+                col.Item().Element(c => ComposeSectionHeader(c, $"Suchgebietszuweisung — Einsatz {einsatzData.EinsatzNummer}"));
+                col.Item().Height(8);
+
+                var areas = searchAreas.OrderBy(a => a.Name).ToList();
+
+                if (areas.Count == 0)
+                {
+                    col.Item().Padding(20)
+                       .AlignCenter().Text("Keine Suchgebiete angelegt.")
+                       .FontSize(12).FontColor(Colors.Grey.Darken1).Italic();
+                    return;
+                }
+
+                col.Item().Table(table =>
+                {
+                    table.ColumnsDefinition(columns =>
+                    {
+                        columns.ConstantColumn(28);        // Nr.
+                        columns.RelativeColumn(3);         // Suchgebiet
+                        columns.RelativeColumn(3);         // Team
+                        columns.RelativeColumn(2.5f);      // Hund
+                        columns.RelativeColumn(2.5f);      // Halsband
+                        columns.ConstantColumn(70);        // Status
+                    });
+
+                    table.Header(header =>
+                    {
+                        static IContainer HeaderCell(IContainer c) =>
+                            c.Background("#2C3E50").Padding(6).DefaultTextStyle(s => s.FontColor(Colors.White).Bold());
+
+                        header.Cell().Element(HeaderCell).AlignCenter().Text("Nr.");
+                        header.Cell().Element(HeaderCell).Text("Suchgebiet");
+                        header.Cell().Element(HeaderCell).Text("Team");
+                        header.Cell().Element(HeaderCell).Text("Hund");
+                        header.Cell().Element(HeaderCell).Text("Halsband");
+                        header.Cell().Element(HeaderCell).AlignCenter().Text("Status");
+                    });
+
+                    var rowIndex = 0;
+                    foreach (var area in areas)
+                    {
+                        var bg = rowIndex++ % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
+                        var team = ResolveTeamForArea(area, teams);
+                        var dogName = string.IsNullOrWhiteSpace(team?.DogName) ? "-" : team.DogName;
+                        var collarName = ResolveCollarName(team);
+
+                        static IContainer DataCell(IContainer c, string bg) =>
+                            c.Background(bg).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(7).PaddingHorizontal(5);
+
+                        table.Cell().Element(c => DataCell(c, bg)).AlignCenter().Text($"{rowIndex}").FontSize(10);
+
+                        table.Cell().Element(c => DataCell(c, bg)).Row(r =>
+                        {
+                            r.ConstantItem(14).Height(14).AlignMiddle()
+                             .Background(string.IsNullOrWhiteSpace(area.Color) ? "#2196F3" : area.Color);
+                            r.ConstantItem(6);
+                            r.RelativeItem().AlignMiddle().Text(area.Name ?? "-").Bold();
+                        });
+
+                        table.Cell().Element(c => DataCell(c, bg))
+                             .Text(string.IsNullOrWhiteSpace(area.AssignedTeamName) ? "-" : area.AssignedTeamName);
+
+                        table.Cell().Element(c => DataCell(c, bg)).Text(dogName);
+                        table.Cell().Element(c => DataCell(c, bg)).Text(collarName);
+
+                        table.Cell().Element(c => DataCell(c, bg)).AlignCenter()
+                             .Text(area.IsCompleted ? "✓ Fertig" : "— Offen")
+                             .FontColor(area.IsCompleted ? "#27AE60" : "#7F8C8D");
+                    }
+                });
+
+                col.Item().PaddingTop(10).Text($"Erstellt: {DateTime.Now:dd.MM.yyyy HH:mm} Uhr  |  {areas.Count} Suchgebiet{(areas.Count == 1 ? "" : "e")}")
+                   .FontSize(8).FontColor(Colors.Grey.Darken1);
+            });
+        }
+
+        private static Team? ResolveTeamForArea(SearchArea area, List<Team> teams)
+        {
+            if (!string.IsNullOrWhiteSpace(area.AssignedTeamId))
+                return teams.FirstOrDefault(t => t.TeamId == area.AssignedTeamId);
+            if (!string.IsNullOrWhiteSpace(area.AssignedTeamName))
+                return teams.FirstOrDefault(t => string.Equals(t.TeamName, area.AssignedTeamName, StringComparison.OrdinalIgnoreCase));
+            return null;
+        }
+
+        private static string ResolveCollarName(Team? team)
+        {
+            if (team == null) return "-";
+            if (!string.IsNullOrWhiteSpace(team.CollarName) && !string.IsNullOrWhiteSpace(team.CollarId))
+                return $"{team.CollarName} [{team.CollarId}]";
+            if (!string.IsNullOrWhiteSpace(team.CollarName))
+                return team.CollarName;
+            return string.IsNullOrWhiteSpace(team.CollarId) ? "-" : team.CollarId;
+        }
+
         private static (byte r, byte g, byte b) ParseHexColor(string hex)
         {
             if (string.IsNullOrWhiteSpace(hex) || hex.Length < 7)

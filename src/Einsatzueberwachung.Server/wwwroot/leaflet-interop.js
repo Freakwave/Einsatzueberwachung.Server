@@ -49,33 +49,37 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         const map = L.map(mapId).setView([centerLat, centerLng], zoom);
             
         // Layer definieren
+        // crossOrigin: 'anonymous' erlaubt Canvas-Export für CORS-kompatible Tile-Server
         const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '(c) OpenStreetMap contributors',
-            maxZoom: 19
+            maxZoom: 19,
+            crossOrigin: 'anonymous'
         });
-        
-        // Esri Satellite Layer
+
+        // Esri Satellite Layer (CORS-kompatibel)
         const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: 'Tiles (c) Esri',
-            maxZoom: 18
+            maxZoom: 18,
+            crossOrigin: 'anonymous'
         });
-        
-        // Google Satellite als Fallback (falls Esri nicht laedt)
+
+        // Google Satellite (kein CORS – Kacheln erscheinen im Screenshot als grauer Hintergrund)
         const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
             attribution: 'Map data (c) Google',
             maxZoom: 20
         });
-        
-        // Hybrid: Satellit mit Strassennamen
+
+        // Hybrid: Satellit mit Strassennamen (kein CORS)
         const hybridLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
             attribution: 'Map data (c) Google',
             maxZoom: 20
         });
-        
-        // OpenTopoMap: Topografische Karte mit Hoehenlinien
+
+        // OpenTopoMap: Topografische Karte mit Hoehenlinien (CORS-kompatibel)
         const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
             maxZoom: 17,
-            attribution: 'Kartendaten: (c) OpenStreetMap | Kartenstil: (c) <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'
+            attribution: 'Kartendaten: (c) OpenStreetMap | Kartenstil: (c) <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
+            crossOrigin: 'anonymous'
         });
         
         log('Layer erstellt');
@@ -237,7 +241,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 streets: osmLayer,
                 satellite: satelliteLayer,
                 satelliteGoogle: googleSatellite,
-                hybrid: hybridLayer
+                hybrid: hybridLayer,
+                topo: topoLayer
             },
             currentLayer: osmLayer
         };
@@ -661,138 +666,242 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         }
     },
     
-    // Druckt die Karte
-    printMap: function(mapId) {
-        log('printMap aufgerufen für:', mapId);
+    // ── DRUCK: Screenshot-basierter Ansatz ─────────────────────────────────────
+    // Öffnet ein dediziertes Druckfenster mit:
+    //   Seite 1 – Karten-Screenshot (A4 Querformat)
+    //   Seite 2 – Suchgebiete-Liste  (A4 Hochformat)
+    // ────────────────────────────────────────────────────────────────────────────
+
+    printMap: async function(mapId, layerName) {
+        log('printMap aufgerufen für:', mapId, 'Layer:', layerName);
         try {
             const mapData = this.maps[mapId];
-            if (!mapData) {
-                error('Karte nicht gefunden:', mapId);
-                return false;
-            }
+            if (!mapData) { error('Karte nicht gefunden:', mapId); return false; }
 
             const map = mapData.map;
-            const removedLayers = [];
-            const hadTrackingLayerVisible = !!(mapData.trackingLayer && map.hasLayer(mapData.trackingLayer));
-            const hadDrawnItemsVisible = !!(mapData.drawnItems && map.hasLayer(mapData.drawnItems));
-            const root = document.documentElement;
-            const body = document.body;
-            const printListTemplate = document.querySelector('.print-list-template');
-            let printListHost = null;
 
-            const currentCenter = map.getCenter();
-            const currentZoom = map.getZoom();
+            // Gewünschten Basis-Layer aktivieren
+            const allBaseLayers = Object.values(mapData.layers).filter(Boolean);
+            const originalBaseLayer = allBaseLayers.find(l => map.hasLayer(l)) || null;
+            const requestedBaseLayer = layerName && mapData.layers[layerName]
+                ? mapData.layers[layerName] : null;
 
-            Object.entries(mapData.markers || {}).forEach(([markerId, layer]) => {
-                const isSearchAreaLayer = mapData.savedAreas && mapData.savedAreas.hasLayer(layer);
-                const shouldRemainVisible = markerId === 'elw' || isSearchAreaLayer;
-                if (!shouldRemainVisible && map.hasLayer(layer)) {
-                    map.removeLayer(layer);
-                    removedLayers.push(layer);
-                }
-            });
-
-            if (hadTrackingLayerVisible) {
-                map.removeLayer(mapData.trackingLayer);
+            if (requestedBaseLayer && requestedBaseLayer !== originalBaseLayer) {
+                allBaseLayers.forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+                map.addLayer(requestedBaseLayer);
             }
 
-            if (hadDrawnItemsVisible) {
-                map.removeLayer(mapData.drawnItems);
+            // Kacheln laden lassen
+            await new Promise(resolve => setTimeout(resolve, 1800));
+
+            // Screenshot
+            const imageDataUrl = await window.LeafletMap._captureMapCanvas(map);
+
+            // Basis-Layer wiederherstellen
+            if (requestedBaseLayer && requestedBaseLayer !== originalBaseLayer) {
+                allBaseLayers.forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+                if (originalBaseLayer) map.addLayer(originalBaseLayer);
             }
 
-            const applyPrintView = () => {
-                map.invalidateSize({ noMoveStart: true });
-                map.setView(currentCenter, currentZoom, { animate: false });
-            };
-
-            const enablePrintLayout = () => {
-                root.classList.add('map-print-mode');
-                body.classList.add('map-print-mode');
-
-                if (!printListHost && printListTemplate) {
-                    printListHost = printListTemplate.cloneNode(true);
-                    printListHost.classList.remove('print-list-template');
-                    printListHost.classList.add('print-list-page-host');
-                    printListHost.removeAttribute('aria-hidden');
-                    body.appendChild(printListHost);
-                }
-            };
-
-            const disablePrintLayout = () => {
-                root.classList.remove('map-print-mode');
-                body.classList.remove('map-print-mode');
-
-                if (printListHost && printListHost.parentNode) {
-                    printListHost.parentNode.removeChild(printListHost);
-                    printListHost = null;
-                }
-            };
-
-            const beforePrintHandler = () => {
-                enablePrintLayout();
-                // Synchronous invalidate so Leaflet picks up the @media print container dimensions
-                map.invalidateSize({ noMoveStart: true });
-                requestAnimationFrame(() => {
-                    applyPrintView();
-
-                    requestAnimationFrame(() => {
-                        applyPrintView();
-                    });
-                });
-            };
-
-            const afterPrintHandler = () => {
-                window.removeEventListener('beforeprint', beforePrintHandler);
-                window.removeEventListener('afterprint', afterPrintHandler);
-
-                removedLayers.forEach(layer => {
-                    if (!map.hasLayer(layer)) {
-                        map.addLayer(layer);
-                    }
-                });
-
-                if (hadTrackingLayerVisible && mapData.trackingLayer && !map.hasLayer(mapData.trackingLayer)) {
-                    map.addLayer(mapData.trackingLayer);
-                }
-
-                if (hadDrawnItemsVisible && mapData.drawnItems && !map.hasLayer(mapData.drawnItems)) {
-                    map.addLayer(mapData.drawnItems);
-                }
-
-                disablePrintLayout();
-
-                setTimeout(() => {
-                    map.invalidateSize();
-                    map.setView(currentCenter, currentZoom, { animate: false });
-                }, 200);
-            };
-
-            window.addEventListener('beforeprint', beforePrintHandler);
-            window.addEventListener('afterprint', afterPrintHandler);
-
-            enablePrintLayout();
-
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    applyPrintView();
-
-                    setTimeout(() => {
-                        map.invalidateSize();
-                        applyPrintView();
-
-                        setTimeout(() => {
-                            log('Starte Druck-Dialog');
-                            window.print();
-                        }, 250);
-                    }, 150);
-                });
-            });
-
+            window.LeafletMap._openPrintWindow(imageDataUrl);
             return true;
         } catch (err) {
             console.error('Fehler beim Drucken der Karte:', err);
             return false;
         }
+    },
+
+    // Zeichnet die aktuelle Kartenansicht auf einen Canvas und gibt dataURL zurück
+    _captureMapCanvas: async function(map) {
+        const container = map.getContainer();
+        const size = map.getSize();
+        const cr = container.getBoundingClientRect(); // container rect
+
+        const canvas = document.createElement('canvas');
+        canvas.width  = size.x;
+        canvas.height = size.y;
+        const ctx = canvas.getContext('2d');
+
+        // Hintergrund (sichtbar wenn Kacheln fehlen / CORS-gesperrt)
+        ctx.fillStyle = '#e8e8e8';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // ── 1. Kacheln (Tile-Bilder) ──────────────────────────────────────────
+        const tilePane = container.querySelector('.leaflet-tile-pane');
+        if (tilePane) {
+            for (const tile of tilePane.querySelectorAll('img.leaflet-tile')) {
+                if (!tile.complete || tile.naturalWidth === 0) continue;
+                const r = tile.getBoundingClientRect();
+                try {
+                    ctx.drawImage(tile,
+                        Math.round(r.left - cr.left), Math.round(r.top - cr.top),
+                        Math.round(r.width),          Math.round(r.height));
+                } catch (e) { /* CORS-gesperrt (Google-Tiles) → überspringen */ }
+            }
+        }
+
+        // ── 2. SVG-Overlays (Suchgebiet-Polygone, GPS-Pfade) ─────────────────
+        const overlayPane = container.querySelector('.leaflet-overlay-pane');
+        if (overlayPane) {
+            for (const svg of overlayPane.querySelectorAll('svg')) {
+                try {
+                    const r = svg.getBoundingClientRect();
+                    if (r.width === 0 || r.height === 0) continue;
+                    const clone = svg.cloneNode(true);
+                    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                    clone.setAttribute('width',  r.width);
+                    clone.setAttribute('height', r.height);
+                    if (!clone.getAttribute('viewBox'))
+                        clone.setAttribute('viewBox', `0 0 ${r.width} ${r.height}`);
+                    const blob = new Blob(
+                        [new XMLSerializer().serializeToString(clone)],
+                        { type: 'image/svg+xml;charset=utf-8' }
+                    );
+                    const url = URL.createObjectURL(blob);
+                    await new Promise(resolve => {
+                        const img = new Image();
+                        img.onload = () => {
+                            ctx.drawImage(img,
+                                Math.round(r.left - cr.left), Math.round(r.top - cr.top),
+                                Math.round(r.width),          Math.round(r.height));
+                            URL.revokeObjectURL(url);
+                            resolve();
+                        };
+                        img.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+                        img.src = url;
+                    });
+                } catch (e) { log('SVG-Capture-Fehler:', e); }
+            }
+        }
+
+        // ── 3. Marker (ELW-divIcon, Koordinaten-Marker) ──────────────────────
+        const markerPane = container.querySelector('.leaflet-marker-pane');
+        if (markerPane) {
+            for (const markerEl of markerPane.querySelectorAll('.leaflet-marker-icon')) {
+                const r = markerEl.getBoundingClientRect();
+                const x = Math.round(r.left - cr.left);
+                const y = Math.round(r.top  - cr.top);
+                const w = Math.round(r.width)  || 32;
+                const h = Math.round(r.height) || 32;
+
+                const svgEl = markerEl.querySelector('svg');
+                if (svgEl) {
+                    // divIcon mit eingebettetem SVG (z. B. ELW-Icon, Koordinaten-Marker)
+                    try {
+                        const clone = svgEl.cloneNode(true);
+                        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                        const blob = new Blob(
+                            [new XMLSerializer().serializeToString(clone)],
+                            { type: 'image/svg+xml;charset=utf-8' }
+                        );
+                        const url = URL.createObjectURL(blob);
+                        await new Promise(resolve => {
+                            const img = new Image();
+                            img.onload = () => {
+                                ctx.drawImage(img, x, y, w, h);
+                                URL.revokeObjectURL(url);
+                                resolve();
+                            };
+                            img.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+                            img.src = url;
+                        });
+                    } catch (e) {}
+                } else if (markerEl.tagName === 'IMG' && markerEl.complete && markerEl.naturalWidth > 0) {
+                    // Standard Leaflet img-Marker (Einsatzort etc.)
+                    try { ctx.drawImage(markerEl, x, y, w, h); } catch (e) {}
+                }
+            }
+        }
+
+        return canvas.toDataURL('image/png', 0.93);
+    },
+
+    // Druckt via window.print() auf dem Hauptfenster – funktioniert in Chrome, Firefox und Safari
+    // (window.open und iframe.print sind in Blazor Server durch Pop-up-Blocker/Safari-Bugs unzuverlässig)
+    _openPrintWindow: function(imageDataUrl) {
+        const listTemplate = document.querySelector('.print-list-template');
+        const listHtml = listTemplate
+            ? listTemplate.innerHTML
+            : '<p style="color:#666;font-style:italic">Keine Suchgebiete vorhanden.</p>';
+
+        // Alte Elemente aufräumen
+        ['_print-overlay', '_print-style'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        });
+
+        // Print-Styles in das Hauptdokument injizieren
+        const style = document.createElement('style');
+        style.id = '_print-style';
+        style.textContent = [
+            '@page { size: A4 landscape; margin: 0.8cm; }',
+            '@media print {',
+            '  body > *:not(#_print-overlay) { display: none !important; }',
+            '  #_print-overlay { display: block !important; }',
+            '  #_print-overlay { font-family: Arial, sans-serif; }',
+            '  .print-page-map {',
+            '    page-break-after: always; break-after: page;',
+            '    width: 100%; height: 100vh;',
+            '    display: flex; align-items: center; justify-content: center;',
+            '  }',
+            '  .print-page-map img { max-width:100%; max-height:100%; display:block; object-fit:contain; }',
+            '  .print-list-header {',
+            '    padding:14px 18px; margin-bottom:16px; background:#1d4e89; border-radius:6px;',
+            '    -webkit-print-color-adjust:exact; print-color-adjust:exact;',
+            '  }',
+            '  .print-list-header h2 { margin:0 0 4px; font-size:15pt; color:#fff; }',
+            '  .print-list-header p  { margin:3px 0 0; font-size:10pt; color:rgba(255,255,255,.88); }',
+            '  .print-list-header strong { color:#fff; }',
+            '  .search-areas-table { width:100%; border-collapse:collapse; font-size:10pt; margin-bottom:16px; }',
+            '  .search-areas-table thead th {',
+            '    background:#1d4e89; color:#fff; padding:9px 8px;',
+            '    text-align:left; font-weight:bold; border:1px solid #1d4e89;',
+            '    -webkit-print-color-adjust:exact; print-color-adjust:exact;',
+            '  }',
+            '  .search-areas-table tbody tr:nth-child(even) { background:#f4f8fd; -webkit-print-color-adjust:exact; print-color-adjust:exact; }',
+            '  .search-areas-table td { padding:9px 8px; border:1px solid #ddd; vertical-align:middle; }',
+            '  .color-box {',
+            '    display:inline-block; width:16px; height:16px;',
+            '    border:2px solid rgba(0,0,0,.25); border-radius:3px; margin-right:7px; vertical-align:middle;',
+            '    -webkit-print-color-adjust:exact; print-color-adjust:exact;',
+            '  }',
+            '  .team-name {',
+            '    display:inline-block; background:#1d4e89; color:#fff;',
+            '    padding:2px 7px; border-radius:3px; font-size:9pt;',
+            '    -webkit-print-color-adjust:exact; print-color-adjust:exact;',
+            '  }',
+            '  .status-completed {',
+            '    display:inline-block; background:#198754; color:#fff;',
+            '    padding:2px 7px; border-radius:3px; font-size:8.5pt; font-weight:bold;',
+            '    -webkit-print-color-adjust:exact; print-color-adjust:exact;',
+            '  }',
+            '  .status-in-progress {',
+            '    display:inline-block; background:#e67e22; color:#fff;',
+            '    padding:2px 7px; border-radius:3px; font-size:8.5pt; font-weight:bold;',
+            '    -webkit-print-color-adjust:exact; print-color-adjust:exact;',
+            '  }',
+            '}',
+            '#_print-overlay { display:none; }'
+        ].join('\n');
+        document.head.appendChild(style);
+
+        // Print-Overlay in den Body einfügen
+        const overlay = document.createElement('div');
+        overlay.id = '_print-overlay';
+        overlay.innerHTML =
+            '<div class="print-page-map"><img src="' + imageDataUrl + '" alt="Einsatzkarte"></div>' +
+            '<div class="print-page-list">' + listHtml + '</div>';
+        document.body.appendChild(overlay);
+
+        // Drucken und danach aufräumen
+        function cleanup() {
+            document.getElementById('_print-overlay')?.remove();
+            document.getElementById('_print-style')?.remove();
+        }
+        window.addEventListener('afterprint', cleanup, { once: true });
+        setTimeout(cleanup, 120000); // Fallback nach 2 Minuten
+
+        window.print();
     },
     
     // Exportiert die Karte als Bild (PNG)

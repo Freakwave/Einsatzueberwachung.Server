@@ -159,7 +159,7 @@ namespace Einsatzueberwachung.Domain.Services
                         header.Cell().Element(CellStyleHeader).AlignCenter().Text("Einsatzzeit").Bold();
 
                         static IContainer CellStyleHeader(IContainer c) =>
-                            c.Background(Colors.Blue.Darken1).Padding(5);
+                            c.Background("#2C3E50").Padding(5).DefaultTextStyle(s => s.FontColor(Colors.White));
                     });
 
                     // Rows
@@ -204,9 +204,9 @@ namespace Einsatzueberwachung.Domain.Services
                         {
                             col.Item().Text(FormatTimeSpan(team.ElapsedTime)).FontSize(9);
                             if (team.IsSecondWarning)
-                                col.Item().Text("KRITISCH").FontSize(7).Bold().FontColor(Colors.Red.Medium);
+                                col.Item().Text("KRITISCH").FontSize(7).Bold().FontColor("#C0392B");
                             else if (team.IsFirstWarning)
-                                col.Item().Text("Warnung").FontSize(7).FontColor(Colors.Orange.Medium);
+                                col.Item().Text("Warnung").FontSize(7).FontColor("#E67E22");
                         });
 
                         static IContainer CellStyle(IContainer c, string bg) =>
@@ -243,7 +243,7 @@ namespace Einsatzueberwachung.Domain.Services
                         header.Cell().Element(CellStyleHeader).Text("Notizen").Bold();
 
                         static IContainer CellStyleHeader(IContainer c) =>
-                            c.Background(Colors.Blue.Darken1).Padding(5);
+                            c.Background("#2C3E50").Padding(5).DefaultTextStyle(s => s.FontColor(Colors.White));
                     });
 
                     var rowIndex = 0;
@@ -254,8 +254,8 @@ namespace Einsatzueberwachung.Domain.Services
                         table.Cell().Element(c => CellStyle(c, bg)).Text(area.Name);
                         table.Cell().Element(c => CellStyle(c, bg)).Text(area.AssignedTeamName ?? "-");
                         table.Cell().Element(c => CellStyle(c, bg))
-                            .Text(area.IsCompleted ? "Abgeschlossen" : "In Bearbeitung")
-                            .FontColor(area.IsCompleted ? Colors.Green.Medium : Colors.Orange.Medium);
+                            .Text(area.IsCompleted ? "✓ Abgeschlossen" : "— In Bearbeitung")
+                            .FontColor(area.IsCompleted ? "#27AE60" : "#7F8C8D");
                         table.Cell().Element(c => CellStyle(c, bg)).Column(col =>
                         {
                             col.Item().Text($"Fläche: {area.FormattedArea}").FontSize(9);
@@ -295,7 +295,7 @@ namespace Einsatzueberwachung.Domain.Services
                         header.Cell().Element(HdrStyle).Text("Text").Bold();
 
                         static IContainer HdrStyle(IContainer c) =>
-                            c.Background(Colors.Blue.Darken1).Padding(5);
+                            c.Background("#2C3E50").Padding(5).DefaultTextStyle(s => s.FontColor(Colors.White));
                     });
 
                     var rowIndex = 0;
@@ -330,8 +330,10 @@ namespace Einsatzueberwachung.Domain.Services
 
         private void AddTableRow(TableDescriptor table, string label, string value)
         {
-            table.Cell().Text(label).Bold();
-            table.Cell().Text(value ?? "-");
+            table.Cell().Background("#F4F6F9").PaddingVertical(5).PaddingHorizontal(8)
+                .Text(label).Bold().FontSize(10).FontColor("#2C3E50");
+            table.Cell().PaddingVertical(5).PaddingHorizontal(8)
+                .Text(value ?? "-").FontSize(10);
         }
 
         private string FormatTimeSpan(TimeSpan ts)
@@ -343,13 +345,13 @@ namespace Einsatzueberwachung.Domain.Services
         {
             return type switch
             {
-                GlobalNotesEntryType.TeamStart => Colors.Green.Medium,
-                GlobalNotesEntryType.TeamStop => Colors.Orange.Medium,
-                GlobalNotesEntryType.TeamWarning => Colors.Red.Medium,
-                GlobalNotesEntryType.TeamReset => Colors.Blue.Medium,
-                GlobalNotesEntryType.EinsatzUpdate => Colors.Blue.Darken1,
-                GlobalNotesEntryType.System => Colors.Grey.Darken1,
-                _ => Colors.Grey.Darken1
+                GlobalNotesEntryType.TeamStart => "#27AE60",
+                GlobalNotesEntryType.TeamStop => "#7F8C8D",
+                GlobalNotesEntryType.TeamWarning => "#C0392B",
+                GlobalNotesEntryType.TeamReset => "#7F8C8D",
+                GlobalNotesEntryType.EinsatzUpdate => "#2C3E50",
+                GlobalNotesEntryType.System => "#95A5A6",
+                _ => "#95A5A6"
             };
         }
 
@@ -483,10 +485,11 @@ namespace Einsatzueberwachung.Domain.Services
                     page.DefaultTextStyle(x => x.FontSize(11));
 
                     page.Header()
-                        .Background(einsatzData.IstEinsatz ? Colors.Red.Lighten3 : Colors.Blue.Lighten3)
+                        .BorderTop(4).BorderColor(einsatzData.IstEinsatz ? "#C0392B" : "#2C3E50")
+                        .Background(Colors.White)
                         .Padding(20)
                         .Element(c => ComposeReportHeader(c, einsatzData.IstEinsatz ? "EINSATZBERICHT" : "ÜBUNGSBERICHT",
-                            einsatzData.IstEinsatz ? Colors.Red.Darken2 : Colors.Blue.Darken2, staffelInfo));
+                            einsatzData.IstEinsatz ? "#C0392B" : "#2C3E50", staffelInfo));
 
                     page.Content()
                         .Column(column =>
@@ -542,11 +545,12 @@ namespace Einsatzueberwachung.Domain.Services
                     page.DefaultTextStyle(x => x.FontSize(11));
 
                     page.Header()
-                        .Background(einsatz.IstEinsatz ? Colors.Red.Lighten3 : Colors.Blue.Lighten3)
+                        .BorderTop(4).BorderColor(einsatz.IstEinsatz ? "#C0392B" : "#2C3E50")
+                        .Background(Colors.White)
                         .Padding(20)
                         .Element(c => ComposeReportHeader(c,
                             einsatz.IstEinsatz ? "EINSATZBERICHT" : "ÜBUNGSBERICHT",
-                            einsatz.IstEinsatz ? Colors.Red.Darken2 : Colors.Blue.Darken2,
+                            einsatz.IstEinsatz ? "#C0392B" : "#2C3E50",
                             staffelInfo));
 
                     page.Content()
@@ -602,30 +606,29 @@ namespace Einsatzueberwachung.Domain.Services
             int anzahlTeams, int anzahlSuchgebiete, int anzahlNotizen,
             string gesamtdauer, string? ergebnis)
         {
-            container.Background(Colors.Grey.Lighten4).Padding(12).Column(col =>
+            container.Background("#F4F6F9").Border(1).BorderColor("#DDE1E7").Padding(12).Column(col =>
             {
-                col.Item().Text("Zusammenfassung").FontSize(11).Bold().FontColor(Colors.Grey.Darken2);
+                col.Item().Text("Zusammenfassung").FontSize(10).Bold().FontColor("#2C3E50").LetterSpacing(0.05f);
                 col.Item().PaddingTop(8).Row(row =>
                 {
-                    StatBox(row.RelativeItem(), $"{anzahlTeams}", "Teams", Colors.Blue.Lighten3);
+                    StatBox(row.RelativeItem(), $"{anzahlTeams}", "Teams");
                     row.ConstantItem(6);
-                    StatBox(row.RelativeItem(), $"{anzahlSuchgebiete}", "Suchgebiete", Colors.Teal.Lighten3);
+                    StatBox(row.RelativeItem(), $"{anzahlSuchgebiete}", "Suchgebiete");
                     row.ConstantItem(6);
-                    StatBox(row.RelativeItem(), $"{anzahlNotizen}", "Notizen / Funk", Colors.Purple.Lighten3);
+                    StatBox(row.RelativeItem(), $"{anzahlNotizen}", "Notizen / Funk");
                     row.ConstantItem(6);
                     StatBox(row.RelativeItem(),
                         !string.IsNullOrWhiteSpace(ergebnis) ? ergebnis! : gesamtdauer,
-                        !string.IsNullOrWhiteSpace(ergebnis) ? "Ergebnis" : "Gesamtdauer",
-                        Colors.Orange.Lighten3);
+                        !string.IsNullOrWhiteSpace(ergebnis) ? "Ergebnis" : "Gesamtdauer");
                 });
             });
 
-            static void StatBox(IContainer c, string value, string label, string bg)
+            static void StatBox(IContainer c, string value, string label)
             {
-                c.Background(bg).Border(1).BorderColor(Colors.White).Padding(10).Column(inner =>
+                c.Background(Colors.White).Border(1).BorderColor("#DDE1E7").Padding(10).Column(inner =>
                 {
-                    inner.Item().AlignCenter().Text(value).FontSize(18).Bold();
-                    inner.Item().AlignCenter().Text(label).FontSize(9).FontColor(Colors.Grey.Darken2);
+                    inner.Item().AlignCenter().Text(value).FontSize(18).Bold().FontColor("#2C3E50");
+                    inner.Item().AlignCenter().Text(label).FontSize(9).FontColor(Colors.Grey.Darken1);
                 });
             }
         }
@@ -636,7 +639,7 @@ namespace Einsatzueberwachung.Domain.Services
 
         private static void ComposeSectionHeader(IContainer container, string title, string? iconText = null)
         {
-            container.Background(Colors.Blue.Darken1).Padding(8).Row(row =>
+            container.Background("#2C3E50").Padding(8).Row(row =>
             {
                 if (!string.IsNullOrWhiteSpace(iconText))
                     row.AutoItem().PaddingRight(8).Text(iconText).FontSize(13).FontColor(Colors.White).Bold();
@@ -851,7 +854,7 @@ namespace Einsatzueberwachung.Domain.Services
                         header.Cell().Element(HdrStyle).Text("Status").Bold();
 
                         static IContainer HdrStyle(IContainer c) =>
-                            c.Background(Colors.Blue.Darken1).Padding(5);
+                            c.Background("#2C3E50").Padding(5).DefaultTextStyle(s => s.FontColor(Colors.White));
                     });
 
                     var rowIndex = 0;
@@ -954,25 +957,25 @@ namespace Einsatzueberwachung.Domain.Services
                 // Statistiken
                 column.Item().PaddingTop(15).Row(row =>
                 {
-                    row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten1).Padding(10).Column(col =>
+                    row.RelativeItem().Background("#F4F6F9").Border(1).BorderColor("#DDE1E7").Padding(10).Column(col =>
                     {
-                        col.Item().AlignCenter().Text($"{einsatz.AnzahlTeams}").FontSize(24).Bold();
-                        col.Item().AlignCenter().Text("Teams").FontSize(10);
+                        col.Item().AlignCenter().Text($"{einsatz.AnzahlTeams}").FontSize(24).Bold().FontColor("#2C3E50");
+                        col.Item().AlignCenter().Text("Teams").FontSize(10).FontColor(Colors.Grey.Darken1);
                     });
-                    row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten1).Padding(10).Column(col =>
+                    row.RelativeItem().Background("#F4F6F9").Border(1).BorderColor("#DDE1E7").Padding(10).Column(col =>
                     {
-                        col.Item().AlignCenter().Text($"{einsatz.AnzahlPersonal}").FontSize(24).Bold();
-                        col.Item().AlignCenter().Text("Personal").FontSize(10);
+                        col.Item().AlignCenter().Text($"{einsatz.AnzahlPersonal}").FontSize(24).Bold().FontColor("#2C3E50");
+                        col.Item().AlignCenter().Text("Personal").FontSize(10).FontColor(Colors.Grey.Darken1);
                     });
-                    row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten1).Padding(10).Column(col =>
+                    row.RelativeItem().Background("#F4F6F9").Border(1).BorderColor("#DDE1E7").Padding(10).Column(col =>
                     {
-                        col.Item().AlignCenter().Text($"{einsatz.AnzahlHunde}").FontSize(24).Bold();
-                        col.Item().AlignCenter().Text("Hunde").FontSize(10);
+                        col.Item().AlignCenter().Text($"{einsatz.AnzahlHunde}").FontSize(24).Bold().FontColor("#2C3E50");
+                        col.Item().AlignCenter().Text("Hunde").FontSize(10).FontColor(Colors.Grey.Darken1);
                     });
-                    row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten1).Padding(10).Column(col =>
+                    row.RelativeItem().Background("#F4F6F9").Border(1).BorderColor("#DDE1E7").Padding(10).Column(col =>
                     {
-                        col.Item().AlignCenter().Text($"{einsatz.AnzahlDrohnen}").FontSize(24).Bold();
-                        col.Item().AlignCenter().Text("Drohnen").FontSize(10);
+                        col.Item().AlignCenter().Text($"{einsatz.AnzahlDrohnen}").FontSize(24).Bold().FontColor("#2C3E50");
+                        col.Item().AlignCenter().Text("Drohnen").FontSize(10).FontColor(Colors.Grey.Darken1);
                     });
                 });
             });
@@ -1099,7 +1102,7 @@ namespace Einsatzueberwachung.Domain.Services
                         header.Cell().Element(HdrStyle).AlignCenter().Text("Erfasst").Bold();
 
                         static IContainer HdrStyle(IContainer c) =>
-                            c.Background(Colors.Blue.Darken1).Padding(5);
+                            c.Background("#2C3E50").Padding(5).DefaultTextStyle(s => s.FontColor(Colors.White));
                     });
 
                     var rowIndex = 0;

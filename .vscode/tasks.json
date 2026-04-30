@@ -10,7 +10,17 @@
 				"--project",
 				"src/Einsatzueberwachung.Server"
 			],
-			"isBackground": true
+			"options": {
+				"env": {
+					"PATH": "/usr/local/share/dotnet:/opt/homebrew/bin:${env:PATH}"
+				}
+			},
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			}
 		}
 	]
 }

@@ -186,9 +186,40 @@
 <!-- Seite 2: Druckbare Suchgebiete-Liste (nur beim Drucken sichtbar, ausgeblendet im Bildschirm) -->
 <div class="print-list-page print-list-template" aria-hidden="true">
     <div class="print-list-header">
-        <h2><i class="bi bi-geo-alt-fill"></i> Suchgebiete - @EinsatzService.CurrentEinsatz.EinsatzNummer</h2>
-        <p>@EinsatzService.CurrentEinsatz.Einsatzort | @EinsatzService.CurrentEinsatz.EinsatzDatum.ToString("dd.MM.yyyy HH:mm") Uhr</p>
-        <p><strong>Einsatzleiter:</strong> @EinsatzService.CurrentEinsatz.Einsatzleiter</p>
+        <h2>
+            <i class="bi bi-geo-alt-fill"></i> Suchgebiete
+            @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.EinsatzNummer))
+            {
+                <span> &ndash; @EinsatzService.CurrentEinsatz.EinsatzNummer</span>
+            }
+        </h2>
+        <p>
+            @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzort))
+            {
+                <span>@EinsatzService.CurrentEinsatz.Einsatzort</span>
+                @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Stichwort))
+                {
+                    <span> | @EinsatzService.CurrentEinsatz.Stichwort</span>
+                }
+                <span> | </span>
+            }
+            @EinsatzService.CurrentEinsatz.EinsatzDatum.ToString("dd.MM.yyyy HH:mm") Uhr
+        </p>
+        <p>
+            @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzleiter))
+            {
+                <span><strong>EL:</strong> @EinsatzService.CurrentEinsatz.Einsatzleiter</span>
+            }
+            @if (_searchAreas.Any())
+            {
+                <span>
+                    @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzleiter)) { <span> &bull; </span> }
+                    @_searchAreas.Count Suchgebiet@(_searchAreas.Count == 1 ? "" : "e")
+                    (@_searchAreas.Count(a => a.IsCompleted) abgeschlossen)
+                    &bull; @GetTotalArea()
+                </span>
+            }
+        </p>
     </div>
 
     @if (_searchAreas.Any())
@@ -196,11 +227,12 @@
         <table class="search-areas-table">
             <thead>
                 <tr>
-                    <th style="width: 5%;">Nr.</th>
-                    <th style="width: 25%;">Suchgebiet</th>
-                    <th style="width: 25%;">Zugewiesenes Team</th>
-                    <th style="width: 20%;">Hund</th>
-                    <th style="width: 25%;">Halsband</th>
+                    <th style="width: 4%;">Nr.</th>
+                    <th style="width: 24%;">Suchgebiet</th>
+                    <th style="width: 9%;">Status</th>
+                    <th style="width: 24%;">Team</th>
+                    <th style="width: 18%;">Hund</th>
+                    <th style="width: 21%;">Halsband</th>
                 </tr>
             </thead>
             <tbody>
@@ -214,18 +246,26 @@
                             <strong>@area.Name</strong>
                         </td>
                         <td>
+                            @if (area.IsCompleted)
+                            {
+                                <span class="status-completed">&#10003; Fertig</span>
+                            }
+                            else
+                            {
+                                <span class="status-in-progress">Läuft</span>
+                            }
+                        </td>
+                        <td>
                             @if (!string.IsNullOrWhiteSpace(area.AssignedTeamName))
                             {
                                 <span class="team-name">@area.AssignedTeamName</span>
                             }
                             else
                             {
-                                <span style="color: #666; font-style: italic;">Nicht zugewiesen</span>
+                                <span style="color: #888; font-style: italic;">Nicht zugewiesen</span>
                             }
                         </td>
-                        <td>
-                            @GetPrintDogName(area)
-                        </td>
+                        <td>@GetPrintDogName(area)</td>
                         <td>@GetPrintCollarName(area)</td>
                     </tr>
                     index++;
@@ -336,12 +376,47 @@
     </div>
 }
 
+@if (_showPrintDialog)
+{
+    <div class="modal-backdrop show"></div>
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-printer me-2"></i>Kartenansicht wählen</h5>
+                    <button type="button" class="btn-close" @onclick="() => _showPrintDialog = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-secondary text-start" @onclick='() => ExecutePrintAsync("streets")'>
+                            <i class="bi bi-map me-2"></i>Straßenkarte
+                        </button>
+                        <button class="btn btn-outline-secondary text-start" @onclick='() => ExecutePrintAsync("hybrid")'>
+                            <i class="bi bi-layers me-2"></i>Hybrid (Satellit + Straßen)
+                        </button>
+                        <button class="btn btn-outline-secondary text-start" @onclick='() => ExecutePrintAsync("satellite")'>
+                            <i class="bi bi-globe me-2"></i>Satellit
+                        </button>
+                        <button class="btn btn-outline-secondary text-start" @onclick='() => ExecutePrintAsync("topo")'>
+                            <i class="bi bi-bar-chart-steps me-2"></i>Topografisch
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-start">
+                    <small class="text-muted">Die Karte wird mit der aktuellen Ansicht gedruckt.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private const double CoordinateEpsilon = 0.0000001;
-    
+
     private List<SearchArea> _searchAreas = new();
     private List<Team> _teams = new();
     private bool _showDialog = false;
+    private bool _showPrintDialog = false;
     private SearchArea _currentArea = new();
     private SearchArea? _editingArea = null;
     private string _selectedTeamId = "";
@@ -814,17 +889,23 @@
         }
     }
 
-    private async Task PrintMap()
+    private Task PrintMap()
     {
+        _showPrintDialog = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task ExecutePrintAsync(string layerName)
+    {
+        _showPrintDialog = false;
+        SetSearchMessage("Karte wird für Druck vorbereitet ...");
+        StateHasChanged();
         try
         {
-            // Direkt drucken ohne Bestätigungsdialog (für schnellere Bedienung)
-            await JSRuntime.InvokeVoidAsync("LeafletMap.printMap", "einsatzMap");
+            await JSRuntime.InvokeVoidAsync("LeafletMap.printMap", "einsatzMap", layerName);
+            _searchMessage = string.Empty;
         }
-        catch (TaskCanceledException)
-        {
-            // Ignore - kann passieren wenn der Nutzer den Druckdialog schließt
-        }
+        catch (TaskCanceledException) { _searchMessage = string.Empty; }
         catch (Exception ex)
         {
             _searchMessage = $"Fehler beim Drucken: {ex.Message}";

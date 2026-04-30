@@ -7,7 +7,9 @@
       "Bash(git pull *)",
       "Bash(git add *)",
       "Bash(dotnet run *)",
-      "Bash(tasklist)"
+      "Bash(tasklist)",
+      "Bash(xargs ls *)",
+      "Bash(node --check /Users/paul/Einsatzueberwachung.Server/Einsatzueberwachung.Server/src/Einsatzueberwachung.Server/wwwroot/leaflet-interop.js)"
     ]
   }
 }

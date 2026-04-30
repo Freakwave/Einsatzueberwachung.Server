@@ -35,13 +35,54 @@ This is a .NET 9 rescue operation management system ("Einsatzueberwachung") for 
 
 ### State Management Pattern
 
-Runtime state is **singleton in-memory** and persisted to SQLite (`runtime-state.db`) as a JSON blob by `RuntimeStatePersistenceService` (a hosted service). The domain services (`IEinsatzService`, `IMasterDataService`, etc.) are registered as singletons and hold all live state. EF Core (`RuntimeDbContext`) is only used for persistence/reload on startup and for radio messages — **not** for live operational data.
+Runtime state is **singleton in-memory** and persisted to SQLite (`runtime-state.db`) as a JSON blob by `RuntimeStatePersistenceService` (a hosted service, saves every 3 seconds). The domain services (`IEinsatzService`, `IMasterDataService`, etc.) are registered as singletons and hold all live state. EF Core (`RuntimeDbContext`) is only used for persistence/reload on startup and for radio messages — **not** for live operational data.
 
 The one exception: `IRadioService` is registered **scoped** (not singleton) and uses EF Core directly for radio message storage and retrieval.
 
-### Real-time Updates
+Master data (personnel, dogs, drones) and settings are persisted as **human-readable JSON files** in `EINSATZ_DATA_DIR`. Writes use `SemaphoreSlim` for thread-safe concurrent access.
 
-SignalR hub is at `/hubs/einsatz`. `EinsatzHubRelayService` (hosted service) subscribes to domain service events and broadcasts them to connected clients. Blazor pages call service methods directly (server-side) and also subscribe to SignalR events to refresh their state. `AuditLogRelayService` and `CollarTrackingRelayService` follow the same relay pattern.
+### Domain Events & Real-time Update Flow
+
+Services expose `Action<...>` delegate events on their interfaces (e.g. `TeamAdded`, `CollarLocationReceived`, `OutOfBoundsDetected`). The update chain is:
+
+1. Blazor page calls service method directly (singleton, no HTTP)
+2. Service mutates in-memory state and fires its `Action` event
+3. A **Relay hosted service** (`EinsatzHubRelayService`, `CollarTrackingRelayService`, `AuditLogRelayService`) catches the event and publishes `einsatz:update` to all SignalR clients
+4. Blazor page's SignalR handler calls `await InvokeAsync(StateHasChanged)`
+
+Relay services use fire-and-forget (`_ = PublishAsync(...)`) to avoid blocking the event caller.
+
+### Blazor Page Pattern
+
+All interactive Blazor pages use `@rendermode InteractiveServer` and implement `IAsyncDisposable`:
+
+```csharp
+@implements IAsyncDisposable
+
+private HubConnection? _hubConnection;
+
+protected override async Task OnInitializedAsync()
+{
+    _hubConnection = new HubConnectionBuilder()
+        .WithUrl(Navigation.ToAbsoluteUri("/hubs/einsatz"))
+        .WithAutomaticReconnect()
+        .Build();
+
+    _hubConnection.On<string, string>("einsatz:update", async (eventName, json) =>
+    {
+        // update local state from json or re-read from singleton service
+        await InvokeAsync(StateHasChanged);
+    });
+
+    await _hubConnection.StartAsync();
+}
+
+async ValueTask IAsyncDisposable.DisposeAsync()
+{
+    if (_hubConnection is not null)
+        await _hubConnection.DisposeAsync();
+}
+```
 
 ### Service Layer
 
@@ -61,13 +102,68 @@ All domain services are defined as interfaces in `Domain/Interfaces/` and implem
 | `IWeatherService` | DWD weather via BrightSky API |
 | `ISettingsService` | Application settings persisted to JSON |
 | `IDashboardLayoutService` | Per-user dashboard panel layout persistence |
-| `IAuditLogService` | In-memory audit log with event broadcasting |
+| `IAuditLogService` | In-memory audit log (max 2000 entries, not persisted, clears on restart) with event broadcasting |
 | `ITimeService` | Abstracted clock (`AppTimeService`) — use this in domain services for testability |
 | `IRadioService` | Scoped; stores/retrieves radio messages in SQLite via EF Core |
 
+### Hosted Services
+
+All are registered via `AddHostedService<T>()` and run as background workers:
+
+| Service | Behavior |
+|---|---|
+| `RuntimeStatePersistenceService` | Saves EinsatzData to SQLite every 3 seconds |
+| `TeamTimerTickService` | Increments elapsed times ~every 100ms, updates warning flags |
+| `EinsatzHubRelayService` | Domain events → SignalR `einsatz:update` broadcasts |
+| `CollarTrackingRelayService` | GPS events → SignalR broadcasts |
+| `AuditLogRelayService` | Audit log events → SignalR broadcasts |
+| `UpdateAutoCheckService` | Polls GitHub releases every 6 hours |
+
+### FluentValidation
+
+Validators are auto-discovered from the Domain assembly at startup:
+
+```csharp
+builder.Services.AddValidatorsFromAssembly(typeof(PersonalEntry).Assembly);
+```
+
+Key validators: `TeamValidator` (conditional: Hunde-Teams require DogId, Drohnen-Teams require DroneId; FirstWarning < SecondWarning), `PersonalEntryValidator`, `DogEntryValidator`, `DroneEntryValidator`, `AppSettingsValidator`.
+
 ### Testing Pattern
 
-Tests use hand-rolled in-memory fakes (e.g. `FakeMasterDataService`) rather than mocks or a real database. When adding tests, follow this pattern: create a fake that implements the relevant interface with `List<T>` backing stores, wire it into the service under test directly.
+Tests use hand-rolled in-memory fakes rather than mocks or a real database:
+
+```csharp
+internal sealed class FakeMasterDataService : IMasterDataService
+{
+    public List<PersonalEntry> Personal { get; } = new();
+    public List<DogEntry> Dogs { get; } = new();
+    // all interface members backed by simple Lists
+}
+```
+
+Wire fakes directly into the service under test. See `EinsatzMergeServiceRevertTests` for a complete example testing merge + full undo across all entity types.
+
+### Merge/Import Workflow
+
+`IEinsatzMergeService` implements a 5-step conflict-resolution + undo mechanism:
+
+1. `ParseExportPacket(byte[])` — deserialize import packet
+2. `CreateSessionAsync(packet)` — analyze conflicts, auto-preselect matches (name/ID similarity)
+3. `RebuildIdRemapping(session)` — after user resolves conflicts, rebuild ID maps
+4. `ApplyMergeAsync(session)` — atomically apply changes, record `MergeHistoryEntry`
+5. `RevertMergeAsync(mergeId)` — undo using history (only `CreateNew` data is deleted; linked existing data is never removed)
+
+Conflict decisions per entity: `CreateNew`, `LinkToExisting`, `Skip`, `Update`, `KeepBoth` (renames with `_importiert` suffix).
+
+### GPS Collar Tracking
+
+LiveTracking WPF app → `POST /api/collar/receive-location` → `ICollarTrackingService.ReceiveLocationAsync()`:
+- `CollarLocationReceived` event always fires (for live display)
+- Location history is only recorded when the assigned team's timer is running
+- `OutOfBoundsDetected` fires when dog leaves the team's assigned search area polygon
+- On team timer **start**: `ClearCollarHistoryAsync()` resets track
+- On team timer **stop**: `SaveTrackSnapshotAsync()` saves full track to `Team.TrackSnapshots`
 
 ### Data Directories
 
@@ -94,7 +190,7 @@ A separate read/write mode for scenario-based exercises is toggled in `appsettin
 ### Key Infrastructure Notes
 
 - **Nginx reverse proxy** terminates SSL; `ForwardedHeadersMiddleware` is configured in `Program.cs` for correct IP/scheme handling behind the proxy
-- **CORS**: Three named policies — `VpnPolicy`, `RestApi`, `TrainingApi` — applied per-controller
+- **CORS**: Three named policies — `VpnPolicy` (default, all origins — VPN enforced at Nginx), `RestApi` (all origins), `TrainingApi` (restricted to `TrainingApi:AllowedOrigins` config) — applied per-controller
 - **Response compression**: Brotli + Gzip enabled for Blazor payloads
 - **Auto-updates**: `UpdateAutoCheckService` polls GitHub releases; update download/apply via `UpdateController`
 - **Health endpoint**: `/health` used by systemd timer (every 2 minutes in production)

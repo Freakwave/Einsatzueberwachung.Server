@@ -41,6 +41,12 @@ namespace Einsatzueberwachung.Domain.Models
 
         // Protokoll aller Import-Zusammenführungen für diesen Einsatz
         public List<MergeHistoryEntry> MergeHistory { get; set; }
+
+        // Vermissteninfo (für EL-Dashboard und Monitor-Panel)
+        public VermisstenInfo? VermisstenInfo { get; set; }
+
+        // EL-interne Notizen (nur im EL-Dashboard sichtbar)
+        public List<ElNotizEntry> ElNotizen { get; set; }
         
         // Koordinaten fuer Wetter-Abfrage
         public double? ElwLatitude => ElwPosition?.Latitude;
@@ -73,6 +79,8 @@ namespace Einsatzueberwachung.Domain.Models
             ElwPosition = null;
             TrackSnapshots = new List<TeamTrackSnapshot>();
             MergeHistory = new List<MergeHistoryEntry>();
+            VermisstenInfo = null;
+            ElNotizen = new List<ElNotizEntry>();
         }
 
         public string EinsatzTyp => IstEinsatz ? "Einsatz" : "Übung";

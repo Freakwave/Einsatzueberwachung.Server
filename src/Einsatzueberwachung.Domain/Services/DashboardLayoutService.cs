@@ -61,6 +61,7 @@ namespace Einsatzueberwachung.Domain.Services
             new() { PanelId = KnownPanels.Teams,        ColSpan = 12, Order = 3, IsVisible = true  },
             new() { PanelId = KnownPanels.Suchgebiete,  ColSpan = 6,  Order = 4, IsVisible = false },
             new() { PanelId = KnownPanels.Minimap,      ColSpan = 6,  Order = 5, IsVisible = false, PanelHeight = 350 },
+            new() { PanelId = KnownPanels.Vermissten,   ColSpan = 6,  Order = 6, IsVisible = false },
         ];
 
         // Stellt sicher dass alle bekannten Panels vorhanden sind (neue Panels nach Update)

@@ -18,6 +18,14 @@ window.layoutTools.warningAudio = window.layoutTools.warningAudio || {
     activePlayers: []
 };
 
+window.layoutTools.setEmbedMode = function (enabled) {
+    if (enabled) {
+        document.body.classList.add('map-embed-mode');
+    } else {
+        document.body.classList.remove('map-embed-mode');
+    }
+};
+
 window.layoutTools.getSidebarCollapsed = function () {
     const value = localStorage.getItem("einsatz.sidebarCollapsed");
     return value === "1" || value === "true";

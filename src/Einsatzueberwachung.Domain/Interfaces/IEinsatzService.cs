@@ -20,6 +20,8 @@ namespace Einsatzueberwachung.Domain.Interfaces
         event Action<Team>? TeamUpdated;
         event Action<GlobalNotesEntry>? NoteAdded;
         event Action<Team, bool>? TeamWarningTriggered;
+        event Action? VermisstenInfoChanged;
+        event Action? ElNotizAdded;
 
         Task StartEinsatzAsync(EinsatzData einsatzData);
         Task UpdateEinsatzAsync(EinsatzData einsatzData);
@@ -80,6 +82,10 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// Gibt an, ob der Hund aktuell in einem laufenden (nicht gestoppten) Team eingesetzt ist.
         /// </summary>
         bool IsDogRunning(string dogId);
+
+        Task UpdateVermisstenInfoAsync(VermisstenInfo info);
+        Task AddElNotizAsync(string text, string prefix = "");
+        Task DeleteElNotizAsync(string notizId);
 
         /// <summary>
         /// Setzt den aktuellen Einsatz zurueck (loescht Teams, Notizen, etc.)

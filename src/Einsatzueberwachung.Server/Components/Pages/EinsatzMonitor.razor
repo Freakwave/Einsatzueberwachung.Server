@@ -149,6 +149,14 @@
                                         </button>
                                     </div>
                                 }
+                                else if (panel.PanelId == KnownPanels.Vermissten)
+                                {
+                                    <div class="ms-auto">
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="OpenVermisstenModal">
+                                            <i class="bi bi-pencil me-1"></i>Bearbeiten
+                                        </button>
+                                    </div>
+                                }
                             }
                         </div>
 
@@ -570,6 +578,92 @@
                                          style="height:@(panel.PanelHeight > 0 ? $"{panel.PanelHeight - 10}px" : "320px");width:100%;border-radius:0.25rem;overflow:hidden;">
                                     </div>
                                     break;
+
+                                case KnownPanels.Vermissten:
+                                    @if (EinsatzService.CurrentEinsatz.VermisstenInfo is null)
+                                    {
+                                        <div class="text-center py-3">
+                                            <p class="text-muted small mb-2"><i class="bi bi-person-exclamation me-1"></i>Noch keine Vermissteninfo erfasst.</p>
+                                            <button class="btn btn-sm btn-primary" @onclick="OpenVermisstenModal">
+                                                <i class="bi bi-plus-circle me-1"></i>Jetzt erfassen
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        var _vi = EinsatzService.CurrentEinsatz.VermisstenInfo!;
+                                        <div class="vermissten-panel-view">
+                                            <div class="row g-2 small">
+                                                <div class="col-6">
+                                                    <div class="vermissten-field-label">Name</div>
+                                                    <div class="vermissten-field-value fw-semibold">@_vi.VollerName</div>
+                                                </div>
+                                                <div class="col-3">
+                                                    <div class="vermissten-field-label">Alter</div>
+                                                    <div class="vermissten-field-value">@(string.IsNullOrWhiteSpace(_vi.Alter) ? "—" : _vi.Alter)</div>
+                                                </div>
+                                                <div class="col-3">
+                                                    <div class="vermissten-field-label">Mobilität</div>
+                                                    <div class="vermissten-field-value">@_vi.Mobilitaet</div>
+                                                </div>
+                                                @if (!string.IsNullOrWhiteSpace(_vi.Kleidung))
+                                                {
+                                                    <div class="col-12">
+                                                        <div class="vermissten-field-label">Kleidung</div>
+                                                        <div class="vermissten-field-value">@_vi.Kleidung</div>
+                                                    </div>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(_vi.ZuletztGesehenOrt))
+                                                {
+                                                    <div class="col-8">
+                                                        <div class="vermissten-field-label">Zuletzt gesehen (Ort)</div>
+                                                        <div class="vermissten-field-value">@_vi.ZuletztGesehenOrt</div>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <div class="vermissten-field-label">Uhrzeit</div>
+                                                        <div class="vermissten-field-value">@_vi.ZuletztGesehenZeit</div>
+                                                    </div>
+                                                }
+                                                @if (_vi.Suizidrisiko == Einsatzueberwachung.Domain.Models.RisikoStatus.Ja)
+                                                {
+                                                    <div class="col-12">
+                                                        <div class="alert alert-danger py-1 mb-0 small">
+                                                            <i class="bi bi-exclamation-triangle-fill me-1"></i><strong>Suizidrisiko</strong>
+                                                        </div>
+                                                    </div>
+                                                }
+                                                @if (_vi.Bewaffnet == Einsatzueberwachung.Domain.Models.RisikoStatus.Ja)
+                                                {
+                                                    <div class="col-12">
+                                                        <div class="alert alert-danger py-1 mb-0 small">
+                                                            <i class="bi bi-exclamation-triangle-fill me-1"></i><strong>Bewaffnet</strong>
+                                                        </div>
+                                                    </div>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(_vi.Vorerkrankungen))
+                                                {
+                                                    <div class="col-12">
+                                                        <div class="vermissten-field-label">Vorerkrankungen</div>
+                                                        <div class="vermissten-field-value">@_vi.Vorerkrankungen</div>
+                                                    </div>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(_vi.PolizeiKontaktName))
+                                                {
+                                                    <div class="col-12 mt-1">
+                                                        <div class="vermissten-field-label text-primary"><i class="bi bi-shield me-1"></i>Polizei-Kontakt</div>
+                                                        <div class="vermissten-field-value">@_vi.PolizeiKontaktName @(string.IsNullOrWhiteSpace(_vi.PolizeiTelefon) ? "" : $"· {_vi.PolizeiTelefon}")</div>
+                                                    </div>
+                                                }
+                                                @if (_vi.ZuletztAktualisiert.HasValue)
+                                                {
+                                                    <div class="col-12">
+                                                        <div class="text-muted" style="font-size:.7rem;">Stand: @_vi.ZuletztAktualisiert.Value.ToString("dd.MM. HH:mm")</div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                    break;
                             }
                         </div>
                     </div>
@@ -901,6 +995,188 @@
     </div>
 }
 
+@if (_showVermisstenModal)
+{
+    <div class="modal-overlay" @onclick="CloseVermisstenModal">
+        <div class="modal-modern" style="max-width:700px;max-height:90vh;overflow-y:auto;" @onclick:stopPropagation="true">
+            <div class="modal-modern-header">
+                <h3><i class="bi bi-person-exclamation me-2"></i>Vermissteninfo</h3>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="CloseVermisstenModal">Schliessen</button>
+            </div>
+            <div class="modal-modern-body">
+
+                @if (!string.IsNullOrWhiteSpace(_vermisstenMessage))
+                {
+                    <div class="alert @(_vermisstenIsError ? "alert-danger" : "alert-success") py-2">@_vermisstenMessage</div>
+                }
+
+                <h6 class="text-muted text-uppercase small fw-bold mb-2">Person</h6>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Vorname</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.Vorname" placeholder="Vorname" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Nachname</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.Nachname" placeholder="Nachname" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label form-label-sm">Geburtsdatum</label>
+                        <input class="form-control form-control-sm"
+                               value="@_vForm.Geburtsdatum"
+                               @onchange="OnVFormGeburtsdatumChanged"
+                               placeholder="TT.MM.JJJJ" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label form-label-sm">Alter <small class="text-muted">(auto.)</small></label>
+                        <input class="form-control form-control-sm" @bind="_vForm.Alter" placeholder="z.B. 73" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm">Kleidung</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.Kleidung" placeholder="z.B. blaue Jacke, braune Hose" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm">Besonderheiten / Körpergröße</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.Besonderheiten" placeholder="z.B. ca. 175 cm, Brille" />
+                    </div>
+                </div>
+
+                <h6 class="text-muted text-uppercase small fw-bold mb-2">Letzter bekannter Aufenthalt</h6>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm">Ort</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.ZuletztGesehenOrt" placeholder="z.B. Parkplatz Waldstraße 12" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm">Uhrzeit</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.ZuletztGesehenZeit" placeholder="z.B. 14:30" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm">Gesehen von</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.ZuletztGesehenVon" placeholder="z.B. Tochter" />
+                    </div>
+                </div>
+
+                <h6 class="text-muted text-uppercase small fw-bold mb-2">Medizin &amp; Verhalten</h6>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Orientierung</label>
+                        <select class="form-select form-select-sm" @bind="_vForm.Orientierung">
+                            @foreach (var v in Enum.GetValues<Einsatzueberwachung.Domain.Models.OrientierungsStatus>())
+                            {
+                                <option value="@v">@v</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Mobilität</label>
+                        <select class="form-select form-select-sm" @bind="_vForm.Mobilitaet">
+                            @foreach (var v in Enum.GetValues<Einsatzueberwachung.Domain.Models.MobilitaetsStatus>())
+                            {
+                                <option value="@v">@v</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label form-label-sm">Suizidrisiko</label>
+                        <select class="form-select form-select-sm @(_vForm.Suizidrisiko == Einsatzueberwachung.Domain.Models.RisikoStatus.Ja ? "border-danger" : "")" @bind="_vForm.Suizidrisiko">
+                            @foreach (var v in Enum.GetValues<Einsatzueberwachung.Domain.Models.RisikoStatus>())
+                            {
+                                <option value="@v">@v</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label form-label-sm">Bewaffnet</label>
+                        <select class="form-select form-select-sm @(_vForm.Bewaffnet == Einsatzueberwachung.Domain.Models.RisikoStatus.Ja ? "border-danger" : "")" @bind="_vForm.Bewaffnet">
+                            @foreach (var v in Enum.GetValues<Einsatzueberwachung.Domain.Models.RisikoStatus>())
+                            {
+                                <option value="@v">@v</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm">Vorerkrankungen</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.Vorerkrankungen" placeholder="z.B. Demenz, Diabetes" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm">Medikamente</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.Medikamente" placeholder="z.B. Metformin, Blutverdünner" />
+                    </div>
+                </div>
+
+                <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="bi bi-shield me-1"></i>Polizei-Kontakt</h6>
+                <div class="row g-2 mb-2">
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Name Kontaktbeamter</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.PolizeiKontaktName" placeholder="PHK Müller" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Dienstnummer / Rufname</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.PolizeiDienstnummer" placeholder="z.B. 1234 oder Florian 5" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Telefon</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.PolizeiTelefon" placeholder="+49 ..." />
+                    </div>
+                </div>
+                <div class="row g-1 mb-3">
+                    @foreach (var (label, getter, setter) in GetPolizeiChecklist())
+                    {
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" checked="@getter()" @onchange="e => setter((bool)(e.Value ?? false))" />
+                                <label class="form-check-label small">@label</label>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="bi bi-truck me-1"></i>Weitere BOS / Feuerwehr</h6>
+                <div class="row g-2 mb-2">
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Einheit</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.BosEinheit" placeholder="z.B. FF Musterstadt" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Zugführer</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.BosZugfuehrer" placeholder="Name" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Funkrufname</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.BosFunkrufname" placeholder="z.B. Florian 1/20" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label form-label-sm">Aufgabenteilung</label>
+                        <input class="form-control form-control-sm" @bind="_vForm.BosAufgabenteilung" placeholder="z.B. Feuerwehr übernimmt Wassersuche" />
+                    </div>
+                </div>
+                <div class="row g-1 mb-1">
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" @bind="_vForm.BosAbschnittAbgestimmt" />
+                            <label class="form-check-label small">Einsatzabschnitt abgestimmt</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" @bind="_vForm.BosRessourcenBesprochen" />
+                            <label class="form-check-label small">Ressourcen besprochen (Wärmebild, etc.)</label>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-modern-footer">
+                <button class="btn btn-outline-secondary" @onclick="CloseVermisstenModal">Abbrechen</button>
+                <button class="btn btn-primary" @onclick="SaveVermisstenAsync">
+                    <i class="bi bi-check-lg me-1"></i>Speichern
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @if (_showTeamModal)
 {
     <div class="modal-overlay" @onclick="CloseTeamModal">
@@ -1095,6 +1371,10 @@
     private bool _showCloseMissionModal;
     private bool _showPauseResetModal;
     private bool _showEditEinsatzModal;
+    private bool _showVermisstenModal;
+    private string _vermisstenMessage = string.Empty;
+    private bool _vermisstenIsError;
+    private Einsatzueberwachung.Domain.Models.VermisstenInfo _vForm = new();
 
     // Halsband-Auswahl beim Start (falls noch kein Halsband zugewiesen)
     private bool _showCollarSelectModal;
@@ -2766,5 +3046,92 @@
         }
 
         _showEditEinsatzModal = false;
+    }
+
+    private void OpenVermisstenModal()
+    {
+        var existing = EinsatzService.CurrentEinsatz.VermisstenInfo;
+        _vForm = existing is not null
+            ? new Einsatzueberwachung.Domain.Models.VermisstenInfo
+            {
+                Vorname = existing.Vorname,
+                Nachname = existing.Nachname,
+                Alter = existing.Alter,
+                Geburtsdatum = existing.Geburtsdatum,
+                Kleidung = existing.Kleidung,
+                Besonderheiten = existing.Besonderheiten,
+                ZuletztGesehenOrt = existing.ZuletztGesehenOrt,
+                ZuletztGesehenZeit = existing.ZuletztGesehenZeit,
+                ZuletztGesehenVon = existing.ZuletztGesehenVon,
+                Vorerkrankungen = existing.Vorerkrankungen,
+                Medikamente = existing.Medikamente,
+                Orientierung = existing.Orientierung,
+                Mobilitaet = existing.Mobilitaet,
+                Suizidrisiko = existing.Suizidrisiko,
+                Bewaffnet = existing.Bewaffnet,
+                PolizeiKontaktName = existing.PolizeiKontaktName,
+                PolizeiDienstnummer = existing.PolizeiDienstnummer,
+                PolizeiTelefon = existing.PolizeiTelefon,
+                PolizeiVermisstenmeldungAufgenommen = existing.PolizeiVermisstenmeldungAufgenommen,
+                PolizeiKoordinationBesprochen = existing.PolizeiKoordinationBesprochen,
+                PolizeiSuchabschnittAbgestimmt = existing.PolizeiSuchabschnittAbgestimmt,
+                PolizeiRueckmeldepflichtVereinbart = existing.PolizeiRueckmeldepflichtVereinbart,
+                PolizeiDatenschutzGeklaert = existing.PolizeiDatenschutzGeklaert,
+                BosEinheit = existing.BosEinheit,
+                BosZugfuehrer = existing.BosZugfuehrer,
+                BosFunkrufname = existing.BosFunkrufname,
+                BosAufgabenteilung = existing.BosAufgabenteilung,
+                BosAbschnittAbgestimmt = existing.BosAbschnittAbgestimmt,
+                BosRessourcenBesprochen = existing.BosRessourcenBesprochen
+            }
+            : new Einsatzueberwachung.Domain.Models.VermisstenInfo();
+
+        _vermisstenMessage = string.Empty;
+        _showVermisstenModal = true;
+    }
+
+    private void CloseVermisstenModal() => _showVermisstenModal = false;
+
+    private void OnVFormGeburtsdatumChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? string.Empty;
+        _vForm.Geburtsdatum = value;
+        if (DateTime.TryParseExact(value, "dd.MM.yyyy",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var birth))
+        {
+            var today = DateTime.Today;
+            var age = today.Year - birth.Year;
+            if (birth.Date > today.AddYears(-age)) age--;
+            _vForm.Alter = age.ToString();
+        }
+    }
+
+    private async Task SaveVermisstenAsync()
+    {
+        await EinsatzService.UpdateVermisstenInfoAsync(_vForm);
+        _vermisstenMessage = "Gespeichert.";
+        _vermisstenIsError = false;
+        await Task.Delay(1200);
+        _showVermisstenModal = false;
+    }
+
+    private IEnumerable<(string Label, Func<bool> Getter, Action<bool> Setter)> GetPolizeiChecklist()
+    {
+        yield return ("Vermisstenmeldung aufgenommen",
+            () => _vForm.PolizeiVermisstenmeldungAufgenommen,
+            v => _vForm.PolizeiVermisstenmeldungAufgenommen = v);
+        yield return ("Einsatzkoordination besprochen",
+            () => _vForm.PolizeiKoordinationBesprochen,
+            v => _vForm.PolizeiKoordinationBesprochen = v);
+        yield return ("Suchabschnitte abgestimmt",
+            () => _vForm.PolizeiSuchabschnittAbgestimmt,
+            v => _vForm.PolizeiSuchabschnittAbgestimmt = v);
+        yield return ("Rückmeldepflicht vereinbart",
+            () => _vForm.PolizeiRueckmeldepflichtVereinbart,
+            v => _vForm.PolizeiRueckmeldepflichtVereinbart = v);
+        yield return ("Datenschutz (Personendaten) geklärt",
+            () => _vForm.PolizeiDatenschutzGeklaert,
+            v => _vForm.PolizeiDatenschutzGeklaert = v);
     }
 }

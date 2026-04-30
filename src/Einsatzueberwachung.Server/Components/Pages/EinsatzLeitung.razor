@@ -1,0 +1,787 @@
+@page "/el"
+@layout Layout.ElLayout
+@rendermode InteractiveServer
+@implements IDisposable
+
+@using Einsatzueberwachung.Domain.Models
+@using Einsatzueberwachung.Domain.Models.Enums
+
+@inject IEinsatzService EinsatzService
+@inject IJSRuntime JS
+
+<PageTitle>Einsatzleitung</PageTitle>
+
+<div class="el-dashboard">
+
+    @* ── Fixe Kopfzeile ─────────────────────────────────────────── *@
+    <header class="el-header">
+        <div class="el-header-left">
+            <div class="el-header-title">
+                <i class="bi bi-shield-shaded me-2"></i>
+                <span class="el-header-stichwort">@(_e.Einsatzort.Length > 0 ? _e.Einsatzort : "Einsatzleitung")</span>
+            </div>
+            <div class="el-header-sub">
+                @if (!string.IsNullOrWhiteSpace(_e.Stichwort))
+                {
+                    <span class="el-badge-stichwort me-2">@_e.Stichwort</span>
+                }
+                @if (_e.AlarmierungsZeit.HasValue)
+                {
+                    <span class="text-muted small">Alarm: @_e.AlarmierungsZeit.Value.ToString("HH:mm")</span>
+                }
+            </div>
+        </div>
+
+        <div class="el-header-center">
+            <div class="el-status-pills">
+                <span class="el-status-pill el-pill-running" title="Laufende Teams">
+                    <i class="bi bi-play-fill"></i> @_teamsRunning
+                </span>
+                @if (_teamsWarning > 0)
+                {
+                    <span class="el-status-pill el-pill-warning" title="Teams mit Warnung">
+                        <i class="bi bi-exclamation-triangle-fill"></i> @_teamsWarning
+                    </span>
+                }
+                <span class="el-status-pill el-pill-ready" title="Bereite Teams">
+                    <i class="bi bi-pause-fill"></i> @_teamsReady
+                </span>
+            </div>
+        </div>
+
+        <div class="el-header-right">
+            <span class="el-clock" id="el-live-clock">--:--:--</span>
+        </div>
+    </header>
+
+    @* ── Inhalt (aktiver Tab) ────────────────────────────────────── *@
+    <main class="el-main">
+
+        @* ═══ TAB: ÜBERSICHT ═══════════════════════════════════════ *@
+        @if (_activeTab == "uebersicht")
+        {
+            <div class="el-tab-content el-fade-in">
+                @* Warnung bei kritischen Teams *@
+                @{
+                    var criticalTeams = EinsatzService.Teams.Where(t => t.IsSecondWarning).ToList();
+                }
+                @if (criticalTeams.Count > 0)
+                {
+                    <div class="el-critical-banner">
+                        <i class="bi bi-exclamation-octagon-fill me-2"></i>
+                        <strong>KRITISCH:</strong>
+                        @string.Join(", ", criticalTeams.Select(t => t.TeamName))
+                        — bitte Teamstatus prüfen!
+                    </div>
+                }
+
+                @* 4 Stat-Kacheln *@
+                <div class="el-stat-grid">
+                    <div class="el-stat-card el-stat-running">
+                        <div class="el-stat-value">@_teamsRunning</div>
+                        <div class="el-stat-label">Laufend</div>
+                    </div>
+                    <div class="el-stat-card @(_teamsWarning > 0 ? "el-stat-warning" : "el-stat-muted")">
+                        <div class="el-stat-value">@_teamsWarning</div>
+                        <div class="el-stat-label">Warnung</div>
+                    </div>
+                    <div class="el-stat-card el-stat-ready">
+                        <div class="el-stat-value">@_teamsReady</div>
+                        <div class="el-stat-label">Bereit</div>
+                    </div>
+                    <div class="el-stat-card el-stat-muted">
+                        <div class="el-stat-value">@EinsatzService.Teams.Count</div>
+                        <div class="el-stat-label">Teams gesamt</div>
+                    </div>
+                </div>
+
+                @* Vermissten-Kurzinfo *@
+                @{
+                    var vi = EinsatzService.CurrentEinsatz.VermisstenInfo;
+                }
+                @if (vi is not null)
+                {
+                    <div class="el-card el-card-vermissten mb-3">
+                        <div class="el-card-header">
+                            <i class="bi bi-person-exclamation me-2 text-warning"></i>
+                            <span class="fw-bold">@vi.VollerName</span>
+                            @if (!string.IsNullOrWhiteSpace(vi.Alter)) { <span class="ms-2 text-muted">@vi.Alter J.</span> }
+                            @if (vi.Suizidrisiko == RisikoStatus.Ja)
+                            {
+                                <span class="el-risk-badge ms-auto">⚠ Suizidrisiko</span>
+                            }
+                            @if (vi.Bewaffnet == RisikoStatus.Ja)
+                            {
+                                <span class="el-risk-badge ms-1">⚠ Bewaffnet</span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(vi.Kleidung) || !string.IsNullOrWhiteSpace(vi.ZuletztGesehenOrt))
+                        {
+                            <div class="el-card-body small">
+                                @if (!string.IsNullOrWhiteSpace(vi.Kleidung))
+                                {
+                                    <div><span class="text-muted">Kleidung:</span> @vi.Kleidung</div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(vi.ZuletztGesehenOrt))
+                                {
+                                    <div><span class="text-muted">Zuletzt:</span> @vi.ZuletztGesehenOrt @vi.ZuletztGesehenZeit</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <button class="el-card el-card-empty w-100 mb-3" @onclick='() => _activeTab = "vermisst"'>
+                        <i class="bi bi-person-plus me-2"></i>Vermissteninfo erfassen →
+                    </button>
+                }
+
+                @* Letzte Notizen *@
+                <div class="el-card">
+                    <div class="el-card-header"><i class="bi bi-chat-left-text me-2"></i>Zuletzt erfasste Meldungen</div>
+                    <div class="el-card-body">
+                        @{
+                            var recentNotes = EinsatzService.GlobalNotes
+                                .OrderByDescending(n => n.Timestamp)
+                                .Take(5)
+                                .ToList();
+                        }
+                        @if (recentNotes.Count == 0)
+                        {
+                            <p class="text-muted small mb-0">Noch keine Notizen vorhanden.</p>
+                        }
+                        else
+                        {
+                            @foreach (var note in recentNotes)
+                            {
+                                <div class="el-note-row">
+                                    <span class="el-note-time">@note.FormattedTimestamp</span>
+                                    <span class="el-note-source">@(string.IsNullOrWhiteSpace(note.SourceTeamName) ? "EL" : note.SourceTeamName)</span>
+                                    <span class="el-note-text">@note.Text</span>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* ═══ TAB: TEAMS ════════════════════════════════════════════ *@
+        else if (_activeTab == "teams")
+        {
+            <div class="el-tab-content el-fade-in">
+                @if (EinsatzService.Teams.Count == 0)
+                {
+                    <div class="el-empty-state">
+                        <i class="bi bi-people display-4 text-muted"></i>
+                        <p class="mt-2 text-muted">Noch keine Teams angelegt.</p>
+                    </div>
+                }
+                else
+                {
+                    var sortedTeams = EinsatzService.Teams
+                        .OrderByDescending(t => t.IsSecondWarning)
+                        .ThenByDescending(t => t.IsFirstWarning)
+                        .ThenByDescending(t => t.IsRunning)
+                        .ThenBy(t => t.TeamName)
+                        .ToList();
+
+                    @foreach (var team in sortedTeams)
+                    {
+                        <div class="el-team-card @GetElTeamClass(team)">
+                            <div class="el-team-status-bar" style="background: @GetTeamHexColor(team)"></div>
+                            <div class="el-team-body">
+                                <div class="el-team-top">
+                                    <div>
+                                        <div class="el-team-name">@team.TeamName</div>
+                                        <div class="el-team-meta">
+                                            @if (!string.IsNullOrWhiteSpace(team.DogName))
+                                            {
+                                                <span>🐕 @team.DogName</span>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(team.HundefuehrerName))
+                                            {
+                                                <span><i class="bi bi-person-fill"></i> @team.HundefuehrerName</span>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(team.SearchAreaName))
+                                            {
+                                                <span><i class="bi bi-geo-alt-fill"></i> @team.SearchAreaName</span>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="el-team-timer @GetTimerClass(team)">
+                                        @team.ElapsedTime.ToString(@"hh\:mm\:ss")
+                                    </div>
+                                </div>
+                                <div class="el-team-status-label">
+                                    @if (team.IsSecondWarning)
+                                    {
+                                        <span class="el-team-badge el-badge-critical"><i class="bi bi-exclamation-octagon-fill me-1"></i>Kritisch</span>
+                                    }
+                                    else if (team.IsFirstWarning)
+                                    {
+                                        <span class="el-team-badge el-badge-warn"><i class="bi bi-exclamation-triangle-fill me-1"></i>Warnung</span>
+                                    }
+                                    else if (team.IsRunning)
+                                    {
+                                        <span class="el-team-badge el-badge-running"><i class="bi bi-play-fill me-1"></i>Laufend</span>
+                                    }
+                                    else if (team.IsPausing)
+                                    {
+                                        <span class="el-team-badge el-badge-pause"><i class="bi bi-pause-fill me-1"></i>Pause</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="el-team-badge el-badge-ready"><i class="bi bi-circle me-1"></i>Bereit</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        }
+
+        @* ═══ TAB: VERMISST ════════════════════════════════════════ *@
+        else if (_activeTab == "vermisst")
+        {
+            <div class="el-tab-content el-fade-in">
+                <div class="el-form-container">
+                    @if (!string.IsNullOrWhiteSpace(_saveMessage))
+                    {
+                        <div class="alert @(_saveIsError ? "alert-danger" : "alert-success") py-2 mb-3">@_saveMessage</div>
+                    }
+
+                    @* PERSON *@
+                    <div class="el-section">
+                        <div class="el-section-title"><i class="bi bi-person me-2"></i>Person</div>
+                        <div class="el-field-grid">
+                            <div class="el-field el-field-md">
+                                <label>Vorname</label>
+                                <input class="el-input" @bind="_vi.Vorname" placeholder="Vorname" />
+                            </div>
+                            <div class="el-field el-field-md">
+                                <label>Nachname</label>
+                                <input class="el-input" @bind="_vi.Nachname" placeholder="Nachname" />
+                            </div>
+                            <div class="el-field el-field-sm">
+                                <label>Geburtsdatum</label>
+                                <input class="el-input"
+                                       value="@_vi.Geburtsdatum"
+                                       @onchange="OnGeburtsdatumChanged"
+                                       placeholder="TT.MM.JJJJ" />
+                            </div>
+                            <div class="el-field el-field-sm">
+                                <label>Alter <span style="font-weight:400;font-size:.72rem;color:#888">(auto. berechnet)</span></label>
+                                <input class="el-input" @bind="_vi.Alter" placeholder="z.B. 73" />
+                            </div>
+                            <div class="el-field el-field-full">
+                                <label>Kleidung</label>
+                                <input class="el-input" @bind="_vi.Kleidung" placeholder="z.B. blaue Winterjacke, braune Cordhose, graue Mütze" />
+                            </div>
+                            <div class="el-field el-field-full">
+                                <label>Besonderheiten / Körpergröße</label>
+                                <input class="el-input" @bind="_vi.Besonderheiten" placeholder="z.B. ca. 170 cm, Brille, Gehstock" />
+                            </div>
+                        </div>
+                    </div>
+
+                    @* LETZTER AUFENTHALT *@
+                    <div class="el-section">
+                        <div class="el-section-title"><i class="bi bi-geo-alt me-2"></i>Letzter bekannter Aufenthalt</div>
+                        <div class="el-field-grid">
+                            <div class="el-field el-field-lg">
+                                <label>Ort / Adresse</label>
+                                <input class="el-input" @bind="_vi.ZuletztGesehenOrt" placeholder="z.B. Parkplatz Waldstraße 12, Musterstadt" />
+                            </div>
+                            <div class="el-field el-field-sm">
+                                <label>Uhrzeit</label>
+                                <input class="el-input" @bind="_vi.ZuletztGesehenZeit" placeholder="z.B. 14:30" />
+                            </div>
+                            <div class="el-field el-field-md">
+                                <label>Gesehen von</label>
+                                <input class="el-input" @bind="_vi.ZuletztGesehenVon" placeholder="z.B. Tochter / Nachbar" />
+                            </div>
+                        </div>
+                    </div>
+
+                    @* MEDIZIN & VERHALTEN *@
+                    <div class="el-section">
+                        <div class="el-section-title"><i class="bi bi-heart-pulse me-2"></i>Medizin &amp; Verhalten</div>
+                        <div class="el-field-grid">
+                            <div class="el-field el-field-md">
+                                <label>Orientierung</label>
+                                <select class="el-input" @bind="_vi.Orientierung">
+                                    @foreach (var v in Enum.GetValues<OrientierungsStatus>())
+                                    {
+                                        <option value="@v">@OrientierungLabel(v)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="el-field el-field-md">
+                                <label>Mobilität</label>
+                                <select class="el-input" @bind="_vi.Mobilitaet">
+                                    @foreach (var v in Enum.GetValues<MobilitaetsStatus>())
+                                    {
+                                        <option value="@v">@MobilitaetLabel(v)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="el-field el-field-sm">
+                                <label class="@(_vi.Suizidrisiko == RisikoStatus.Ja ? "text-danger fw-bold" : "")">Suizidrisiko</label>
+                                <select class="el-input @(_vi.Suizidrisiko == RisikoStatus.Ja ? "el-input-danger" : "")" @bind="_vi.Suizidrisiko">
+                                    @foreach (var v in Enum.GetValues<RisikoStatus>())
+                                    {
+                                        <option value="@v">@v</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="el-field el-field-sm">
+                                <label class="@(_vi.Bewaffnet == RisikoStatus.Ja ? "text-danger fw-bold" : "")">Bewaffnet</label>
+                                <select class="el-input @(_vi.Bewaffnet == RisikoStatus.Ja ? "el-input-danger" : "")" @bind="_vi.Bewaffnet">
+                                    @foreach (var v in Enum.GetValues<RisikoStatus>())
+                                    {
+                                        <option value="@v">@v</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="el-field el-field-md">
+                                <label>Vorerkrankungen</label>
+                                <input class="el-input" @bind="_vi.Vorerkrankungen" placeholder="z.B. Demenz, Diabetes Typ 2" />
+                            </div>
+                            <div class="el-field el-field-md">
+                                <label>Medikamente</label>
+                                <input class="el-input" @bind="_vi.Medikamente" placeholder="z.B. Metformin, Blutverdünner" />
+                            </div>
+                        </div>
+                    </div>
+
+                    @* POLIZEI-KONTAKT *@
+                    <div class="el-section">
+                        <div class="el-section-title"><i class="bi bi-shield me-2"></i>Polizei-Kontakt</div>
+                        <div class="el-field-grid">
+                            <div class="el-field el-field-md">
+                                <label>Name Kontaktbeamter</label>
+                                <input class="el-input" @bind="_vi.PolizeiKontaktName" placeholder="z.B. PHK Müller" />
+                            </div>
+                            <div class="el-field el-field-sm">
+                                <label>Dienstnr. / Rufname</label>
+                                <input class="el-input" @bind="_vi.PolizeiDienstnummer" placeholder="z.B. 1234" />
+                            </div>
+                            <div class="el-field el-field-sm">
+                                <label>Telefon</label>
+                                <input class="el-input" type="tel" @bind="_vi.PolizeiTelefon" placeholder="+49 ..." />
+                            </div>
+                        </div>
+                        <div class="el-checklist">
+                            <label class="el-check-item">
+                                <input type="checkbox" @bind="_vi.PolizeiVermisstenmeldungAufgenommen" />
+                                <span>Vermisstenmeldung aufgenommen</span>
+                            </label>
+                            <label class="el-check-item">
+                                <input type="checkbox" @bind="_vi.PolizeiKoordinationBesprochen" />
+                                <span>Einsatzkoordination besprochen</span>
+                            </label>
+                            <label class="el-check-item">
+                                <input type="checkbox" @bind="_vi.PolizeiSuchabschnittAbgestimmt" />
+                                <span>Suchabschnitte abgestimmt</span>
+                            </label>
+                            <label class="el-check-item">
+                                <input type="checkbox" @bind="_vi.PolizeiRueckmeldepflichtVereinbart" />
+                                <span>Rückmeldepflicht vereinbart</span>
+                            </label>
+                            <label class="el-check-item">
+                                <input type="checkbox" @bind="_vi.PolizeiDatenschutzGeklaert" />
+                                <span>Datenschutz (Personendaten) geklärt</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    @* FEUERWEHR / BOS *@
+                    <div class="el-section">
+                        <div class="el-section-title"><i class="bi bi-truck me-2"></i>Weitere BOS / Feuerwehr</div>
+                        <div class="el-field-grid">
+                            <div class="el-field el-field-md">
+                                <label>Einheit</label>
+                                <input class="el-input" @bind="_vi.BosEinheit" placeholder="z.B. FF Musterstadt" />
+                            </div>
+                            <div class="el-field el-field-sm">
+                                <label>Zugführer</label>
+                                <input class="el-input" @bind="_vi.BosZugfuehrer" placeholder="Name" />
+                            </div>
+                            <div class="el-field el-field-sm">
+                                <label>Funkrufname</label>
+                                <input class="el-input" @bind="_vi.BosFunkrufname" placeholder="z.B. Florian 1/20" />
+                            </div>
+                            <div class="el-field el-field-full">
+                                <label>Aufgabenteilung</label>
+                                <input class="el-input" @bind="_vi.BosAufgabenteilung" placeholder="z.B. Feuerwehr übernimmt Wassersuche nördl. Bach" />
+                            </div>
+                        </div>
+                        <div class="el-checklist">
+                            <label class="el-check-item">
+                                <input type="checkbox" @bind="_vi.BosAbschnittAbgestimmt" />
+                                <span>Einsatzabschnitt abgestimmt</span>
+                            </label>
+                            <label class="el-check-item">
+                                <input type="checkbox" @bind="_vi.BosRessourcenBesprochen" />
+                                <span>Ressourcen besprochen (Wärmebild, etc.)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="el-save-row">
+                        <button class="el-btn el-btn-primary" @onclick="SaveVermisstenAsync">
+                            <i class="bi bi-check-lg me-1"></i>Speichern
+                        </button>
+                        @if (EinsatzService.CurrentEinsatz.VermisstenInfo?.ZuletztAktualisiert.HasValue == true)
+                        {
+                            <span class="text-muted small">Gespeichert: @EinsatzService.CurrentEinsatz.VermisstenInfo.ZuletztAktualisiert!.Value.ToString("HH:mm")</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* ═══ TAB: NOTIZEN ═════════════════════════════════════════ *@
+        else if (_activeTab == "notizen")
+        {
+            <div class="el-tab-content el-fade-in">
+
+                @* Sub-Tab-Leiste *@
+                <div class="el-subtab-bar">
+                    <button class="el-subtab @(_notizSubTab == "el" ? "el-subtab-active" : "")" @onclick='() => _notizSubTab = "el"'>
+                        <i class="bi bi-lock-fill me-1"></i>EL-Notizen
+                    </button>
+                    <button class="el-subtab @(_notizSubTab == "alle" ? "el-subtab-active" : "")" @onclick='() => _notizSubTab = "alle"'>
+                        <i class="bi bi-chat-left-text me-1"></i>Alle Notizen & Funk
+                    </button>
+                </div>
+
+                @if (_notizSubTab == "el")
+                {
+                    @* EL-Eigene Notizen – Erfassen *@
+                    <div class="el-note-input-area">
+                        <div class="el-note-prefix-row">
+                            @foreach (var p in new[] { "", "Anruf", "Funk", "Wichtig" })
+                            {
+                                <button class="el-prefix-btn @(_elNotizPrefix == p ? "el-prefix-active" : "")"
+                                        @onclick="() => _elNotizPrefix = p">
+                                    @if (p == "Anruf") { <i class="bi bi-telephone-fill me-1"></i> }
+                                    else if (p == "Funk") { <i class="bi bi-broadcast me-1"></i> }
+                                    else if (p == "Wichtig") { <i class="bi bi-exclamation-triangle-fill me-1"></i> }
+                                    else { <i class="bi bi-pencil me-1"></i> }
+                                    @(p == "" ? "Notiz" : p)
+                                </button>
+                            }
+                        </div>
+                        <div class="el-note-input-row">
+                            <textarea class="el-textarea" rows="2"
+                                      placeholder="EL-interne Notiz eingeben..."
+                                      @bind="_elNotizText"
+                                      @bind:event="oninput"></textarea>
+                            <button class="el-btn el-btn-primary el-btn-send"
+                                    @onclick="AddElNotizAsync"
+                                    disabled="@(string.IsNullOrWhiteSpace(_elNotizText))">
+                                <i class="bi bi-send-fill"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    @* EL-Notizen Liste *@
+                    <div class="el-notes-list">
+                        @{
+                            var elNotizen = EinsatzService.CurrentEinsatz.ElNotizen ?? new();
+                        }
+                        @if (elNotizen.Count == 0)
+                        {
+                            <p class="text-muted text-center py-3 small">Noch keine EL-Notizen.</p>
+                        }
+                        else
+                        {
+                            @foreach (var notiz in elNotizen)
+                            {
+                                <div class="el-notiz-card">
+                                    <div class="el-notiz-meta">
+                                        @if (!string.IsNullOrWhiteSpace(notiz.Prefix))
+                                        {
+                                            <span class="el-notiz-prefix el-notiz-prefix-@notiz.Prefix.ToLower()">
+                                                <i class="bi @notiz.PrefixIcon me-1"></i>@notiz.Prefix
+                                            </span>
+                                        }
+                                        <span class="el-notiz-time">@notiz.FormattedDateTime</span>
+                                        <button class="el-notiz-delete" @onclick="() => DeleteElNotizAsync(notiz.Id)" title="Löschen">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </div>
+                                    <div class="el-notiz-text">@notiz.Text</div>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+                else
+                {
+                    @* Geteilte Notizen aus dem EinsatzMonitor *@
+                    <div class="el-notes-filter-row">
+                        <button class="el-filter-btn @(_noteFilter == "alle" ? "active" : "")" @onclick='() => _noteFilter = "alle"'>Alle</button>
+                        <button class="el-filter-btn @(_noteFilter == "funk" ? "active" : "")" @onclick='() => _noteFilter = "funk"'>Funk</button>
+                        <button class="el-filter-btn @(_noteFilter == "notiz" ? "active" : "")" @onclick='() => _noteFilter = "notiz"'>Notiz</button>
+                    </div>
+                    <div class="el-notes-list">
+                        @{
+                            var filteredNotes = EinsatzService.GlobalNotes
+                                .Where(n => _noteFilter == "alle"
+                                    || (_noteFilter == "funk" && n.Type == GlobalNotesEntryType.Manual && n.SourceType == "Funk")
+                                    || (_noteFilter == "notiz" && n.Type == GlobalNotesEntryType.Manual))
+                                .OrderByDescending(n => n.Timestamp)
+                                .ToList();
+                        }
+                        @if (filteredNotes.Count == 0)
+                        {
+                            <p class="text-muted text-center py-3 small">Keine Einträge.</p>
+                        }
+                        else
+                        {
+                            @foreach (var note in filteredNotes)
+                            {
+                                <div class="el-notiz-card el-notiz-shared">
+                                    <div class="el-notiz-meta">
+                                        <span class="el-notiz-source">@(string.IsNullOrWhiteSpace(note.SourceTeamName) ? "System" : note.SourceTeamName)</span>
+                                        <span class="el-notiz-time">@note.FormattedTimestamp</span>
+                                    </div>
+                                    <div class="el-notiz-text">@note.Text</div>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+
+    </main>
+
+    @* ── Bottom-Tab-Bar ──────────────────────────────────────────── *@
+    <nav class="el-tabbar">
+        <button class="el-tab-btn @(_activeTab == "uebersicht" ? "el-tab-active" : "")"
+                @onclick='() => _activeTab = "uebersicht"'>
+            <i class="bi bi-speedometer2"></i>
+            <span>Übersicht</span>
+        </button>
+        <button class="el-tab-btn @(_activeTab == "teams" ? "el-tab-active" : "") @(_teamsWarning > 0 ? "el-tab-has-warning" : "")"
+                @onclick='() => _activeTab = "teams"'>
+            <i class="bi bi-people-fill"></i>
+            <span>Teams</span>
+            @if (_teamsWarning > 0)
+            {
+                <span class="el-tab-badge">@_teamsWarning</span>
+            }
+        </button>
+        <button class="el-tab-btn @(_activeTab == "vermisst" ? "el-tab-active" : "")"
+                @onclick='() => _activeTab = "vermisst"'>
+            <i class="bi bi-person-exclamation"></i>
+            <span>Vermisst</span>
+        </button>
+        <button class="el-tab-btn @(_activeTab == "notizen" ? "el-tab-active" : "")"
+                @onclick='() => _activeTab = "notizen"'>
+            <i class="bi bi-chat-left-text-fill"></i>
+            <span>Notizen</span>
+        </button>
+    </nav>
+
+</div>
+
+@code {
+    private string _activeTab = "uebersicht";
+    private string _notizSubTab = "el";
+    private string _noteFilter = "alle";
+
+    private EinsatzData _e => EinsatzService.CurrentEinsatz;
+    private int _teamsRunning => EinsatzService.Teams.Count(t => t.IsRunning);
+    private int _teamsWarning => EinsatzService.Teams.Count(t => t.IsFirstWarning || t.IsSecondWarning);
+    private int _teamsReady => EinsatzService.Teams.Count(t => !t.IsRunning && !t.IsPausing);
+
+    // Vermissteninfo-Formular
+    private VermisstenInfo _vi = new();
+    private string _saveMessage = string.Empty;
+    private bool _saveIsError;
+
+    // EL-Notizen
+    private string _elNotizText = string.Empty;
+    private string _elNotizPrefix = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        var existing = EinsatzService.CurrentEinsatz.VermisstenInfo;
+        if (existing is not null)
+            CloneViFrom(existing);
+
+        EinsatzService.EinsatzChanged += OnStateChanged;
+        EinsatzService.TeamAdded += OnTeamChanged;
+        EinsatzService.TeamUpdated += OnTeamChanged;
+        EinsatzService.TeamRemoved += OnTeamChanged;
+        EinsatzService.NoteAdded += OnNoteChanged;
+        EinsatzService.VermisstenInfoChanged += OnVermisstenChanged;
+        EinsatzService.ElNotizAdded += OnStateChangedDirect;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try { await JS.InvokeVoidAsync("elDashboard.startClock", "el-live-clock"); }
+        catch { /* Uhr-Fehler sollen die Seite nicht crashen */ }
+    }
+
+    private async Task SaveVermisstenAsync()
+    {
+        await EinsatzService.UpdateVermisstenInfoAsync(_vi);
+        _saveMessage = "Gespeichert.";
+        _saveIsError = false;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(2000);
+        _saveMessage = string.Empty;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AddElNotizAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_elNotizText)) return;
+        await EinsatzService.AddElNotizAsync(_elNotizText, _elNotizPrefix);
+        _elNotizText = string.Empty;
+    }
+
+    private async Task DeleteElNotizAsync(string id)
+    {
+        await EinsatzService.DeleteElNotizAsync(id);
+    }
+
+    private void CloneViFrom(VermisstenInfo src)
+    {
+        _vi = new VermisstenInfo
+        {
+            Vorname = src.Vorname,
+            Nachname = src.Nachname,
+            Alter = src.Alter,
+            Geburtsdatum = src.Geburtsdatum,
+            Kleidung = src.Kleidung,
+            Besonderheiten = src.Besonderheiten,
+            ZuletztGesehenOrt = src.ZuletztGesehenOrt,
+            ZuletztGesehenZeit = src.ZuletztGesehenZeit,
+            ZuletztGesehenVon = src.ZuletztGesehenVon,
+            Vorerkrankungen = src.Vorerkrankungen,
+            Medikamente = src.Medikamente,
+            Orientierung = src.Orientierung,
+            Mobilitaet = src.Mobilitaet,
+            Suizidrisiko = src.Suizidrisiko,
+            Bewaffnet = src.Bewaffnet,
+            PolizeiKontaktName = src.PolizeiKontaktName,
+            PolizeiDienstnummer = src.PolizeiDienstnummer,
+            PolizeiTelefon = src.PolizeiTelefon,
+            PolizeiVermisstenmeldungAufgenommen = src.PolizeiVermisstenmeldungAufgenommen,
+            PolizeiKoordinationBesprochen = src.PolizeiKoordinationBesprochen,
+            PolizeiSuchabschnittAbgestimmt = src.PolizeiSuchabschnittAbgestimmt,
+            PolizeiRueckmeldepflichtVereinbart = src.PolizeiRueckmeldepflichtVereinbart,
+            PolizeiDatenschutzGeklaert = src.PolizeiDatenschutzGeklaert,
+            BosEinheit = src.BosEinheit,
+            BosZugfuehrer = src.BosZugfuehrer,
+            BosFunkrufname = src.BosFunkrufname,
+            BosAufgabenteilung = src.BosAufgabenteilung,
+            BosAbschnittAbgestimmt = src.BosAbschnittAbgestimmt,
+            BosRessourcenBesprochen = src.BosRessourcenBesprochen
+        };
+    }
+
+    private void OnGeburtsdatumChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? string.Empty;
+        _vi.Geburtsdatum = value;
+        if (DateTime.TryParseExact(value, "dd.MM.yyyy",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var birth))
+        {
+            var today = DateTime.Today;
+            var age = today.Year - birth.Year;
+            if (birth.Date > today.AddYears(-age)) age--;
+            _vi.Alter = age.ToString();
+        }
+    }
+
+    private static string GetElTeamClass(Team t) => t switch
+    {
+        _ when t.IsSecondWarning => "el-team-critical",
+        _ when t.IsFirstWarning  => "el-team-warning",
+        _ when t.IsRunning       => "el-team-running",
+        _ when t.IsPausing       => "el-team-pause",
+        _                        => "el-team-ready"
+    };
+
+    private static string GetTimerClass(Team t) => t switch
+    {
+        _ when t.IsSecondWarning => "el-timer-critical",
+        _ when t.IsFirstWarning  => "el-timer-warning",
+        _ when t.IsRunning       => "el-timer-running",
+        _                        => "el-timer-default"
+    };
+
+    private static string GetTeamHexColor(Team t) => t switch
+    {
+        _ when t.IsSecondWarning => "#dc3545",
+        _ when t.IsFirstWarning  => "#ffc107",
+        _ when t.IsRunning       => "#198754",
+        _ when t.IsPausing       => "#546e7a",
+        _                        => "#6c757d"
+    };
+
+    private static string OrientierungLabel(OrientierungsStatus s) => s switch
+    {
+        OrientierungsStatus.Gut => "Gut",
+        OrientierungsStatus.Eingeschraenkt => "Eingeschränkt",
+        _ => "Unbekannt"
+    };
+
+    private static string MobilitaetLabel(MobilitaetsStatus s) => s switch
+    {
+        MobilitaetsStatus.ZuFuss => "Zu Fuß",
+        MobilitaetsStatus.Rollator => "Rollator",
+        MobilitaetsStatus.Rollstuhl => "Rollstuhl",
+        MobilitaetsStatus.Fahrzeug => "Fahrzeug",
+        _ => "Unbekannt"
+    };
+
+    private void OnStateChanged()
+        => InvokeAsync(StateHasChanged);
+
+    private void OnTeamChanged(Team team)
+        => InvokeAsync(StateHasChanged);
+
+    private void OnNoteChanged(GlobalNotesEntry note)
+        => InvokeAsync(StateHasChanged);
+
+    private void OnStateChangedDirect()
+        => InvokeAsync(StateHasChanged);
+
+    private void OnVermisstenChanged()
+    {
+        // Formular nur aktualisieren wenn der Nutzer nicht gerade editiert
+        if (_activeTab != "vermisst")
+        {
+            var latest = EinsatzService.CurrentEinsatz.VermisstenInfo;
+            if (latest is not null)
+                CloneViFrom(latest);
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        EinsatzService.EinsatzChanged -= OnStateChanged;
+        EinsatzService.TeamAdded -= OnTeamChanged;
+        EinsatzService.TeamUpdated -= OnTeamChanged;
+        EinsatzService.TeamRemoved -= OnTeamChanged;
+        EinsatzService.NoteAdded -= OnNoteChanged;
+        EinsatzService.VermisstenInfoChanged -= OnVermisstenChanged;
+        EinsatzService.ElNotizAdded -= OnStateChangedDirect;
+    }
+}

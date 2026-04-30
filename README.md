@@ -1,138 +1,157 @@
-# Einsatzueberwachung.Server
+# 🐕 Einsatzüberwachung.Server
 
-Linux-faehiger Nachbau der Anwendung Einsatzueberwachung.Web mit separater Mobile-PWA.
+**Einsatzleitsystem für Suchhundestaffeln** — entwickelt für den VPN-internen Betrieb auf einem Linux-Server.
 
-## Projektstruktur
+Die Anwendung unterstützt Suchhundestaffeln bei der Koordination von Einsätzen: Teamverwaltung mit Timern, Live-GPS-Tracking von Suchhunden, Funksprüche, Notizen, Einsatzberichte als PDF und eine direkte Schnittstelle zu Divera 24/7.
 
-- `src/Einsatzueberwachung.Server`: Hauptanwendung (Blazor Server)
-- `src/Einsatzueberwachung.Domain`: Domain-Modelle und Services
-- `src/Einsatzueberwachung.LiveTracking`: Windows Desktop-App (WPF) fuer GPS USB Halsband-Empfang
-- `deploy`: Linux-Deployment (Nginx, systemd, WireGuard, Setup-Skript)
+---
 
-## Deployment-Bausteine
+## ✨ Funktionen im Überblick
 
-- Nginx Reverse Proxy: `deploy/nginx/einsatzueberwachung.conf`
-- systemd Dienste: `deploy/systemd/einsatzueberwachung-*.service`
-- systemd Timer: Backup und Healthcheck in `deploy/systemd`
-- Skripte: `deploy/scripts/backup.sh`, `deploy/scripts/health-check.sh`, `deploy/scripts/apply-update.sh`
+| Bereich | Beschreibung |
+|---|---|
+| 🗂️ **Einsatzsteuerung** | Einsatz starten/beenden, Teams anlegen, Suchgebiete auf der Karte definieren |
+| ⏱️ **Team-Timer** | Zeiterfassung pro Team mit farbcodierter Warnstufe (Grün → Orange → Rot → Blinken) |
+| 📡 **GPS Live-Tracking** | Bis zu 20 Halsbänder gleichzeitig, Live-Laufwege auf der Karte, automatische Suchgebiet-Warnung |
+| 📻 **Funksprüche** | Chronologische Funkspruch-Liste mit Antwort-Threads, Echtzeit-Sync via SignalR |
+| 📝 **Notizen** | Globale und teamspezifische Notizen mit Zeitstempel und Antwort-Threads |
+| 🗺️ **Interaktive Karte** | Leaflet.js-Karte mit Suchgebieten, Polygonen, ELW-Position und GPS-Tracks |
+| 📄 **PDF-Bericht** | Einsatzbericht mit GPS-Track-Karten und Teamdaten als PDF-Download |
+| 🏛️ **Archiv** | Abgeschlossene Einsätze durchsuchen und als PDF exportieren |
+| 👥 **Stammdaten** | Personal, Hunde und Drohnen verwalten (inkl. Excel-Import/-Export) |
+| 🔔 **Divera 24/7** | Alarme und Verfügbarkeitsstatus direkt in der Anwendung |
+| 🎓 **Trainer-Modul** | Passwortgeschützter Bereich für Übungsverwaltung und Szenario-Vorschläge |
+| 📱 **Mobile Ansicht** | Optimierte Ansicht für Smartphones (integriert, keine separate App) |
+| 🌤️ **Wetter** | Aktuelle Wetterdaten für den Einsatzort via DWD/BrightSky |
+| 🔄 **Auto-Update** | GitHub-Release-Check und Update-Einspielen direkt aus der Anwendung |
 
-## Laufzeitdaten unter Linux
+---
 
-- Persistente Daten: `/opt/einsatzueberwachung/data`
-- Berichte/PDFs: `/opt/einsatzueberwachung/data/berichte`
-- Konfiguration ueber Env Vars: `EINSATZUEBERWACHUNG_DATA_DIR`, `EINSATZUEBERWACHUNG_REPORT_DIR`, `EINSATZUEBERWACHUNG_UPDATE_APPLY_CMD`
+## 🏗️ Projektstruktur
 
-## Updater
+```
+src/
+├── Einsatzueberwachung.Server/     ← ASP.NET Core Blazor Server (Hauptanwendung + REST-API)
+├── Einsatzueberwachung.Domain/     ← Domain-Modelle, Interfaces und Business-Logik
+├── Einsatzueberwachung.LiveTracking/ ← WPF Desktop-App (Windows) für USB-GPS-Empfänger
+└── Einsatzueberwachung.Tests/      ← xUnit Unit-Tests
 
-- Startseite zeigt den Update-Status (installiert/verfuegbar, letzter Check, letzte Installation)
-- Auto-Check alle 6 Stunden (abschaltbar ueber `AppSettings.AutoCheckUpdates`)
-- Manuelle Trigger ueber UI oder API:
-	- `POST /api/update/check`
-	- `POST /api/update/install`
-	- `GET /api/update/status`
+deploy/
+├── nginx/                          ← Nginx Reverse-Proxy-Konfiguration
+├── systemd/                        ← systemd Service Units, Backup- und Healthcheck-Timer
+├── wireguard/                      ← WireGuard VPN Beispielkonfiguration
+└── scripts/                        ← backup.sh, health-check.sh, apply-update.sh
+```
 
-## Live GPS-Halsband Tracking
+---
 
-Fuer das GPS-Livetracking wird die projektinterne Anwendung `Einsatzueberwachung.LiveTracking` benoetigt:
+## 🛠️ Tech-Stack
 
-- Projektpfad: `src/Einsatzueberwachung.LiveTracking`
-- Die Anwendung muss auf dem Windows-Rechner mit dem GPS-Empfaenger heruntergeladen bzw. bereitgestellt und gestartet werden.
-- Direkt aus der Hauptanwendung verfuegbar ueber `/downloads/livetracking.zip`
+- **Frontend**: Blazor Server (.NET 9) mit Bootstrap 5.3+, Dark Mode, Bootstrap Icons
+- **Karten**: Leaflet.js mit OpenStreetMap-Tiles
+- **Echtzeit**: SignalR (`/hubs/einsatz`) für alle Live-Updates
+- **Datenbank**: Entity Framework Core mit SQLite (`runtime-state.db`)
+- **Stammdaten**: JSON-Dateien (menschenlesbar, im Datenverzeichnis)
+- **PDF-Export**: QuestPDF + SkiaSharp
+- **Excel**: ClosedXML
+- **Deployment**: systemd-Dienst hinter Nginx auf Ubuntu 22.04/24.04 LTS
+- **Zugriff**: ausschließlich VPN-intern (WireGuard/OpenVPN)
 
-Einfache Bedienung fuer den Einsatzbetrieb.
+---
 
-### Bedienungsanleitung Live-Tracking
+## 📡 GPS Live-Tracking
 
-#### 1. Vorbereitung
+Das Live-Tracking erfordert die beiliegende Windows-App **Einsatzueberwachung.LiveTracking**:
 
-1. Einsatzueberwachung.LiveTracking ueber `/downloads/livetracking.zip` herunterladen, entpacken und auf dem Windows-Rechner mit angeschlossenem GPS-Handheld starten.
-2. In Einsatzueberwachung.LiveTracking die Server-URL eintragen (z.B. `http://10.0.0.1:5000`) und verbinden.
-3. Sobald Halsbaender erkannt werden, erscheinen sie automatisch im System.
+1. App über `/downloads/livetracking.zip` herunterladen, entpacken und auf dem Windows-Rechner mit angeschlossenem GPS-Empfänger (z. B. Garmin Alpha) starten.
+2. Server-URL eintragen (z. B. `http://10.0.0.1:5000`) und verbinden.
+3. Erkannte Halsbänder erscheinen automatisch im EinsatzMonitor.
+4. Im EinsatzMonitor Team starten → Halsband zuweisen → Live-Pfad auf der Karte verfolgen.
+5. Team stoppen → GPS-Track wird als Snapshot gespeichert und steht im PDF-Bericht zur Verfügung.
 
-#### 2. Halsband einem Team zuweisen
+Verlässt ein Hund sein Suchgebiet: rot pulsierender Marker auf der Karte + Warnung im Tracking-Panel.
 
-1. Im **EinsatzMonitor** ein Hundeteam anlegen oder bearbeiten.
-2. Im Team-Formular unter **GPS-Halsband** das gewuenschte Halsband aus der Dropdown-Liste waehlen.  
-   Nur nicht-zugewiesene Halsbaender werden angezeigt.
-3. Team speichern — das Halsband ist nun dem Team zugeordnet.
+Details: [`docs/GPS_TRACKING_WORKFLOW.md`](docs/GPS_TRACKING_WORKFLOW.md)
 
-#### 3. Suche starten und Live-Pfad verfolgen
+---
 
-1. Im EinsatzMonitor auf **Start** klicken, um den Team-Timer zu starten.  
-   Der bisherige GPS-Verlauf des Halsbands wird dabei zurueckgesetzt.
-2. Zur **Einsatzkarte** wechseln und den **GPS**-Button in der Kopfzeile aktivieren.
-3. Das schwebende Tracking-Panel zeigt alle aktiven Halsbaender mit Farbcodierung an.
-4. Der Live-Pfad wird als farbige Linie auf der Karte gezeichnet. Die Farbe entspricht der Farbe des zugewiesenen Suchgebiets.
-
-#### 4. Suchgebiet-Warnung
-
-Verlaesst ein Hund sein zugewiesenes Suchgebiet, erscheint:
-- Ein **rot pulsierender Marker** an der aktuellen Position auf der Karte.
-- Eine **Warnmeldung** im Tracking-Panel.
-- Kehrt der Hund ins Suchgebiet zurueck, wird die Warnung automatisch entfernt.
-
-#### 5. Team stoppen und Track sichern
-
-1. Im EinsatzMonitor auf **Stopp** klicken.
-2. Der gesamte aufgezeichnete GPS-Track wird als Snapshot gespeichert.
-3. Der Snapshot steht anschliessend fuer den PDF-Bericht zur Verfuegung.
-
-## Einsatzbericht und PDF-Export
-
-### Bedienungsanleitung Berichterstellung
-
-#### 1. Bericht oeffnen
-
-Im Hauptmenue auf **Bericht** klicken oder ueber den EinsatzMonitor den Bericht aufrufen.
-
-#### 2. Berichtsdaten eingeben
-
-- **Ergebnis**: Kurztext zum Einsatzergebnis (z.B. „Person gefunden", „Suche erfolglos").
-- **Bemerkungen**: Ausfuehrliche Anmerkungen zum Einsatzverlauf.
-
-#### 3. GPS-Tracks einschliessen (optional)
-
-- Die Checkbox **„GPS-Tracks in PDF einschliessen"** aktivieren.  
-  Ein Badge zeigt die Anzahl der verfuegbaren Tracks an.
-- Ist die Checkbox aktiv, werden die gesicherten Tracks als Kartenansichten in die PDF aufgenommen.
-
-#### 4. PDF erzeugen
-
-Auf **„PDF erzeugen"** klicken. Die PDF-Datei wird serverseitig generiert und zum Download angeboten.
-
-#### 5. Einsatz archivieren
-
-- **„Einsatz beenden und archivieren"** — speichert den Bericht und verschiebt den Einsatz ins Archiv.
-- **„Archivieren und neuen Einsatz vorbereiten"** — archiviert und setzt das System fuer einen neuen Einsatz zurueck.
-
-## Mobile Funktionen
-
-- Einsatz anlegen
-- Team-Uebersicht
-- Notizen
-- Funksprueche
-
-## Lokaler Start (Development)
+## 🚀 Lokaler Start (Development)
 
 ```bash
-# Server + Mobile (Linux/macOS/Windows)
+# Abhängigkeiten wiederherstellen und bauen
 dotnet build Einsatzueberwachung.Server.sln
+
+# Server starten
 dotnet run --project src/Einsatzueberwachung.Server
-dotnet run --project src/Einsatzueberwachung.Mobile
+
+# Tests ausführen
+dotnet test src/Einsatzueberwachung.Tests
 
 # LiveTracking Desktop-App (nur Windows)
 dotnet run --project src/Einsatzueberwachung.LiveTracking
 ```
 
-## Deployment
+Die Anwendung ist dann unter `http://localhost:5000` erreichbar. Swagger-UI: `http://localhost:5000/swagger`.
 
-Siehe `DEPLOYMENT.md`.
+---
 
-Fuer die End-to-End-Abnahme (Desktop + Mobile ueber `/mobile`) siehe in `DEPLOYMENT.md` den Abschnitt **10. Abnahme: Desktop + Mobile (`/mobile`)**.
+## 🐧 Deployment auf Ubuntu (VPN-intern)
 
-## Release-Automation
+Vollständige Anleitung: [`DEPLOYMENT.md`](DEPLOYMENT.md)
 
-- Bei jedem veroeffentlichten GitHub Release (`v*`) wird automatisch ein Linux-Asset gebaut und hochgeladen.
+**Kurzübersicht:**
+
+```bash
+# Auf dem Server: Setup-Skript ausführen (installiert .NET Runtime, Nginx, systemd, UFW)
+sudo bash deploy/setup.sh
+```
+
+**Was das Setup einrichtet:**
+
+- systemd-Dienst (`einsatzueberwachung-server.service`) hinter Nginx Reverse Proxy
+- Tägliches automatisches Backup um 03:30 Uhr
+- Healthcheck alle 2 Minuten mit automatischem Neustart
+- Persistente Laufzeitdaten unter `/opt/einsatzueberwachung/data`
+- Serverseitiger GitHub-Updater via `deploy/scripts/apply-update.sh`
+- NTP-Zeitsynchronisierung via `chrony`
+
+**Relevante Umgebungsvariablen:**
+
+| Variable | Standard | Beschreibung |
+|---|---|---|
+| `EINSATZ_DATA_DIR` | `/opt/einsatzueberwachung/data` | Stammdaten, Einstellungen, Archiv |
+| `EINSATZ_REPORTS_DIR` | `/opt/einsatzueberwachung/data/berichte` | Generierte PDF-Berichte |
+
+---
+
+## 🔌 REST-API
+
+Alle Endpunkte sind über `/api/` erreichbar. Im Development-Modus steht Swagger unter `/swagger` zur Verfügung.
+
+| Pfad | Zweck |
+|---|---|
+| `POST /api/einsatz/start` | Neuen Einsatz starten |
+| `GET /api/einsatz` | Aktuellen Einsatzzustand abrufen |
+| `POST /api/collar/receive-location` | GPS-Halsband-Position empfangen (Webhook) |
+| `GET /api/radio` | Funksprüche abrufen |
+| `POST /api/radio` | Neuen Funkspruch erstellen |
+| `GET /api/divera/status` | Divera 24/7 Status abrufen |
+| `GET /api/training/resources` | Stammdaten-Snapshot für Trainings-App |
+| `POST /api/update/check` | GitHub-Release-Check auslösen |
+| `POST /api/update/install` | Update einspielen |
+| `GET /health` | Health-Check Endpoint |
+| `GET /hubs/einsatz` | SignalR WebSocket Hub |
+
+Training-API Details: [`TRAINING_API.md`](TRAINING_API.md)
+
+---
+
+## 📦 Release-Automation
+
+Bei jedem veröffentlichten GitHub Release (`v*`) wird automatisch ein Linux-Asset gebaut und hochgeladen:
+
 - Workflow: `.github/workflows/release-linux-asset.yml`
-- Asset-Name: `linux-x64-server-<version>.zip` (z. B. `linux-x64-server-1.1.3.zip`)
-- Manuell nachtriggern ueber `workflow_dispatch` mit Tag-Eingabe ist moeglich.
+- Asset-Name: `linux-x64-server-<version>.zip` (z. B. `linux-x64-server-1.2.0.zip`)
+- Manuelles Nachtriggern über `workflow_dispatch` mit Tag-Eingabe ist möglich.
+
+Das Update kann direkt aus der Anwendung heraus eingespielt werden (Einstellungsseite oder `POST /api/update/install`).

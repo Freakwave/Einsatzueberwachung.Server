@@ -308,6 +308,11 @@
                                 <InputTextArea class="form-control" @bind-Value="_droneDraft.Notizen" />
                             </div>
 
+                            <div class="mb-3">
+                                <label class="form-label">Drohne112 Livestream-URL</label>
+                                <InputText class="form-control" @bind-Value="_droneDraft.LivestreamUrl" placeholder="https://..." />
+                            </div>
+
                             <div class="form-check form-switch mb-3">
                                 <InputCheckbox class="form-check-input" id="droneActive" @bind-Value="_droneDraft.IsActive" />
                                 <label class="form-check-label" for="droneActive">Aktiv</label>
@@ -510,6 +515,10 @@
                                 <option value="@person.Id">@person.FullName</option>
                             }
                         </InputSelect>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Drohne112 Livestream-URL</label>
+                        <InputText class="form-control" @bind-Value="_droneDraft.LivestreamUrl" placeholder="https://..." />
                     </div>
                 </div>
                 <div class="modal-modern-footer">

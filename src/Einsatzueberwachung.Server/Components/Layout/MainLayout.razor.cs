@@ -168,9 +168,9 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         {
             Title = "Hund braucht Pause",
             Message = $"{team.DogName} (Team: {team.TeamName}) – {team.RequiredPauseMinutes} Min. Pause erforderlich.",
-            Level = WarningLevel.Info,
+            Level = WarningLevel.Warning,
             TeamId = team.TeamId,
-            NavigationUrl = "/einsatz-monitor",
+            NavigationUrl = $"/einsatz-monitor#team-{team.TeamId}",
             Source = "DogPause",
             Timestamp = TimeService.Now
         });

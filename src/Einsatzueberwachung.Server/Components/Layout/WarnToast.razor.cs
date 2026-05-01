@@ -1,6 +1,7 @@
 using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 
 namespace Einsatzueberwachung.Server.Components.Layout;
 
@@ -8,6 +9,7 @@ public partial class WarnToast : IAsyncDisposable
 {
     [Inject] private IWarningService WarningService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IJSRuntime JS { get; set; } = default!;
 
     private readonly Queue<WarningEntry> _queue = new();
     private WarningEntry? _current;
@@ -89,14 +91,49 @@ public partial class WarnToast : IAsyncDisposable
 
     private async Task OnToastClickedAsync()
     {
-        if (_current?.NavigationUrl is { } url)
+        if (_current?.NavigationUrl is not { } url)
         {
             await DismissAsync();
-            Navigation.NavigateTo(url);
+            return;
+        }
+
+        await DismissAsync();
+
+        // Separate path from fragment so Blazor navigation works correctly
+        var hashIndex = url.IndexOf('#');
+        if (hashIndex >= 0)
+        {
+            var path = url[..hashIndex];
+            var elementId = url[(hashIndex + 1)..];
+            Navigation.NavigateTo(path);
+            // Wait for the page to render before scrolling to the element
+            await ScrollToElementAsync(elementId);
         }
         else
         {
-            await DismissAsync();
+            Navigation.NavigateTo(url);
+        }
+    }
+
+    private async Task ScrollToElementAsync(string elementId)
+    {
+        // Retry a few times to handle the page still rendering after navigation
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            await Task.Delay(150 + attempt * 100);
+            try
+            {
+                var found = await JS.InvokeAsync<bool>("warnToastScrollTo", elementId);
+                if (found) return;
+            }
+            catch (JSDisconnectedException)
+            {
+                return;
+            }
+            catch
+            {
+                // JS not yet available; retry
+            }
         }
     }
 

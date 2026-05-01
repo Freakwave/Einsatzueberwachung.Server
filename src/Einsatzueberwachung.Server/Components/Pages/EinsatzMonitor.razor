@@ -219,7 +219,8 @@
                                                 var conflictingTeam = isDogConflict
                                                     ? EinsatzService.Teams.FirstOrDefault(t => t.TeamId != team.TeamId && t.IsRunning && t.DogId == team.DogId)
                                                     : null;
-                                                <div class="monitor-team-card @GetTeamCardClass(team) @(isDogConflict ? "team-dog-blocked" : "")">
+                                                <div id="team-@team.TeamId"
+                                                     class="monitor-team-card @GetTeamCardClass(team) @(isDogConflict ? "team-dog-blocked" : "")">
                                                     @if (isDogConflict)
                                                     {
                                                         <div class="team-dog-conflict-banner">

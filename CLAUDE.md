@@ -32,16 +32,49 @@ docker-compose up
 
 ```
 src/
-├── Einsatzueberwachung.Server/     ← Blazor Server UI + REST API + SignalR hub
-├── Einsatzueberwachung.Domain/     ← Domain models, interfaces, service implementations, validators
-├── Einsatzueberwachung.LiveTracking/ ← WPF desktop app (Windows), USB GPS collar reader
-└── Einsatzueberwachung.Tests/      ← xUnit unit tests
+├── Einsatzueberwachung.Server/
+│   ├── Components/Layout/          ← MainLayout.razor + MainLayout.razor.cs
+│   ├── Components/Pages/           ← Blazor pages; large @code blocks extracted to *.razor.cs partials
+│   │   │                             (EinsatzMonitor, EinsatzKarte, EinsatzImportExport, Einstellungen, Trainer)
+│   │   └── KarteComponents/        ← KartePunkteTab.razor + .razor.cs (namespace …KarteComponents)
+│   ├── Controllers/                ← REST controllers; TrainingController split into .Resources.cs + .Exercises.cs
+│   ├── Extensions/
+│   │   ├── ServiceCollectionExtensions.cs  ← all AddXxx DI helpers (was in Program.cs)
+│   │   └── DownloadEndpoints.cs            ← MapDownloadEndpoints() minimal-API extension
+│   ├── Services/
+│   │   └── OsmStaticMapRenderer.cs + .CombinedMap.cs + .Drawing.cs + .Tiles.cs + .TrackMap.cs
+│   └── Training/
+│       └── TrainingExerciseService split into .Exercises.cs + .Mirror.cs + .Scheduled.cs
+├── Einsatzueberwachung.Domain/
+│   ├── Interfaces/                 ← ArchivStatistics, ArchivSearchCriteria defined in IArchivService.cs
+│   │                                 EinsatzExportOptions defined in IEinsatzExportService.cs
+│   │                                 PdfExportResult defined in IPdfExportService.cs
+│   └── Services/                   ← large services split into topic partials:
+│       ├── ArchivService.cs + .Queries.cs + .ImportExport.cs
+│       ├── DiveraService.cs + .Api.cs + .Parsing.cs
+│       ├── DwdWeatherService.cs + .Weather.cs + .Flugwetter.cs
+│       ├── EinsatzExportService.cs + .Collectors.cs
+│       ├── EinsatzMergeService.cs + .Session.cs + .Apply.cs + .Scoring.cs
+│       ├── EinsatzService.cs + .Lifecycle.cs + .Teams.cs + .Notes.cs + .Map.cs
+│       ├── ExcelExportService.cs + .Export.cs + .Import.cs + .Helpers.cs
+│       ├── GitHubUpdateService.cs + .Check.cs + .Install.cs + .Models.cs
+│       └── PdfExportService.cs + .Export.cs + .Compose.cs + .Map.cs
+├── Einsatzueberwachung.LiveTracking/ ← WPF desktop app (Windows), USB GPS collar reader — DO NOT TOUCH
+└── Einsatzueberwachung.Tests/      ← xUnit unit tests — DO NOT TOUCH
 
 deploy/                             ← systemd, nginx, wireguard, backup/update scripts
 docs/                               ← GPS workflow, API docs
 ```
 
 **Rule:** Business logic lives in `Domain`. Never put business logic in Blazor pages or API controllers.
+
+### Partial-Class Split Pattern
+
+Large services and Razor pages are split into `partial` files by topic. Rules:
+- Every partial file gets its own `using` directives — they are not inherited.
+- For Razor pages: all `@inject` directives are removed from `.razor`; matching `[Inject]` properties go in `.razor.cs`. Having both causes CS0102 duplicate-member errors.
+- Types defined inside interface files (e.g. `ArchivStatistics` in `IArchivService.cs`) live in namespace `Einsatzueberwachung.Domain.Interfaces` — add that `using` in any partial that references them.
+- `sealed` classes become `sealed partial` — no problem.
 
 ---
 
@@ -219,7 +252,7 @@ Wire fakes directly into the service under test. See `EinsatzMergeServiceRevertT
 | `POST /api/update/install` | Download and apply update |
 | `GET /health` | Health check (used by systemd) |
 
-### Download Endpoints (Minimal API, in `Program.cs`)
+### Download Endpoints (Minimal API, in `Extensions/DownloadEndpoints.cs`)
 
 `/downloads/einsatz-bericht.pdf`, `/downloads/einsatz-bericht.xlsx`, `/downloads/einsatz-archiv/{id}.pdf`, `/downloads/einsatz-archiv.json`, `/downloads/stammdaten.xlsx`, `/downloads/stammdaten-template.xlsx`, `/downloads/data-backup.zip`, `/downloads/livetracking.zip`, `/downloads/app-settings.json`, `/downloads/staffel-settings.json`, `/downloads/staffel-logo`
 

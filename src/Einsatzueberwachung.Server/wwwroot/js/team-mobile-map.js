@@ -93,6 +93,7 @@ window.teamMobileMap = (function () {
     }
 
     function destroy() {
+        stopWatchingUser();
         if (map) { map.remove(); map = null; }
         polygonLayer = null;
         dogMarker = null;
@@ -100,5 +101,47 @@ window.teamMobileMap = (function () {
         userMarker = null;
     }
 
-    return { init, renderSearchArea, setDogPosition, setTrack, appendTrackPoint, setUserPosition, centerOnDog, destroy };
+    let watchId = null;
+    let dotNetRef = null;
+
+    function startWatchingUser(ref) {
+        if (!('geolocation' in navigator)) return false;
+        dotNetRef = ref;
+        if (watchId !== null) return true;
+        watchId = navigator.geolocation.watchPosition(
+            pos => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                setUserPosition(lat, lng);
+                if (dotNetRef) {
+                    dotNetRef.invokeMethodAsync('OnUserLocation', lat, lng).catch(() => {});
+                }
+            },
+            err => { console.warn('Geolocation error', err); },
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+        );
+        return true;
+    }
+
+    function stopWatchingUser() {
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+        dotNetRef = null;
+    }
+
+    function getAreaCentroid() {
+        if (!polygonLayer) return null;
+        try {
+            const c = polygonLayer.getBounds().getCenter();
+            return { lat: c.lat, lng: c.lng };
+        } catch (e) { return null; }
+    }
+
+    return {
+        init, renderSearchArea, setDogPosition, setTrack, appendTrackPoint,
+        setUserPosition, centerOnDog, destroy,
+        startWatchingUser, stopWatchingUser, getAreaCentroid
+    };
 })();

@@ -15,6 +15,33 @@ public partial class EinsatzMonitor
     private string _teamMobileQrDataUrl = string.Empty;
     private string _teamMobileFullUrl = string.Empty;
 
+    private bool _showTeamMessageModal;
+    private string _teamMessageTargetId = string.Empty;
+    private string _teamMessageText = string.Empty;
+    private string _teamMessageFeedback = string.Empty;
+
+    private void OpenTeamMessageModal()
+    {
+        _teamMessageTargetId = EinsatzService.Teams.FirstOrDefault()?.TeamId ?? string.Empty;
+        _teamMessageText = string.Empty;
+        _teamMessageFeedback = string.Empty;
+        _showTeamMessageModal = true;
+    }
+
+    private void CloseTeamMessageModal() => _showTeamMessageModal = false;
+
+    private void SendTeamMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_teamMessageTargetId) || string.IsNullOrWhiteSpace(_teamMessageText))
+        {
+            _teamMessageFeedback = "Team und Text erforderlich.";
+            return;
+        }
+        TeamMobileTokenService.BroadcastTeamMessage(_teamMessageTargetId, _teamMessageText.Trim());
+        _teamMessageFeedback = "Nachricht gesendet.";
+        _teamMessageText = string.Empty;
+    }
+
     private void OpenTeamMobileModal()
     {
         var token = TeamMobileTokenService.CurrentMasterToken;

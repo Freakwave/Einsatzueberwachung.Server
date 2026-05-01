@@ -44,6 +44,13 @@ public sealed class TeamMobileTokenService : ITeamMobileTokenService, IDisposabl
     }
 
     public event Action? GenerationChanged;
+    public event Action<string, string, DateTime>? TeamMessageBroadcasted;
+
+    public void BroadcastTeamMessage(string teamId, string message)
+    {
+        if (string.IsNullOrWhiteSpace(teamId) || string.IsNullOrWhiteSpace(message)) return;
+        TeamMessageBroadcasted?.Invoke(teamId, message, DateTime.Now);
+    }
 
     public bool ValidateMasterToken(string token)
     {

@@ -8,7 +8,7 @@ namespace Einsatzueberwachung.Domain.Models
         public string Title { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public WarningLevel Level { get; set; } = WarningLevel.Warning;
-        public DateTime Timestamp { get; set; } = DateTime.Now;
+        public DateTime Timestamp { get; set; }
 
         /// <summary>
         /// Optional URL to navigate to when the user clicks the warning toast.

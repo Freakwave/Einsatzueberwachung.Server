@@ -107,11 +107,11 @@ public partial class WarnToast : IAsyncDisposable
         _ => "bi-exclamation-triangle-fill"
     };
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         WarningService.WarningAdded -= OnWarningAdded;
         _autoDismissCts?.Cancel();
         _autoDismissCts?.Dispose();
-        await Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 }

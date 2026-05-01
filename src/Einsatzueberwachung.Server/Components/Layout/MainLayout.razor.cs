@@ -14,6 +14,7 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
     [Inject] private IEinsatzService EinsatzService { get; set; } = default!;
     [Inject] private TrainerNotificationService TrainerNotifications { get; set; } = default!;
     [Inject] private IWarningService WarningService { get; set; } = default!;
+    [Inject] private ITimeService TimeService { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
@@ -152,7 +153,8 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
                     Level = WarningLevel.Warning,
                     TeamId = team.TeamId,
                     NavigationUrl = "/einsatz-monitor",
-                    Source = "TeamTimer"
+                    Source = "TeamTimer",
+                    Timestamp = TimeService.Now
                 });
             }
 
@@ -169,7 +171,8 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
             Level = WarningLevel.Info,
             TeamId = team.TeamId,
             NavigationUrl = "/einsatz-monitor",
-            Source = "DogPause"
+            Source = "DogPause",
+            Timestamp = TimeService.Now
         });
     }
 

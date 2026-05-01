@@ -25,7 +25,8 @@
       "Bash(mv /tmp/k.razor src/Einsatzueberwachung.Server/Components/Pages/KarteComponents/KartePunkteTab.razor)",
       "Bash(head -532 src/Einsatzueberwachung.Server/Components/Pages/Stammdaten.razor)",
       "Bash(mv /tmp/sd.razor src/Einsatzueberwachung.Server/Components/Pages/Stammdaten.razor)",
-      "Bash(grep -E \"\\\\.\\(cs|vb\\)$\")"
+      "Bash(grep -E \"\\\\.\\(cs|vb\\)$\")",
+      "Bash(git push *)"
     ]
   }
 }

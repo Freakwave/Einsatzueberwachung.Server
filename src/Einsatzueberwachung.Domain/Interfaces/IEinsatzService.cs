@@ -13,6 +13,7 @@ namespace Einsatzueberwachung.Domain.Interfaces
         EinsatzData CurrentEinsatz { get; }
         List<Team> Teams { get; }
         List<GlobalNotesEntry> GlobalNotes { get; }
+        IReadOnlyDictionary<string, TeamPhoneLocation> PhoneLocations { get; }
 
         event Action? EinsatzChanged;
         event Action<Team>? TeamAdded;
@@ -22,6 +23,7 @@ namespace Einsatzueberwachung.Domain.Interfaces
         event Action<Team, bool>? TeamWarningTriggered;
         event Action? VermisstenInfoChanged;
         event Action? ElNotizAdded;
+        event Action<string, string, TeamPhoneLocation>? TeamPhoneLocationChanged;
 
         Task StartEinsatzAsync(EinsatzData einsatzData);
         Task UpdateEinsatzAsync(EinsatzData einsatzData);
@@ -91,5 +93,7 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// Setzt den aktuellen Einsatz zurueck (loescht Teams, Notizen, etc.)
         /// </summary>
         void ResetEinsatz();
+
+        Task UpdateTeamPhoneLocationAsync(string teamId, double lat, double lng, double? accuracy = null);
     }
 }

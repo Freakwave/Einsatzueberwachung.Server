@@ -70,6 +70,7 @@ public partial class EinsatzKarte
     // Collar-Tracking
     private List<Collar> _collars = new();
     private bool _trackingVisible = false;
+    private bool _phoneLayerVisible = false;
     private Dictionary<string, string> _oobWarnings = new();
 
     // Abgeschlossene Tracks (Snapshots)
@@ -156,11 +157,15 @@ public partial class EinsatzKarte
                 // Collar-Tracking initialisieren
                 await JSRuntime.InvokeVoidAsync("CollarTracking.initialize", "einsatzMap", _dotNetReference);
 
+                // Handy-GPS Layer initialisieren
+                await JSRuntime.InvokeVoidAsync("PhoneTracking.initialize", "einsatzMap");
+
                 // Domain-Events für Live-Tracking abonnieren
                 CollarTrackingService.CollarLocationReceived += OnCollarLocationReceived;
                 CollarTrackingService.OutOfBoundsDetected += OnOutOfBoundsDetected;
                 CollarTrackingService.CollarHistoryCleared += OnCollarHistoryCleared;
                 CollarTrackingService.TrackSnapshotSaved += OnTrackSnapshotSaved;
+                EinsatzService.TeamPhoneLocationChanged += OnTeamPhoneLocationChanged;
 
                 // Bestehende Tracking-Daten automatisch laden (falls Daten vor Seitenbesuch gesendet wurden)
                 _collars = CollarTrackingService.Collars.ToList();
@@ -713,6 +718,37 @@ public partial class EinsatzKarte
     // Legacy alias (called from ToggleTracking keyboard shortcut etc.)
     private async Task ToggleTracking() => await SetSidebarTabAsync("gps");
 
+    private async Task TogglePhoneLayer()
+    {
+        _phoneLayerVisible = !_phoneLayerVisible;
+        await JSRuntime.InvokeVoidAsync("PhoneTracking.toggleVisibility", "einsatzMap", _phoneLayerVisible);
+
+        if (_phoneLayerVisible)
+        {
+            foreach (var (teamId, loc) in EinsatzService.PhoneLocations)
+            {
+                var team = _teams.FirstOrDefault(t => t.TeamId == teamId);
+                if (team == null) continue;
+                await JSRuntime.InvokeVoidAsync("PhoneTracking.updateMarker",
+                    "einsatzMap", teamId, team.TeamName, loc.Latitude, loc.Longitude, loc.Timestamp);
+            }
+        }
+    }
+
+    private void OnTeamPhoneLocationChanged(string teamId, string teamName, TeamPhoneLocation location)
+    {
+        if (!_phoneLayerVisible) return;
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("PhoneTracking.updateMarker",
+                    "einsatzMap", teamId, teamName, location.Latitude, location.Longitude, location.Timestamp);
+            }
+            catch (ObjectDisposedException) { }
+        });
+    }
+
     private string GetCollarColor(string collarId)
     {
         // Halsband → Team → Suchgebiet → Suchgebiet-Farbe
@@ -1002,6 +1038,7 @@ public partial class EinsatzKarte
             CollarTrackingService.OutOfBoundsDetected -= OnOutOfBoundsDetected;
             CollarTrackingService.CollarHistoryCleared -= OnCollarHistoryCleared;
             CollarTrackingService.TrackSnapshotSaved -= OnTrackSnapshotSaved;
+            EinsatzService.TeamPhoneLocationChanged -= OnTeamPhoneLocationChanged;
             await JSRuntime.InvokeVoidAsync("LeafletMap.dispose", "einsatzMap");
             _dotNetReference?.Dispose();
         }

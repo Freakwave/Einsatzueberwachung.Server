@@ -117,6 +117,19 @@ public sealed class TeamMobileController : ControllerBase
         return Redirect("/team/login");
     }
 
+    [HttpPost("location")]
+    [Authorize(Policy = TeamMobileAuth.AuthorizationPolicy)]
+    public async Task<IActionResult> PostLocation([FromBody] TeamPhoneLocationRequest request)
+    {
+        if (request == null) return BadRequest();
+
+        var teamId = User.FindFirst(TeamMobileAuth.TeamIdClaim)?.Value;
+        if (string.IsNullOrWhiteSpace(teamId)) return Unauthorized();
+
+        await _einsatzService.UpdateTeamPhoneLocationAsync(teamId, request.Lat, request.Lng, request.Accuracy);
+        return Ok();
+    }
+
     [HttpPost("status")]
     [Authorize(Policy = TeamMobileAuth.AuthorizationPolicy)]
     public async Task<IActionResult> PostStatus([FromBody] TeamMobileStatusRequest request)
@@ -212,4 +225,11 @@ public sealed class TeamMobileSelectRequest
 public sealed class TeamMobileStatusRequest
 {
     public string Status { get; set; } = string.Empty;
+}
+
+public sealed class TeamPhoneLocationRequest
+{
+    public double Lat { get; set; }
+    public double Lng { get; set; }
+    public double? Accuracy { get; set; }
 }

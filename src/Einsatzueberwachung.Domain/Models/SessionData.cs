@@ -78,6 +78,9 @@ namespace Einsatzueberwachung.Domain.Models
         public int PauseMinutesShortRun { get; set; }
         public int PauseMinutesLongRun { get; set; }
 
+        // Warnzentrum-Regelkonfiguration (keyed by WarningEntry.Source)
+        public Dictionary<string, WarningRuleConfig> WarningRules { get; set; } = new();
+
         // Divera 24/7 Integration
         public bool DiveraEnabled { get; set; }
         /// <summary>Staffel/Einheit API-Key — fuer Alarmabfrage (Web-API-Accesskey)</summary>

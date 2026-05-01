@@ -153,7 +153,7 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
                     Level = WarningLevel.Warning,
                     TeamId = team.TeamId,
                     NavigationUrl = "/einsatz-monitor",
-                    Source = "TeamTimer",
+                    Source = WarningRuleDefinition.Sources.TeamTimer,
                     Timestamp = TimeService.Now
                 });
             }
@@ -171,7 +171,7 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
             Level = WarningLevel.Warning,
             TeamId = team.TeamId,
             NavigationUrl = $"/einsatz-monitor#team-{team.TeamId}",
-            Source = "DogPause",
+            Source = WarningRuleDefinition.Sources.DogPause,
             Timestamp = TimeService.Now
         });
     }

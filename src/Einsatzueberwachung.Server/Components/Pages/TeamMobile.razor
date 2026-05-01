@@ -2,14 +2,14 @@
 @rendermode InteractiveServer
 @layout Einsatzueberwachung.Server.Components.Layout.TeamMobileLayout
 @using Einsatzueberwachung.Domain.Interfaces
-@using Einsatzueberwachung.Server.Hubs
+@using Einsatzueberwachung.Domain.Models
 @using Einsatzueberwachung.Server.Security
 @using Einsatzueberwachung.Server.Services
 @using Microsoft.AspNetCore.Authentication
-@using Microsoft.AspNetCore.SignalR.Client
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IEinsatzService EinsatzService
 @inject ICollarTrackingService CollarTrackingService
+@inject ITeamMobileTokenService TokenService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @implements IAsyncDisposable
@@ -51,7 +51,7 @@ else
             </form>
         </header>
 
-        <div id="team-mobile-map" style="flex:1;width:100%;"></div>
+        <div id="team-mobile-map" style="flex:1;width:100%;min-height:300px;background:#e9ecef;"></div>
 
         <footer style="background:#fff;padding:8px 12px;border-top:1px solid #dee2e6;font-size:0.8rem;display:flex;gap:12px;">
             <div>
@@ -72,14 +72,16 @@ else
 
 @code {
     private bool _authChecked;
-    private Einsatzueberwachung.Domain.Models.Team? _team;
+    private Team? _team;
     private bool _hasArea;
     private DateTime? _lastUpdate;
     private DateTime _now = DateTime.Now;
     private bool _einsatzEnded;
+    private string? _teamId;
 
-    private HubConnection? _hub;
     private System.Timers.Timer? _uiTimer;
+    private Action<string, CollarLocation>? _collarHandler;
+    private Action? _generationHandler;
 
     protected override async Task OnInitializedAsync()
     {
@@ -93,14 +95,14 @@ else
             return;
         }
 
-        var teamId = auth.Principal.FindFirst(TeamMobileAuth.TeamIdClaim)?.Value;
-        if (string.IsNullOrWhiteSpace(teamId))
+        _teamId = auth.Principal.FindFirst(TeamMobileAuth.TeamIdClaim)?.Value;
+        if (string.IsNullOrWhiteSpace(_teamId))
         {
             Navigation.NavigateTo("/team/login", true);
             return;
         }
 
-        _team = EinsatzService.Teams.FirstOrDefault(t => t.TeamId == teamId);
+        _team = EinsatzService.Teams.FirstOrDefault(t => t.TeamId == _teamId);
         var einsatz = EinsatzService.CurrentEinsatz;
         _einsatzEnded = einsatz?.EinsatzEnde != null;
 
@@ -111,7 +113,15 @@ else
     {
         if (!firstRender || _team == null) return;
 
-        await JS.InvokeVoidAsync("teamMobileMap.init", "team-mobile-map", 51.1657, 10.4515);
+        try
+        {
+            await JS.InvokeVoidAsync("teamMobileMap.init", "team-mobile-map", 51.1657, 10.4515);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"team-mobile map init failed: {ex.Message}");
+            return;
+        }
 
         var einsatz = EinsatzService.CurrentEinsatz;
         var area = TeamMobileLookup.FindSearchAreaForTeam(einsatz, _team);
@@ -119,7 +129,8 @@ else
         {
             _hasArea = true;
             var coords = area.Coordinates.Select(c => new { lat = c.Latitude, lng = c.Longitude }).ToArray();
-            await JS.InvokeVoidAsync("teamMobileMap.renderSearchArea", coords, area.Color ?? "#3388ff");
+            try { await JS.InvokeVoidAsync("teamMobileMap.renderSearchArea", coords, area.Color ?? "#3388ff"); }
+            catch { /* tolerant */ }
         }
 
         if (!string.IsNullOrWhiteSpace(_team.CollarId))
@@ -128,76 +139,72 @@ else
             if (history.Count > 0)
             {
                 var pts = history.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
-                await JS.InvokeVoidAsync("teamMobileMap.setTrack", pts);
-                var last = history[^1];
-                await JS.InvokeVoidAsync("teamMobileMap.setDogPosition", last.Latitude, last.Longitude, _team.DogName);
-                _lastUpdate = last.Timestamp;
+                try
+                {
+                    await JS.InvokeVoidAsync("teamMobileMap.setTrack", pts);
+                    var last = history[^1];
+                    await JS.InvokeVoidAsync("teamMobileMap.setDogPosition", last.Latitude, last.Longitude, _team.DogName);
+                    _lastUpdate = last.Timestamp;
+                }
+                catch { /* tolerant */ }
             }
         }
 
-        await ConnectHubAsync();
+        // Direkt an Domain-Service andocken — kein zusaetzlicher SignalR-Roundtrip noetig.
+        _collarHandler = OnCollarLocation;
+        _generationHandler = OnGenerationChanged;
+        CollarTrackingService.CollarLocationReceived += _collarHandler;
+        TokenService.GenerationChanged += _generationHandler;
 
         _uiTimer = new System.Timers.Timer(1000) { AutoReset = true };
-        _uiTimer.Elapsed += async (_, _) => { _now = DateTime.Now; await InvokeAsync(StateHasChanged); };
-        _uiTimer.Start();
-    }
-
-    private async Task ConnectHubAsync()
-    {
-        var ctx = HttpContextAccessor.HttpContext;
-        var cookieHeader = ctx?.Request.Headers["Cookie"].ToString();
-
-        _hub = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/hubs/team-mobile"), options =>
-            {
-                if (!string.IsNullOrWhiteSpace(cookieHeader))
-                    options.Headers["Cookie"] = cookieHeader;
-            })
-            .WithAutomaticReconnect()
-            .Build();
-
-        _hub.On<string, string>(TeamMobileHub.EventName, async (eventName, json) =>
+        _uiTimer.Elapsed += async (_, _) =>
         {
             try
             {
-                if (eventName == "collar.location")
-                {
-                    using var doc = System.Text.Json.JsonDocument.Parse(json);
-                    var lat = doc.RootElement.GetProperty("lat").GetDouble();
-                    var lng = doc.RootElement.GetProperty("lng").GetDouble();
-                    _lastUpdate = doc.RootElement.GetProperty("timestamp").GetDateTime();
-                    await InvokeAsync(async () =>
-                    {
-                        await JS.InvokeVoidAsync("teamMobileMap.setDogPosition", lat, lng, _team?.DogName ?? "");
-                        await JS.InvokeVoidAsync("teamMobileMap.appendTrackPoint", lat, lng);
-                        StateHasChanged();
-                    });
-                }
-                else if (eventName == "session.invalidated")
-                {
-                    await InvokeAsync(() =>
-                    {
-                        _einsatzEnded = true;
-                        StateHasChanged();
-                    });
-                }
+                _now = DateTime.Now;
+                await InvokeAsync(StateHasChanged);
+            }
+            catch { /* circuit kann zwischenzeitlich weg sein */ }
+        };
+        _uiTimer.Start();
+    }
+
+    private void OnCollarLocation(string collarId, CollarLocation location)
+    {
+        if (_team == null || _team.CollarId != collarId) return;
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                _lastUpdate = location.Timestamp;
+                await JS.InvokeVoidAsync("teamMobileMap.setDogPosition", location.Latitude, location.Longitude, _team.DogName);
+                await JS.InvokeVoidAsync("teamMobileMap.appendTrackPoint", location.Latitude, location.Longitude);
+                StateHasChanged();
             }
             catch { /* tolerant */ }
         });
+    }
 
-        await _hub.StartAsync();
+    private void OnGenerationChanged()
+    {
+        _ = InvokeAsync(() =>
+        {
+            _einsatzEnded = true;
+            StateHasChanged();
+        });
     }
 
     private async Task CenterOnDogAsync()
     {
-        await JS.InvokeVoidAsync("teamMobileMap.centerOnDog");
+        try { await JS.InvokeVoidAsync("teamMobileMap.centerOnDog"); } catch { /* tolerant */ }
     }
 
     public async ValueTask DisposeAsync()
     {
         _uiTimer?.Stop();
         _uiTimer?.Dispose();
-        if (_hub != null) await _hub.DisposeAsync();
+        if (_collarHandler != null) CollarTrackingService.CollarLocationReceived -= _collarHandler;
+        if (_generationHandler != null) TokenService.GenerationChanged -= _generationHandler;
         try { await JS.InvokeVoidAsync("teamMobileMap.destroy"); } catch { /* ignore */ }
     }
 }

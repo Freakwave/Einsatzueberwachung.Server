@@ -7,12 +7,20 @@ window.teamMobileMap = (function () {
 
     function init(containerId, fallbackLat, fallbackLng) {
         if (map) return;
+        const el = document.getElementById(containerId);
+        if (el && el.clientHeight < 100) {
+            // Fallback: explizite Hoehe falls Flex-Layout (CSS) noch nicht geladen ist.
+            el.style.height = '60vh';
+        }
         const center = [fallbackLat || 51.1657, fallbackLng || 10.4515];
         map = L.map(containerId, { zoomControl: true }).setView(center, 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap',
             maxZoom: 19
         }).addTo(map);
+        // Falls der Container danach noch wachst (z.B. Header rendert), Leaflet neu vermessen.
+        setTimeout(() => { try { map.invalidateSize(); } catch (e) { /* ignore */ } }, 250);
+        setTimeout(() => { try { map.invalidateSize(); } catch (e) { /* ignore */ } }, 1500);
     }
 
     function renderSearchArea(coords, color) {

@@ -43,6 +43,9 @@
                 <button class="btn btn-outline-success btn-sm" type="button" @onclick="OpenTeamMobileModal" title="QR-Code fuer Team-Smartphones">
                     <i class="bi bi-qr-code me-1"></i>Team-Mobile
                 </button>
+                <button class="btn btn-outline-warning btn-sm" type="button" @onclick="OpenTeamMessageModal" title="Nachricht an ein Team-Smartphone">
+                    <i class="bi bi-megaphone me-1"></i>Push
+                </button>
                 <button class="btn btn-danger btn-sm" type="button" @onclick="OpenCloseMissionModal">
                     <i class="bi bi-stop-circle me-1"></i>Beenden
                 </button>
@@ -1347,6 +1350,51 @@
             <div class="modal-modern-footer">
                 <button class="btn btn-primary" @onclick="SaveTeamAsync">@(_editingTeamId is null ? "Team speichern" : "Aenderungen speichern")</button>
                 <button class="btn btn-outline-secondary" @onclick="ResetTeamForm">Formular leeren</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_showTeamMessageModal)
+{
+    <div class="modal-overlay" @onclick="CloseTeamMessageModal">
+        <div class="modal-modern" style="max-width:520px;" @onclick:stopPropagation="true">
+            <div class="modal-modern-header bg-warning text-dark">
+                <h3 class="mb-0"><i class="bi bi-megaphone me-1"></i>Nachricht an Team</h3>
+                <button class="btn btn-sm btn-outline-dark" @onclick="CloseTeamMessageModal">X</button>
+            </div>
+            <div class="modal-modern-body">
+                @if (EinsatzService.Teams.Count == 0)
+                {
+                    <div class="alert alert-info">Keine Teams im Einsatz.</div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <label class="form-label">Empfaenger</label>
+                        <select class="form-select" @bind="_teamMessageTargetId">
+                            @foreach (var t in EinsatzService.Teams.OrderBy(t => t.TeamName))
+                            {
+                                <option value="@t.TeamId">@t.TeamName @(string.IsNullOrWhiteSpace(t.DogName) ? "" : " / " + t.DogName)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nachricht</label>
+                        <textarea class="form-control" rows="3" @bind="_teamMessageText" placeholder="kurze Nachricht..."></textarea>
+                    </div>
+                    @if (!string.IsNullOrEmpty(_teamMessageFeedback))
+                    {
+                        <div class="alert @(_teamMessageFeedback.StartsWith("Nachricht") ? "alert-success" : "alert-danger") py-2 mb-0">@_teamMessageFeedback</div>
+                    }
+                    <p class="small text-muted mt-2 mb-0">
+                        <i class="bi bi-info-circle me-1"></i>Erscheint sofort am Smartphone des gewaehlten Teams (max. 5 letzte Nachrichten).
+                    </p>
+                }
+            </div>
+            <div class="modal-modern-footer">
+                <button class="btn btn-warning" @onclick="SendTeamMessage" disabled="@(EinsatzService.Teams.Count == 0)">Senden</button>
+                <button class="btn btn-outline-secondary" @onclick="CloseTeamMessageModal">Schliessen</button>
             </div>
         </div>
     </div>

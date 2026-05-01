@@ -23,4 +23,10 @@ public interface ITeamMobileTokenService
 
     /// <summary>Validiert einen Team-Cookie-Wert. Liefert die TeamId zurück wenn gültig.</summary>
     bool TryValidateTeamCookie(string cookieValue, out string teamId);
+
+    /// <summary>Wird gefeuert wenn der Einsatzleiter eine Nachricht an ein bestimmtes Team schickt.</summary>
+    event Action<string, string, DateTime>? TeamMessageBroadcasted;
+
+    /// <summary>Broadcast einer Nachricht an ein Team (vom Einsatzleiter).</summary>
+    void BroadcastTeamMessage(string teamId, string message);
 }

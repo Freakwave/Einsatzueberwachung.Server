@@ -117,6 +117,32 @@ public sealed class TeamMobileController : ControllerBase
         return Redirect("/team/login");
     }
 
+    [HttpPost("status")]
+    [Authorize(Policy = TeamMobileAuth.AuthorizationPolicy)]
+    public async Task<IActionResult> PostStatus([FromBody] TeamMobileStatusRequest request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.Status))
+            return BadRequest(new { error = "Status fehlt." });
+
+        var teamId = User.FindFirst(TeamMobileAuth.TeamIdClaim)?.Value;
+        if (string.IsNullOrWhiteSpace(teamId)) return Unauthorized();
+
+        var team = _einsatzService.Teams.FirstOrDefault(t => t.TeamId == teamId);
+        if (team == null) return NotFound();
+
+        var text = $"[{team.TeamName}] {request.Status}";
+        await _einsatzService.AddGlobalNoteWithSourceAsync(
+            text,
+            team.TeamId,
+            team.TeamName,
+            "Mobile",
+            Einsatzueberwachung.Domain.Models.Enums.GlobalNotesEntryType.Manual,
+            "Team Mobile");
+
+        _logger.LogInformation("TeamMobile-Status von {Team}: {Status}", team.TeamName, request.Status);
+        return Ok();
+    }
+
     [HttpGet("state")]
     [Authorize(Policy = TeamMobileAuth.AuthorizationPolicy)]
     public IActionResult GetState()
@@ -181,4 +207,9 @@ public sealed class TeamMobileSelectRequest
 {
     public string MasterToken { get; set; } = string.Empty;
     public string TeamId { get; set; } = string.Empty;
+}
+
+public sealed class TeamMobileStatusRequest
+{
+    public string Status { get; set; } = string.Empty;
 }

@@ -1,228 +1,35 @@
 using Einsatzueberwachung.Server.Components;
-using Einsatzueberwachung.Server.Middleware;
-using Einsatzueberwachung.Domain.Interfaces;
-using Einsatzueberwachung.Domain.Services;
+using Einsatzueberwachung.Server.Extensions;
 using Einsatzueberwachung.Server.Hubs;
-using Einsatzueberwachung.Server.Services;
-using Microsoft.AspNetCore.ResponseCompression;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.HttpOverrides;
-using System.Text.Json;
-using System.IO.Compression;
-using FluentValidation;
-using Microsoft.EntityFrameworkCore;
-using Einsatzueberwachung.Server.Data;
-using Einsatzueberwachung.Server.Services.Radio;
-using Einsatzueberwachung.Server.Security;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.StaticFiles;
-using Einsatzueberwachung.Server.Training;
-using Microsoft.OpenApi.Models;
-using System.Reflection;
+using Einsatzueberwachung.Server.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Forwarded Headers für Nginx Reverse Proxy (WICHTIG für Linux!)
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor 
-                             | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
-});
+builder.Services.AddForwardedHeadersForReverseProxy();
 
-// Blazor Server Components
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Response Compression für bessere Performance
-
-// API Controllers für REST (Mobile & externe Clients)
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "Einsatzueberwachung.Server API",
-        Version = "v1",
-        Description = "REST API fuer Mobile- und externe Integrationen inkl. Trainings-Endpoints."
-    });
+builder.Services.AddSwaggerWithTrainingSchema();
 
-    options.SchemaFilter<TrainingOpenApiSchemaFilter>();
+builder.Services.AddTrainingModule(builder.Configuration);
+builder.Services.AddTrainerCookieAuthentication();
 
-    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    if (File.Exists(xmlPath))
-    {
-        options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
-    }
-});
+builder.Services.AddCompressionAndCaching();
 
-builder.Services.Configure<TrainingApiOptions>(
-    builder.Configuration.GetSection(TrainingApiOptions.SectionName));
-builder.Services.AddSingleton<ITrainingExerciseService, TrainingExerciseService>();
-builder.Services.AddSingleton<ITrainingScenarioSuggestionService, TrainingScenarioSuggestionService>();
-builder.Services.AddSingleton<TrainerNotificationService>();
-builder.Services.Configure<TrainerAuthOptions>(
-    builder.Configuration.GetSection(TrainerAuthOptions.SectionName));
-
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        options.Cookie.Name = "einsatz.trainer.auth";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Strict;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.LoginPath = "/einstellungen";
-        options.AccessDeniedPath = "/einstellungen";
-        options.ExpireTimeSpan = TimeSpan.FromHours(12);
-        options.SlidingExpiration = true;
-    });
-
-builder.Services.AddAuthorization(options =>
-{
-    // Trainerbereich ist explizit rollenbasiert von der Einsatzoberflaeche getrennt.
-    options.AddPolicy("TrainerOnly", policy =>
-    {
-        policy.RequireAuthenticatedUser();
-        policy.RequireRole("Trainer");
-    });
-});
-
-builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddHttpContextAccessor();
-
-// Response Compression für bessere Performance
-builder.Services.AddResponseCompression(options =>
-{
-    options.EnableForHttps = true;
-    options.Providers.Add<BrotliCompressionProvider>();
-    options.Providers.Add<GzipCompressionProvider>();
-    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
-        new[] { "application/json", "text/css", "text/javascript", "image/svg+xml" });
-});
-
-builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
-{
-    options.Level = CompressionLevel.Fastest;
-});
-
-builder.Services.Configure<GzipCompressionProviderOptions>(options =>
-{
-    options.Level = CompressionLevel.Optimal;
-});
-
-// Response Caching
-builder.Services.AddResponseCaching();
-
-// HttpClient für externe API-Calls
 builder.Services.AddHttpClient();
 
-var runtimeDbPath = Path.Combine(AppPathResolver.GetDataDirectory(), "runtime-state.db");
-builder.Services.AddDbContextFactory<RuntimeDbContext>(options =>
-    options.UseSqlite($"Data Source={runtimeDbPath}"));
+builder.Services.AddRuntimeStateDb();
+builder.Services.AddSignalRForRealtime(builder.Environment);
+builder.Services.AddCorsPolicies(builder.Configuration);
 
-// SignalR für Echtzeit-Updates
-builder.Services.AddSignalR(options =>
-{
-    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
-    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
-    options.HandshakeTimeout = TimeSpan.FromSeconds(15);
-    options.MaximumReceiveMessageSize = 32 * 1024; // 32 KB
-    options.StreamBufferCapacity = 10;
-});
+builder.Services.AddDomainServices();
+builder.Services.AddStaticMapAndUpdateServices();
 
-builder.Services.AddCors(options =>
-{
-    var trainingOrigins = builder.Configuration
-        .GetSection("TrainingApi:AllowedOrigins")
-        .Get<string[]>() ?? Array.Empty<string>();
-
-    options.AddPolicy("VpnPolicy", policy =>
-    {
-        policy.SetIsOriginAllowed(_ => true)
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-    });
-
-    options.AddPolicy("RestApi", policy =>
-    {
-        policy.SetIsOriginAllowed(_ => true)
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-
-    options.AddPolicy("TrainingApi", policy =>
-    {
-        if (trainingOrigins.Length == 0)
-        {
-            policy.SetIsOriginAllowed(_ => true);
-        }
-        else
-        {
-            policy.WithOrigins(trainingOrigins);
-        }
-
-        policy.AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
-// Registriere Domain-Services als Singletons (für den laufenden Einsatz)
-builder.Services.AddSingleton<IMasterDataService, MasterDataService>();
-builder.Services.AddSingleton<ISettingsService, SettingsService>();
-builder.Services.AddSingleton<ITimeService, AppTimeService>();
-builder.Services.AddSingleton<IEinsatzService, EinsatzService>();
-builder.Services.AddSingleton<IDashboardLayoutService, DashboardLayoutService>();
-builder.Services.AddSingleton<ICollarTrackingService, CollarTrackingService>();
-builder.Services.AddSingleton<IPdfExportService, PdfExportService>();
-builder.Services.AddSingleton<IExcelExportService, ExcelExportService>();
-builder.Services.AddSingleton<IArchivService, ArchivService>();
-builder.Services.AddSingleton<IEinsatzMergeService, EinsatzMergeService>();
-builder.Services.AddSingleton<IEinsatzExportService, EinsatzExportService>();
-builder.Services.AddSingleton<IAuditLogService, AuditLogService>();
-builder.Services.AddHostedService<AuditLogRelayService>();
-builder.Services.AddSingleton<ToastService>();
-builder.Services.AddScoped<BrowserPreferencesService>();
-builder.Services.AddScoped<IRadioService, RadioService>();
-
-// Statische Karten-Renderer (Carto-Tiles für PDF-Export)
-builder.Services.AddHttpClient("OsmTiles", client =>
-{
-    client.DefaultRequestHeaders.UserAgent.ParseAdd("Einsatzueberwachung/1.2 (+https://github.com/Elemirus1996/Einsatzueberwachung.Server)");
-    client.DefaultRequestHeaders.Referrer = new Uri("https://github.com/Elemirus1996/Einsatzueberwachung.Server");
-    client.Timeout = TimeSpan.FromSeconds(15);
-});
-builder.Services.AddSingleton<IStaticMapRenderer, OsmStaticMapRenderer>();
-
-builder.Services.AddSingleton<GitHubUpdateService>(sp =>
-{
-    var factory = sp.GetRequiredService<IHttpClientFactory>();
-    var logger = sp.GetRequiredService<ILogger<GitHubUpdateService>>();
-    var settingsService = sp.GetRequiredService<ISettingsService>();
-    return new GitHubUpdateService(factory.CreateClient(nameof(GitHubUpdateService)), logger, settingsService);
-});
-
-// Wetter-Service (DWD via BrightSky API)
-builder.Services.AddHttpClient<IWeatherService, DwdWeatherService>();
-
-// Divera 24/7 API Integration (Alarme & Verfuegbarkeit)
-builder.Services.AddHttpClient<IDiveraService, DiveraService>();
-
-// FluentValidation Validators registrieren
-builder.Services.AddValidatorsFromAssembly(typeof(Einsatzueberwachung.Domain.Models.PersonalEntry).Assembly);
-
-// Health Checks
 builder.Services.AddHealthChecks();
 
-// Relay Domain-Events an SignalR Clients
-builder.Services.AddHostedService<EinsatzHubRelayService>();
-builder.Services.AddHostedService<CollarTrackingRelayService>();
-builder.Services.AddHostedService<TeamTimerTickService>();
-builder.Services.AddHostedService<UpdateAutoCheckService>();
-builder.Services.AddHostedService<RuntimeStatePersistenceService>();
+builder.Services.AddRelayHostedServices();
 
 var app = builder.Build();
 
@@ -231,7 +38,6 @@ app.UseForwardedHeaders();
 
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
-// Response Compression aktivieren
 app.UseResponseCompression();
 
 if (!app.Environment.IsDevelopment())
@@ -239,7 +45,6 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Static Files mit Caching
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = ctx =>
@@ -248,10 +53,8 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-// Response Caching
 app.UseResponseCaching();
 
-// CORS
 app.UseCors("VpnPolicy");
 
 app.UseAuthentication();
@@ -261,212 +64,19 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 
-// Health Check Endpoint
 app.MapHealthChecks("/health");
 
-// API Controllers mappen
 app.MapControllers().RequireCors("RestApi");
 
-// Swagger UI (nur in Development)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// Health Check Endpoint
 app.MapHub<EinsatzHub>("/hubs/einsatz");
 
-app.MapGet("/downloads/einsatz-bericht.pdf", async (IEinsatzService einsatzService, IPdfExportService pdfExportService) =>
-{
-    var einsatz = einsatzService.CurrentEinsatz;
-    var fileNamePart = string.IsNullOrWhiteSpace(einsatz.EinsatzNummer)
-        ? $"einsatzbericht-{DateTime.Now:yyyyMMdd-HHmmss}"
-        : $"einsatzbericht-{einsatz.EinsatzNummer}";
-
-    var bytes = await pdfExportService.ExportEinsatzToPdfBytesAsync(
-        einsatz,
-        einsatzService.Teams,
-        einsatzService.GlobalNotes);
-
-    return Results.File(bytes, "application/pdf", $"{fileNamePart}.pdf");
-});
-
-app.MapGet("/downloads/einsatz-karte.pdf", async (
-    IEinsatzService einsatzService,
-    IPdfExportService pdfExportService,
-    string? mapType = null,
-    string? teamId = null) =>
-{
-    var tileType = mapType switch
-    {
-        "satellite" => Einsatzueberwachung.Domain.Models.Enums.MapTileType.Satellite,
-        "topo" => Einsatzueberwachung.Domain.Models.Enums.MapTileType.Topographic,
-        _ => Einsatzueberwachung.Domain.Models.Enums.MapTileType.Streets
-    };
-
-    var einsatz = einsatzService.CurrentEinsatz;
-    var bytes = await pdfExportService.ExportEinsatzKarteToPdfBytesAsync(
-        einsatz, einsatzService.Teams, tileType, teamId);
-
-    var fileNamePart = string.IsNullOrWhiteSpace(einsatz.EinsatzNummer)
-        ? $"einsatz-karte-{DateTime.Now:yyyyMMdd-HHmmss}"
-        : $"einsatz-karte-{einsatz.EinsatzNummer}";
-    return Results.File(bytes, "application/pdf", $"{fileNamePart}.pdf");
-});
-
-app.MapGet("/downloads/einsatz-archiv/{id}.pdf", async (string id, IArchivService archivService, IPdfExportService pdfExportService) =>
-{
-    var archivedEinsatz = await archivService.GetByIdAsync(id);
-    if (archivedEinsatz is null)
-    {
-        return Results.NotFound();
-    }
-
-    var includeTracks = archivedEinsatz.TrackSnapshots?.Any(track => track.Points.Count >= 2) == true;
-    var bytes = await pdfExportService.ExportArchivedEinsatzToPdfBytesAsync(archivedEinsatz, includeTracks);
-    var fileNamePart = string.IsNullOrWhiteSpace(archivedEinsatz.EinsatzNummer)
-        ? $"einsatz-archiv-{archivedEinsatz.EinsatzDatum:yyyyMMdd-HHmmss}"
-        : $"einsatz-archiv-{archivedEinsatz.EinsatzNummer}";
-
-    return Results.File(bytes, "application/pdf", $"{fileNamePart}.pdf");
-});
-
-app.MapGet("/downloads/einsatz-archiv.json", async (IArchivService archivService) =>
-{
-    var bytes = await archivService.ExportAllAsJsonAsync();
-    return Results.File(bytes, "application/json", $"einsatz-archiv-{DateTime.Now:yyyyMMdd-HHmmss}.json");
-});
-
-app.MapGet("/downloads/einsatz-bericht.xlsx", async (IEinsatzService einsatzService, IExcelExportService excelExportService) =>
-{
-    var einsatz = einsatzService.CurrentEinsatz;
-    var teams = einsatzService.Teams;
-    var notes = einsatzService.GlobalNotes;
-    var fileNamePart = string.IsNullOrWhiteSpace(einsatz.EinsatzNummer)
-        ? $"einsatzbericht-{DateTime.Now:yyyyMMdd-HHmmss}"
-        : einsatz.EinsatzNummer.Replace("/", "-").Replace(" ", "_");
-    var bytes = await excelExportService.ExportEinsatzAsync(einsatz, teams, notes);
-    return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{fileNamePart}.xlsx");
-});
-
-app.MapGet("/downloads/app-settings.json", async (ISettingsService settingsService) =>
-{
-    var settings = await settingsService.GetAppSettingsAsync();
-    var bytes = JsonSerializer.SerializeToUtf8Bytes(settings, new JsonSerializerOptions { WriteIndented = true });
-    return Results.File(bytes, "application/json", "app-settings.json");
-});
-
-app.MapGet("/downloads/staffel-settings.json", async (ISettingsService settingsService) =>
-{
-    var settings = await settingsService.GetStaffelSettingsAsync();
-    var bytes = JsonSerializer.SerializeToUtf8Bytes(settings, new JsonSerializerOptions { WriteIndented = true });
-    return Results.File(bytes, "application/json", "staffel-settings.json");
-});
-
-app.MapGet("/downloads/staffel-logo", async (ISettingsService settingsService) =>
-{
-    var settings = await settingsService.GetStaffelSettingsAsync();
-    if (string.IsNullOrWhiteSpace(settings.StaffelLogoPfad))
-    {
-        return Results.NotFound();
-    }
-
-    var logoPath = settings.StaffelLogoPfad;
-    if (!Path.IsPathRooted(logoPath))
-    {
-        logoPath = Path.Combine(AppPathResolver.GetDataDirectory(), logoPath.TrimStart('/', '\\'));
-    }
-
-    if (!File.Exists(logoPath))
-    {
-        return Results.NotFound();
-    }
-
-    var contentTypeProvider = new FileExtensionContentTypeProvider();
-    if (!contentTypeProvider.TryGetContentType(logoPath, out var contentType))
-    {
-        contentType = "application/octet-stream";
-    }
-
-    return Results.File(await File.ReadAllBytesAsync(logoPath), contentType);
-});
-
-app.MapGet("/downloads/session-data.json", async (IMasterDataService masterDataService) =>
-{
-    var sessionData = await masterDataService.LoadSessionDataAsync();
-    var bytes = JsonSerializer.SerializeToUtf8Bytes(sessionData, new JsonSerializerOptions { WriteIndented = true });
-    return Results.File(bytes, "application/json", "session-data.json");
-});
-
-app.MapGet("/downloads/stammdaten.xlsx", async (IExcelExportService excelExportService) =>
-{
-    var bytes = await excelExportService.ExportStammdatenAsync();
-    return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "stammdaten.xlsx");
-});
-
-app.MapGet("/downloads/stammdaten-template.xlsx", async (IExcelExportService excelExportService) =>
-{
-    var bytes = await excelExportService.CreateImportTemplateAsync();
-    return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "stammdaten-template.xlsx");
-});
-
-app.MapGet("/downloads/data-backup.zip", () =>
-{
-    var dataDirectory = AppPathResolver.GetDataDirectory();
-    if (!Directory.Exists(dataDirectory))
-    {
-        return Results.NotFound();
-    }
-
-    using var memoryStream = new MemoryStream();
-    using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, leaveOpen: true))
-    {
-        var files = Directory.GetFiles(dataDirectory, "*", SearchOption.AllDirectories);
-        foreach (var filePath in files)
-        {
-            var relativePath = Path.GetRelativePath(dataDirectory, filePath);
-            archive.CreateEntryFromFile(filePath, relativePath, CompressionLevel.Optimal);
-        }
-    }
-
-    var fileName = $"einsatzueberwachung-data-backup-{DateTime.Now:yyyyMMdd-HHmmss}.zip";
-    return Results.File(memoryStream.ToArray(), "application/zip", fileName);
-});
-
-app.MapGet("/downloads/livetracking.zip", () =>
-{
-    var candidateDirectories = new[]
-    {
-        Path.Combine(AppContext.BaseDirectory, "livetracking"),
-        Path.Combine(AppPathResolver.GetDataDirectory(), "livetracking"),
-        Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "Einsatzueberwachung.LiveTracking", "bin", "Release", "net9.0-windows7.0")),
-        Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "Einsatzueberwachung.LiveTracking", "bin", "Debug", "net9.0-windows7.0"))
-    };
-
-    var sourceDirectory = candidateDirectories
-        .Where(Directory.Exists)
-        .FirstOrDefault(directory => Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Any());
-
-    if (sourceDirectory is null)
-    {
-        return Results.NotFound("LiveTracking-Paket wurde auf diesem System noch nicht bereitgestellt.");
-    }
-
-    using var memoryStream = new MemoryStream();
-    using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, leaveOpen: true))
-    {
-        var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories);
-        foreach (var filePath in files)
-        {
-            var relativePath = Path.GetRelativePath(sourceDirectory, filePath);
-            archive.CreateEntryFromFile(filePath, relativePath, CompressionLevel.Optimal);
-        }
-    }
-
-    var fileName = $"einsatzueberwachung-livetracking-{DateTime.Now:yyyyMMdd-HHmmss}.zip";
-    return Results.File(memoryStream.ToArray(), "application/zip", fileName);
-});
+app.MapDownloadEndpoints();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

@@ -1,0 +1,1806 @@
+using Einsatzueberwachung.Domain.Interfaces;
+using Einsatzueberwachung.Domain.Models;
+using Einsatzueberwachung.Domain.Models.Enums;
+using Einsatzueberwachung.Domain.Models.Merge;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
+
+namespace Einsatzueberwachung.Server.Components.Pages;
+
+public partial class EinsatzMonitor
+{
+    [Inject] IEinsatzService EinsatzService { get; set; } = default!;
+    [Inject] IMasterDataService MasterDataService { get; set; } = default!;
+    [Inject] IWeatherService WeatherService { get; set; } = default!;
+    [Inject] IArchivService ArchivService { get; set; } = default!;
+    [Inject] IPdfExportService PdfExportService { get; set; } = default!;
+    [Inject] ISettingsService SettingsService { get; set; } = default!;
+    [Inject] ITimeService TimeService { get; set; } = default!;
+    [Inject] ICollarTrackingService CollarTrackingService { get; set; } = default!;
+    [Inject] IDashboardLayoutService DashboardLayoutService { get; set; } = default!;
+    [Inject] IJSRuntime JS { get; set; } = default!;
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+
+    private readonly TeamEditorModel _teamForm = new();
+    private readonly Dictionary<string, string> _replyTexts = new();
+    private readonly Dictionary<string, string> _replySourceIds = new();
+    private readonly Dictionary<string, bool> _historyVisible = new();
+    private readonly Dictionary<string, List<GlobalNotesHistory>> _historyCache = new();
+
+    private string _newNoteText = string.Empty;
+    private string _newNoteType = "Notiz";
+    private string _newNoteSourceId = string.Empty;
+    private string? _editingTeamId;
+    private string _teamFormMessage = string.Empty;
+    private bool _teamFormIsError;
+    private string _teamStatusMessage = string.Empty;
+    private bool _teamStatusIsError;
+    private bool _showTeamModal;
+    private bool _showCloseMissionModal;
+    private bool _showPauseResetModal;
+    private bool _showEditEinsatzModal;
+    private bool _showVermisstenModal;
+    private string _vermisstenMessage = string.Empty;
+    private bool _vermisstenIsError;
+    private Einsatzueberwachung.Domain.Models.VermisstenInfo _vForm = new();
+
+    // Halsband-Auswahl beim Start (falls noch kein Halsband zugewiesen)
+    private bool _showCollarSelectModal;
+    private string? _collarSelectTeamId;
+    private string _collarSelectCollarId = string.Empty;
+    private string _editEinsatzMessage = string.Empty;
+    private bool _editEinsatzIsError;
+    private EditEinsatzForm _editEinsatzForm = new();
+    private string? _pauseResetTeamId;
+    private bool _closeMissionChecklistConfirmed;
+    private bool _closingMission;
+    private bool _closeMissionIncludeTracks;
+    private string _closeMissionResult = string.Empty;
+    private TimeOnly? _closeMissionEndTime;
+    private string _closeMissionRemarks = string.Empty;
+    private string _closeMissionModalError = string.Empty;
+    private string _closeMissionStatus = string.Empty;
+    private bool _closeMissionStatusIsError;
+    private int _closeMissionTrackCount => EinsatzService.CurrentEinsatz.TrackSnapshots?.Count ?? 0;
+
+    private List<PersonalEntry> _personalList = new();
+    private List<DogEntry> _dogList = new();
+    private List<DroneEntry> _droneList = new();
+    private readonly HashSet<string> _selectedPersonnelIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _selectedDogIds = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly string[] _closeMissionResultOptions =
+    {
+        "Person gefunden - lebend",
+        "Person gefunden - verstorben",
+        "Person anderweitig gefunden",
+        "Abbruch - Wetter",
+        "Abbruch - Dunkelheit",
+        "Suche erfolglos abgeschlossen",
+        "Uebung abgeschlossen"
+    };
+
+    private List<string> _quickNoteTemplates = new();
+
+    private WeatherData? _monitorWeather;
+    private WeatherForecast? _monitorForecast;
+    private DateTime _monitorWeatherLoadedAtLocal;
+    private string _monitorWeatherError = string.Empty;
+    private bool _monitorWeatherLoading;
+    private bool _monitorWeatherUsingFallback;
+    private (double Latitude, double Longitude)? _einsatzCoordinates;
+    private System.Threading.Timer? _weatherRefreshTimer;
+    private System.Threading.Timer? _durationRefreshTimer;
+    private TimeSpan? _einsatzdauerFromHeader;
+    private AppSettings _appSettings = new();
+
+    // Dashboard-Layout
+    private bool _editMode;
+    private bool _needsRender = true;
+    private bool _reInitSortable;
+    private List<DashboardPanelConfig> _currentLayout = new();
+    private List<DashboardPanelConfig> _layoutSnapshot = new();
+    private DotNetObjectReference<EinsatzMonitor>? _dotNetRef;
+
+    // Minimap
+    private bool _minimapInitialized;
+
+    private sealed class ClientLocalNowDto
+    {
+        public int Year { get; set; }
+        public int Month { get; set; }
+        public int Day { get; set; }
+        public int Hour { get; set; }
+        public int Minute { get; set; }
+        public int Second { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        EinsatzService.TeamAdded += OnTeamChanged;
+        EinsatzService.TeamRemoved += OnTeamChanged;
+        EinsatzService.TeamUpdated += OnTeamChanged;
+        EinsatzService.EinsatzChanged += OnEinsatzChanged;
+        EinsatzService.NoteAdded += OnNoteAdded;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _appSettings = await SettingsService.GetAppSettingsAsync();
+        await LoadMasterDataAsync();
+        LoadQuickNoteTemplates();
+        _currentLayout = await DashboardLayoutService.LoadLayoutAsync(EinsatzService.CurrentEinsatz.Fuehrungsassistent);
+        await RefreshMonitorWeatherAsync(forceGeocoding: true);
+        StartWeatherRefreshTimer();
+        StartDurationRefreshTimer();
+    }
+
+    protected override bool ShouldRender()
+    {
+        if (_editMode && !_needsRender)
+            return false;
+        _needsRender = false;
+        return true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("dashboardLayout.init", _dotNetRef, "monitor-dashboard-grid");
+            await RefreshEinsatzdauerFromHeaderTimeAsync();
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (_reInitSortable)
+        {
+            _reInitSortable = false;
+            await JS.InvokeVoidAsync("dashboardLayout.enableEdit");
+        }
+
+        await TryInitMinimapAsync();
+    }
+
+    public void Dispose()
+    {
+        EinsatzService.TeamAdded -= OnTeamChanged;
+        EinsatzService.TeamRemoved -= OnTeamChanged;
+        EinsatzService.TeamUpdated -= OnTeamChanged;
+        EinsatzService.EinsatzChanged -= OnEinsatzChanged;
+        EinsatzService.NoteAdded -= OnNoteAdded;
+        _weatherRefreshTimer?.Dispose();
+        _durationRefreshTimer?.Dispose();
+        _dotNetRef?.Dispose();
+        _ = JS.InvokeVoidAsync("dashboardLayout.destroy");
+        if (_minimapInitialized)
+            _ = JS.InvokeVoidAsync("minimapInterop.destroy", "minimap-panel-map");
+    }
+
+    // ===== Dashboard-Layout-Methoden =====
+
+    private async Task EnterEditModeAsync()
+    {
+        _layoutSnapshot = _currentLayout.Select(p => new DashboardPanelConfig
+        {
+            PanelId = p.PanelId,
+            IsVisible = p.IsVisible,
+            ColSpan = p.ColSpan,
+            Order = p.Order
+        }).ToList();
+        _editMode = true;
+        _needsRender = true;
+        _reInitSortable = true;
+        await Task.CompletedTask;
+    }
+
+    private async Task SaveLayoutAsync()
+    {
+        await DashboardLayoutService.SaveLayoutAsync(EinsatzService.CurrentEinsatz.Fuehrungsassistent, _currentLayout);
+        await JS.InvokeVoidAsync("dashboardLayout.disableEdit");
+        _editMode = false;
+        _reInitSortable = false;
+        _needsRender = true;
+    }
+
+    private async Task CancelEditAsync()
+    {
+        _currentLayout = _layoutSnapshot.Select(p => new DashboardPanelConfig
+        {
+            PanelId = p.PanelId,
+            IsVisible = p.IsVisible,
+            ColSpan = p.ColSpan,
+            Order = p.Order
+        }).ToList();
+        await JS.InvokeVoidAsync("dashboardLayout.disableEdit");
+        _editMode = false;
+        _reInitSortable = false;
+        _needsRender = true;
+    }
+
+    [JSInvokable]
+    public Task OnPanelReordered(int oldIndex, int newIndex)
+    {
+        if (oldIndex == newIndex) return Task.CompletedTask;
+
+        var ordered = _currentLayout.OrderBy(p => p.Order).ToList();
+        var moved = ordered[oldIndex];
+        ordered.RemoveAt(oldIndex);
+        ordered.Insert(newIndex, moved);
+
+        for (var i = 0; i < ordered.Count; i++)
+            ordered[i].Order = i;
+
+        _currentLayout = ordered;
+        _reInitSortable = true;
+        _needsRender = true;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private void SetPanelColSpan(string panelId, int colSpan)
+    {
+        var panel = _currentLayout.FirstOrDefault(p => p.PanelId == panelId);
+        if (panel is null) return;
+        panel.ColSpan = colSpan;
+        _reInitSortable = true;
+        _needsRender = true;
+    }
+
+    private void TogglePanelVisible(string panelId)
+    {
+        var panel = _currentLayout.FirstOrDefault(p => p.PanelId == panelId);
+        if (panel is null) return;
+        panel.IsVisible = !panel.IsVisible;
+        _reInitSortable = true;
+        _needsRender = true;
+    }
+
+    private static string ColSpanClass(int colSpan) => $"gs-col-{colSpan}";
+
+    private static string PanelLabel(string panelId) =>
+        KnownPanels.Labels.TryGetValue(panelId, out var label) ? label : panelId;
+
+    private static string ColSpanLabel(int colSpan) => colSpan switch
+    {
+        3  => "¼",
+        4  => "⅓",
+        6  => "½",
+        8  => "⅔",
+        12 => "↔",
+        _  => $"{colSpan}"
+    };
+
+    private void SetPanelHeight(string panelId, int height)
+    {
+        var panel = _currentLayout.FirstOrDefault(p => p.PanelId == panelId);
+        if (panel is null) return;
+        panel.PanelHeight = height;
+        _reInitSortable = true;
+        _needsRender = true;
+    }
+
+    private static string PanelHeightLabel(int h) => h switch
+    {
+        0   => "↕",
+        250 => "S",
+        400 => "M",
+        600 => "L",
+        800 => "XL",
+        _   => $"{h}"
+    };
+
+    private static string PanelBodyStyle(DashboardPanelConfig panel)
+    {
+        if (panel.PanelHeight <= 0) return string.Empty;
+        return $"height:{panel.PanelHeight}px;overflow-y:auto;";
+    }
+
+    // ===== Minimap =====
+
+    private async Task TryInitMinimapAsync()
+    {
+        var minimapPanel = _currentLayout.FirstOrDefault(p => p.PanelId == KnownPanels.Minimap);
+        if (minimapPanel is null || !minimapPanel.IsVisible || _editMode)
+            return;
+
+        if (!_minimapInitialized)
+        {
+            _minimapInitialized = true;
+            await JS.InvokeVoidAsync("minimapInterop.init", "minimap-panel-map");
+            await UpdateMinimapAsync();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("minimapInterop.invalidate", "minimap-panel-map");
+        }
+    }
+
+    private async Task UpdateMinimapAsync()
+    {
+        if (!_minimapInitialized) return;
+
+        var elw = EinsatzService.CurrentEinsatz.ElwPosition;
+        if (elw.HasValue)
+        {
+            await JS.InvokeVoidAsync("minimapInterop.updateElw", "minimap-panel-map",
+                elw.Value.Latitude, elw.Value.Longitude);
+        }
+
+        var areas = EinsatzService.CurrentEinsatz.SearchAreas
+            .Where(a => a.Coordinates.Count >= 3)
+            .Select(a => new
+            {
+                name = a.Name,
+                color = a.Color,
+                isCompleted = a.IsCompleted,
+                teamName = EinsatzService.Teams.FirstOrDefault(t => t.SearchAreaId == a.Id)?.TeamName ?? string.Empty,
+                coordinates = a.Coordinates.Select(c => new[] { c.Latitude, c.Longitude }).ToList()
+            })
+            .ToList();
+
+        await JS.InvokeVoidAsync("minimapInterop.updateSearchAreas", "minimap-panel-map", areas);
+    }
+
+    // ===== Bestehende Methoden (unverändert) =====
+
+    private IEnumerable<PersonalEntry> ActivePersonnel => _personalList
+        .Where(person => person.IsActive)
+        .OrderBy(person => person.Nachname)
+        .ThenBy(person => person.Vorname);
+
+    private IEnumerable<DogEntry> ActiveDogs => _dogList
+        .Where(dog => dog.IsActive)
+        .OrderBy(dog => dog.Name);
+
+    private List<string> SelectedPersonnelNames => ActivePersonnel
+        .Where(person => _selectedPersonnelIds.Contains(person.Id))
+        .Select(person => person.FullName)
+        .Where(name => !string.IsNullOrWhiteSpace(name))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(name => name)
+        .ToList();
+
+    private List<string> SelectedDogNames => ActiveDogs
+        .Where(dog => _selectedDogIds.Contains(dog.Id))
+        .Select(dog => dog.Name)
+        .Where(name => !string.IsNullOrWhiteSpace(name))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(name => name)
+        .ToList();
+
+    private IEnumerable<PersonalEntry> HundefuehrerOptions
+    {
+        get
+        {
+            var allHandlers = ActivePersonnel
+                .Where(person => person.Skills.HasFlag(PersonalSkills.Hundefuehrer));
+
+            if (!string.IsNullOrWhiteSpace(_teamForm.DogId))
+            {
+                var selectedDog = _dogList.FirstOrDefault(d => d.Id == _teamForm.DogId);
+                if (selectedDog != null && selectedDog.HundefuehrerIds.Count > 0)
+                {
+                    return allHandlers.Where(p => selectedDog.HundefuehrerIds.Contains(p.Id));
+                }
+            }
+
+            return allHandlers;
+        }
+    }
+
+    private IEnumerable<PersonalEntry> HelferOptions => ActivePersonnel
+        .Where(person => person.Skills.HasFlag(PersonalSkills.Helfer) || person.Skills.HasFlag(PersonalSkills.Hundefuehrer));
+
+    private IEnumerable<PersonalEntry> DrohnenpilotOptions => ActivePersonnel
+        .Where(person => person.Skills.HasFlag(PersonalSkills.Drohnenpilot));
+
+    private IEnumerable<DogEntry> AvailableDogs => _dogList
+        .Where(dog => dog.IsActive && (string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId) || dog.HundefuehrerIds.Contains(_teamForm.HundefuehrerId)))
+        .OrderBy(dog => dog.Name);
+
+    private IEnumerable<DroneEntry> AvailableDrones => _droneList
+        .Where(drone => drone.IsActive)
+        .OrderBy(drone => drone.Name)
+        .ThenBy(drone => drone.Modell);
+
+    private async Task LoadMasterDataAsync()
+    {
+        _personalList = await MasterDataService.GetPersonalListAsync();
+        _dogList = await MasterDataService.GetDogListAsync();
+        _droneList = await MasterDataService.GetDroneListAsync();
+    }
+
+    private void LoadQuickNoteTemplates()
+    {
+        _quickNoteTemplates = _appSettings.QuickNoteTemplates?
+            .Where(text => !string.IsNullOrWhiteSpace(text))
+            .Select(text => text.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()
+            ?? new List<string>();
+
+        if (_quickNoteTemplates.Count == 0)
+        {
+            _quickNoteTemplates = new List<string>
+            {
+                "ELW Ankunft Einsatzstelle",
+                "ELW verlaesst Einsatzstelle",
+                "Team vor Ort eingetroffen",
+                "Lagemeldung an Leitstelle",
+                "Suche gestartet",
+                "Suche beendet"
+            };
+        }
+    }
+
+    private void OnEinsatzChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            await RefreshMonitorWeatherAsync(forceGeocoding: true);
+            await UpdateMinimapAsync();
+            StateHasChanged();
+        });
+    }
+
+    private void OnTeamChanged(Team _)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnNoteAdded(GlobalNotesEntry _)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void StartWeatherRefreshTimer()
+    {
+        _weatherRefreshTimer?.Dispose();
+        _weatherRefreshTimer = new System.Threading.Timer(
+            _ => _ = InvokeAsync(() => RefreshMonitorWeatherAsync(forceGeocoding: false)),
+            null,
+            TimeSpan.FromMinutes(10),
+            TimeSpan.FromMinutes(10));
+    }
+
+    private void StartDurationRefreshTimer()
+    {
+        _durationRefreshTimer?.Dispose();
+        _durationRefreshTimer = new System.Threading.Timer(
+            _ => _ = InvokeAsync(async () =>
+            {
+                await RefreshEinsatzdauerFromHeaderTimeAsync();
+                StateHasChanged();
+            }),
+            null,
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(1));
+    }
+
+    private async Task RefreshEinsatzdauerFromHeaderTimeAsync()
+    {
+        if (!EinsatzService.CurrentEinsatz.AlarmierungsZeit.HasValue)
+        {
+            _einsatzdauerFromHeader = null;
+            return;
+        }
+
+        try
+        {
+            var dto = await JS.InvokeAsync<ClientLocalNowDto>("layoutTools.getClientLocalNow");
+            var headerNow = new DateTime(dto.Year, dto.Month, dto.Day, dto.Hour, dto.Minute, dto.Second, DateTimeKind.Unspecified);
+            var duration = headerNow - EinsatzService.CurrentEinsatz.AlarmierungsZeit.Value;
+            _einsatzdauerFromHeader = duration < TimeSpan.Zero ? TimeSpan.Zero : duration;
+        }
+        catch
+        {
+            _einsatzdauerFromHeader = EinsatzService.CurrentEinsatz.Dauer;
+        }
+    }
+
+    private string GetEinsatzdauerDisplay()
+    {
+        return (_einsatzdauerFromHeader ?? EinsatzService.CurrentEinsatz.Dauer)?.ToString(@"hh\:mm\:ss") ?? "--:--:--";
+    }
+
+    private async Task RefreshMonitorWeatherAsync(bool forceGeocoding)
+    {
+        _monitorWeatherError = string.Empty;
+        _monitorWeatherLoading = true;
+
+        try
+        {
+            var coordinates = await ResolveEinsatzCoordinatesAsync(forceGeocoding);
+            if (coordinates is null)
+            {
+                if (_monitorWeather is not null)
+                {
+                    _monitorWeatherUsingFallback = true;
+                }
+
+                return;
+            }
+
+            var weather = await WeatherService.GetCurrentWeatherAsync(coordinates.Value.Latitude, coordinates.Value.Longitude);
+            var forecast = await WeatherService.GetForecastAsync(coordinates.Value.Latitude, coordinates.Value.Longitude);
+
+            if (weather is null)
+            {
+                if (_monitorWeather is null)
+                {
+                    _monitorWeatherError = "Wetterdaten konnten aktuell nicht geladen werden.";
+                }
+                else
+                {
+                    _monitorWeatherUsingFallback = true;
+                    _monitorWeatherError = "Live-Aktualisierung fehlgeschlagen. Letzte gueltige Wetterdaten werden angezeigt.";
+                }
+
+                return;
+            }
+
+            _monitorWeather = weather;
+            _monitorForecast = forecast;
+            _monitorWeatherLoadedAtLocal = DateTime.Now;
+            _monitorWeatherUsingFallback = false;
+        }
+        catch
+        {
+            if (_monitorWeather is null)
+            {
+                _monitorWeatherError = "Wetterdienst derzeit nicht erreichbar.";
+            }
+            else
+            {
+                _monitorWeatherUsingFallback = true;
+                _monitorWeatherError = "Wetterdienst derzeit nicht erreichbar. Letzte gueltige Daten bleiben sichtbar.";
+            }
+        }
+        finally
+        {
+            _monitorWeatherLoading = false;
+        }
+    }
+
+    private async Task<(double Latitude, double Longitude)?> ResolveEinsatzCoordinatesAsync(bool forceGeocoding)
+    {
+        var address = EinsatzService.CurrentEinsatz.Einsatzort;
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            _monitorWeatherError = "Kein Einsatzort gesetzt. Wetterdaten koennen nicht geladen werden.";
+            return null;
+        }
+
+        if (_einsatzCoordinates.HasValue && !forceGeocoding)
+        {
+            return _einsatzCoordinates;
+        }
+
+        var coordinates = await WeatherService.GeocodeAddressAsync(address);
+        if (coordinates is null)
+        {
+            _monitorWeatherError = "Einsatzort konnte nicht geocodiert werden.";
+            return null;
+        }
+
+        _einsatzCoordinates = coordinates;
+        return coordinates;
+    }
+
+    private IEnumerable<WeatherData> GetMonitorForecastItems()
+    {
+        if (_monitorForecast?.StundenVorhersage is null || _monitorForecast.StundenVorhersage.Length == 0)
+        {
+            return Enumerable.Empty<WeatherData>();
+        }
+
+        var nowUtc = DateTime.UtcNow.AddMinutes(-30);
+        return _monitorForecast.StundenVorhersage
+            .Where(item => item.Zeitpunkt >= nowUtc)
+            .OrderBy(item => item.Zeitpunkt)
+            .Take(6);
+    }
+
+    private static string GetWeatherRiskBadgeClass(WeatherData weather)
+    {
+        return EvaluateWeatherRisk(weather) switch
+        {
+            WeatherRiskLevel.Kritisch => "bg-danger",
+            WeatherRiskLevel.Erhoeht => "bg-warning text-dark",
+            WeatherRiskLevel.Beobachten => "bg-info",
+            _ => "bg-success"
+        };
+    }
+
+    private static string GetWeatherRiskLabel(WeatherData weather)
+    {
+        return EvaluateWeatherRisk(weather) switch
+        {
+            WeatherRiskLevel.Kritisch => "Kritisch",
+            WeatherRiskLevel.Erhoeht => "Erhoeht",
+            WeatherRiskLevel.Beobachten => "Beobachten",
+            _ => "Stabil"
+        };
+    }
+
+    private static string GetForecastRiskClass(WeatherData forecast)
+    {
+        return EvaluateWeatherRisk(forecast) switch
+        {
+            WeatherRiskLevel.Kritisch => "forecast-critical",
+            WeatherRiskLevel.Erhoeht => "forecast-warning",
+            _ => string.Empty
+        };
+    }
+
+    private static WeatherRiskLevel EvaluateWeatherRisk(WeatherData weather)
+    {
+        if (weather.WarnungsStufe >= WarnungsStufe.Unwetter
+            || weather.Windboeen >= 65
+            || weather.Niederschlag >= 8
+            || weather.Sichtweite < 1.5)
+        {
+            return WeatherRiskLevel.Kritisch;
+        }
+
+        if (weather.WarnungsStufe >= WarnungsStufe.Markant
+            || weather.Windboeen >= 50
+            || weather.Niederschlag >= 4
+            || weather.Sichtweite < 3)
+        {
+            return WeatherRiskLevel.Erhoeht;
+        }
+
+        if (weather.WarnungsStufe == WarnungsStufe.Vorabwarnung
+            || weather.Windboeen >= 35
+            || weather.Niederschlag >= 1.5
+            || weather.Sichtweite < 5)
+        {
+            return WeatherRiskLevel.Beobachten;
+        }
+
+        return WeatherRiskLevel.Stabil;
+    }
+
+    private enum WeatherRiskLevel
+    {
+        Stabil,
+        Beobachten,
+        Erhoeht,
+        Kritisch
+    }
+
+    private static string GetTeamCardClass(Team team)
+    {
+        var classes = new List<string>();
+
+        if (team.IsRunning)
+        {
+            classes.Add("team-running");
+        }
+
+        if (team.IsPausing)
+        {
+            classes.Add("team-pausing");
+        }
+
+        if (team.IsSecondWarning)
+        {
+            classes.Add("team-critical");
+        }
+        else if (team.IsFirstWarning)
+        {
+            classes.Add("team-warning");
+        }
+
+        return string.Join(" ", classes);
+    }
+
+    private static string GetTimerDisplayClass(Team team)
+    {
+        if (team.IsSecondWarning)
+        {
+            return "timer-critical";
+        }
+
+        if (team.IsFirstWarning)
+        {
+            return "timer-warning";
+        }
+
+        return string.Empty;
+    }
+
+    private static string GetTeamColor(Team team)
+    {
+        if (team.IsDroneTeam)
+        {
+            return "#0dcaf0";
+        }
+
+        if (team.IsSupportTeam)
+        {
+            return "#6c757d";
+        }
+
+        return team.DogSpecialization switch
+        {
+            DogSpecialization.Flaechensuche => "#4CAF50",
+            DogSpecialization.Truemmersuche => "#FF9800",
+            DogSpecialization.Wasserortung => "#2196F3",
+            DogSpecialization.Mantrailing => "#9C27B0",
+            _ => "#1e88e5"
+        };
+    }
+
+    private string GetAlarmDisplay()
+    {
+        if (EinsatzService.CurrentEinsatz.AlarmierungsZeit.HasValue)
+        {
+            return EinsatzService.CurrentEinsatz.AlarmierungsZeit.Value.ToString("dd.MM.yyyy HH:mm");
+        }
+
+        if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Alarmiert))
+        {
+            return EinsatzService.CurrentEinsatz.Alarmiert;
+        }
+
+        return EinsatzService.CurrentEinsatz.EinsatzDatum.ToString("dd.MM.yyyy HH:mm");
+    }
+
+    private void OpenCloseMissionModal()
+    {
+        _showCloseMissionModal = true;
+        _closeMissionModalError = string.Empty;
+        _closeMissionChecklistConfirmed = false;
+        _closeMissionIncludeTracks = false;
+        _closeMissionResult = string.Empty;
+        _closeMissionRemarks = string.Empty;
+        _closeMissionEndTime = TimeOnly.FromDateTime(TimeService.Now);
+        _closeMissionStatus = string.Empty;
+        _closeMissionStatusIsError = false;
+
+        _selectedPersonnelIds.Clear();
+        _selectedDogIds.Clear();
+        PreselectVorOrtChecklists();
+    }
+
+    private void CloseCloseMissionModal()
+    {
+        if (_closingMission)
+        {
+            return;
+        }
+
+        _showCloseMissionModal = false;
+        _closeMissionModalError = string.Empty;
+    }
+
+    private void TogglePersonnelSelection(string personalId, ChangeEventArgs args)
+    {
+        var isChecked = args.Value switch
+        {
+            bool b => b,
+            string s => string.Equals(s, "true", StringComparison.OrdinalIgnoreCase) || s == "on",
+            _ => false
+        };
+
+        if (isChecked)
+        {
+            _selectedPersonnelIds.Add(personalId);
+            return;
+        }
+
+        _selectedPersonnelIds.Remove(personalId);
+    }
+
+    private void ToggleDogSelection(string dogId, ChangeEventArgs args)
+    {
+        var isChecked = args.Value switch
+        {
+            bool b => b,
+            string s => string.Equals(s, "true", StringComparison.OrdinalIgnoreCase) || s == "on",
+            _ => false
+        };
+
+        if (isChecked)
+        {
+            _selectedDogIds.Add(dogId);
+            return;
+        }
+
+        _selectedDogIds.Remove(dogId);
+    }
+
+    private void PreselectVorOrtChecklists()
+    {
+        var personnelByName = ActivePersonnel
+            .Where(person => !string.IsNullOrWhiteSpace(person.FullName))
+            .ToDictionary(person => person.FullName.Trim(), person => person.Id, StringComparer.OrdinalIgnoreCase);
+
+        var dogsByName = ActiveDogs
+            .Where(dog => !string.IsNullOrWhiteSpace(dog.Name))
+            .ToDictionary(dog => dog.Name.Trim(), dog => dog.Id, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var team in EinsatzService.Teams)
+        {
+            if (!string.IsNullOrWhiteSpace(team.HundefuehrerName)
+                && personnelByName.TryGetValue(team.HundefuehrerName.Trim(), out var fuehrerId))
+            {
+                _selectedPersonnelIds.Add(fuehrerId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(team.HelferName)
+                && personnelByName.TryGetValue(team.HelferName.Trim(), out var helferId))
+            {
+                _selectedPersonnelIds.Add(helferId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(team.DogName)
+                && dogsByName.TryGetValue(team.DogName.Trim(), out var dogId))
+            {
+                _selectedDogIds.Add(dogId);
+            }
+        }
+    }
+
+    private async Task ConfirmCloseMissionAsync()
+    {
+        _closeMissionModalError = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_closeMissionResult))
+        {
+            _closeMissionModalError = "Bitte ein Ergebnis auswaehlen.";
+            return;
+        }
+
+        if (!_closeMissionChecklistConfirmed)
+        {
+            _closeMissionModalError = "Bitte die Pruefung der Ressourcen bestaetigen.";
+            return;
+        }
+
+        _closingMission = true;
+
+        try
+        {
+            await EinsatzService.EndEinsatzAsync();
+
+            var snapshot = BuildArchiveSnapshot();
+            snapshot.EinsatzEnde = ResolveSelectedEndTime();
+
+            var archived = await ArchivService.ArchiveEinsatzAsync(
+                snapshot,
+                _closeMissionResult,
+                _closeMissionRemarks.Trim(),
+                SelectedPersonnelNames,
+                SelectedDogNames);
+
+            var pdfExport = await PdfExportService.ExportArchivedEinsatzToPdfAsync(archived, _closeMissionIncludeTracks);
+
+            EinsatzService.ResetEinsatz();
+            _showCloseMissionModal = false;
+
+            _closeMissionStatusIsError = !pdfExport.Success;
+            _closeMissionStatus = pdfExport.Success
+                ? $"Einsatz abgeschlossen. Archiviert als {archived.EinsatzNummer}. PDF erzeugt: {pdfExport.FilePath}"
+                : $"Einsatz abgeschlossen und archiviert. PDF konnte nicht erzeugt werden: {pdfExport.ErrorMessage}";
+
+            Navigation.NavigateTo("/einsatz-start", forceLoad: false);
+        }
+        catch (Exception ex)
+        {
+            _closeMissionModalError = $"Abschluss fehlgeschlagen: {ex.Message}";
+            _closeMissionStatusIsError = true;
+            _closeMissionStatus = "Einsatz konnte nicht abgeschlossen werden.";
+        }
+        finally
+        {
+            _closingMission = false;
+        }
+    }
+
+    private DateTime ResolveSelectedEndTime()
+    {
+        if (_closeMissionEndTime.HasValue)
+        {
+            var baseDate = TimeService.Now.Date;
+            return baseDate.Add(_closeMissionEndTime.Value.ToTimeSpan());
+        }
+
+        return TimeService.Now;
+    }
+
+    private EinsatzData BuildArchiveSnapshot()
+    {
+        var current = EinsatzService.CurrentEinsatz;
+        return new EinsatzData
+        {
+            Einsatzleiter = current.Einsatzleiter,
+            Fuehrungsassistent = current.Fuehrungsassistent,
+            Alarmiert = current.Alarmiert,
+            Einsatzort = current.Einsatzort,
+            MapAddress = current.MapAddress,
+            ExportPfad = current.ExportPfad,
+            IstEinsatz = current.IstEinsatz,
+            AnzahlTeams = EinsatzService.Teams.Count,
+            EinsatzDatum = current.EinsatzDatum,
+            EinsatzEnde = current.EinsatzEnde,
+            EinsatzNummer = current.EinsatzNummer,
+            StaffelName = current.StaffelName,
+            StaffelAdresse = current.StaffelAdresse,
+            StaffelTelefon = current.StaffelTelefon,
+            StaffelEmail = current.StaffelEmail,
+            StaffelLogoPfad = current.StaffelLogoPfad,
+            AlarmierungsZeit = current.AlarmierungsZeit,
+            ElwPosition = current.ElwPosition,
+            Teams = EinsatzService.Teams.ToList(),
+            SearchAreas = current.SearchAreas.ToList(),
+            GlobalNotesEntries = EinsatzService.GlobalNotes.ToList(),
+            TrackSnapshots = current.TrackSnapshots.ToList()
+        };
+    }
+
+    private async Task StartTeamAsync(string teamId)
+    {
+        var team = EinsatzService.Teams.FirstOrDefault(t => t.TeamId == teamId);
+
+        // Kein Halsband zugewiesen → Dialog zur Auswahl einblenden (nur für Hundeteams)
+        if (team != null && !team.IsDroneTeam && !team.IsSupportTeam && string.IsNullOrEmpty(team.CollarId))
+        {
+            _collarSelectTeamId = teamId;
+            _collarSelectCollarId = string.Empty;
+            _showCollarSelectModal = true;
+            return;
+        }
+
+        // Bei Suchstart: Halsband-History löschen für frischen Track
+        if (team != null && !string.IsNullOrEmpty(team.CollarId))
+        {
+            CollarTrackingService.ClearCollarHistory(team.CollarId);
+        }
+
+        try
+        {
+            await EinsatzService.StartTeamTimerAsync(teamId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _teamStatusMessage = ex.Message;
+            _teamStatusIsError = true;
+        }
+    }
+
+    private async Task StopTeamAsync(string teamId)
+    {
+        var team = EinsatzService.Teams.FirstOrDefault(t => t.TeamId == teamId);
+        if (team?.CollarId != null)
+        {
+            var history = CollarTrackingService.GetLocationHistory(team.CollarId);
+            if (history.Count > 0)
+            {
+                var searchArea = EinsatzService.CurrentEinsatz.SearchAreas
+                    .FirstOrDefault(a => a.Id == team.SearchAreaId);
+                var color = searchArea?.Color ?? "#FF4444";
+
+                var snapshot = new TeamTrackSnapshot
+                {
+                    CollarId = team.CollarId,
+                    CollarName = team.CollarName ?? team.CollarId,
+                    TeamId = team.TeamId,
+                    TeamName = team.TeamName,
+                    SearchAreaName = team.SearchAreaName,
+                    Color = color,
+                    CapturedAt = DateTime.Now,
+                    Points = history.Select(loc => new TrackPoint
+                    {
+                        Latitude = loc.Latitude,
+                        Longitude = loc.Longitude,
+                        Timestamp = loc.Timestamp
+                    }).ToList()
+                };
+
+                if (searchArea?.Coordinates != null && searchArea.Coordinates.Count >= 3)
+                {
+                    snapshot.SearchAreaCoordinates = new List<(double, double)>(searchArea.Coordinates);
+                    snapshot.SearchAreaColor = searchArea.Color;
+                }
+
+                team.TrackSnapshots.Add(snapshot);
+                EinsatzService.CurrentEinsatz.TrackSnapshots.Add(snapshot);
+
+                // Listener über neuen Snapshot informieren (z.B. für Karten-Darstellung)
+                CollarTrackingService.NotifySnapshotSaved(snapshot);
+
+                // Live-Track von der Karte entfernen — der Snapshot-Track ersetzt ihn
+                CollarTrackingService.ClearCollarHistory(snapshot.CollarId);
+            }
+        }
+
+        // Halsband nach dem Stopp automatisch freigeben (übergabe an nächstes Team möglich)
+        if (team?.CollarId != null)
+        {
+            await CollarTrackingService.UnassignCollarAsync(team.CollarId);
+        }
+
+        await EinsatzService.StopTeamTimerAsync(teamId);
+    }
+
+    private async Task ResetTeamAsync(string teamId)
+    {
+        await EinsatzService.ResetTeamTimerAsync(teamId);
+    }
+
+    // --- Halsband-Auswahl Modal (wird gezeigt wenn beim Start kein Halsband zugewiesen ist) ---
+
+    private async Task CollarSelectConfirmAsync()
+    {
+        if (_collarSelectTeamId == null) return;
+
+        if (!string.IsNullOrEmpty(_collarSelectCollarId))
+        {
+            await CollarTrackingService.AssignCollarToTeamAsync(_collarSelectCollarId, _collarSelectTeamId);
+        }
+
+        _showCollarSelectModal = false;
+
+        // Jetzt Start durchführen (Halsband ist jetzt zugewiesen oder bewusst ausgelassen)
+        var team = EinsatzService.Teams.FirstOrDefault(t => t.TeamId == _collarSelectTeamId);
+        if (team != null && !string.IsNullOrEmpty(team.CollarId))
+        {
+            CollarTrackingService.ClearCollarHistory(team.CollarId);
+        }
+
+        try
+        {
+            await EinsatzService.StartTeamTimerAsync(_collarSelectTeamId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _teamStatusMessage = ex.Message;
+            _teamStatusIsError = true;
+        }
+
+        _collarSelectTeamId = null;
+        _collarSelectCollarId = string.Empty;
+    }
+
+    private async Task CollarSelectStartWithoutAsync()
+    {
+        if (_collarSelectTeamId == null) return;
+        _showCollarSelectModal = false;
+
+        try
+        {
+            await EinsatzService.StartTeamTimerAsync(_collarSelectTeamId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _teamStatusMessage = ex.Message;
+            _teamStatusIsError = true;
+        }
+
+        _collarSelectTeamId = null;
+        _collarSelectCollarId = string.Empty;
+    }
+
+    private void CollarSelectCancel()
+    {
+        _showCollarSelectModal = false;
+        _collarSelectTeamId = null;
+        _collarSelectCollarId = string.Empty;
+    }
+
+    private Task RequestResetTeamAsync(string teamId)
+    {
+        var team = EinsatzService.Teams.FirstOrDefault(t => t.TeamId == teamId);
+        if (team is not null && team.IsPausing && !team.IsPauseComplete)
+        {
+            _pauseResetTeamId = teamId;
+            _showPauseResetModal = true;
+        }
+        else
+        {
+            _ = ResetTeamAsync(teamId);
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task ConfirmResetTeamAsync()
+    {
+        _showPauseResetModal = false;
+        if (_pauseResetTeamId is not null)
+        {
+            await ResetTeamAsync(_pauseResetTeamId);
+            _pauseResetTeamId = null;
+        }
+    }
+
+    private void ClosePauseResetModal()
+    {
+        _showPauseResetModal = false;
+        _pauseResetTeamId = null;
+    }
+
+    private static string FormatPauseRemaining(Team team)
+    {
+        if (team.IsPauseComplete)
+        {
+            return "Pause abgeschlossen";
+        }
+
+        var remaining = TimeSpan.FromMinutes(team.RemainingPauseMinutes);
+        return $"Noch {remaining:hh\\:mm} Pause";
+    }
+
+    private void EditTeam(string teamId)
+    {
+        var team = EinsatzService.Teams.FirstOrDefault(entry => entry.TeamId == teamId);
+        if (team == null)
+        {
+            return;
+        }
+
+        _editingTeamId = team.TeamId;
+        _teamForm.TeamName = team.TeamName;
+        _teamForm.TeamType = team.IsDroneTeam ? "drone" : team.IsSupportTeam ? "support" : "dog";
+        _teamForm.DogId = team.DogId;
+        _teamForm.DroneId = team.DroneId;
+        _teamForm.HundefuehrerId = team.HundefuehrerId;
+        _teamForm.HelferId = team.HelferId;
+        _teamForm.SearchAreaId = team.SearchAreaId;
+        _teamForm.CollarId = team.CollarId ?? string.Empty;
+        _teamForm.FirstWarningMinutes = team.FirstWarningMinutes;
+        _teamForm.SecondWarningMinutes = team.SecondWarningMinutes;
+        _teamForm.Notes = team.Notes;
+        _showTeamModal = true;
+        ClearTeamFormMessage();
+    }
+
+    private async Task SaveTeamAsync()
+    {
+        ClearTeamFormMessage();
+
+        if (!ValidateTeamForm(out var validationMessage))
+        {
+            SetTeamFormMessage(validationMessage, true);
+            return;
+        }
+
+        if (_editingTeamId is null)
+        {
+            var newTeam = BuildNewTeam();
+            await EinsatzService.AddTeamAsync(newTeam);
+            await SyncTeamSearchAreaAsync(newTeam, string.Empty);
+            await SyncCollarAssignmentAsync(newTeam);
+
+            SetTeamFormMessage("Team wurde gespeichert.", false);
+            ResetTeamForm();
+            _showTeamModal = false;
+            return;
+        }
+
+        var existingTeam = await EinsatzService.GetTeamByIdAsync(_editingTeamId);
+        if (existingTeam == null)
+        {
+            SetTeamFormMessage("Das zu bearbeitende Team wurde nicht gefunden.", true);
+            return;
+        }
+
+        var previousAreaId = existingTeam.SearchAreaId;
+        var previousCollarId = existingTeam.CollarId;
+        ApplyFormToExistingTeam(existingTeam);
+        await EinsatzService.UpdateTeamAsync(existingTeam);
+        await SyncTeamSearchAreaAsync(existingTeam, previousAreaId);
+        await SyncCollarAssignmentAsync(existingTeam, previousCollarId);
+        await EinsatzService.AddGlobalNoteWithSourceAsync(
+            $"{existingTeam.TeamName} wurde aktualisiert.",
+            existingTeam.TeamId,
+            existingTeam.TeamName,
+            "Team",
+            GlobalNotesEntryType.System,
+            "Einsatzleitung");
+
+        SetTeamFormMessage("Team wurde aktualisiert.", false);
+        ResetTeamForm();
+        _showTeamModal = false;
+    }
+
+    private async Task SyncTeamSearchAreaAsync(Team team, string previousAreaId)
+    {
+        if (!string.IsNullOrWhiteSpace(previousAreaId) && previousAreaId != _teamForm.SearchAreaId)
+        {
+            await EinsatzService.AssignTeamToSearchAreaAsync(previousAreaId, string.Empty);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_teamForm.SearchAreaId))
+        {
+            await EinsatzService.AssignTeamToSearchAreaAsync(_teamForm.SearchAreaId, team.TeamId);
+        }
+        else
+        {
+            team.SearchAreaId = string.Empty;
+            team.SearchAreaName = string.Empty;
+            await EinsatzService.UpdateTeamAsync(team);
+        }
+    }
+
+    private async Task SyncCollarAssignmentAsync(Team team, string? previousCollarId = null)
+    {
+        if (!string.IsNullOrWhiteSpace(previousCollarId) && previousCollarId != _teamForm.CollarId)
+        {
+            await CollarTrackingService.UnassignCollarAsync(previousCollarId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_teamForm.CollarId))
+        {
+            if (_teamForm.CollarId != previousCollarId)
+            {
+                await CollarTrackingService.AssignCollarToTeamAsync(_teamForm.CollarId, team.TeamId);
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(previousCollarId))
+        {
+            team.CollarId = null;
+            team.CollarName = null;
+            await EinsatzService.UpdateTeamAsync(team);
+        }
+    }
+
+    private bool ValidateTeamForm(out string validationMessage)
+    {
+        if (string.IsNullOrWhiteSpace(_teamForm.TeamName))
+        {
+            validationMessage = "Bitte einen Teamnamen vergeben.";
+            return false;
+        }
+
+        if (_teamForm.FirstWarningMinutes <= 0 || _teamForm.SecondWarningMinutes <= 0)
+        {
+            validationMessage = "Warnschwellen muessen groesser als 0 sein.";
+            return false;
+        }
+
+        if (_teamForm.SecondWarningMinutes <= _teamForm.FirstWarningMinutes)
+        {
+            validationMessage = "Warnung 2 muss groesser als Warnung 1 sein.";
+            return false;
+        }
+
+        if (_teamForm.TeamType == "dog")
+        {
+            if (string.IsNullOrWhiteSpace(_teamForm.DogId))
+            {
+                validationMessage = "Bitte einen Hund auswaehlen.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId))
+            {
+                validationMessage = "Bitte einen Hundefuehrer auswaehlen.";
+                return false;
+            }
+        }
+
+        if (_teamForm.TeamType == "drone")
+        {
+            if (string.IsNullOrWhiteSpace(_teamForm.DroneId))
+            {
+                validationMessage = "Bitte eine Drohne auswaehlen.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId))
+            {
+                validationMessage = "Bitte einen Piloten auswaehlen.";
+                return false;
+            }
+        }
+
+        if (_teamForm.TeamType == "support" && string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId))
+        {
+            validationMessage = "Bitte mindestens eine Person zuordnen.";
+            return false;
+        }
+
+        validationMessage = string.Empty;
+        return true;
+    }
+
+    private Team BuildNewTeam()
+    {
+        var team = new Team();
+        ApplyFormValues(team);
+        return team;
+    }
+
+    private void ApplyFormToExistingTeam(Team team)
+    {
+        ApplyFormValues(team);
+    }
+
+    private void ApplyFormValues(Team team)
+    {
+        var resolvedTeamName = ResolveTeamNameFromForm();
+        team.TeamName = resolvedTeamName;
+        team.HundefuehrerId = _teamForm.HundefuehrerId;
+        team.HelferId = _teamForm.HelferId;
+        team.DogId = string.Empty;
+        team.DogName = string.Empty;
+        team.DogSpecialization = DogSpecialization.None;
+        team.DroneId = string.Empty;
+        team.DroneType = string.Empty;
+        team.IsDroneTeam = _teamForm.TeamType == "drone";
+        team.IsSupportTeam = _teamForm.TeamType == "support";
+        team.FirstWarningMinutes = _teamForm.FirstWarningMinutes;
+        team.SecondWarningMinutes = _teamForm.SecondWarningMinutes;
+        team.Notes = _teamForm.Notes.Trim();
+
+        var primaryPerson = _personalList.FirstOrDefault(person => person.Id == _teamForm.HundefuehrerId);
+        var helperPerson = _personalList.FirstOrDefault(person => person.Id == _teamForm.HelferId);
+        team.HundefuehrerName = primaryPerson?.FullName ?? string.Empty;
+        team.HelferName = helperPerson?.FullName ?? string.Empty;
+
+        if (_teamForm.TeamType == "dog")
+        {
+            var dog = _dogList.FirstOrDefault(entry => entry.Id == _teamForm.DogId);
+            team.DogId = dog?.Id ?? string.Empty;
+            team.DogName = dog?.Name ?? string.Empty;
+            team.DogSpecialization = dog?.Specializations ?? DogSpecialization.None;
+        }
+        else if (_teamForm.TeamType == "drone")
+        {
+            var drone = _droneList.FirstOrDefault(entry => entry.Id == _teamForm.DroneId);
+            team.DroneId = drone?.Id ?? string.Empty;
+            team.DroneType = drone?.DisplayName ?? string.Empty;
+        }
+    }
+
+    private async Task OnTeamTypeChangedAsync()
+    {
+        _teamForm.DogId = string.Empty;
+        _teamForm.DroneId = string.Empty;
+        _teamForm.HelferId = string.Empty;
+
+        if (_teamForm.TeamType == "support")
+        {
+            _teamForm.SearchAreaId = string.Empty;
+        }
+
+        SyncTeamNameFromSelection();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnDogChangedAsync()
+    {
+        var dog = _dogList.FirstOrDefault(entry => entry.Id == _teamForm.DogId);
+        if (dog != null)
+        {
+            if (string.IsNullOrWhiteSpace(_teamForm.HundefuehrerId)
+                || !dog.HundefuehrerIds.Contains(_teamForm.HundefuehrerId))
+            {
+                _teamForm.HundefuehrerId = dog.PrimaryHundefuehrerId;
+            }
+        }
+
+        SyncTeamNameFromSelection();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnDroneChangedAsync()
+    {
+        SyncTeamNameFromSelection();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnHandlerChangedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(_teamForm.DogId) && AvailableDogs.All(dog => dog.Id != _teamForm.DogId))
+        {
+            _teamForm.DogId = string.Empty;
+            SyncTeamNameFromSelection();
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void SyncTeamNameFromSelection()
+    {
+        _teamForm.TeamName = ResolveTeamNameFromForm();
+    }
+
+    private string ResolveTeamNameFromForm()
+    {
+        if (_teamForm.TeamType == "dog")
+        {
+            var dogName = _dogList.FirstOrDefault(entry => entry.Id == _teamForm.DogId)?.Name;
+            return dogName?.Trim() ?? string.Empty;
+        }
+
+        if (_teamForm.TeamType == "drone")
+        {
+            var droneName = _droneList.FirstOrDefault(entry => entry.Id == _teamForm.DroneId)?.DisplayName;
+            return droneName?.Trim() ?? string.Empty;
+        }
+
+        return _teamForm.TeamName.Trim();
+    }
+
+    private async Task AddGlobalNoteAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newNoteText))
+        {
+            return;
+        }
+
+        var type = _newNoteType == "Funk" ? "Funk" : "Notiz";
+        var (sourceId, sourceName, createdBy) = ResolveSelectedSource(_newNoteSourceId);
+        await EinsatzService.AddGlobalNoteWithSourceAsync(
+            _newNoteText.Trim(),
+            sourceId,
+            sourceName,
+            type,
+            GlobalNotesEntryType.Manual,
+            createdBy);
+
+        _newNoteText = string.Empty;
+    }
+
+    private async Task AddQuickNoteAsync(string shortText)
+    {
+        if (string.IsNullOrWhiteSpace(shortText))
+        {
+            return;
+        }
+
+        var selectedSource = string.IsNullOrWhiteSpace(_newNoteSourceId) ? "einsatzleitung" : _newNoteSourceId;
+        var (sourceId, sourceName, createdBy) = ResolveSelectedSource(selectedSource);
+        var noteText = $"[{DateTime.Now:HH:mm}] {shortText.Trim()}";
+
+        await EinsatzService.AddGlobalNoteWithSourceAsync(
+            noteText,
+            sourceId,
+            sourceName,
+            "Notiz",
+            GlobalNotesEntryType.Manual,
+            createdBy);
+    }
+
+    private async Task AddReplyAsync(string noteId)
+    {
+        _replyTexts.TryGetValue(noteId, out var text);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        var sourceId = GetReplySourceId(noteId);
+        var (resolvedSourceId, sourceName, createdBy) = ResolveSelectedSource(sourceId);
+
+        await EinsatzService.AddReplyToNoteAsync(
+            noteId,
+            text.Trim(),
+            resolvedSourceId,
+            sourceName,
+            createdBy);
+
+        _replyTexts[noteId] = string.Empty;
+    }
+
+    private async Task ToggleHistoryAsync(string noteId)
+    {
+        var show = !_historyVisible.TryGetValue(noteId, out var isVisible) || !isVisible;
+        _historyVisible[noteId] = show;
+
+        if (show)
+        {
+            _historyCache[noteId] = await EinsatzService.GetNoteHistoryAsync(noteId);
+        }
+    }
+
+    private bool IsHistoryVisible(string noteId)
+    {
+        return _historyVisible.TryGetValue(noteId, out var value) && value;
+    }
+
+    private List<GlobalNotesHistory> GetHistoryEntries(string noteId)
+    {
+        return _historyCache.TryGetValue(noteId, out var entries) ? entries : new List<GlobalNotesHistory>();
+    }
+
+    private string GetReplyText(string noteId)
+    {
+        return _replyTexts.TryGetValue(noteId, out var text) ? text : string.Empty;
+    }
+
+    private string GetReplySourceId(string noteId)
+    {
+        if (!_replySourceIds.TryGetValue(noteId, out var sourceId) || string.IsNullOrWhiteSpace(sourceId))
+        {
+            _replySourceIds[noteId] = "einsatzleitung";
+        }
+
+        return _replySourceIds[noteId];
+    }
+
+    private void SetReplyText(string noteId, string? text)
+    {
+        _replyTexts[noteId] = text ?? string.Empty;
+    }
+
+    private void SetReplySourceId(string noteId, string? sourceId)
+    {
+        _replySourceIds[noteId] = string.IsNullOrWhiteSpace(sourceId) ? "einsatzleitung" : sourceId;
+    }
+
+    private (string SourceId, string SourceName, string CreatedBy) ResolveSelectedSource(string sourceId)
+    {
+        if (string.IsNullOrWhiteSpace(sourceId) || sourceId == "einsatzleitung")
+        {
+            return ("einsatzleitung", "Einsatzleitung", "Einsatzleitung");
+        }
+
+        var selectedTeam = EinsatzService.Teams.FirstOrDefault(team => team.TeamId == sourceId);
+        if (selectedTeam is null)
+        {
+            return ("einsatzleitung", "Einsatzleitung", "Einsatzleitung");
+        }
+
+        return (selectedTeam.TeamId, selectedTeam.TeamName, selectedTeam.TeamName);
+    }
+
+    private static string GetNoteCssClass(GlobalNotesEntry note)
+    {
+        return note.Type switch
+        {
+            GlobalNotesEntryType.TeamStart => "note-type-teamstart",
+            GlobalNotesEntryType.TeamStop => "note-type-teamstop",
+            GlobalNotesEntryType.TeamReset => "note-type-teamreset",
+            GlobalNotesEntryType.TeamWarning => "note-type-teamwarning",
+            GlobalNotesEntryType.EinsatzUpdate => "note-type-einsatzupdate",
+            _ => string.Empty
+        };
+    }
+
+    private void OpenNewTeamModal()
+    {
+        ResetTeamForm();
+        ClearTeamFormMessage();
+        _showTeamModal = true;
+    }
+
+    private void CloseTeamModal()
+    {
+        _showTeamModal = false;
+        CancelTeamEdit();
+    }
+
+    private void CancelTeamEdit()
+    {
+        ResetTeamForm();
+        ClearTeamFormMessage();
+    }
+
+    private void ResetTeamForm()
+    {
+        _editingTeamId = null;
+        _teamForm.TeamType = "dog";
+        _teamForm.TeamName = string.Empty;
+        _teamForm.DogId = string.Empty;
+        _teamForm.DroneId = string.Empty;
+        _teamForm.HundefuehrerId = string.Empty;
+        _teamForm.HelferId = string.Empty;
+        _teamForm.SearchAreaId = string.Empty;
+        _teamForm.CollarId = string.Empty;
+        _teamForm.FirstWarningMinutes = _appSettings.DefaultFirstWarningMinutes;
+        _teamForm.SecondWarningMinutes = _appSettings.DefaultSecondWarningMinutes;
+        _teamForm.Notes = string.Empty;
+    }
+
+    private void SetTeamFormMessage(string message, bool isError)
+    {
+        _teamFormMessage = message;
+        _teamFormIsError = isError;
+    }
+
+    private void ClearTeamFormMessage()
+    {
+        _teamFormMessage = string.Empty;
+        _teamFormIsError = false;
+    }
+
+    private sealed class TeamEditorModel
+    {
+        public string TeamType { get; set; } = "dog";
+        public string TeamName { get; set; } = string.Empty;
+        public string DogId { get; set; } = string.Empty;
+        public string DroneId { get; set; } = string.Empty;
+        public string HundefuehrerId { get; set; } = string.Empty;
+        public string HelferId { get; set; } = string.Empty;
+        public string SearchAreaId { get; set; } = string.Empty;
+        public string CollarId { get; set; } = string.Empty;
+        public int FirstWarningMinutes { get; set; } = 45;
+        public int SecondWarningMinutes { get; set; } = 60;
+        public string Notes { get; set; } = string.Empty;
+    }
+
+    private sealed class EditEinsatzForm
+    {
+        public bool IstEinsatz { get; set; } = true;
+        public string EinsatzNummer { get; set; } = string.Empty;
+        public string AlarmierungsZeit { get; set; } = string.Empty;
+        public string Einsatzort { get; set; } = string.Empty;
+        public string MapAddress { get; set; } = string.Empty;
+        public string Alarmiert { get; set; } = string.Empty;
+        public int AnzahlTeams { get; set; }
+        public string Einsatzleiter { get; set; } = string.Empty;
+        public string Fuehrungsassistent { get; set; } = string.Empty;
+        public string Bemerkungen { get; set; } = string.Empty;
+    }
+
+    private void OpenEditEinsatzModal()
+    {
+        var e = EinsatzService.CurrentEinsatz;
+        _editEinsatzForm.IstEinsatz = e.IstEinsatz;
+        _editEinsatzForm.EinsatzNummer = e.EinsatzNummer;
+        _editEinsatzForm.AlarmierungsZeit = e.AlarmierungsZeit?.ToString("HH:mm") ?? string.Empty;
+        _editEinsatzForm.Einsatzort = e.Einsatzort;
+        _editEinsatzForm.MapAddress = e.MapAddress;
+        _editEinsatzForm.Alarmiert = e.Alarmiert;
+        _editEinsatzForm.AnzahlTeams = e.AnzahlTeams;
+        _editEinsatzForm.Einsatzleiter = e.Einsatzleiter;
+        _editEinsatzForm.Fuehrungsassistent = e.Fuehrungsassistent;
+        _editEinsatzForm.Bemerkungen = e.ExportPfad;
+        _editEinsatzMessage = string.Empty;
+        _editEinsatzIsError = false;
+        _showEditEinsatzModal = true;
+    }
+
+    private void CloseEditEinsatzModal()
+    {
+        _showEditEinsatzModal = false;
+    }
+
+    private async Task SaveEditEinsatzAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_editEinsatzForm.Einsatzort))
+        {
+            _editEinsatzMessage = "Einsatzort ist erforderlich.";
+            _editEinsatzIsError = true;
+            return;
+        }
+
+        var current = EinsatzService.CurrentEinsatz;
+        var prevFa = current.Fuehrungsassistent;
+
+        DateTime? newAlarmierungsZeit = current.AlarmierungsZeit;
+        if (!string.IsNullOrWhiteSpace(_editEinsatzForm.AlarmierungsZeit)
+            && TimeOnly.TryParse(_editEinsatzForm.AlarmierungsZeit, out var alarmTime))
+        {
+            var baseDate = current.AlarmierungsZeit ?? current.EinsatzDatum;
+            newAlarmierungsZeit = new DateTime(baseDate.Year, baseDate.Month, baseDate.Day,
+                alarmTime.Hour, alarmTime.Minute, 0);
+        }
+
+        var updated = new EinsatzData
+        {
+            IstEinsatz = _editEinsatzForm.IstEinsatz,
+            EinsatzNummer = _editEinsatzForm.EinsatzNummer,
+            Einsatzort = _editEinsatzForm.Einsatzort,
+            MapAddress = _editEinsatzForm.MapAddress,
+            Alarmiert = _editEinsatzForm.Alarmiert,
+            AlarmierungsZeit = newAlarmierungsZeit,
+            AnzahlTeams = _editEinsatzForm.AnzahlTeams,
+            ExportPfad = _editEinsatzForm.Bemerkungen,
+            Einsatzleiter = _editEinsatzForm.Einsatzleiter,
+            Fuehrungsassistent = _editEinsatzForm.Fuehrungsassistent
+        };
+
+        await EinsatzService.UpdateEinsatzAsync(updated);
+
+        // Wenn FA gewechselt wurde, gespeichertes Layout des neuen FA laden
+        if (!string.Equals(updated.Fuehrungsassistent, prevFa, StringComparison.OrdinalIgnoreCase) && !_editMode)
+        {
+            _currentLayout = await DashboardLayoutService.LoadLayoutAsync(updated.Fuehrungsassistent);
+            // Minimap-State zurücksetzen, damit sie beim nächsten Render neu initialisiert wird
+            if (_minimapInitialized)
+            {
+                await JS.InvokeVoidAsync("minimapInterop.destroy", "minimap-panel-map");
+                _minimapInitialized = false;
+            }
+        }
+
+        _showEditEinsatzModal = false;
+    }
+
+    private void OpenVermisstenModal()
+    {
+        var existing = EinsatzService.CurrentEinsatz.VermisstenInfo;
+        _vForm = existing is not null
+            ? new Einsatzueberwachung.Domain.Models.VermisstenInfo
+            {
+                Vorname = existing.Vorname,
+                Nachname = existing.Nachname,
+                Alter = existing.Alter,
+                Geburtsdatum = existing.Geburtsdatum,
+                Kleidung = existing.Kleidung,
+                Besonderheiten = existing.Besonderheiten,
+                ZuletztGesehenOrt = existing.ZuletztGesehenOrt,
+                ZuletztGesehenZeit = existing.ZuletztGesehenZeit,
+                ZuletztGesehenVon = existing.ZuletztGesehenVon,
+                Vorerkrankungen = existing.Vorerkrankungen,
+                Medikamente = existing.Medikamente,
+                Orientierung = existing.Orientierung,
+                Mobilitaet = existing.Mobilitaet,
+                Suizidrisiko = existing.Suizidrisiko,
+                Bewaffnet = existing.Bewaffnet,
+                PolizeiKontaktName = existing.PolizeiKontaktName,
+                PolizeiDienstnummer = existing.PolizeiDienstnummer,
+                PolizeiTelefon = existing.PolizeiTelefon,
+                PolizeiVermisstenmeldungAufgenommen = existing.PolizeiVermisstenmeldungAufgenommen,
+                PolizeiKoordinationBesprochen = existing.PolizeiKoordinationBesprochen,
+                PolizeiSuchabschnittAbgestimmt = existing.PolizeiSuchabschnittAbgestimmt,
+                PolizeiRueckmeldepflichtVereinbart = existing.PolizeiRueckmeldepflichtVereinbart,
+                PolizeiDatenschutzGeklaert = existing.PolizeiDatenschutzGeklaert,
+                BosEinheit = existing.BosEinheit,
+                BosZugfuehrer = existing.BosZugfuehrer,
+                BosFunkrufname = existing.BosFunkrufname,
+                BosAufgabenteilung = existing.BosAufgabenteilung,
+                BosAbschnittAbgestimmt = existing.BosAbschnittAbgestimmt,
+                BosRessourcenBesprochen = existing.BosRessourcenBesprochen
+            }
+            : new Einsatzueberwachung.Domain.Models.VermisstenInfo();
+
+        _vermisstenMessage = string.Empty;
+        _showVermisstenModal = true;
+    }
+
+    private void CloseVermisstenModal() => _showVermisstenModal = false;
+
+    private void OnVFormGeburtsdatumChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? string.Empty;
+        _vForm.Geburtsdatum = value;
+        if (DateTime.TryParseExact(value, "dd.MM.yyyy",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var birth))
+        {
+            var today = DateTime.Today;
+            var age = today.Year - birth.Year;
+            if (birth.Date > today.AddYears(-age)) age--;
+            _vForm.Alter = age.ToString();
+        }
+    }
+
+    private async Task SaveVermisstenAsync()
+    {
+        await EinsatzService.UpdateVermisstenInfoAsync(_vForm);
+        _vermisstenMessage = "Gespeichert.";
+        _vermisstenIsError = false;
+        await Task.Delay(1200);
+        _showVermisstenModal = false;
+    }
+
+    private IEnumerable<(string Label, Func<bool> Getter, Action<bool> Setter)> GetPolizeiChecklist()
+    {
+        yield return ("Vermisstenmeldung aufgenommen",
+            () => _vForm.PolizeiVermisstenmeldungAufgenommen,
+            v => _vForm.PolizeiVermisstenmeldungAufgenommen = v);
+        yield return ("Einsatzkoordination besprochen",
+            () => _vForm.PolizeiKoordinationBesprochen,
+            v => _vForm.PolizeiKoordinationBesprochen = v);
+        yield return ("Suchabschnitte abgestimmt",
+            () => _vForm.PolizeiSuchabschnittAbgestimmt,
+            v => _vForm.PolizeiSuchabschnittAbgestimmt = v);
+        yield return ("Rückmeldepflicht vereinbart",
+            () => _vForm.PolizeiRueckmeldepflichtVereinbart,
+            v => _vForm.PolizeiRueckmeldepflichtVereinbart = v);
+        yield return ("Datenschutz (Personendaten) geklärt",
+            () => _vForm.PolizeiDatenschutzGeklaert,
+            v => _vForm.PolizeiDatenschutzGeklaert = v);
+    }
+}

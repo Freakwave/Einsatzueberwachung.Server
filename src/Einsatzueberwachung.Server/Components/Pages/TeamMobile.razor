@@ -6,12 +6,14 @@
 @using Einsatzueberwachung.Server.Security
 @using Einsatzueberwachung.Server.Services
 @using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Components.Web
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IEinsatzService EinsatzService
 @inject ICollarTrackingService CollarTrackingService
 @inject ITeamMobileTokenService TokenService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject PersistentComponentState ApplicationState
 @implements IAsyncDisposable
 
 <PageTitle>Team-Ansicht</PageTitle>
@@ -82,23 +84,40 @@ else
     private System.Timers.Timer? _uiTimer;
     private Action<string, CollarLocation>? _collarHandler;
     private Action? _generationHandler;
+    private PersistingComponentStateSubscription _persistSubscription;
+    private bool _mapInitDone;
 
     protected override async Task OnInitializedAsync()
     {
-        var ctx = HttpContextAccessor.HttpContext;
-        if (ctx == null) { Navigation.NavigateTo("/team/login", true); return; }
-
-        var auth = await ctx.AuthenticateAsync(TeamMobileAuth.AuthenticationScheme);
-        if (!auth.Succeeded || auth.Principal == null)
+        // 1) Re-use teamId vom Prerender (interaktiver Boot hat keinen HttpContext mehr)
+        if (ApplicationState.TryTakeFromJson<string>("team-mobile-id", out var persistedId)
+            && !string.IsNullOrWhiteSpace(persistedId))
         {
-            Navigation.NavigateTo("/team/login", true);
-            return;
+            _teamId = persistedId;
+        }
+        else
+        {
+            // 2) Erste Phase (Prerender): HttpContext-basierte Auth ueber TeamMobile-Cookie-Schema
+            var ctx = HttpContextAccessor.HttpContext;
+            if (ctx != null)
+            {
+                var auth = await ctx.AuthenticateAsync(TeamMobileAuth.AuthenticationScheme);
+                if (auth.Succeeded && auth.Principal != null)
+                    _teamId = auth.Principal.FindFirst(TeamMobileAuth.TeamIdClaim)?.Value;
+            }
         }
 
-        _teamId = auth.Principal.FindFirst(TeamMobileAuth.TeamIdClaim)?.Value;
+        // teamId ueber Prerender->Interactive Boundary persistieren
+        _persistSubscription = ApplicationState.RegisterOnPersisting(() =>
+        {
+            if (!string.IsNullOrWhiteSpace(_teamId))
+                ApplicationState.PersistAsJson("team-mobile-id", _teamId);
+            return Task.CompletedTask;
+        });
+
         if (string.IsNullOrWhiteSpace(_teamId))
         {
-            Navigation.NavigateTo("/team/login", true);
+            Navigation.NavigateTo("/team/login", false);
             return;
         }
 
@@ -111,7 +130,10 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || _team == null) return;
+        // Wichtig: nicht nur firstRender abfragen — _team kann erst beim 2. Render gesetzt sein
+        // (z.B. wenn OnInitializedAsync nach Prerender im interaktiven Boot lief).
+        if (_mapInitDone || _team == null) return;
+        _mapInitDone = true;
 
         try
         {
@@ -208,6 +230,7 @@ else
         _uiTimer?.Dispose();
         if (_collarHandler != null) CollarTrackingService.CollarLocationReceived -= _collarHandler;
         if (_generationHandler != null) TokenService.GenerationChanged -= _generationHandler;
+        _persistSubscription.Dispose();
         try { await JS.InvokeVoidAsync("teamMobileMap.destroy"); } catch { /* ignore */ }
     }
 }

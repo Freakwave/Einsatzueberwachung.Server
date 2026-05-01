@@ -141,33 +141,20 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
                 _criticalWarningTitle = $"{team.TeamName} hat kritische Warnstufe erreicht";
                 _criticalWarningMessage = $"Timer: {team.ElapsedTime:hh\\:mm\\:ss} · Bitte Teamstatus prüfen.";
                 _showCriticalWarningPopup = true;
-
-                WarningService.AddWarning(new WarningEntry
-                {
-                    Title = "Kritische Warnstufe erreicht",
-                    Message = $"{team.TeamName} – Timer: {team.ElapsedTime:hh\\:mm\\:ss} · Bitte Teamstatus prüfen.",
-                    Level = WarningLevel.Critical,
-                    TeamId = team.TeamId,
-                    NavigationUrl = "/einsatz-monitor",
-                    Source = WarningRuleDefinition.Sources.TeamTimerCritical,
-                    Timestamp = TimeService.Now
-                });
             }
 
-            // Add a non-blocking warning toast for the first warning level
-            if (!isSecondWarning)
+            WarningService.AddWarning(new WarningEntry
             {
-                WarningService.AddWarning(new WarningEntry
-                {
-                    Title = "Erste Warnstufe erreicht",
-                    Message = $"{team.TeamName} – Timer: {team.ElapsedTime:hh\\:mm\\:ss}",
-                    Level = WarningLevel.Warning,
-                    TeamId = team.TeamId,
-                    NavigationUrl = "/einsatz-monitor",
-                    Source = WarningRuleDefinition.Sources.TeamTimer,
-                    Timestamp = TimeService.Now
-                });
-            }
+                Title   = isSecondWarning ? "Kritische Warnstufe erreicht" : "Erste Warnstufe erreicht",
+                Message = isSecondWarning
+                    ? $"{team.TeamName} – Timer: {team.ElapsedTime:hh\\:mm\\:ss} · Bitte Teamstatus prüfen."
+                    : $"{team.TeamName} – Timer: {team.ElapsedTime:hh\\:mm\\:ss}",
+                Level          = isSecondWarning ? WarningLevel.Critical : WarningLevel.Warning,
+                TeamId         = team.TeamId,
+                NavigationUrl  = "/einsatz-monitor",
+                Source         = isSecondWarning ? WarningRuleDefinition.Sources.TeamTimerCritical : WarningRuleDefinition.Sources.TeamTimer,
+                Timestamp      = TimeService.Now
+            });
 
             StateHasChanged();
         });

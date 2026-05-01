@@ -150,6 +150,9 @@ else
             }
         }
 
+        // Footer-Status (Suchgebiet / GPS) nach OnAfterRender aktualisieren.
+        StateHasChanged();
+
         // Direkt an Domain-Service andocken — kein zusaetzlicher SignalR-Roundtrip noetig.
         _collarHandler = OnCollarLocation;
         _generationHandler = OnGenerationChanged;

@@ -1,0 +1,122 @@
+@page "/warnzentrum"
+@rendermode InteractiveServer
+@implements IDisposable
+
+@using Einsatzueberwachung.Domain.Interfaces
+@using Einsatzueberwachung.Domain.Models
+
+@inject IWarningService WarningService
+@inject NavigationManager Navigation
+
+<PageTitle>Warnzentrum</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h4 class="mb-0">
+            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Warnzentrum
+        </h4>
+        <div class="d-flex gap-2">
+            <span class="badge bg-secondary">@_warnings.Count Einträge</span>
+            <button class="btn btn-sm btn-outline-danger" @onclick="ClearAll" title="Alle Warnungen löschen">
+                <i class="bi bi-trash me-1"></i>Alle löschen
+            </button>
+        </div>
+    </div>
+
+    @if (_warnings.Count == 0)
+    {
+        <div class="alert alert-success d-flex align-items-center gap-2">
+            <i class="bi bi-check-circle-fill"></i>
+            <span>Keine Warnungen vorhanden.</span>
+        </div>
+    }
+    else
+    {
+        <div class="warn-list">
+            @foreach (var warning in _warnings)
+            {
+                <div class="warn-list__item warn-list__item--@warning.Level.ToString().ToLower()">
+                    <div class="warn-list__icon">
+                        <i class="bi @GetIcon(warning.Level)"></i>
+                    </div>
+                    <div class="warn-list__content">
+                        <div class="warn-list__title">
+                            <strong>@warning.Title</strong>
+                            @if (!string.IsNullOrWhiteSpace(warning.Source))
+                            {
+                                <span class="badge bg-secondary ms-2 fw-normal">@warning.Source</span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(warning.Message))
+                        {
+                            <div class="warn-list__message">@warning.Message</div>
+                        }
+                    </div>
+                    <div class="warn-list__meta">
+                        <small class="text-muted">@warning.Timestamp.ToString("HH:mm:ss")</small>
+                        <div class="d-flex gap-1 mt-1">
+                            @if (!string.IsNullOrWhiteSpace(warning.NavigationUrl))
+                            {
+                                <button class="btn btn-sm btn-outline-primary py-0 px-1"
+                                        title="Zur Quelle navigieren"
+                                        @onclick="() => Navigate(warning.NavigationUrl!)">
+                                    <i class="bi bi-arrow-right-circle"></i>
+                                </button>
+                            }
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-1"
+                                    title="Warnung entfernen"
+                                    @onclick="() => Dismiss(warning.Id)">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<WarningEntry> _warnings = [];
+
+    protected override void OnInitialized()
+    {
+        _warnings = WarningService.Warnings;
+        WarningService.WarningAdded += OnWarningAdded;
+    }
+
+    private void OnWarningAdded(WarningEntry entry)
+    {
+        _ = InvokeAsync(() =>
+        {
+            _warnings = WarningService.Warnings;
+            StateHasChanged();
+        });
+    }
+
+    private void Dismiss(string id)
+    {
+        WarningService.DismissWarning(id);
+        _warnings = WarningService.Warnings;
+    }
+
+    private void ClearAll()
+    {
+        WarningService.ClearAll();
+        _warnings = WarningService.Warnings;
+    }
+
+    private void Navigate(string url) => Navigation.NavigateTo(url);
+
+    private static string GetIcon(WarningLevel level) => level switch
+    {
+        WarningLevel.Critical => "bi-exclamation-octagon-fill",
+        WarningLevel.Info => "bi-info-circle-fill",
+        _ => "bi-exclamation-triangle-fill"
+    };
+
+    public void Dispose()
+    {
+        WarningService.WarningAdded -= OnWarningAdded;
+    }
+}

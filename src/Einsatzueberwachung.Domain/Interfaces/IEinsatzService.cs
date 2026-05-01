@@ -22,6 +22,7 @@ namespace Einsatzueberwachung.Domain.Interfaces
         event Action<Team, bool>? TeamWarningTriggered;
         event Action? VermisstenInfoChanged;
         event Action? ElNotizAdded;
+        event Action<Team>? DogPauseStarted;
 
         Task StartEinsatzAsync(EinsatzData einsatzData);
         Task UpdateEinsatzAsync(EinsatzData einsatzData);

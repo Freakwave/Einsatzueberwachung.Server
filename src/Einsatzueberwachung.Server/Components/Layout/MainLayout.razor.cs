@@ -13,6 +13,7 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
     [Inject] private BrowserPreferencesService BrowserPrefs { get; set; } = default!;
     [Inject] private IEinsatzService EinsatzService { get; set; } = default!;
     [Inject] private TrainerNotificationService TrainerNotifications { get; set; } = default!;
+    [Inject] private IWarningService WarningService { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
@@ -46,6 +47,7 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         EinsatzService.TeamUpdated += OnTeamStateChanged;
         EinsatzService.TeamRemoved += OnTeamStateChanged;
         EinsatzService.TeamWarningTriggered += OnTeamWarningTriggered;
+        EinsatzService.DogPauseStarted += OnDogPauseStarted;
         TrainerNotifications.ExerciseEnded += OnExerciseEnded;
     }
 
@@ -140,7 +142,34 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
                 _showCriticalWarningPopup = true;
             }
 
+            // Add a non-blocking warning toast for the first warning level
+            if (!isSecondWarning)
+            {
+                WarningService.AddWarning(new WarningEntry
+                {
+                    Title = "Erste Warnstufe erreicht",
+                    Message = $"{team.TeamName} – Timer: {team.ElapsedTime:hh\\:mm\\:ss}",
+                    Level = WarningLevel.Warning,
+                    TeamId = team.TeamId,
+                    NavigationUrl = "/einsatz-monitor",
+                    Source = "TeamTimer"
+                });
+            }
+
             StateHasChanged();
+        });
+    }
+
+    private void OnDogPauseStarted(Team team)
+    {
+        WarningService.AddWarning(new WarningEntry
+        {
+            Title = "Hund braucht Pause",
+            Message = $"{team.DogName} (Team: {team.TeamName}) – {team.RequiredPauseMinutes} Min. Pause erforderlich.",
+            Level = WarningLevel.Info,
+            TeamId = team.TeamId,
+            NavigationUrl = "/einsatz-monitor",
+            Source = "DogPause"
         });
     }
 
@@ -225,6 +254,7 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         EinsatzService.TeamUpdated -= OnTeamStateChanged;
         EinsatzService.TeamRemoved -= OnTeamStateChanged;
         EinsatzService.TeamWarningTriggered -= OnTeamWarningTriggered;
+        EinsatzService.DogPauseStarted -= OnDogPauseStarted;
         TrainerNotifications.ExerciseEnded -= OnExerciseEnded;
 
         try

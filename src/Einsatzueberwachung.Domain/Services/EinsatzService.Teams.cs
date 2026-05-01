@@ -104,6 +104,8 @@ namespace Einsatzueberwachung.Domain.Services
 
                 foreach (var sibling in _teams.Where(t => t.TeamId != teamId && t.DogId == team.DogId))
                     sibling.SyncPauseFromDog(record.PauseStartTime, record.RunTimeBeforePause, record.RequiredPauseMinutes);
+
+                DogPauseStarted?.Invoke(team);
             }
         }
 

@@ -44,6 +44,7 @@ namespace Einsatzueberwachung.Domain.Services
         public event Action<Team, bool>? TeamWarningTriggered;
         public event Action? VermisstenInfoChanged;
         public event Action? ElNotizAdded;
+        public event Action<Team>? DogPauseStarted;
 
         public EinsatzService(ISettingsService? settingsService = null, ITimeService? timeService = null)
         {

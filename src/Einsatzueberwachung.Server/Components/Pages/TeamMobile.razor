@@ -4,6 +4,7 @@
 @using Einsatzueberwachung.Domain.Interfaces
 @using Einsatzueberwachung.Server.Hubs
 @using Einsatzueberwachung.Server.Security
+@using Einsatzueberwachung.Server.Services
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.SignalR.Client
 @inject IHttpContextAccessor HttpContextAccessor
@@ -113,15 +114,12 @@ else
         await JS.InvokeVoidAsync("teamMobileMap.init", "team-mobile-map", 51.1657, 10.4515);
 
         var einsatz = EinsatzService.CurrentEinsatz;
-        if (!string.IsNullOrWhiteSpace(_team.SearchAreaId) && einsatz?.SearchAreas != null)
+        var area = TeamMobileLookup.FindSearchAreaForTeam(einsatz, _team);
+        if (area?.Coordinates is { Count: > 2 })
         {
-            var area = einsatz.SearchAreas.FirstOrDefault(a => a.Id == _team.SearchAreaId);
-            if (area?.Coordinates is { Count: > 2 })
-            {
-                _hasArea = true;
-                var coords = area.Coordinates.Select(c => new { lat = c.Latitude, lng = c.Longitude }).ToArray();
-                await JS.InvokeVoidAsync("teamMobileMap.renderSearchArea", coords, area.Color ?? "#3388ff");
-            }
+            _hasArea = true;
+            var coords = area.Coordinates.Select(c => new { lat = c.Latitude, lng = c.Longitude }).ToArray();
+            await JS.InvokeVoidAsync("teamMobileMap.renderSearchArea", coords, area.Color ?? "#3388ff");
         }
 
         if (!string.IsNullOrWhiteSpace(_team.CollarId))

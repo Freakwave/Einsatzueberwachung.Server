@@ -1,0 +1,114 @@
+@page "/team/login"
+@page "/team/login/{Master}"
+@layout Einsatzueberwachung.Server.Components.Layout.TeamMobileLayout
+@using Einsatzueberwachung.Domain.Interfaces
+@inject ITeamMobileTokenService TokenService
+@inject IEinsatzService EinsatzService
+
+<PageTitle>Team-Anmeldung</PageTitle>
+
+<div style="max-width:480px;margin:0 auto;padding:20px;">
+    <h1 class="h3 mb-4 text-center">
+        <i class="bi bi-shield-lock me-2"></i>Team-Anmeldung
+    </h1>
+
+    @if (!_validToken)
+    {
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <p class="text-muted small">Scanne den QR-Code am ELW oder gib den Anmelde-Code ein.</p>
+                <form method="get" action="/team/login">
+                    <div class="mb-3">
+                        <label class="form-label">Anmelde-Code</label>
+                        <input type="text"
+                               name=""
+                               value="@(Master ?? string.Empty)"
+                               class="form-control form-control-lg text-center"
+                               style="letter-spacing:0.2em;text-transform:uppercase;"
+                               autocomplete="off"
+                               id="masterInput" />
+                    </div>
+                </form>
+                <button type="button" class="btn btn-primary w-100" onclick="document.location.href='/team/login/' + (document.getElementById('masterInput').value || '').trim().toUpperCase()">
+                    <i class="bi bi-arrow-right-circle me-1"></i>Weiter
+                </button>
+                @if (!string.IsNullOrEmpty(Master))
+                {
+                    <div class="alert alert-danger mt-3 mb-0">
+                        Der Anmelde-Code ist ungueltig oder es ist gerade kein Einsatz aktiv.
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <div class="small text-muted">Aktiver Einsatz</div>
+                <div class="fw-semibold">@_einsatzort</div>
+            </div>
+        </div>
+
+        <h2 class="h6 mb-2 mt-4">Welches Team bist du?</h2>
+        @if (_teams.Count == 0)
+        {
+            <div class="alert alert-info">Noch keine Teams im Einsatz angelegt.</div>
+        }
+        else
+        {
+            <div class="d-grid gap-2">
+                @foreach (var team in _teams)
+                {
+                    <form method="post" action="/api/team-mobile/select-form">
+                        <input type="hidden" name="master" value="@Master" />
+                        <input type="hidden" name="teamId" value="@team.TeamId" />
+                        <button type="submit" class="btn btn-outline-primary btn-lg w-100 text-start">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-people-fill me-3 fs-4"></i>
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold">@team.TeamName</div>
+                                    <div class="small text-muted">
+                                        @(string.IsNullOrWhiteSpace(team.DogName) ? "(ohne Hund)" : team.DogName)
+                                        @if (!string.IsNullOrWhiteSpace(team.HundefuehrerName))
+                                        {
+                                            <span> &middot; @team.HundefuehrerName</span>
+                                        }
+                                    </div>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(team.CollarId))
+                                {
+                                    <i class="bi bi-broadcast text-success ms-2" title="GPS aktiv"></i>
+                                }
+                            </div>
+                        </button>
+                    </form>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public string? Master { get; set; }
+
+    private bool _validToken;
+    private string _einsatzort = string.Empty;
+    private List<Einsatzueberwachung.Domain.Models.Team> _teams = new();
+
+    protected override void OnParametersSet()
+    {
+        _validToken = false;
+        _teams = new();
+        if (string.IsNullOrWhiteSpace(Master)) return;
+
+        if (!TokenService.ValidateMasterToken(Master)) return;
+
+        var einsatz = EinsatzService.CurrentEinsatz;
+        if (einsatz is not { IstEinsatz: true } || einsatz.EinsatzEnde != null) return;
+
+        _validToken = true;
+        _einsatzort = einsatz.Einsatzort ?? string.Empty;
+        _teams = EinsatzService.Teams.OrderBy(t => t.TeamName).ToList();
+    }
+}

@@ -1,0 +1,205 @@
+@page "/team"
+@rendermode InteractiveServer
+@layout Einsatzueberwachung.Server.Components.Layout.TeamMobileLayout
+@using Einsatzueberwachung.Domain.Interfaces
+@using Einsatzueberwachung.Server.Hubs
+@using Einsatzueberwachung.Server.Security
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.SignalR.Client
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IEinsatzService EinsatzService
+@inject ICollarTrackingService CollarTrackingService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Team-Ansicht</PageTitle>
+
+@if (!_authChecked)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height:100vh;">
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
+}
+else if (_team == null)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-exclamation-triangle text-warning display-3"></i>
+        <p class="mt-3">Dein Team ist nicht mehr im Einsatz.</p>
+        <a href="/team/login" class="btn btn-primary mt-2">Zurueck zur Anmeldung</a>
+    </div>
+}
+else
+{
+    <div style="display:flex;flex-direction:column;height:100vh;">
+        <header style="background:#0d6efd;color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+            <div style="flex:1;min-width:0;">
+                <div style="font-weight:600;font-size:0.95rem;line-height:1.1;">@_team.TeamName</div>
+                <div style="font-size:0.75rem;opacity:0.85;line-height:1.1;">
+                    @(string.IsNullOrWhiteSpace(_team.DogName) ? "(ohne Hund)" : _team.DogName)
+                    @if (_team.IsRunning) { <span class="badge bg-success ms-1">aktiv</span> }
+                </div>
+            </div>
+            <button class="btn btn-sm btn-light" @onclick="CenterOnDogAsync" title="Auf Hund zentrieren">
+                <i class="bi bi-geo-alt-fill"></i>
+            </button>
+            <form method="post" action="/api/team-mobile/logout" style="margin:0;">
+                <button class="btn btn-sm btn-outline-light" type="submit" title="Abmelden">
+                    <i class="bi bi-box-arrow-right"></i>
+                </button>
+            </form>
+        </header>
+
+        <div id="team-mobile-map" style="flex:1;width:100%;"></div>
+
+        <footer style="background:#fff;padding:8px 12px;border-top:1px solid #dee2e6;font-size:0.8rem;display:flex;gap:12px;">
+            <div>
+                <i class="bi bi-broadcast @(string.IsNullOrWhiteSpace(_team.CollarId) ? "text-muted" : "text-success")"></i>
+                @(string.IsNullOrWhiteSpace(_team.CollarId) ? "kein GPS" : (_lastUpdate.HasValue ? $"GPS: {(_now - _lastUpdate.Value).TotalSeconds:0}s" : "warte auf GPS"))
+            </div>
+            <div>
+                <i class="bi bi-bounding-box @(_hasArea ? "text-primary" : "text-muted")"></i>
+                @(_hasArea ? "Suchgebiet" : "kein Suchgebiet")
+            </div>
+            @if (_einsatzEnded)
+            {
+                <div class="ms-auto text-danger fw-bold">Einsatz beendet</div>
+            }
+        </footer>
+    </div>
+}
+
+@code {
+    private bool _authChecked;
+    private Einsatzueberwachung.Domain.Models.Team? _team;
+    private bool _hasArea;
+    private DateTime? _lastUpdate;
+    private DateTime _now = DateTime.Now;
+    private bool _einsatzEnded;
+
+    private HubConnection? _hub;
+    private System.Timers.Timer? _uiTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var ctx = HttpContextAccessor.HttpContext;
+        if (ctx == null) { Navigation.NavigateTo("/team/login", true); return; }
+
+        var auth = await ctx.AuthenticateAsync(TeamMobileAuth.AuthenticationScheme);
+        if (!auth.Succeeded || auth.Principal == null)
+        {
+            Navigation.NavigateTo("/team/login", true);
+            return;
+        }
+
+        var teamId = auth.Principal.FindFirst(TeamMobileAuth.TeamIdClaim)?.Value;
+        if (string.IsNullOrWhiteSpace(teamId))
+        {
+            Navigation.NavigateTo("/team/login", true);
+            return;
+        }
+
+        _team = EinsatzService.Teams.FirstOrDefault(t => t.TeamId == teamId);
+        var einsatz = EinsatzService.CurrentEinsatz;
+        _einsatzEnded = einsatz?.EinsatzEnde != null;
+
+        _authChecked = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _team == null) return;
+
+        await JS.InvokeVoidAsync("teamMobileMap.init", "team-mobile-map", 51.1657, 10.4515);
+
+        var einsatz = EinsatzService.CurrentEinsatz;
+        if (!string.IsNullOrWhiteSpace(_team.SearchAreaId) && einsatz?.SearchAreas != null)
+        {
+            var area = einsatz.SearchAreas.FirstOrDefault(a => a.Id == _team.SearchAreaId);
+            if (area?.Coordinates is { Count: > 2 })
+            {
+                _hasArea = true;
+                var coords = area.Coordinates.Select(c => new { lat = c.Latitude, lng = c.Longitude }).ToArray();
+                await JS.InvokeVoidAsync("teamMobileMap.renderSearchArea", coords, area.Color ?? "#3388ff");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(_team.CollarId))
+        {
+            var history = CollarTrackingService.GetLocationHistory(_team.CollarId);
+            if (history.Count > 0)
+            {
+                var pts = history.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
+                await JS.InvokeVoidAsync("teamMobileMap.setTrack", pts);
+                var last = history[^1];
+                await JS.InvokeVoidAsync("teamMobileMap.setDogPosition", last.Latitude, last.Longitude, _team.DogName);
+                _lastUpdate = last.Timestamp;
+            }
+        }
+
+        await ConnectHubAsync();
+
+        _uiTimer = new System.Timers.Timer(1000) { AutoReset = true };
+        _uiTimer.Elapsed += async (_, _) => { _now = DateTime.Now; await InvokeAsync(StateHasChanged); };
+        _uiTimer.Start();
+    }
+
+    private async Task ConnectHubAsync()
+    {
+        var ctx = HttpContextAccessor.HttpContext;
+        var cookieHeader = ctx?.Request.Headers["Cookie"].ToString();
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/hubs/team-mobile"), options =>
+            {
+                if (!string.IsNullOrWhiteSpace(cookieHeader))
+                    options.Headers["Cookie"] = cookieHeader;
+            })
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<string, string>(TeamMobileHub.EventName, async (eventName, json) =>
+        {
+            try
+            {
+                if (eventName == "collar.location")
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    var lat = doc.RootElement.GetProperty("lat").GetDouble();
+                    var lng = doc.RootElement.GetProperty("lng").GetDouble();
+                    _lastUpdate = doc.RootElement.GetProperty("timestamp").GetDateTime();
+                    await InvokeAsync(async () =>
+                    {
+                        await JS.InvokeVoidAsync("teamMobileMap.setDogPosition", lat, lng, _team?.DogName ?? "");
+                        await JS.InvokeVoidAsync("teamMobileMap.appendTrackPoint", lat, lng);
+                        StateHasChanged();
+                    });
+                }
+                else if (eventName == "session.invalidated")
+                {
+                    await InvokeAsync(() =>
+                    {
+                        _einsatzEnded = true;
+                        StateHasChanged();
+                    });
+                }
+            }
+            catch { /* tolerant */ }
+        });
+
+        await _hub.StartAsync();
+    }
+
+    private async Task CenterOnDogAsync()
+    {
+        await JS.InvokeVoidAsync("teamMobileMap.centerOnDog");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _uiTimer?.Stop();
+        _uiTimer?.Dispose();
+        if (_hub != null) await _hub.DisposeAsync();
+        try { await JS.InvokeVoidAsync("teamMobileMap.destroy"); } catch { /* ignore */ }
+    }
+}

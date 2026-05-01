@@ -40,6 +40,9 @@
                 <a class="btn btn-info btn-sm" href="/einsatz-karte">
                     <i class="bi bi-map me-1"></i>Karte
                 </a>
+                <button class="btn btn-outline-success btn-sm" type="button" @onclick="OpenTeamMobileModal" title="QR-Code fuer Team-Smartphones">
+                    <i class="bi bi-qr-code me-1"></i>Team-Mobile
+                </button>
                 <button class="btn btn-danger btn-sm" type="button" @onclick="OpenCloseMissionModal">
                     <i class="bi bi-stop-circle me-1"></i>Beenden
                 </button>
@@ -237,7 +240,16 @@
                                                                 }
                                                                 @if (team.IsDroneTeam && !string.IsNullOrWhiteSpace(team.DroneType))
                                                                 {
-                                                                    <span class="team-detail"><i class="bi bi-airplane me-1"></i>@team.DroneType</span>
+                                                                    <span class="team-detail">
+                                                                        <i class="bi bi-airplane me-1"></i>@team.DroneType
+                                                                        @{ var _droneEntry = _droneList.FirstOrDefault(d => d.Id == team.DroneId); }
+                                                                        @if (_droneEntry is not null && !string.IsNullOrWhiteSpace(_droneEntry.LivestreamUrl))
+                                                                        {
+                                                                            <a href="@_droneEntry.LivestreamUrl" target="_blank" rel="noopener noreferrer" class="ms-2 text-info" title="Drohne112 Livestream öffnen">
+                                                                                <i class="bi bi-camera-video-fill"></i>
+                                                                            </a>
+                                                                        }
+                                                                    </span>
                                                                 }
                                                                 @if (!string.IsNullOrWhiteSpace(team.HundefuehrerName))
                                                                 {
@@ -1335,6 +1347,42 @@
             <div class="modal-modern-footer">
                 <button class="btn btn-primary" @onclick="SaveTeamAsync">@(_editingTeamId is null ? "Team speichern" : "Aenderungen speichern")</button>
                 <button class="btn btn-outline-secondary" @onclick="ResetTeamForm">Formular leeren</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_showTeamMobileModal)
+{
+    <div class="modal-overlay" @onclick="CloseTeamMobileModal">
+        <div class="modal-modern" style="max-width:520px;" @onclick:stopPropagation="true">
+            <div class="modal-modern-header bg-success text-white">
+                <h3 class="mb-0"><i class="bi bi-qr-code me-1"></i>Team-Mobile Anmelde-Code</h3>
+                <button class="btn btn-sm btn-outline-light" @onclick="CloseTeamMobileModal">X</button>
+            </div>
+            <div class="modal-modern-body text-center">
+                @if (string.IsNullOrEmpty(_teamMobileFullUrl))
+                {
+                    <div class="alert alert-warning">
+                        Es ist gerade kein Einsatz aktiv. Starte einen Einsatz, um einen Anmelde-Code zu generieren.
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted small mb-2">
+                        Teams scannen diesen QR-Code mit dem Smartphone, um sich auf <strong>/team/login</strong> anzumelden.
+                    </p>
+                    <img src="@_teamMobileQrDataUrl" alt="QR-Code" style="max-width:320px;width:100%;height:auto;" />
+                    <div class="mt-3">
+                        <input type="text" class="form-control text-center" readonly value="@_teamMobileFullUrl" onclick="this.select()" />
+                    </div>
+                    <p class="small text-muted mt-3 mb-0">
+                        <i class="bi bi-info-circle me-1"></i>Der Code wird beim Einsatz-Ende automatisch ungueltig.
+                    </p>
+                }
+            </div>
+            <div class="modal-modern-footer">
+                <button class="btn btn-outline-secondary" @onclick="CloseTeamMobileModal">Schliessen</button>
             </div>
         </div>
     </div>

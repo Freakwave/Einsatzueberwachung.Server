@@ -10,7 +10,22 @@
       "Bash(tasklist)",
       "Bash(xargs ls *)",
       "Bash(node --check /Users/paul/Einsatzueberwachung.Server/Einsatzueberwachung.Server/src/Einsatzueberwachung.Server/wwwroot/leaflet-interop.js)",
-      "Bash(dotnet test *)"
+      "Bash(dotnet test *)",
+      "Bash(head -118 src/Einsatzueberwachung.Server/Components/Layout/MainLayout.razor)",
+      "Bash(mv /tmp/mainlayout.razor src/Einsatzueberwachung.Server/Components/Layout/MainLayout.razor)",
+      "Bash(head -220 src/Einsatzueberwachung.Server/Components/Pages/DiveraStatus.razor)",
+      "Bash(mv /tmp/d.razor src/Einsatzueberwachung.Server/Components/Pages/DiveraStatus.razor)",
+      "Bash(head -397 src/Einsatzueberwachung.Server/Components/Pages/Home.razor)",
+      "Bash(mv /tmp/h.razor src/Einsatzueberwachung.Server/Components/Pages/Home.razor)",
+      "Bash(sed -i '' 's/^@implements IDisposable$//' src/Einsatzueberwachung.Server/Components/Pages/Home.razor)",
+      "Bash(head -308 src/Einsatzueberwachung.Server/Components/Pages/EinsatzStart.razor)",
+      "Bash(mv /tmp/s.razor src/Einsatzueberwachung.Server/Components/Pages/EinsatzStart.razor)",
+      "Bash(git commit -m ' *)",
+      "Bash(head -221 src/Einsatzueberwachung.Server/Components/Pages/KarteComponents/KartePunkteTab.razor)",
+      "Bash(mv /tmp/k.razor src/Einsatzueberwachung.Server/Components/Pages/KarteComponents/KartePunkteTab.razor)",
+      "Bash(head -532 src/Einsatzueberwachung.Server/Components/Pages/Stammdaten.razor)",
+      "Bash(mv /tmp/sd.razor src/Einsatzueberwachung.Server/Components/Pages/Stammdaten.razor)",
+      "Bash(grep -E \"\\\\.\\(cs|vb\\)$\")"
     ]
   }
 }

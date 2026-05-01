@@ -12,15 +12,24 @@ namespace Einsatzueberwachung.Server.Services;
 public sealed class CollarTrackingRelayService : IHostedService
 {
     private readonly ICollarTrackingService _trackingService;
+    private readonly IEinsatzService _einsatzService;
+    private readonly IWarningService _warningService;
+    private readonly ITimeService _timeService;
     private readonly IHubContext<EinsatzHub> _hubContext;
     private readonly ILogger<CollarTrackingRelayService> _logger;
 
     public CollarTrackingRelayService(
         ICollarTrackingService trackingService,
+        IEinsatzService einsatzService,
+        IWarningService warningService,
+        ITimeService timeService,
         IHubContext<EinsatzHub> hubContext,
         ILogger<CollarTrackingRelayService> logger)
     {
         _trackingService = trackingService;
+        _einsatzService = einsatzService;
+        _warningService = warningService;
+        _timeService = timeService;
         _hubContext = hubContext;
         _logger = logger;
     }
@@ -55,6 +64,22 @@ public sealed class CollarTrackingRelayService : IHostedService
         _logger.LogWarning(
             "Hund mit Halsband {CollarId} hat Suchgebiet von Team {TeamId} verlassen! Position: {Lat}, {Lng}",
             collarId, teamId, location.Latitude, location.Longitude);
+
+        var collar = _trackingService.Collars.FirstOrDefault(c => c.Id == collarId);
+        var team   = _einsatzService.Teams.FirstOrDefault(t => t.TeamId == teamId);
+        var collarLabel = collar?.CollarName ?? collarId;
+        var teamLabel   = team?.TeamName ?? teamId;
+
+        _warningService.AddWarning(new WarningEntry
+        {
+            Title = "Hund hat Suchgebiet verlassen",
+            Message = $"Halsband \"{collarLabel}\" (Team: {teamLabel}) hat das zugewiesene Suchgebiet verlassen.",
+            Level = WarningLevel.Critical,
+            TeamId = teamId,
+            NavigationUrl = "/einsatz-karte",
+            Source = WarningRuleDefinition.Sources.CollarOutOfBounds,
+            Timestamp = _timeService.Now
+        });
 
         _ = PublishAsync("collar.outofbounds", new
         {

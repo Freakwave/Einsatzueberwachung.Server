@@ -141,6 +141,17 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
                 _criticalWarningTitle = $"{team.TeamName} hat kritische Warnstufe erreicht";
                 _criticalWarningMessage = $"Timer: {team.ElapsedTime:hh\\:mm\\:ss} · Bitte Teamstatus prüfen.";
                 _showCriticalWarningPopup = true;
+
+                WarningService.AddWarning(new WarningEntry
+                {
+                    Title = "Kritische Warnstufe erreicht",
+                    Message = $"{team.TeamName} – Timer: {team.ElapsedTime:hh\\:mm\\:ss} · Bitte Teamstatus prüfen.",
+                    Level = WarningLevel.Critical,
+                    TeamId = team.TeamId,
+                    NavigationUrl = "/einsatz-monitor",
+                    Source = WarningRuleDefinition.Sources.TeamTimerCritical,
+                    Timestamp = TimeService.Now
+                });
             }
 
             // Add a non-blocking warning toast for the first warning level

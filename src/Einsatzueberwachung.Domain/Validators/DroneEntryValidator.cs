@@ -24,5 +24,11 @@ public class DroneEntryValidator : AbstractValidator<DroneEntry>
             .MaximumLength(50).WithMessage("Seriennummer darf maximal 50 Zeichen haben")
             .Matches(@"^[A-Z0-9\-]+$").WithMessage("Seriennummer darf nur Großbuchstaben, Zahlen und Bindestriche enthalten")
             .When(d => !string.IsNullOrWhiteSpace(d.Seriennummer));
+
+        RuleFor(d => d.LivestreamUrl)
+            .MaximumLength(500).WithMessage("Livestream-URL darf maximal 500 Zeichen haben")
+            .Must(url => string.IsNullOrWhiteSpace(url) || Uri.TryCreate(url, UriKind.Absolute, out _))
+            .WithMessage("Livestream-URL muss eine gültige URL sein")
+            .When(d => !string.IsNullOrWhiteSpace(d.LivestreamUrl));
     }
 }

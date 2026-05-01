@@ -11,6 +11,7 @@ namespace Einsatzueberwachung.Domain.Models
         public string Seriennummer { get; set; }
         public string DrohnenpilotId { get; set; }
         public string Notizen { get; set; }
+        public string LivestreamUrl { get; set; }
         public bool IsActive { get; set; }
 
         public DroneEntry()
@@ -22,6 +23,7 @@ namespace Einsatzueberwachung.Domain.Models
             Seriennummer = string.Empty;
             DrohnenpilotId = string.Empty;
             Notizen = string.Empty;
+            LivestreamUrl = string.Empty;
             IsActive = true;
         }
 

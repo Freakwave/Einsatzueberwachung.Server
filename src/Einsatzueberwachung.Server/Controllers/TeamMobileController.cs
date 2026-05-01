@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
 using Einsatzueberwachung.Server.Security;
+using Einsatzueberwachung.Server.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -130,9 +131,7 @@ public sealed class TeamMobileController : ControllerBase
         if (team == null)
             return NotFound(new { error = "Team nicht mehr vorhanden.", einsatzActive });
 
-        SearchArea? searchArea = null;
-        if (!string.IsNullOrWhiteSpace(team.SearchAreaId) && einsatz?.SearchAreas != null)
-            searchArea = einsatz.SearchAreas.FirstOrDefault(a => a.Id == team.SearchAreaId);
+        var searchArea = TeamMobileLookup.FindSearchAreaForTeam(einsatz, team);
 
         IReadOnlyList<CollarLocation> trackPoints = Array.Empty<CollarLocation>();
         CollarLocation? lastLocation = null;

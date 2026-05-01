@@ -61,6 +61,7 @@ namespace Einsatzueberwachung.Domain.Services
             };
             _globalNotes.Add(endNote);
             NoteAdded?.Invoke(endNote);
+            EinsatzChanged?.Invoke();
 
             return Task.CompletedTask;
         }

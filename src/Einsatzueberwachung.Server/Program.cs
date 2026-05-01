@@ -15,6 +15,7 @@ builder.Services.AddSwaggerWithTrainingSchema();
 
 builder.Services.AddTrainingModule(builder.Configuration);
 builder.Services.AddTrainerCookieAuthentication();
+builder.Services.AddTeamMobileAuthentication(builder.Configuration);
 
 builder.Services.AddCompressionAndCaching();
 
@@ -75,6 +76,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapHub<EinsatzHub>("/hubs/einsatz");
+app.MapHub<Einsatzueberwachung.Server.Hubs.TeamMobileHub>("/hubs/team-mobile");
 
 app.MapDownloadEndpoints();
 

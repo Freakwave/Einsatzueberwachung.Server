@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using System.IO.Compression;
 using System.Reflection;
+using System.Security.Cryptography;
 
 namespace Einsatzueberwachung.Server.Extensions;
 
@@ -94,6 +95,64 @@ internal static class ServiceCollectionExtensions
         services.AddCascadingAuthenticationState();
         services.AddHttpContextAccessor();
         return services;
+    }
+
+    public static IServiceCollection AddTeamMobileAuthentication(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<TeamMobileOptions>(configuration.GetSection(TeamMobileOptions.SectionName));
+
+        services.AddAuthentication()
+            .AddCookie(TeamMobileAuth.AuthenticationScheme, options =>
+            {
+                options.Cookie.Name = TeamMobileAuth.CookieName;
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.Lax;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.Path = "/";
+                options.LoginPath = "/team/login";
+                options.AccessDeniedPath = "/team/login";
+                options.ExpireTimeSpan = TimeSpan.FromHours(24);
+                options.SlidingExpiration = true;
+                options.Events.OnRedirectToLogin = ctx =>
+                {
+                    if (ctx.Request.Path.StartsWithSegments("/api/team-mobile"))
+                    {
+                        ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        return Task.CompletedTask;
+                    }
+                    ctx.Response.Redirect(ctx.RedirectUri);
+                    return Task.CompletedTask;
+                };
+            });
+
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(TeamMobileAuth.AuthorizationPolicy, policy =>
+            {
+                policy.AddAuthenticationSchemes(TeamMobileAuth.AuthenticationScheme);
+                policy.RequireAuthenticatedUser();
+                policy.RequireClaim(TeamMobileAuth.TeamIdClaim);
+            });
+        });
+
+        var secret = LoadOrCreateTeamMobileSecret();
+        services.AddSingleton<ITeamMobileTokenService>(sp =>
+            new TeamMobileTokenService(secret, sp.GetRequiredService<IEinsatzService>()));
+
+        return services;
+    }
+
+    private static byte[] LoadOrCreateTeamMobileSecret()
+    {
+        var path = Path.Combine(AppPathResolver.GetDataDirectory(), "team-mobile-secret.bin");
+        if (File.Exists(path))
+        {
+            var existing = File.ReadAllBytes(path);
+            if (existing.Length >= 32) return existing;
+        }
+        var fresh = RandomNumberGenerator.GetBytes(64);
+        File.WriteAllBytes(path, fresh);
+        return fresh;
     }
 
     public static IServiceCollection AddCompressionAndCaching(this IServiceCollection services)
@@ -234,6 +293,7 @@ internal static class ServiceCollectionExtensions
     {
         services.AddHostedService<EinsatzHubRelayService>();
         services.AddHostedService<CollarTrackingRelayService>();
+        services.AddHostedService<TeamMobileHubRelayService>();
         services.AddHostedService<TeamTimerTickService>();
         services.AddHostedService<UpdateAutoCheckService>();
         services.AddHostedService<RuntimeStatePersistenceService>();

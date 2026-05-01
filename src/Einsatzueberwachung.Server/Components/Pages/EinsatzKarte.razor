@@ -42,10 +42,15 @@
             <button class="btn btn-sm btn-outline-warning" @onclick="() => _showKarteDialog = true" title="Einsatzkarte drucken">
                 <i class="bi bi-printer" aria-hidden="true"></i>
             </button>
-            <button class="btn btn-sm @(_trackingVisible ? "btn-success" : "btn-outline-secondary")" 
+            <button class="btn btn-sm @(_trackingVisible ? "btn-success" : "btn-outline-secondary")"
                     @onclick="ToggleTrackingLayer"
                     title="@(_trackingVisible ? "GPS-Layer ausblenden" : "GPS-Layer einblenden")">
                 <i class="bi bi-broadcast"></i> GPS
+            </button>
+            <button class="btn btn-sm @(_phoneLayerVisible ? "btn-info" : "btn-outline-secondary")"
+                    @onclick="TogglePhoneLayer"
+                    title="@(_phoneLayerVisible ? "Handy-GPS ausblenden" : "Handy-GPS einblenden")">
+                <i class="bi bi-phone"></i> Handy
             </button>
         </div>
     </header>

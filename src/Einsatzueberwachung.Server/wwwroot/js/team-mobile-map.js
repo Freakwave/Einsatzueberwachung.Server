@@ -139,9 +139,18 @@ window.teamMobileMap = (function () {
         } catch (e) { return null; }
     }
 
+    function postLocation(lat, lng) {
+        fetch('/api/team-mobile/location', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lng })
+        }).catch(() => {});
+    }
+
     return {
         init, renderSearchArea, setDogPosition, setTrack, appendTrackPoint,
         setUserPosition, centerOnDog, destroy,
-        startWatchingUser, stopWatchingUser, getAreaCentroid
+        startWatchingUser, stopWatchingUser, getAreaCentroid, postLocation
     };
 })();

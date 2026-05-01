@@ -31,10 +31,12 @@ namespace Einsatzueberwachung.Domain.Services
         private readonly List<GlobalNotesEntry> _globalNotes;
         private readonly List<GlobalNotesHistory> _noteHistory;
         private readonly Dictionary<string, DogPauseRecord> _dogPauses = new();
+        private readonly Dictionary<string, TeamPhoneLocation> _phoneLocations = new();
 
         public EinsatzData CurrentEinsatz => _currentEinsatz;
         public List<Team> Teams => _teams;
         public List<GlobalNotesEntry> GlobalNotes => _globalNotes;
+        public IReadOnlyDictionary<string, TeamPhoneLocation> PhoneLocations => _phoneLocations;
 
         public event Action? EinsatzChanged;
         public event Action<Team>? TeamAdded;
@@ -44,6 +46,7 @@ namespace Einsatzueberwachung.Domain.Services
         public event Action<Team, bool>? TeamWarningTriggered;
         public event Action? VermisstenInfoChanged;
         public event Action? ElNotizAdded;
+        public event Action<string, string, TeamPhoneLocation>? TeamPhoneLocationChanged;
 
         public EinsatzService(ISettingsService? settingsService = null, ITimeService? timeService = null)
         {

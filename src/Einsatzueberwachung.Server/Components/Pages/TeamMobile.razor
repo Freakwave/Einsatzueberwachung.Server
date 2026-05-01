@@ -280,6 +280,7 @@ else
             _distanceToAreaKm = HaversineKm(lat, lng, _areaCentroidLat.Value, _areaCentroidLng.Value);
             _ = InvokeAsync(StateHasChanged);
         }
+        _ = JS.InvokeVoidAsync("teamMobileMap.postLocation", lat, lng).AsTask();
         return Task.CompletedTask;
     }
 

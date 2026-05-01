@@ -2,6 +2,7 @@ using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
 using Einsatzueberwachung.Domain.Models.Enums;
 using Einsatzueberwachung.Domain.Models.Merge;
+using Einsatzueberwachung.Server.Components;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -410,6 +411,22 @@ public partial class EinsatzMonitor
         _personalList = await MasterDataService.GetPersonalListAsync();
         _dogList = await MasterDataService.GetDogListAsync();
         _droneList = await MasterDataService.GetDroneListAsync();
+    }
+
+    private IReadOnlyList<MentionSuggestion> GetNoteMentions()
+    {
+        var result = new List<MentionSuggestion>();
+
+        foreach (var team in EinsatzService.Teams.OrderBy(t => t.TeamName))
+            result.Add(new MentionSuggestion(team.TeamId, team.TeamName, MentionType.Team));
+
+        foreach (var person in _personalList.Where(p => p.IsActive).OrderBy(p => p.FullName))
+            result.Add(new MentionSuggestion(person.Id, person.FullName, MentionType.Person));
+
+        foreach (var dog in _dogList.Where(d => d.IsActive).OrderBy(d => d.Name))
+            result.Add(new MentionSuggestion(dog.Id, dog.Name, MentionType.Hund));
+
+        return result;
     }
 
     private void LoadQuickNoteTemplates()

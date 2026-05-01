@@ -4617,3 +4617,120 @@ textarea:focus-visible {
     border-color: var(--danger-color) !important;
     color: var(--danger-color) !important;
 }
+
+/* ── @-Mention textarea component ─────────────────────────────────────── */
+
+.mention-container {
+    position: relative;
+}
+
+.mention-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.175));
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 220px;
+    overflow-y: auto;
+    margin-top: 2px;
+}
+
+.mention-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.1s;
+}
+
+.mention-item:hover,
+.mention-item.active {
+    background: rgba(13, 110, 253, 0.08);
+    outline: none;
+}
+
+.mention-item.active {
+    background: rgba(13, 110, 253, 0.15);
+}
+
+.mention-type-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+}
+
+.mention-type-team {
+    background: rgba(25, 135, 84, 0.15);
+    color: #198754;
+}
+
+.mention-type-person {
+    background: rgba(13, 110, 253, 0.12);
+    color: #0d6efd;
+}
+
+.mention-type-hund {
+    background: rgba(255, 152, 0, 0.15);
+    color: #e65100;
+}
+
+/* Inline mention badge rendered inside note text */
+.mention-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    background: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+    border-radius: 0.25rem;
+    padding: 0.05rem 0.35rem;
+    font-size: 0.88em;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Dark mode overrides */
+
+[data-bs-theme="dark"] .mention-dropdown {
+    background: var(--bs-body-bg, #1e1e2e);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+[data-bs-theme="dark"] .mention-item:hover,
+[data-bs-theme="dark"] .mention-item.active {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+[data-bs-theme="dark"] .mention-item.active {
+    background: rgba(99, 179, 237, 0.15);
+}
+
+[data-bs-theme="dark"] .mention-type-team {
+    background: rgba(72, 199, 142, 0.15);
+    color: #48c78e;
+}
+
+[data-bs-theme="dark"] .mention-type-person {
+    background: rgba(99, 179, 237, 0.15);
+    color: #63b3ed;
+}
+
+[data-bs-theme="dark"] .mention-type-hund {
+    background: rgba(255, 189, 89, 0.15);
+    color: #ffbd59;
+}
+
+[data-bs-theme="dark"] .mention-badge {
+    background: rgba(99, 179, 237, 0.15);
+    color: #63b3ed;
+}

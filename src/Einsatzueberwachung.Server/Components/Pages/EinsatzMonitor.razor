@@ -368,10 +368,11 @@
                                                 <option value="Funk">Funk</option>
                                             </select>
                                         </div>
-                                        <textarea class="form-control mb-2"
-                                                  rows="3"
-                                                  @bind="_newNoteText"
-                                                  placeholder="Neuer Funkspruch oder Notiz..."></textarea>
+                                        <MentionTextarea @bind-Value="_newNoteText"
+                                                         Mentions="@GetNoteMentions()"
+                                                         Rows="3"
+                                                         Placeholder="Neuer Funkspruch oder Notiz..."
+                                                         AdditionalClass="mb-2" />
                                         <button class="btn btn-primary w-100"
                                                 @onclick="AddGlobalNoteAsync"
                                                 disabled="@(string.IsNullOrWhiteSpace(_newNoteText) || string.IsNullOrWhiteSpace(_newNoteSourceId))">
@@ -406,7 +407,7 @@
                                                         <strong>@(string.IsNullOrWhiteSpace(note.SourceTeamName) ? "System" : note.SourceTeamName)</strong>
                                                         <span class="text-muted">@note.FormattedTimestamp</span>
                                                     </div>
-                                                    <div class="mb-2">@note.Text</div>
+                                                    <div class="mb-2">@MentionTextarea.RenderWithMentions(note.Text)</div>
 
                                                     <div class="d-flex align-items-center gap-2 mb-2">
                                                         @if (note.IsEdited)
@@ -462,7 +463,7 @@
                                                             {
                                                                 <div class="border-start ps-2 py-1 mb-1">
                                                                     <div class="text-muted">@reply.SourceTeamName · @reply.FormattedTimestamp</div>
-                                                                    <div>@reply.Text</div>
+                                                                    <div>@MentionTextarea.RenderWithMentions(reply.Text)</div>
                                                                 </div>
                                                             }
                                                         </div>

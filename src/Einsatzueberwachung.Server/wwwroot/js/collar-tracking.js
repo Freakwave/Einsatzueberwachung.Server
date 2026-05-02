@@ -434,17 +434,17 @@ window.CollarTracking = {
     // Zentriert und zoomt die Karte so, dass der gesamte Live-Track eines Halsbands sichtbar ist
     zoomToCollar: function (mapId, collarId) {
         const mapData = window.LeafletMap.maps[mapId];
-        if (!mapData) return;
+        if (!mapData) return false;
 
         const track = this._tracks[collarId];
-        if (!track) return;
+        if (!track) return false;
 
         if (track.positions && track.positions.length > 1) {
             // Gesamten Pfad in den Viewport einpassen
             const bounds = L.latLngBounds(track.positions);
             mapData.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
             if (track.marker) track.marker.openPopup();
-            return;
+            return true;
         }
 
         // Fallback: nur aktuelle Position
@@ -453,7 +453,10 @@ window.CollarTracking = {
         if (pos) {
             mapData.map.setView(pos, Math.max(mapData.map.getZoom(), 17));
             if (track.marker) track.marker.openPopup();
+            return true;
         }
+
+        return false;
     },
 
     // Zoomt auf einen abgeschlossenen Track (Snapshot) und passt die Bounds an

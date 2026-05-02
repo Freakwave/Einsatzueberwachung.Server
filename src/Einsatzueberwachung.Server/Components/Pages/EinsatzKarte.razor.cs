@@ -21,6 +21,9 @@ public partial class EinsatzKarte
     [SupplyParameterFromQuery(Name = "embed")]
     private bool _embedMode { get; set; }
 
+    [SupplyParameterFromQuery(Name = "focusCollarId")]
+    private string? _focusCollarId { get; set; }
+
     private const double CoordinateEpsilon = 0.0000001;
 
     private List<SearchArea> _searchAreas = new();
@@ -72,6 +75,7 @@ public partial class EinsatzKarte
     private bool _trackingVisible = false;
     private bool _phoneLayerVisible = false;
     private Dictionary<string, string> _oobWarnings = new();
+    private Dictionary<string, CollarLocation> _collarLastLocations = new();
 
     // Abgeschlossene Tracks (Snapshots)
     private Dictionary<string, bool> _completedTrackVisibility = new();
@@ -79,6 +83,9 @@ public partial class EinsatzKarte
     // Sidebar Tab-Navigation
     private string _activeSidebarTab = "areas";
     private string? _expandedSnapshotId;
+    private bool _mapInitialized;
+    private bool _collarFocusApplyRunning;
+    private string? _lastAppliedFocusUri;
 
     // Koordinaten-Marker
     private List<MapMarker> _mapMarkers = new();
@@ -184,6 +191,12 @@ public partial class EinsatzKarte
                         }
                     }
                     StateHasChanged();
+                                    foreach (var collar in _collars)
+                                    {
+                                        var history = CollarTrackingService.GetLocationHistory(collar.Id);
+                                        if (history.Count > 0)
+                                            _collarLastLocations[collar.Id] = history[history.Count - 1];
+                                    }
                 }
 
                 // Abgeschlossene Tracks (Snapshots) aus diesem Einsatz laden
@@ -216,12 +229,16 @@ public partial class EinsatzKarte
                     await Task.Delay(50); // CSS-Transition abwarten
                     await JSRuntime.InvokeVoidAsync("LeafletMap.invalidateSize", "einsatzMap");
                 }
+
+                _mapInitialized = true;
             }
             catch (Exception ex)
             {
                 Logger.LogWarning(ex, "Fehler beim Initialisieren der Karte");
             }
         }
+
+        await ApplyCollarFocusFromQueryAsync();
     }
 
     private async Task SearchAddress()
@@ -774,6 +791,42 @@ public partial class EinsatzKarte
         await JSRuntime.InvokeVoidAsync("CollarTracking.zoomToCollar", "einsatzMap", collar.Id);
     }
 
+    private async Task ApplyCollarFocusFromQueryAsync()
+    {
+        if (!_mapInitialized || _collarFocusApplyRunning || string.IsNullOrWhiteSpace(_focusCollarId))
+        {
+            return;
+        }
+
+        var focusUri = Navigation.Uri;
+        if (string.Equals(_lastAppliedFocusUri, focusUri, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _collarFocusApplyRunning = true;
+        await SetSidebarTabAsync("gps");
+
+        try
+        {
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                await Task.Delay(120 + (attempt * 80));
+
+                var focused = await JSRuntime.InvokeAsync<bool>("CollarTracking.zoomToCollar", "einsatzMap", _focusCollarId);
+                if (focused)
+                {
+                    _lastAppliedFocusUri = focusUri;
+                    return;
+                }
+            }
+        }
+        finally
+        {
+            _collarFocusApplyRunning = false;
+        }
+    }
+
     /// <summary>Gibt "Hundename (Teamname)" für einen Collar zurück, oder collarId als Fallback.</summary>
     private string GetDogLabelForCollar(string collarId)
     {
@@ -802,6 +855,7 @@ public partial class EinsatzKarte
                 var dogLabel = GetDogLabelForCollar(collarId);
                 await JSRuntime.InvokeVoidAsync("CollarTracking.updatePosition",
                     "einsatzMap", collarId, location.Latitude, location.Longitude, location.Timestamp, color, dogLabel);
+                _collarLastLocations[collarId] = location;
 
                 // Direkte Geometrie-Prüfung: ist der Hund (wieder) im Suchgebiet?
                 if (_oobWarnings.ContainsKey(collarId) &&

@@ -258,7 +258,8 @@ namespace Einsatzueberwachung.LiveTracking
                     dogData.ID.ToString(),
                     dogData.DogName,
                     dogData.LatitudeDegrees,
-                    dogData.LongitudeDegrees);
+                    dogData.LongitudeDegrees,
+                    dogData.BatteryLevel);
 
                 Application.Current.Dispatcher.Invoke(() =>
                 {

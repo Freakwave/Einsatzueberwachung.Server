@@ -130,15 +130,16 @@
 
                     @if (_activeSidebarTab == "gps")
                     {
-                        <KarteGpsTab Collars="_collars"
-                                     OobWarnings="_oobWarnings"
-                                     CompletedSnapshots="@(EinsatzService.CurrentEinsatz.TrackSnapshots ?? new())"
-                                     Teams="_teams"
-                                     CompletedTrackVisibility="_completedTrackVisibility"
-                                     ExpandedSnapshotId="_expandedSnapshotId"
-                                     GetCollarColorFn="GetCollarColor"
-                                     OnZoomToCollar="ZoomToCollarAsync"
-                                     OnToggleTrackVisibility="HandleToggleTrackVisibility" />
+                           <KarteGpsTab Collars="_collars"
+                                  OobWarnings="_oobWarnings"
+                                  CompletedSnapshots="@(EinsatzService.CurrentEinsatz.TrackSnapshots ?? new())"
+                                  Teams="_teams"
+                                  CompletedTrackVisibility="_completedTrackVisibility"
+                                  ExpandedSnapshotId="_expandedSnapshotId"
+                                  CollarLastLocations="_collarLastLocations"
+                                  GetCollarColorFn="GetCollarColor"
+                                  OnZoomToCollar="ZoomToCollarAsync"
+                                  OnToggleTrackVisibility="HandleToggleTrackVisibility" />
                     }
 
                     @if (_activeSidebarTab == "points")

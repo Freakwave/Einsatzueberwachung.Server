@@ -31,7 +31,7 @@ namespace Einsatzueberwachung.Domain.Services
             _einsatzService = einsatzService;
         }
 
-        public Task<CollarLocation> ReceiveLocationAsync(string collarId, string collarName, double latitude, double longitude)
+        public Task<CollarLocation> ReceiveLocationAsync(string collarId, string collarName, double latitude, double longitude, int? batteryLevel = null)
         {
             // Halsband registrieren / aktualisieren
             var collar = _collars.AddOrUpdate(
@@ -44,7 +44,7 @@ namespace Einsatzueberwachung.Domain.Services
                 });
 
             // Position speichern
-            var location = new CollarLocation(collarId, latitude, longitude, DateTime.UtcNow);
+            var location = new CollarLocation(collarId, latitude, longitude, DateTime.UtcNow, batteryLevel);
 
             // Nur in History speichern wenn das zugewiesene Team aktiv sucht (IsRunning)
             var isRecording = false;

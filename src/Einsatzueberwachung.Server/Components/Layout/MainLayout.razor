@@ -30,6 +30,14 @@
                 {
                     <span class="badge text-bg-secondary">Kein aktiver Einsatz</span>
                 }
+                @if (_lastWarning != null)
+                {
+                    <a class="badge @LastWarningBadgeClass mission-last-warning text-decoration-none"
+                       href="@(_lastWarning.NavigationUrl ?? "#")"
+                       title="@_lastWarning.Message">
+                        <i class="bi bi-bell-fill me-1"></i>@_lastWarning.Title
+                    </a>
+                }
             </div>
 
             <div class="mission-topbar-clock" aria-live="polite">
@@ -116,3 +124,4 @@
     <span class="dismiss">X</span>
 </div>
 
+<WarnToast />

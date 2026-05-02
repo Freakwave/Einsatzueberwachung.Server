@@ -1,5 +1,6 @@
 @* GPS-Tracking-Tab-Panel der Karten-Sidebar *@
 @inject IJSRuntime JSRuntime
+@implements IDisposable
 
 <div class="sidebar-content-header">
     <span class="small fw-semibold text-muted"><i class="bi bi-broadcast me-1"></i>GPS Tracking</span>
@@ -28,22 +29,46 @@
         </div>
         @foreach (var collar in Collars)
         {
+            CollarLastLocations.TryGetValue(collar.Id, out var lastLoc);
             <div class="collar-item"
                  @onclick="() => OnZoomToCollar.InvokeAsync(collar)"
                  title="Zum Live-Punkt springen">
-                <span class="collar-name">
-                    <i class="bi bi-geo-alt-fill" style="color: @GetCollarColorFn(collar.Id);"></i>
-                    @collar.CollarName [@collar.Id]
-                </span>
-                @if (collar.IsAssigned)
-                {
-                    var liveTeam = Teams.FirstOrDefault(t => t.TeamId == collar.AssignedTeamId);
-                    <span class="collar-team text-primary">@(liveTeam?.TeamName ?? "?")</span>
-                }
-                else
-                {
-                    <span class="collar-team text-muted">Nicht zugewiesen</span>
-                }
+                <div class="collar-head-row">
+                    <span class="collar-name">
+                        <i class="bi bi-geo-alt-fill" style="color: @GetCollarColorFn(collar.Id);"></i>
+                        @collar.CollarName [@collar.Id]
+                    </span>
+                    @if (collar.IsAssigned)
+                    {
+                        var liveTeam = Teams.FirstOrDefault(t => t.TeamId == collar.AssignedTeamId);
+                        <span class="collar-team text-primary">@(liveTeam?.TeamName ?? "?")</span>
+                    }
+                    else
+                    {
+                        <span class="collar-team text-muted">Nicht zugewiesen</span>
+                    }
+                </div>
+                <div class="collar-status-line">
+                    @if (lastLoc != null)
+                    {
+                        var (icon, color) = GetBatteryDisplay(lastLoc.BatteryLevel);
+                        <span class="collar-status-pill"><i class="bi @icon @color me-1"></i>Akku</span>
+                    }
+                    else
+                    {
+                        <span class="collar-status-pill text-muted"><i class="bi bi-battery me-1"></i>Akku: -</span>
+                    }
+                </div>
+                <div class="collar-status-line">
+                    @if (lastLoc != null)
+                    {
+                        <span class="collar-status-pill">Letztes Update: @FormatAge(lastLoc.Timestamp)</span>
+                    }
+                    else
+                    {
+                        <span class="collar-status-pill text-muted">Letztes Update: keine Daten</span>
+                    }
+                </div>
             </div>
         }
     }
@@ -172,9 +197,29 @@
     [Parameter, EditorRequired] public Func<string, string> GetCollarColorFn { get; set; } = _ => "#007bff";
     [Parameter] public EventCallback<Collar> OnZoomToCollar { get; set; }
     [Parameter] public EventCallback<(string Id, bool Visible)> OnToggleTrackVisibility { get; set; }
+    [Parameter] public Dictionary<string, CollarLocation> CollarLastLocations { get; set; } = new();
 
     private TeamTrackSnapshot? _detailSnapshot;
     private string? _prevExpandedSnapshotId;
+    private PeriodicTimer? _ageRefreshTimer;
+    private CancellationTokenSource? _timerCts;
+
+    private static (string Icon, string Color) GetBatteryDisplay(int? level) => level switch
+    {
+        3 => ("bi-battery-full", "text-success"),
+        2 => ("bi-battery-half", "text-warning"),
+        1 => ("bi-battery", "text-danger"),
+        _ => ("bi-battery", "text-muted")
+    };
+
+    private static string FormatAge(DateTime timestamp)
+    {
+        var seconds = (int)(DateTime.UtcNow - timestamp).TotalSeconds;
+        if (seconds < 5)  return "gerade eben";
+        if (seconds < 60) return $"vor {seconds}s";
+        var minutes = seconds / 60;
+        return minutes < 60 ? $"vor {minutes} min" : $"vor {minutes / 60} h";
+    }
 
     protected override void OnParametersSet()
     {
@@ -185,6 +230,36 @@
             if (snap != null) _detailSnapshot = snap;
         }
         _prevExpandedSnapshotId = ExpandedSnapshotId;
+
+        // Start or stop the age-refresh timer depending on whether there are live collars.
+        if (CollarLastLocations.Count > 0 && _ageRefreshTimer == null)
+            StartAgeRefreshTimer();
+        else if (CollarLastLocations.Count == 0)
+            StopAgeRefreshTimer();
+    }
+
+    private void StartAgeRefreshTimer()
+    {
+        _timerCts = new CancellationTokenSource();
+        _ageRefreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        var token = _timerCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (await _ageRefreshTimer.WaitForNextTickAsync(token))
+                    await InvokeAsync(StateHasChanged);
+            }
+            catch (OperationCanceledException) { }
+        }, token);
+    }
+
+    private void StopAgeRefreshTimer()
+    {
+        _timerCts?.Cancel();
+        _ageRefreshTimer?.Dispose();
+        _ageRefreshTimer = null;
+        _timerCts = null;
     }
 
     private void OpenDetailPopup(TeamTrackSnapshot snap) => _detailSnapshot = snap;
@@ -198,4 +273,6 @@
             GpxBuilder.BuildTrackSnapshotGpx(_detailSnapshot),
             "application/gpx+xml");
     }
+
+    public void Dispose() => StopAgeRefreshTimer();
 }

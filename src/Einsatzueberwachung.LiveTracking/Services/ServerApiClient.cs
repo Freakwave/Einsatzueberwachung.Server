@@ -34,7 +34,7 @@ namespace Einsatzueberwachung.LiveTracking.Services
             StatusChanged?.Invoke("Server-Verbindung getrennt.");
         }
 
-        public async Task<bool> SendCollarLocationAsync(string collarId, string collarName, double latitude, double longitude)
+        public async Task<bool> SendCollarLocationAsync(string collarId, string collarName, double latitude, double longitude, int? batteryLevel = null)
         {
             if (!IsConfigured) return false;
 
@@ -44,7 +44,8 @@ namespace Einsatzueberwachung.LiveTracking.Services
                 {
                     Id = collarId,
                     CollarName = collarName,
-                    Coordinates = new { Lat = latitude, Lng = longitude }
+                    Coordinates = new { Lat = latitude, Lng = longitude },
+                    BatteryLevel = batteryLevel
                 };
 
                 var response = await _httpClient.PostAsJsonAsync(

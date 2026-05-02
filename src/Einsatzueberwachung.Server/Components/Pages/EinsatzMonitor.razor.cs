@@ -96,15 +96,8 @@ public partial class EinsatzMonitor
     private AppSettings _appSettings = new();
 
     // Dashboard-Layout
-    private bool _editMode;
-    private bool _needsRender = true;
-    private bool _reInitSortable;
     private List<DashboardPanelConfig> _currentLayout = new();
-    private List<DashboardPanelConfig> _layoutSnapshot = new();
-    private DotNetObjectReference<EinsatzMonitor>? _dotNetRef;
-
-    // Minimap
-    private bool _minimapInitialized;
+    private bool _showPanelPicker;
 
     private sealed class ClientLocalNowDto
     {
@@ -136,32 +129,15 @@ public partial class EinsatzMonitor
         StartDurationRefreshTimer();
     }
 
-    protected override bool ShouldRender()
-    {
-        if (_editMode && !_needsRender)
-            return false;
-        _needsRender = false;
-        return true;
-    }
+    protected override bool ShouldRender() => true;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            _dotNetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("dashboardLayout.init", _dotNetRef, "monitor-dashboard-grid");
             await RefreshEinsatzdauerFromHeaderTimeAsync();
             await InvokeAsync(StateHasChanged);
-            return;
         }
-
-        if (_reInitSortable)
-        {
-            _reInitSortable = false;
-            await JS.InvokeVoidAsync("dashboardLayout.enableEdit");
-        }
-
-        await TryInitMinimapAsync();
     }
 
     public void Dispose()
@@ -173,175 +149,26 @@ public partial class EinsatzMonitor
         EinsatzService.NoteAdded -= OnNoteAdded;
         _weatherRefreshTimer?.Dispose();
         _durationRefreshTimer?.Dispose();
-        _dotNetRef?.Dispose();
-        _ = JS.InvokeVoidAsync("dashboardLayout.destroy");
-        if (_minimapInitialized)
-            _ = JS.InvokeVoidAsync("minimapInterop.destroy", "minimap-panel-map");
     }
 
     // ===== Dashboard-Layout-Methoden =====
 
-    private async Task EnterEditModeAsync()
-    {
-        _layoutSnapshot = _currentLayout.Select(p => new DashboardPanelConfig
-        {
-            PanelId = p.PanelId,
-            IsVisible = p.IsVisible,
-            ColSpan = p.ColSpan,
-            Order = p.Order
-        }).ToList();
-        _editMode = true;
-        _needsRender = true;
-        _reInitSortable = true;
-        await Task.CompletedTask;
-    }
-
-    private async Task SaveLayoutAsync()
-    {
-        await DashboardLayoutService.SaveLayoutAsync(EinsatzService.CurrentEinsatz.Fuehrungsassistent, _currentLayout);
-        await JS.InvokeVoidAsync("dashboardLayout.disableEdit");
-        _editMode = false;
-        _reInitSortable = false;
-        _needsRender = true;
-    }
-
-    private async Task CancelEditAsync()
-    {
-        _currentLayout = _layoutSnapshot.Select(p => new DashboardPanelConfig
-        {
-            PanelId = p.PanelId,
-            IsVisible = p.IsVisible,
-            ColSpan = p.ColSpan,
-            Order = p.Order
-        }).ToList();
-        await JS.InvokeVoidAsync("dashboardLayout.disableEdit");
-        _editMode = false;
-        _reInitSortable = false;
-        _needsRender = true;
-    }
-
-    [JSInvokable]
-    public Task OnPanelReordered(int oldIndex, int newIndex)
-    {
-        if (oldIndex == newIndex) return Task.CompletedTask;
-
-        var ordered = _currentLayout.OrderBy(p => p.Order).ToList();
-        var moved = ordered[oldIndex];
-        ordered.RemoveAt(oldIndex);
-        ordered.Insert(newIndex, moved);
-
-        for (var i = 0; i < ordered.Count; i++)
-            ordered[i].Order = i;
-
-        _currentLayout = ordered;
-        _reInitSortable = true;
-        _needsRender = true;
-        return InvokeAsync(StateHasChanged);
-    }
-
-    private void SetPanelColSpan(string panelId, int colSpan)
-    {
-        var panel = _currentLayout.FirstOrDefault(p => p.PanelId == panelId);
-        if (panel is null) return;
-        panel.ColSpan = colSpan;
-        _reInitSortable = true;
-        _needsRender = true;
-    }
-
-    private void TogglePanelVisible(string panelId)
+    private async Task TogglePanelVisibleAsync(string panelId)
     {
         var panel = _currentLayout.FirstOrDefault(p => p.PanelId == panelId);
         if (panel is null) return;
         panel.IsVisible = !panel.IsVisible;
-        _reInitSortable = true;
-        _needsRender = true;
+        await SaveLayoutAsync();
     }
 
-    private static string ColSpanClass(int colSpan) => $"gs-col-{colSpan}";
+    private async Task SaveLayoutAsync()
+    {
+        await DashboardLayoutService.SaveLayoutAsync(
+            EinsatzService.CurrentEinsatz.Fuehrungsassistent, _currentLayout);
+    }
 
     private static string PanelLabel(string panelId) =>
         KnownPanels.Labels.TryGetValue(panelId, out var label) ? label : panelId;
-
-    private static string ColSpanLabel(int colSpan) => colSpan switch
-    {
-        3  => "¼",
-        4  => "⅓",
-        6  => "½",
-        8  => "⅔",
-        12 => "↔",
-        _  => $"{colSpan}"
-    };
-
-    private void SetPanelHeight(string panelId, int height)
-    {
-        var panel = _currentLayout.FirstOrDefault(p => p.PanelId == panelId);
-        if (panel is null) return;
-        panel.PanelHeight = height;
-        _reInitSortable = true;
-        _needsRender = true;
-    }
-
-    private static string PanelHeightLabel(int h) => h switch
-    {
-        0   => "↕",
-        250 => "S",
-        400 => "M",
-        600 => "L",
-        800 => "XL",
-        _   => $"{h}"
-    };
-
-    private static string PanelBodyStyle(DashboardPanelConfig panel)
-    {
-        if (panel.PanelHeight <= 0) return string.Empty;
-        return $"height:{panel.PanelHeight}px;overflow-y:auto;";
-    }
-
-    // ===== Minimap =====
-
-    private async Task TryInitMinimapAsync()
-    {
-        var minimapPanel = _currentLayout.FirstOrDefault(p => p.PanelId == KnownPanels.Minimap);
-        if (minimapPanel is null || !minimapPanel.IsVisible || _editMode)
-            return;
-
-        if (!_minimapInitialized)
-        {
-            _minimapInitialized = true;
-            await JS.InvokeVoidAsync("minimapInterop.init", "minimap-panel-map");
-            await UpdateMinimapAsync();
-        }
-        else
-        {
-            await JS.InvokeVoidAsync("minimapInterop.invalidate", "minimap-panel-map");
-        }
-    }
-
-    private async Task UpdateMinimapAsync()
-    {
-        if (!_minimapInitialized) return;
-
-        var elw = EinsatzService.CurrentEinsatz.ElwPosition;
-        if (elw.HasValue)
-        {
-            await JS.InvokeVoidAsync("minimapInterop.updateElw", "minimap-panel-map",
-                elw.Value.Latitude, elw.Value.Longitude);
-        }
-
-        var areas = EinsatzService.CurrentEinsatz.SearchAreas
-            .Where(a => a.Coordinates.Count >= 3)
-            .Select(a => new
-            {
-                name = a.Name,
-                color = a.Color,
-                isCompleted = a.IsCompleted,
-                teamName = EinsatzService.Teams.FirstOrDefault(t => t.SearchAreaId == a.Id)?.TeamName ?? string.Empty,
-                coordinates = a.Coordinates.Select(c => new[] { c.Latitude, c.Longitude }).ToList()
-            })
-            .ToList();
-
-        await JS.InvokeVoidAsync("minimapInterop.updateSearchAreas", "minimap-panel-map", areas);
-    }
 
     // ===== Bestehende Methoden (unverändert) =====
 
@@ -440,7 +267,6 @@ public partial class EinsatzMonitor
         _ = InvokeAsync(async () =>
         {
             await RefreshMonitorWeatherAsync(forceGeocoding: true);
-            await UpdateMinimapAsync();
             StateHasChanged();
         });
     }
@@ -1728,15 +1554,9 @@ public partial class EinsatzMonitor
         await EinsatzService.UpdateEinsatzAsync(updated);
 
         // Wenn FA gewechselt wurde, gespeichertes Layout des neuen FA laden
-        if (!string.Equals(updated.Fuehrungsassistent, prevFa, StringComparison.OrdinalIgnoreCase) && !_editMode)
+        if (!string.Equals(updated.Fuehrungsassistent, prevFa, StringComparison.OrdinalIgnoreCase))
         {
             _currentLayout = await DashboardLayoutService.LoadLayoutAsync(updated.Fuehrungsassistent);
-            // Minimap-State zurücksetzen, damit sie beim nächsten Render neu initialisiert wird
-            if (_minimapInitialized)
-            {
-                await JS.InvokeVoidAsync("minimapInterop.destroy", "minimap-panel-map");
-                _minimapInitialized = false;
-            }
         }
 
         _showEditEinsatzModal = false;

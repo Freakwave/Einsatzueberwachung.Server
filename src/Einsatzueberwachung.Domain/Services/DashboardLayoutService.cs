@@ -55,34 +55,34 @@ namespace Einsatzueberwachung.Domain.Services
 
         public List<DashboardPanelConfig> GetDefaultLayout() =>
         [
-            new() { PanelId = KnownPanels.EinsatzInfo,  ColSpan = 4,  Order = 0, IsVisible = true  },
-            new() { PanelId = KnownPanels.Wetter,       ColSpan = 4,  Order = 1, IsVisible = true  },
-            new() { PanelId = KnownPanels.Notizen,      ColSpan = 4,  Order = 2, IsVisible = true  },
-            new() { PanelId = KnownPanels.Teams,        ColSpan = 12, Order = 3, IsVisible = true  },
-            new() { PanelId = KnownPanels.Suchgebiete,  ColSpan = 6,  Order = 4, IsVisible = false },
-            new() { PanelId = KnownPanels.Minimap,      ColSpan = 6,  Order = 5, IsVisible = false, PanelHeight = 350 },
-            new() { PanelId = KnownPanels.Vermissten,   ColSpan = 6,  Order = 6, IsVisible = false },
+            new() { PanelId = KnownPanels.EinsatzInfo,  IsVisible = true },
+            new() { PanelId = KnownPanels.Vermissten,   IsVisible = true },
+            new() { PanelId = KnownPanels.Wetter,       IsVisible = true },
+            new() { PanelId = KnownPanels.Teams,        IsVisible = true },
+            new() { PanelId = KnownPanels.Suchgebiete,  IsVisible = true },
+            new() { PanelId = KnownPanels.Notizen,      IsVisible = true },
         ];
 
-        // Stellt sicher dass alle bekannten Panels vorhanden sind (neue Panels nach Update)
+        // Stellt sicher dass alle bekannten Panels vorhanden sind; entfernt veraltete (z. B. minimap)
         private List<DashboardPanelConfig> ValidateLayout(List<DashboardPanelConfig>? saved)
         {
             if (saved is null || saved.Count == 0)
                 return GetDefaultLayout();
 
-            var defaults = GetDefaultLayout();
-            var result = saved.ToList();
+            var knownIds = KnownPanels.Labels.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var result = saved.Where(p => knownIds.Contains(p.PanelId)).ToList();
 
+            var defaults = GetDefaultLayout();
             foreach (var def in defaults)
             {
                 if (!result.Any(p => p.PanelId == def.PanelId))
-                {
-                    def.Order = result.Count;
                     result.Add(def);
-                }
             }
 
-            return [.. result.OrderBy(p => p.Order)];
+            // Sicherstellen dass die Reihenfolge der FixedOrder entspricht
+            return [.. KnownPanels.FixedOrder
+                .Select(id => result.FirstOrDefault(p => p.PanelId == id))
+                .Where(p => p is not null)!];
         }
 
         private string BuildPath(string key)

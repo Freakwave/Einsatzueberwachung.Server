@@ -28,6 +28,7 @@ internal static class DownloadEndpoints
         app.MapGet("/downloads/einsatz-karte.pdf", async (
             IEinsatzService einsatzService,
             IPdfExportService pdfExportService,
+            ILoggerFactory loggerFactory,
             string? mapType = null,
             string? teamId = null) =>
         {
@@ -39,8 +40,18 @@ internal static class DownloadEndpoints
             };
 
             var einsatz = einsatzService.CurrentEinsatz;
-            var bytes = await pdfExportService.ExportEinsatzKarteToPdfBytesAsync(
-                einsatz, einsatzService.Teams, tileType, teamId);
+            byte[] bytes;
+            try
+            {
+                bytes = await pdfExportService.ExportEinsatzKarteToPdfBytesAsync(
+                    einsatz, einsatzService.Teams, tileType, teamId);
+            }
+            catch (Exception ex)
+            {
+                loggerFactory.CreateLogger("EinsatzKartePdf")
+                    .LogError(ex, "Fehler beim Generieren der Einsatzkarte (TileType={TileType})", tileType);
+                return Results.Problem("Karte konnte nicht generiert werden. Bitte erneut versuchen.", statusCode: 500);
+            }
 
             var fileNamePart = string.IsNullOrWhiteSpace(einsatz.EinsatzNummer)
                 ? $"einsatz-karte-{DateTime.Now:yyyyMMdd-HHmmss}"

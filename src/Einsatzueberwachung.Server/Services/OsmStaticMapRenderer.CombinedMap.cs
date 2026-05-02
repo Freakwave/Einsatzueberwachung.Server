@@ -16,6 +16,17 @@ public sealed partial class OsmStaticMapRenderer
         if (validTracks.Count == 0)
             return null;
 
+        using var renderCts = new CancellationTokenSource(RenderTimeout);
+        var ct = renderCts.Token;
+
+        // Globaler Lock: nur ein Map-Render gleichzeitig. Bei Timeout (z. B. wenn anderer Render hängt)
+        // gibt es lieber kein Map-Bild als einen 502.
+        if (!await _globalRenderLock.WaitAsync(RenderTimeout))
+        {
+            _logger.LogWarning("Combined-Track-Karte: globaler Render-Lock-Timeout, überspringe Karte");
+            return null;
+        }
+
         try
         {
             var allLats = validTracks.SelectMany(track => track.Points.Select(p => p.Latitude)).ToList();
@@ -53,7 +64,7 @@ public sealed partial class OsmStaticMapRenderer
             var minTileY = (int)Math.Floor(absCropTop / TileSize);
             var maxTileY = (int)Math.Floor(absCropBottom / TileSize);
 
-            var tiles = await DownloadTilesAsync(minTileX, maxTileX, minTileY, maxTileY, zoom);
+            var tiles = await DownloadTilesAsync(minTileX, maxTileX, minTileY, maxTileY, zoom, ct);
             var (fullBitmap, _, _) = AssembleTileMosaic(tiles, minTileX, minTileY, maxTileX, maxTileY, TileSize);
 
             using (fullBitmap)
@@ -125,10 +136,19 @@ public sealed partial class OsmStaticMapRenderer
                 return EncodeAsPng(outputBitmap);
             }
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            _logger.LogWarning("Combined-Track-Karte: Render-Timeout nach {Sec}s erreicht", RenderTimeout.TotalSeconds);
+            return null;
+        }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Fehler beim Rendern der kombinierten Track-Karte");
             return null;
+        }
+        finally
+        {
+            _globalRenderLock.Release();
         }
     }
 
@@ -145,6 +165,15 @@ public sealed partial class OsmStaticMapRenderer
 
         var tileConfig = GetSearchAreaTileConfig(tileType);
         var tilePixelSize = tileConfig.PixelSize;
+
+        using var renderCts = new CancellationTokenSource(RenderTimeout);
+        var ct = renderCts.Token;
+
+        if (!await _globalRenderLock.WaitAsync(RenderTimeout))
+        {
+            _logger.LogWarning("Suchgebiets-Karte: globaler Render-Lock-Timeout, überspringe Karte");
+            return null;
+        }
 
         try
         {
@@ -176,7 +205,7 @@ public sealed partial class OsmStaticMapRenderer
             var minTileY = (int)Math.Floor(absCropTop / tilePixelSize);
             var maxTileY = (int)Math.Floor(absCropBottom / tilePixelSize);
 
-            var tiles = await DownloadTilesWithConfigAsync(minTileX, maxTileX, minTileY, maxTileY, zoom, tileConfig.UrlTemplates);
+            var tiles = await DownloadTilesWithConfigAsync(minTileX, maxTileX, minTileY, maxTileY, zoom, tileConfig.UrlTemplates, ct);
             var (fullBitmap, _, _) = AssembleTileMosaic(tiles, minTileX, minTileY, maxTileX, maxTileY, tilePixelSize);
 
             using (fullBitmap)
@@ -237,10 +266,19 @@ public sealed partial class OsmStaticMapRenderer
                 return data.ToArray();
             }
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            _logger.LogWarning("Suchgebiets-Karte: Render-Timeout nach {Sec}s erreicht (TileType={TileType})", RenderTimeout.TotalSeconds, tileType);
+            return null;
+        }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Fehler beim Rendern der Suchgebiets-Planungskarte");
             return null;
+        }
+        finally
+        {
+            _globalRenderLock.Release();
         }
     }
 }

@@ -15,6 +15,15 @@ public sealed partial class OsmStaticMapRenderer
     {
         if (trackPoints.Count < 2) return null;
 
+        using var renderCts = new CancellationTokenSource(RenderTimeout);
+        var ct = renderCts.Token;
+
+        if (!await _globalRenderLock.WaitAsync(RenderTimeout))
+        {
+            _logger.LogWarning("Track-Karte: globaler Render-Lock-Timeout, überspringe Karte");
+            return null;
+        }
+
         try
         {
             var allLats = trackPoints.Select(p => p.Latitude).ToList();
@@ -47,7 +56,7 @@ public sealed partial class OsmStaticMapRenderer
             var minTileY = (int)Math.Floor(absCropTop / TileSize);
             var maxTileY = (int)Math.Floor(absCropBottom / TileSize);
 
-            var tiles = await DownloadTilesAsync(minTileX, maxTileX, minTileY, maxTileY, zoom);
+            var tiles = await DownloadTilesAsync(minTileX, maxTileX, minTileY, maxTileY, zoom, ct);
             var (fullBitmap, fullW, fullH) = AssembleTileMosaic(tiles, minTileX, minTileY, maxTileX, maxTileY, TileSize);
 
             using (fullBitmap)
@@ -82,10 +91,19 @@ public sealed partial class OsmStaticMapRenderer
                 return EncodeAsPng(outputBitmap);
             }
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            _logger.LogWarning("Track-Karte: Render-Timeout nach {Sec}s erreicht — Fallback auf SVG", RenderTimeout.TotalSeconds);
+            return null;
+        }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Fehler beim Rendern der statischen Karte — Fallback auf SVG");
             return null;
+        }
+        finally
+        {
+            _globalRenderLock.Release();
         }
     }
 

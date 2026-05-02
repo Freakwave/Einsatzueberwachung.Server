@@ -259,3 +259,13 @@ function ringRising(ctx, baseFrequency, volume, totalDuration) {
     osc.start(startAt);
     osc.stop(stopAt + 0.03);
 }
+
+// Scrolls an element into view by id. Returns true when found, false otherwise.
+window.warnToastScrollTo = function (elementId) {
+    var el = document.getElementById(elementId);
+    if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        return true;
+    }
+    return false;
+};

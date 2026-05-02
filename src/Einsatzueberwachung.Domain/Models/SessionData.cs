@@ -78,6 +78,12 @@ namespace Einsatzueberwachung.Domain.Models
         public int PauseMinutesShortRun { get; set; }
         public int PauseMinutesLongRun { get; set; }
 
+        // Monitoring für GPS-Halsbänder (aktive Suche)
+        public int CollarNoSignalTimeoutSeconds { get; set; }
+
+        // Warnzentrum-Regelkonfiguration (keyed by WarningEntry.Source)
+        public Dictionary<string, WarningRuleConfig> WarningRules { get; set; } = new();
+
         // Divera 24/7 Integration
         public bool DiveraEnabled { get; set; }
         /// <summary>Staffel/Einheit API-Key — fuer Alarmabfrage (Web-API-Accesskey)</summary>
@@ -132,6 +138,9 @@ namespace Einsatzueberwachung.Domain.Models
             PauseThresholdMinutes = 20;
             PauseMinutesShortRun = 60;
             PauseMinutesLongRun = 180;
+
+            // Halsband-Monitoring-Defaults
+            CollarNoSignalTimeoutSeconds = 30;
 
             // Divera 24/7 Defaults
             DiveraEnabled = false;

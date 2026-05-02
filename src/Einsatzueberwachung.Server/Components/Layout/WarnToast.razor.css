@@ -1,0 +1,111 @@
+.warn-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 2000;
+    min-width: 300px;
+    max-width: 420px;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    cursor: default;
+    opacity: 0;
+    transform: translateX(110%);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+}
+
+.warn-toast--in {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+}
+
+.warn-toast--out {
+    opacity: 0;
+    transform: translateX(110%);
+    pointer-events: none;
+}
+
+/* Warning (default) — yellow */
+.warn-toast--warning {
+    background-color: #856404;
+    border: 1px solid #ffc107;
+    color: #fff;
+}
+
+[data-bs-theme="light"] .warn-toast--warning {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+    color: #664d03;
+}
+
+/* Info — blue */
+.warn-toast--info {
+    background-color: #084298;
+    border: 1px solid #0dcaf0;
+    color: #fff;
+}
+
+[data-bs-theme="light"] .warn-toast--info {
+    background-color: #cff4fc;
+    border-color: #0dcaf0;
+    color: #055160;
+}
+
+/* Critical — red */
+.warn-toast--critical {
+    background-color: #842029;
+    border: 1px solid #f44336;
+    color: #fff;
+}
+
+[data-bs-theme="light"] .warn-toast--critical {
+    background-color: #f8d7da;
+    border-color: #f44336;
+    color: #58151c;
+}
+
+/* With navigation URL: show pointer cursor */
+.warn-toast[title] {
+    cursor: pointer;
+}
+
+.warn-toast__header {
+    display: flex;
+    align-items: center;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.9rem;
+}
+
+.warn-toast__header .btn-close {
+    filter: none;
+    opacity: 0.85;
+    flex-shrink: 0;
+}
+
+.warn-toast__header .btn-close:hover {
+    opacity: 1;
+}
+
+.warn-toast__time {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    flex-shrink: 0;
+}
+
+.warn-toast__body {
+    padding: 0 0.75rem 0.6rem;
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+@media (max-width: 480px) {
+    .warn-toast {
+        bottom: 1rem;
+        right: 0.75rem;
+        left: 0.75rem;
+        min-width: unset;
+        max-width: unset;
+    }
+}

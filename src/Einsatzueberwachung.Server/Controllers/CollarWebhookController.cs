@@ -39,7 +39,8 @@ public class CollarWebhookController : ControllerBase
             request.Id,
             request.CollarName ?? request.Id,
             request.Coordinates.Lat,
-            request.Coordinates.Lng);
+            request.Coordinates.Lng,
+            request.BatteryLevel);
 
         return Ok(new
         {
@@ -84,7 +85,8 @@ public class CollarWebhookController : ControllerBase
     public sealed record CollarLocationRequest(
         string Id,
         string? CollarName,
-        CoordinatesDto Coordinates);
+        CoordinatesDto Coordinates,
+        int? BatteryLevel);
 
     public sealed record CoordinatesDto(double Lat, double Lng);
 }

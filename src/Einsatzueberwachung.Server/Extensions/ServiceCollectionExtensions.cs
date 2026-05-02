@@ -251,7 +251,10 @@ internal static class ServiceCollectionExtensions
         services.AddSingleton<IEinsatzService, EinsatzService>();
         services.AddSingleton<IDashboardLayoutService, DashboardLayoutService>();
         services.AddSingleton<ICollarTrackingService, CollarTrackingService>();
-        services.AddSingleton<IPdfExportService, PdfExportService>();
+        services.AddSingleton<IPdfExportService>(sp => new PdfExportService(
+            sp.GetRequiredService<ISettingsService>(),
+            sp.GetRequiredService<ITimeService>(),
+            sp.GetRequiredService<IStaticMapRenderer>()));
         services.AddSingleton<IExcelExportService, ExcelExportService>();
         services.AddSingleton<IArchivService, ArchivService>();
         services.AddSingleton<IEinsatzMergeService, EinsatzMergeService>();

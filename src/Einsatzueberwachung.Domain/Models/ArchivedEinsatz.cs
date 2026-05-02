@@ -134,9 +134,10 @@ namespace Einsatzueberwachung.Domain.Models
                         personalNamen.Add(team.HundefuehrerName.Trim());
                     }
 
-                    if (!string.IsNullOrWhiteSpace(team.HelferName))
+                    foreach (var helferName in team.HelferNames)
                     {
-                        personalNamen.Add(team.HelferName.Trim());
+                        if (!string.IsNullOrWhiteSpace(helferName))
+                            personalNamen.Add(helferName.Trim());
                     }
 
                     if (!string.IsNullOrWhiteSpace(team.DogName))
@@ -198,9 +199,10 @@ namespace Einsatzueberwachung.Domain.Models
             {
                 archived.MemberNames.Add(team.HundefuehrerName);
             }
-            if (!string.IsNullOrWhiteSpace(team.HelferName))
+            foreach (var helferName in team.HelferNames)
             {
-                archived.MemberNames.Add(team.HelferName);
+                if (!string.IsNullOrWhiteSpace(helferName))
+                    archived.MemberNames.Add(helferName);
             }
 
             return archived;

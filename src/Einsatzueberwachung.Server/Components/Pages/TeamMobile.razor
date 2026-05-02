@@ -79,7 +79,7 @@ else
             <div style="background:#f8f9fa;border-bottom:1px solid #dee2e6;padding:10px 14px;font-size:0.85rem;">
                 <div class="row g-2">
                     <div class="col-12 col-sm-6"><strong>Hundefuehrer:</strong> @(string.IsNullOrWhiteSpace(_team.HundefuehrerName) ? "—" : _team.HundefuehrerName)</div>
-                    <div class="col-12 col-sm-6"><strong>Helfer:</strong> @(string.IsNullOrWhiteSpace(_team.HelferName) ? "—" : _team.HelferName)</div>
+                    <div class="col-12 col-sm-6"><strong>Helfer:</strong> @(string.IsNullOrWhiteSpace(_team.HelferNamesJoined) ? "—" : _team.HelferNamesJoined)</div>
                     <div class="col-12 col-sm-6"><strong>Hund:</strong> @(string.IsNullOrWhiteSpace(_team.DogName) ? "—" : _team.DogName)</div>
                     <div class="col-12 col-sm-6"><strong>Suchgebiet:</strong> @(string.IsNullOrWhiteSpace(_team.SearchAreaName) ? "—" : _team.SearchAreaName)</div>
                 </div>

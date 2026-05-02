@@ -123,8 +123,8 @@ namespace Einsatzueberwachung.Domain.Services
             target.DogSpecialization = source.DogSpecialization;
             target.HundefuehrerName = source.HundefuehrerName;
             target.HundefuehrerId = source.HundefuehrerId;
-            target.HelferName = source.HelferName;
-            target.HelferId = source.HelferId;
+            target.HelferIds = new List<string>(source.HelferIds);
+            target.HelferNames = new List<string>(source.HelferNames);
             target.SearchAreaName = source.SearchAreaName;
             target.SearchAreaId = source.SearchAreaId;
             target.FirstWarningMinutes = source.FirstWarningMinutes;

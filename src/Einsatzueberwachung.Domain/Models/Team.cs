@@ -21,8 +21,45 @@ namespace Einsatzueberwachung.Domain.Models
         public DogSpecialization DogSpecialization { get; set; }
         public string HundefuehrerName { get; set; }
         public string HundefuehrerId { get; set; }
-        public string HelferName { get; set; }
-        public string HelferId { get; set; }
+
+        // Mehrere Helfer (max. 3). Index-aligned: HelferIds[i] gehört zu HelferNames[i].
+        public List<string> HelferIds { get; set; } = new();
+        public List<string> HelferNames { get; set; } = new();
+
+        // Legacy-Properties für Backward-Compat mit Archiven und altem UI-Code.
+        // Lesen liefert den ersten Helfer; Schreiben aktualisiert/löscht Slot 0.
+        public string HelferId
+        {
+            get => HelferIds.Count > 0 ? HelferIds[0] : string.Empty;
+            set
+            {
+                var v = value ?? string.Empty;
+                if (string.IsNullOrEmpty(v))
+                {
+                    if (HelferIds.Count > 0) HelferIds.RemoveAt(0);
+                    return;
+                }
+                if (HelferIds.Count == 0) HelferIds.Add(v);
+                else HelferIds[0] = v;
+            }
+        }
+        public string HelferName
+        {
+            get => HelferNames.Count > 0 ? HelferNames[0] : string.Empty;
+            set
+            {
+                var v = value ?? string.Empty;
+                if (string.IsNullOrEmpty(v))
+                {
+                    if (HelferNames.Count > 0) HelferNames.RemoveAt(0);
+                    return;
+                }
+                if (HelferNames.Count == 0) HelferNames.Add(v);
+                else HelferNames[0] = v;
+            }
+        }
+
+        public string HelferNamesJoined => string.Join(", ", HelferNames.Where(n => !string.IsNullOrWhiteSpace(n)));
         public string SearchAreaName { get; set; }
         public string SearchAreaId { get; set; }
         public TimeSpan ElapsedTime { get; set; }
@@ -83,8 +120,7 @@ namespace Einsatzueberwachung.Domain.Models
             DogId = string.Empty;
             HundefuehrerName = string.Empty;
             HundefuehrerId = string.Empty;
-            HelferName = string.Empty;
-            HelferId = string.Empty;
+            // HelferIds/HelferNames bereits durch Auto-Property-Initializer leer initialisiert
             SearchAreaName = string.Empty;
             SearchAreaId = string.Empty;
             ElapsedTime = TimeSpan.Zero;

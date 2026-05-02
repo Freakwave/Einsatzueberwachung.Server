@@ -1,4 +1,4 @@
-using Einsatzueberwachung.Domain.Interfaces;
+﻿using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
 using Einsatzueberwachung.Server.Services;
 using Einsatzueberwachung.Server.Training;
@@ -13,6 +13,8 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
     [Inject] private BrowserPreferencesService BrowserPrefs { get; set; } = default!;
     [Inject] private IEinsatzService EinsatzService { get; set; } = default!;
     [Inject] private TrainerNotificationService TrainerNotifications { get; set; } = default!;
+    [Inject] private IWarningService WarningService { get; set; } = default!;
+    [Inject] private ITimeService TimeService { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
@@ -27,6 +29,8 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
     private bool _showExerciseEndedPopup;
     private string _exerciseEndedName = string.Empty;
     private string _exerciseEndedSummary = string.Empty;
+
+    private WarningEntry? _lastWarning;
 
     private bool HasActiveEinsatz =>
         !string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzort)
@@ -46,8 +50,26 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         EinsatzService.TeamUpdated += OnTeamStateChanged;
         EinsatzService.TeamRemoved += OnTeamStateChanged;
         EinsatzService.TeamWarningTriggered += OnTeamWarningTriggered;
+        EinsatzService.DogPauseStarted += OnDogPauseStarted;
         TrainerNotifications.ExerciseEnded += OnExerciseEnded;
+        WarningService.WarningAdded += OnWarningAdded;
     }
+
+    private void OnWarningAdded(WarningEntry warning)
+    {
+        _ = InvokeAsync(() =>
+        {
+            _lastWarning = warning;
+            StateHasChanged();
+        });
+    }
+
+    private string LastWarningBadgeClass => _lastWarning?.Level switch
+    {
+        WarningLevel.Critical => "text-bg-danger",
+        WarningLevel.Info     => "text-bg-info",
+        _                     => "text-bg-warning"
+    };
 
     private void OnExerciseEnded(string exerciseName, string summary)
     {
@@ -136,11 +158,38 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
             if (isSecondWarning)
             {
                 _criticalWarningTitle = $"{team.TeamName} hat kritische Warnstufe erreicht";
-                _criticalWarningMessage = $"Timer: {team.ElapsedTime:hh\\:mm\\:ss} · Bitte Teamstatus prüfen.";
+                _criticalWarningMessage = $"Timer: {team.ElapsedTime:hh\\:mm\\:ss} - Bitte Teamstatus pruefen.";
                 _showCriticalWarningPopup = true;
             }
 
+            WarningService.AddWarning(new WarningEntry
+            {
+                Title   = isSecondWarning ? "Kritische Warnstufe erreicht" : "Erste Warnstufe erreicht",
+                Message = isSecondWarning
+                    ? $"{team.TeamName} - Timer: {team.ElapsedTime:hh\\:mm\\:ss} - Bitte Teamstatus pruefen."
+                    : $"{team.TeamName} - Timer: {team.ElapsedTime:hh\\:mm\\:ss}",
+                Level          = isSecondWarning ? WarningLevel.Critical : WarningLevel.Warning,
+                TeamId         = team.TeamId,
+                NavigationUrl  = "/einsatz-monitor",
+                Source         = isSecondWarning ? WarningRuleDefinition.Sources.TeamTimerCritical : WarningRuleDefinition.Sources.TeamTimer,
+                Timestamp      = TimeService.Now
+            });
+
             StateHasChanged();
+        });
+    }
+
+    private void OnDogPauseStarted(Team team)
+    {
+        WarningService.AddWarning(new WarningEntry
+        {
+            Title = "Hund braucht Pause",
+            Message = $"{team.DogName} (Team: {team.TeamName}) - {team.RequiredPauseMinutes} Min. Pause erforderlich.",
+            Level = WarningLevel.Warning,
+            TeamId = team.TeamId,
+            NavigationUrl = $"/einsatz-monitor#team-{team.TeamId}",
+            Source = WarningRuleDefinition.Sources.DogPause,
+            Timestamp = TimeService.Now
         });
     }
 
@@ -225,7 +274,9 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         EinsatzService.TeamUpdated -= OnTeamStateChanged;
         EinsatzService.TeamRemoved -= OnTeamStateChanged;
         EinsatzService.TeamWarningTriggered -= OnTeamWarningTriggered;
+        EinsatzService.DogPauseStarted -= OnDogPauseStarted;
         TrainerNotifications.ExerciseEnded -= OnExerciseEnded;
+        WarningService.WarningAdded -= OnWarningAdded;
 
         try
         {

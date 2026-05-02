@@ -1,0 +1,271 @@
+@page "/warnzentrum"
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+
+@using Einsatzueberwachung.Domain.Interfaces
+@using Einsatzueberwachung.Domain.Models
+
+@inject IWarningService WarningService
+@inject NavigationManager Navigation
+
+<PageTitle>Warnzentrum</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h4 class="mb-0">
+            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Warnzentrum
+        </h4>
+        <div class="d-flex gap-2">
+            <span class="badge bg-secondary">@_warnings.Count Einträge</span>
+            <button class="btn btn-sm btn-outline-secondary"
+                    @onclick="ToggleRulesPanel"
+                    title="Warningsregeln konfigurieren">
+                <i class="bi bi-sliders me-1"></i>Regeln
+            </button>
+            <button class="btn btn-sm btn-outline-danger" @onclick="ClearAll" title="Alle Warnungen löschen">
+                <i class="bi bi-trash me-1"></i>Alle löschen
+            </button>
+        </div>
+    </div>
+
+    @if (_showRulesPanel)
+    {
+        <div class="card mb-3 border-secondary">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-sliders me-2"></i><strong>Warnungsregeln konfigurieren</strong></span>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleRulesPanel">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th class="ps-3">Quelle</th>
+                            <th>Beschreibung</th>
+                            <th style="width:140px">Wiederholen (s)</th>
+                            <th class="text-center" style="width:100px">Aktiv</th>
+                            <th style="width:160px">Warnstufe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var def in WarningRuleDefinition.All)
+                        {
+                            var row = _ruleRows[def.Source];
+                            <tr>
+                                <td class="ps-3">
+                                    <i class="bi @GetIcon(def.DefaultLevel) me-1 @GetLevelColor(def.DefaultLevel)"></i>
+                                    <strong>@def.Label</strong>
+                                </td>
+                                <td class="text-muted small">@def.Description</td>
+                                <td>
+                                    <input class="form-control form-control-sm"
+                                           type="number"
+                                           min="0"
+                                           max="3600"
+                                           title="0 = bei jedem Ereignis"
+                                           @bind="row.CooldownSeconds" />
+                                </td>
+                                <td class="text-center">
+                                    <div class="form-check form-switch d-inline-block mb-0">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               role="switch"
+                                               id="rule-enabled-@def.Source"
+                                               checked="@row.IsEnabled"
+                                               @onchange="e => row.IsEnabled = (bool)(e.Value ?? true)" />
+                                    </div>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm"
+                                            value="@row.LevelOverride?.ToString() ?? string.Empty"
+                                            @onchange="e => OnLevelOverrideChanged(row, e.Value?.ToString())">
+                                        <option value="">Standard (@def.DefaultLevel.ToString())</option>
+                                        @foreach (var lvl in Enum.GetValues<WarningLevel>())
+                                        {
+                                            <option value="@lvl.ToString()">@lvl.ToString()</option>
+                                        }
+                                    </select>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer d-flex justify-content-end gap-2">
+                @if (_rulesSaved)
+                {
+                    <span class="text-success small align-self-center">
+                        <i class="bi bi-check-circle me-1"></i>Gespeichert
+                    </span>
+                }
+                <button class="btn btn-sm btn-primary" @onclick="SaveRulesAsync">
+                    <i class="bi bi-floppy me-1"></i>Speichern
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (_warnings.Count == 0)
+    {
+        <div class="alert alert-success d-flex align-items-center gap-2">
+            <i class="bi bi-check-circle-fill"></i>
+            <span>Keine Warnungen vorhanden.</span>
+        </div>
+    }
+    else
+    {
+        <div class="warn-list">
+            @foreach (var warning in _warnings)
+            {
+                <div class="warn-list__item warn-list__item--@warning.Level.ToString().ToLower()">
+                    <div class="warn-list__icon">
+                        <i class="bi @GetIcon(warning.Level)"></i>
+                    </div>
+                    <div class="warn-list__content">
+                        <div class="warn-list__title">
+                            <strong>@warning.Title</strong>
+                            @if (!string.IsNullOrWhiteSpace(warning.Source))
+                            {
+                                <span class="badge bg-secondary ms-2 fw-normal">@warning.Source</span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(warning.Message))
+                        {
+                            <div class="warn-list__message">@warning.Message</div>
+                        }
+                    </div>
+                    <div class="warn-list__meta">
+                        <small class="text-muted">@warning.Timestamp.ToString("HH:mm:ss")</small>
+                        <div class="d-flex gap-1 mt-1">
+                            @if (!string.IsNullOrWhiteSpace(warning.NavigationUrl))
+                            {
+                                <button class="btn btn-sm btn-outline-primary py-0 px-1"
+                                        title="Zur Quelle navigieren"
+                                        @onclick="() => Navigate(warning.NavigationUrl!)">
+                                    <i class="bi bi-arrow-right-circle"></i>
+                                </button>
+                            }
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-1"
+                                    title="Warnung entfernen"
+                                    @onclick="() => Dismiss(warning.Id)">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<WarningEntry> _warnings = [];
+    private bool _showRulesPanel;
+    private bool _rulesSaved;
+
+    // Editable rule state keyed by source — one entry per WarningRuleDefinition
+    private readonly Dictionary<string, RuleRow> _ruleRows = [];
+
+    protected override void OnInitialized()
+    {
+        foreach (var def in WarningRuleDefinition.All)
+        {
+            var config = WarningService.GetRuleConfig(def.Source);
+            _ruleRows[def.Source] = new RuleRow
+            {
+                IsEnabled = config.IsEnabled,
+                CooldownSeconds = config.CooldownSeconds,
+                LevelOverride = config.LevelOverride
+            };
+        }
+
+        _warnings = WarningService.Warnings;
+        WarningService.WarningAdded += OnWarningAdded;
+    }
+
+    private void OnWarningAdded(WarningEntry entry)
+    {
+        _ = InvokeAsync(() =>
+        {
+            _warnings = WarningService.Warnings;
+            StateHasChanged();
+        });
+    }
+
+    private void Dismiss(string id)
+    {
+        WarningService.DismissWarning(id);
+        _warnings = WarningService.Warnings;
+    }
+
+    private void ClearAll()
+    {
+        WarningService.ClearAll();
+        _warnings = WarningService.Warnings;
+    }
+
+    private void Navigate(string url) => Navigation.NavigateTo(url);
+
+    private void ToggleRulesPanel()
+    {
+        _showRulesPanel = !_showRulesPanel;
+        _rulesSaved = false;
+    }
+
+    private static void OnLevelOverrideChanged(RuleRow row, string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            row.LevelOverride = null;
+        }
+        else if (Enum.TryParse<WarningLevel>(value, out var lvl))
+        {
+            row.LevelOverride = lvl;
+        }
+    }
+
+    private async Task SaveRulesAsync()
+    {
+        foreach (var def in WarningRuleDefinition.All)
+        {
+            var row = _ruleRows[def.Source];
+            await WarningService.SaveRuleConfigAsync(def.Source, new WarningRuleConfig
+            {
+                IsEnabled = row.IsEnabled,
+                CooldownSeconds = row.CooldownSeconds,
+                LevelOverride = row.LevelOverride
+            });
+        }
+
+        _rulesSaved = true;
+    }
+
+    private static string GetIcon(WarningLevel level) => level switch
+    {
+        WarningLevel.Critical => "bi-exclamation-octagon-fill",
+        WarningLevel.Info => "bi-info-circle-fill",
+        _ => "bi-exclamation-triangle-fill"
+    };
+
+    private static string GetLevelColor(WarningLevel level) => level switch
+    {
+        WarningLevel.Critical => "text-danger",
+        WarningLevel.Info => "text-info",
+        _ => "text-warning"
+    };
+
+    public ValueTask DisposeAsync()
+    {
+        WarningService.WarningAdded -= OnWarningAdded;
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>Mutable view-model for a single rule row in the configuration panel.</summary>
+    private sealed class RuleRow
+    {
+        public bool IsEnabled { get; set; } = true;
+        public int CooldownSeconds { get; set; } = 30;
+        public WarningLevel? LevelOverride { get; set; }
+    }
+}

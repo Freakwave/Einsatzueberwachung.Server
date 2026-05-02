@@ -262,6 +262,7 @@ internal static class ServiceCollectionExtensions
         services.AddSingleton<IAuditLogService, AuditLogService>();
         services.AddHostedService<AuditLogRelayService>();
         services.AddSingleton<ToastService>();
+        services.AddSingleton<IWarningService, WarningService>();
         services.AddScoped<BrowserPreferencesService>();
         services.AddScoped<IRadioService, RadioService>();
 

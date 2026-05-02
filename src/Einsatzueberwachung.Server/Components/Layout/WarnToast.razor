@@ -1,0 +1,30 @@
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+
+@using Einsatzueberwachung.Domain.Interfaces
+@using Einsatzueberwachung.Domain.Models
+
+@if (_current is not null)
+{
+    <div class="warn-toast warn-toast--@_current.Level.ToString().ToLower() @(_visible ? "warn-toast--in" : "warn-toast--out")"
+         role="alert"
+         aria-live="assertive"
+         aria-atomic="true"
+         title="@(_current.NavigationUrl is not null ? "Klicken zum Navigieren" : null)"
+         @onclick="OnToastClickedAsync">
+        <div class="warn-toast__header">
+            <i class="bi @GetIcon(_current.Level) me-2"></i>
+            <strong class="me-auto">@_current.Title</strong>
+            <small class="warn-toast__time ms-2">@_current.Timestamp.ToString("HH:mm")</small>
+            <button type="button"
+                    class="btn-close btn-close-white ms-2"
+                    aria-label="Schließen"
+                    @onclick:stopPropagation="true"
+                    @onclick="DismissAsync"></button>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_current.Message))
+        {
+            <div class="warn-toast__body">@_current.Message</div>
+        }
+    </div>
+}

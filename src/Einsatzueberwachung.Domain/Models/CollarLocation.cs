@@ -11,6 +11,7 @@ namespace Einsatzueberwachung.Domain.Models
         public double Latitude { get; set; }
         public double Longitude { get; set; }
         public DateTime Timestamp { get; set; }
+        public int? BatteryLevel { get; set; }
 
         public CollarLocation()
         {
@@ -18,14 +19,16 @@ namespace Einsatzueberwachung.Domain.Models
             Latitude = 0;
             Longitude = 0;
             Timestamp = DateTime.UtcNow;
+            BatteryLevel = null;
         }
 
-        public CollarLocation(string collarId, double latitude, double longitude, DateTime timestamp)
+        public CollarLocation(string collarId, double latitude, double longitude, DateTime timestamp, int? batteryLevel = null)
         {
             CollarId = collarId;
             Latitude = latitude;
             Longitude = longitude;
             Timestamp = timestamp;
+            BatteryLevel = batteryLevel;
         }
     }
 }

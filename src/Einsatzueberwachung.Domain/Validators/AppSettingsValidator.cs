@@ -22,5 +22,9 @@ public class AppSettingsValidator : AbstractValidator<AppSettings>
 
         RuleFor(s => s.ThemeMode)
             .NotEmpty().WithMessage("Theme-Modus ist erforderlich");
+
+        RuleFor(s => s.CollarNoSignalTimeoutSeconds)
+            .InclusiveBetween(10, 600)
+            .WithMessage("Kein-Signal-Zeitfenster muss zwischen 10 und 600 Sekunden liegen");
     }
 }

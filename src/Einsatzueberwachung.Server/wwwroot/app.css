@@ -2993,6 +2993,15 @@ main,
     color: var(--ui-muted);
     font-size: 0.88rem;
     max-width: 360px;
+
+    .mission-last-warning {
+        cursor: pointer;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.75rem;
+    }
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

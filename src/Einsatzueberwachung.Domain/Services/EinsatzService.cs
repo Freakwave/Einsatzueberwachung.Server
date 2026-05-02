@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
 
@@ -47,6 +47,7 @@ namespace Einsatzueberwachung.Domain.Services
         public event Action? VermisstenInfoChanged;
         public event Action? ElNotizAdded;
         public event Action<string, string, TeamPhoneLocation>? TeamPhoneLocationChanged;
+        public event Action<Team>? DogPauseStarted;
 
         public EinsatzService(ISettingsService? settingsService = null, ITimeService? timeService = null)
         {

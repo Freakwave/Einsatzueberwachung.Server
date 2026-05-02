@@ -42,41 +42,47 @@ public sealed partial class OsmStaticMapRenderer
     ];
 
     private async Task<Dictionary<(int x, int y), byte[]?>> DownloadTilesAsync(
-        int minX, int maxX, int minY, int maxY, int zoom)
+        int minX, int maxX, int minY, int maxY, int zoom, CancellationToken cancellationToken)
     {
-        var semaphore = new SemaphoreSlim(2);
+        using var semaphore = new SemaphoreSlim(2);
         var tasks = new List<(int x, int y, Task<byte[]?> task)>();
 
         for (int x = minX; x <= maxX; x++)
             for (int y = minY; y <= maxY; y++)
             {
                 var cx = x; var cy = y;
-                tasks.Add((cx, cy, ThrottledDownloadAsync(semaphore, cx, cy, zoom)));
+                tasks.Add((cx, cy, ThrottledDownloadAsync(semaphore, cx, cy, zoom, cancellationToken)));
             }
 
         await Task.WhenAll(tasks.Select(t => t.task));
-        semaphore.Dispose();
 
         return tasks.ToDictionary(t => (t.x, t.y), t => t.task.Result);
     }
 
-    private async Task<byte[]?> ThrottledDownloadAsync(SemaphoreSlim semaphore, int x, int y, int zoom)
+    private async Task<byte[]?> ThrottledDownloadAsync(SemaphoreSlim semaphore, int x, int y, int zoom, CancellationToken cancellationToken)
     {
-        await semaphore.WaitAsync();
-        try { return await DownloadTileAsync(x, y, zoom); }
+        await semaphore.WaitAsync(cancellationToken);
+        try { return await DownloadTileAsync(x, y, zoom, TileServers, cancellationToken); }
         finally { semaphore.Release(); }
     }
 
-    private async Task<byte[]?> DownloadTileAsync(int x, int y, int zoom)
+    private async Task<byte[]?> DownloadTileAsync(int x, int y, int zoom, string[] urlTemplates, CancellationToken cancellationToken)
     {
-        foreach (var template in TileServers)
+        foreach (var template in urlTemplates)
         {
+            if (cancellationToken.IsCancellationRequested) return null;
+            using var perTileCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            perTileCts.CancelAfter(TileTimeout);
             try
             {
                 var url = template.Replace("{z}", zoom.ToString()).Replace("{x}", x.ToString()).Replace("{y}", y.ToString());
-                var response = await _httpClient.GetAsync(url);
+                var response = await _httpClient.GetAsync(url, perTileCts.Token);
                 if (response.IsSuccessStatusCode)
-                    return await response.Content.ReadAsByteArrayAsync();
+                    return await response.Content.ReadAsByteArrayAsync(perTileCts.Token);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return null;
             }
             catch (Exception ex)
             {
@@ -87,48 +93,28 @@ public sealed partial class OsmStaticMapRenderer
     }
 
     private async Task<Dictionary<(int x, int y), byte[]?>> DownloadTilesWithConfigAsync(
-        int minX, int maxX, int minY, int maxY, int zoom, string[] urlTemplates)
+        int minX, int maxX, int minY, int maxY, int zoom, string[] urlTemplates, CancellationToken cancellationToken)
     {
-        var semaphore = new SemaphoreSlim(2);
+        using var semaphore = new SemaphoreSlim(2);
         var tasks = new List<(int x, int y, Task<byte[]?> task)>();
 
         for (int x = minX; x <= maxX; x++)
             for (int y = minY; y <= maxY; y++)
             {
                 var cx = x; var cy = y;
-                tasks.Add((cx, cy, ThrottledDownloadWithConfigAsync(semaphore, cx, cy, zoom, urlTemplates)));
+                tasks.Add((cx, cy, ThrottledDownloadWithConfigAsync(semaphore, cx, cy, zoom, urlTemplates, cancellationToken)));
             }
 
         await Task.WhenAll(tasks.Select(t => t.task));
-        semaphore.Dispose();
 
         return tasks.ToDictionary(t => (t.x, t.y), t => t.task.Result);
     }
 
-    private async Task<byte[]?> ThrottledDownloadWithConfigAsync(SemaphoreSlim semaphore, int x, int y, int zoom, string[] urlTemplates)
+    private async Task<byte[]?> ThrottledDownloadWithConfigAsync(SemaphoreSlim semaphore, int x, int y, int zoom, string[] urlTemplates, CancellationToken cancellationToken)
     {
-        await semaphore.WaitAsync();
-        try { return await DownloadTileWithConfigAsync(x, y, zoom, urlTemplates); }
+        await semaphore.WaitAsync(cancellationToken);
+        try { return await DownloadTileAsync(x, y, zoom, urlTemplates, cancellationToken); }
         finally { semaphore.Release(); }
-    }
-
-    private async Task<byte[]?> DownloadTileWithConfigAsync(int x, int y, int zoom, string[] urlTemplates)
-    {
-        foreach (var template in urlTemplates)
-        {
-            try
-            {
-                var url = template.Replace("{z}", zoom.ToString()).Replace("{x}", x.ToString()).Replace("{y}", y.ToString());
-                var response = await _httpClient.GetAsync(url);
-                if (response.IsSuccessStatusCode)
-                    return await response.Content.ReadAsByteArrayAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "Tile {Zoom}/{X}/{Y} konnte nicht geladen werden", zoom, x, y);
-            }
-        }
-        return null;
     }
 
     private static (SKBitmap bitmap, int w, int h) AssembleTileMosaic(

@@ -4,15 +4,6 @@ namespace Einsatzueberwachung.Domain.Models
     {
         public string PanelId { get; set; } = string.Empty;
         public bool IsVisible { get; set; } = true;
-
-        /// <summary>Breite in 12er-Grid-Spalten (3, 4, 6, 8, 9, 12)</summary>
-        public int ColSpan { get; set; } = 6;
-
-        /// <summary>Reihenfolge im Dashboard (aufsteigend = oben links nach unten rechts)</summary>
-        public int Order { get; set; }
-
-        /// <summary>Feste Höhe des Panel-Body in Pixel. 0 = automatisch (Inhalt bestimmt Höhe).</summary>
-        public int PanelHeight { get; set; } = 0;
     }
 
     public static class KnownPanels
@@ -22,7 +13,6 @@ namespace Einsatzueberwachung.Domain.Models
         public const string Notizen      = "notizen";
         public const string Wetter       = "wetter";
         public const string Suchgebiete  = "suchgebiete";
-        public const string Minimap      = "minimap";
         public const string Vermissten   = "vermissten";
 
         public static readonly Dictionary<string, string> Labels = new()
@@ -32,8 +22,13 @@ namespace Einsatzueberwachung.Domain.Models
             [Notizen]      = "Notizen & Funk",
             [Wetter]       = "Wetter",
             [Suchgebiete]  = "Suchgebiete",
-            [Minimap]      = "Karte (Mini)",
             [Vermissten]   = "Vermissteninfo",
         };
+
+        /// <summary>Feste Reihenfolge der Panels im Layout (beeinflusst Panel-Picker-Reihenfolge).</summary>
+        public static readonly string[] FixedOrder =
+        [
+            EinsatzInfo, Vermissten, Wetter, Teams, Suchgebiete, Notizen
+        ];
     }
 }

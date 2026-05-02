@@ -4309,10 +4309,25 @@ textarea:focus-visible {
    DASHBOARD-LAYOUT (EinsatzMonitor)
    ======================================== */
 
+/* Wenn Monitor-Page aktiv: kein Scroll/Padding in der übergeordneten Kette */
+main:has(.monitor-dashboard-wrapper) {
+    overflow: hidden;
+}
+main:has(.monitor-dashboard-wrapper) .app-content {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
 .monitor-dashboard-wrapper {
     display: flex;
     flex-direction: column;
-    min-height: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 /* Sticky Kopfzeile */
@@ -4321,7 +4336,8 @@ textarea:focus-visible {
     top: 0;
     z-index: 50;
     background: var(--bs-body-bg);
-    border-bottom: 2px solid var(--bs-border-color);
+    border-bottom: none;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
     padding: 0.5rem 1rem;
     display: flex;
     align-items: center;
@@ -4349,56 +4365,95 @@ textarea:focus-visible {
 .monitor-dashboard-grid {
     display: grid;
     grid-template-columns: repeat(12, 1fr);
-    gap: 0.75rem;
-    padding: 0.75rem;
-    align-items: start;
+    grid-template-rows: auto 1fr;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--bs-secondary-bg);
 }
 
-/* Spaltenbreiten-Klassen */
-.gs-col-3  { grid-column: span 3; }
-.gs-col-4  { grid-column: span 4; }
-.gs-col-6  { grid-column: span 6; }
-.gs-col-8  { grid-column: span 8; }
-.gs-col-9  { grid-column: span 9; }
-.gs-col-12 { grid-column: span 12; }
+/* ── Feste Panel-Positionen ─────────────────────────────────────── */
+
+/* Zeile 1: Info (3) | Vermissten (3) | Wetter (3) | Notizen-Start (3) */
+[data-panel-id="einsatz-info"] { grid-column: 1 / 4;  grid-row: 1; }
+[data-panel-id="vermissten"]   { grid-column: 4 / 7;  grid-row: 1; }
+[data-panel-id="wetter"]       { grid-column: 7 / 10; grid-row: 1; }
+
+/* Notizen: rechte Spalte, überspannt beide Zeilen */
+[data-panel-id="notizen"]      { grid-column: 10 / 13; grid-row: 1 / 3; }
+
+/* Zeile 2: Teams (default bis Notizen) | Suchgebiete (3 Sp.) */
+[data-panel-id="teams"]        { grid-column: 1 / 10;  grid-row: 2; }
+[data-panel-id="suchgebiete"]  { grid-column: 7 / 10;  grid-row: 2; }
+
+/* Suchgebiete sichtbar: Teams auf 6 Spalten */
+.monitor-dashboard-grid:has([data-panel-id="suchgebiete"]) [data-panel-id="teams"] {
+    grid-column: 1 / 7;
+}
+
+/* Notizen ausgeblendet: Zeile-1-Panels auf 4 Spalten, Teams/Suchgebiete auf volle Breite */
+.monitor-dashboard-grid:not(:has([data-panel-id="notizen"])) [data-panel-id="einsatz-info"] { grid-column: 1 / 5; }
+.monitor-dashboard-grid:not(:has([data-panel-id="notizen"])) [data-panel-id="vermissten"]   { grid-column: 5 / 9; }
+.monitor-dashboard-grid:not(:has([data-panel-id="notizen"])) [data-panel-id="wetter"]       { grid-column: 9 / 13; }
+.monitor-dashboard-grid:not(:has([data-panel-id="notizen"])) [data-panel-id="teams"]        { grid-column: 1 / 13; }
+.monitor-dashboard-grid:not(:has([data-panel-id="notizen"])) [data-panel-id="suchgebiete"]  { grid-column: 9 / 13; }
+
+/* Suchgebiete + kein Notizen: Teams 8 Sp., Suchgebiete 4 Sp. */
+.monitor-dashboard-grid:has([data-panel-id="suchgebiete"]):not(:has([data-panel-id="notizen"])) [data-panel-id="teams"] {
+    grid-column: 1 / 9;
+}
+.monitor-dashboard-grid:has([data-panel-id="suchgebiete"]):not(:has([data-panel-id="notizen"])) [data-panel-id="suchgebiete"] {
+    grid-column: 9 / 13;
+}
 
 /* Panel-Wrapper & Panel */
 .dashboard-panel-wrapper {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 0;
 }
 
 .dashboard-panel {
     display: flex;
     flex-direction: column;
     border: 1px solid var(--bs-border-color);
-    border-top: 2px solid var(--primary-color);
-    border-radius: 0.375rem;
+    border-top: 3px solid var(--primary-color);
+    border-radius: 0.5rem;
     overflow: hidden;
     background: var(--bs-body-bg);
     height: 100%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
     transition: box-shadow 0.15s ease;
 }
 .dashboard-panel:hover {
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    box-shadow: 0 3px 14px rgba(0, 0, 0, 0.13);
 }
 
 .dashboard-panel-header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
+    padding: 0.4rem 0.75rem;
     background: var(--bs-tertiary-bg);
     border-bottom: 1px solid var(--bs-border-color);
     flex-shrink: 0;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: hidden;
 }
 
 .dashboard-panel-title {
     font-weight: 600;
-    font-size: 0.875rem;
-    letter-spacing: 0.01em;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--bs-secondary-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
     white-space: nowrap;
 }
 
@@ -4408,52 +4463,7 @@ textarea:focus-visible {
     flex: 1;
 }
 
-/* Edit-Controls im Panel-Header */
-.dashboard-panel-edit-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-}
-
-/* Drag-Handle */
-.dashboard-panel-drag-handle {
-    cursor: grab;
-    font-size: 1.1rem;
-    color: var(--bs-secondary-color);
-    flex-shrink: 0;
-}
-
-.dashboard-panel-drag-handle:active {
-    cursor: grabbing;
-}
-
-/* Edit-Mode: Panel hervorheben */
-.dashboard-edit-mode .dashboard-panel {
-    border: 2px dashed var(--bs-primary);
-}
-
-/* SortableJS Ghost & Chosen */
-.dashboard-panel-ghost {
-    opacity: 0.35;
-}
-
-.dashboard-panel-chosen .dashboard-panel {
-    box-shadow: 0 0 0 3px var(--bs-primary);
-}
-
-.dashboard-panel-dragging {
-    opacity: 0.8;
-}
-
-/* Ausgeblendetes Panel */
-.panel-invisible {
-    opacity: 0.45;
-}
-
-.panel-invisible .dashboard-panel {
-    border-style: dotted;
-    border-color: var(--bs-warning-border-subtle);
-}
+/* Ausgeblendetes Panel (wird nicht gerendert, nur im Dropdown-Picker sichtbar) */
 
 /* Wetter-Panel */
 .wetter-panel-content {
@@ -4540,19 +4550,58 @@ textarea:focus-visible {
     flex-shrink: 0;
 }
 
-/* Responsive: Unter 1200px alle Panels full-width */
-@media (max-width: 1199px) {
+/* Responsive: Tablet 768–1199 px → 6-Spalten-Grid */
+@media (min-width: 768px) and (max-width: 1199px) {
     .monitor-dashboard-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(6, 1fr);
+        grid-template-rows: auto auto 1fr auto;
     }
 
-    .gs-col-3,
-    .gs-col-4,
-    .gs-col-6,
-    .gs-col-8,
-    .gs-col-9,
-    .gs-col-12 {
-        grid-column: span 1;
+    /* Zeile 1: Info (2) | Vermissten (2) | Wetter (2) */
+    [data-panel-id="einsatz-info"] { grid-column: 1 / 3 !important; grid-row: 1; }
+    [data-panel-id="vermissten"]   { grid-column: 3 / 5 !important; grid-row: 1; }
+    [data-panel-id="wetter"]       { grid-column: 5 / 7 !important; grid-row: 2; }
+    /* Notizen: kein Row-Span auf Tablet, eigene Zeile rechts */
+    [data-panel-id="notizen"]      { grid-column: 1 / 7 !important; grid-row: 5; }
+
+    /* Teams + Suchgebiete */
+    [data-panel-id="teams"]       { grid-column: 1 / 7 !important; grid-row: 3; }
+    [data-panel-id="suchgebiete"] { grid-column: 1 / 7 !important; grid-row: 4; }
+
+    /* :has()-Regeln für Desktop aufheben */
+    .monitor-dashboard-grid:has([data-panel-id="suchgebiete"]) [data-panel-id="teams"],
+    .monitor-dashboard-grid:not(:has([data-panel-id="notizen"])) [data-panel-id="teams"],
+    .monitor-dashboard-grid:has([data-panel-id="suchgebiete"]):not(:has([data-panel-id="notizen"])) [data-panel-id="teams"] {
+        grid-column: 1 / 7 !important;
+    }
+    .monitor-dashboard-grid:not(:has([data-panel-id="notizen"])) [data-panel-id="einsatz-info"],
+    .monitor-dashboard-grid:not(:has([data-panel-id="notizen"])) [data-panel-id="vermissten"] {
+        grid-column: revert;
+    }
+    .monitor-dashboard-grid:not(:has([data-panel-id="notizen"])) [data-panel-id="wetter"],
+    .monitor-dashboard-grid:not(:has([data-panel-id="notizen"])) [data-panel-id="suchgebiete"],
+    .monitor-dashboard-grid:has([data-panel-id="suchgebiete"]):not(:has([data-panel-id="notizen"])) [data-panel-id="suchgebiete"] {
+        grid-column: 1 / 7 !important;
+    }
+}
+
+/* Responsive: Smartphone < 768 px → 1-spaltig, scrollbar */
+@media (max-width: 767px) {
+    .monitor-dashboard-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        grid-auto-rows: auto;
+        overflow-y: auto;
+    }
+
+    [data-panel-id="einsatz-info"],
+    [data-panel-id="vermissten"],
+    [data-panel-id="wetter"],
+    [data-panel-id="teams"],
+    [data-panel-id="suchgebiete"],
+    [data-panel-id="notizen"] {
+        grid-column: 1 / 2 !important;
+        grid-row: auto !important;
     }
 }
 

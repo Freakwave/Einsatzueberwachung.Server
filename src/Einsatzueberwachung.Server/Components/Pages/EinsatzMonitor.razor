@@ -22,34 +22,41 @@
             }
         </div>
         <div class="monitor-dash-actions">
-            @if (_editMode)
-            {
-                <span class="text-muted small me-2"><i class="bi bi-grid me-1"></i>Layout bearbeiten</span>
-                <button class="btn btn-success btn-sm" @onclick="SaveLayoutAsync">
-                    <i class="bi bi-check-lg me-1"></i>Speichern
+            <div style="position:relative;">
+                <button class="btn btn-outline-secondary btn-sm" type="button"
+                        @onclick="() => _showPanelPicker = !_showPanelPicker">
+                    <i class="bi bi-layout-three-columns me-1"></i>Panels
                 </button>
-                <button class="btn btn-outline-secondary btn-sm" @onclick="CancelEditAsync">
-                    <i class="bi bi-x-lg me-1"></i>Verwerfen
-                </button>
-            }
-            else
-            {
-                <button class="btn btn-outline-primary btn-sm" @onclick="EnterEditModeAsync">
-                    <i class="bi bi-grid me-1"></i>Layout bearbeiten
-                </button>
-                <a class="btn btn-info btn-sm" href="/einsatz-karte">
-                    <i class="bi bi-map me-1"></i>Karte
-                </a>
-                <button class="btn btn-outline-success btn-sm" type="button" @onclick="OpenTeamMobileModal" title="QR-Code fuer Team-Smartphones">
-                    <i class="bi bi-qr-code me-1"></i>Team-Mobile
-                </button>
-                <button class="btn btn-outline-warning btn-sm" type="button" @onclick="OpenTeamMessageModal" title="Nachricht an ein Team-Smartphone">
-                    <i class="bi bi-megaphone me-1"></i>Push
-                </button>
-                <button class="btn btn-danger btn-sm" type="button" @onclick="OpenCloseMissionModal">
-                    <i class="bi bi-stop-circle me-1"></i>Beenden
-                </button>
-            }
+                @if (_showPanelPicker)
+                {
+                    <div style="position:absolute;top:100%;right:0;z-index:1050;min-width:200px;
+                                background:var(--bs-body-bg);border:1px solid var(--bs-border-color);
+                                border-radius:0.375rem;padding:0.5rem;box-shadow:0 4px 16px rgba(0,0,0,.15);">
+                        @foreach (var panel in _currentLayout)
+                        {
+                            <button class="btn btn-sm w-100 text-start d-flex align-items-center gap-2 mb-1"
+                                    @onclick="() => TogglePanelVisibleAsync(panel.PanelId)"
+                                    @onclick:stopPropagation="true">
+                                <i class="bi @(panel.IsVisible ? "bi-toggle-on text-success" : "bi-toggle-off text-secondary") fs-5"></i>
+                                @PanelLabel(panel.PanelId)
+                            </button>
+                        }
+                    </div>
+                    <div style="position:fixed;inset:0;z-index:1049;" @onclick="() => _showPanelPicker = false"></div>
+                }
+            </div>
+            <a class="btn btn-info btn-sm" href="/einsatz-karte">
+                <i class="bi bi-map me-1"></i>Karte
+            </a>
+            <button class="btn btn-outline-success btn-sm" type="button" @onclick="OpenTeamMobileModal" title="QR-Code fuer Team-Smartphones">
+                <i class="bi bi-qr-code me-1"></i>Team-Mobile
+            </button>
+            <button class="btn btn-outline-warning btn-sm" type="button" @onclick="OpenTeamMessageModal" title="Nachricht an ein Team-Smartphone">
+                <i class="bi bi-megaphone me-1"></i>Push
+            </button>
+            <button class="btn btn-danger btn-sm" type="button" @onclick="OpenCloseMissionModal">
+                <i class="bi bi-stop-circle me-1"></i>Beenden
+            </button>
         </div>
     </header>
 
@@ -61,102 +68,62 @@
     }
 
     <div id="monitor-dashboard-grid" class="monitor-dashboard-grid">
-        @foreach (var panel in _currentLayout.OrderBy(p => p.Order))
+        @foreach (var panel in _currentLayout.Where(p => p.IsVisible))
         {
-            @if (panel.IsVisible || _editMode)
-            {
-                <div @key="panel.PanelId"
-                     class="dashboard-panel-wrapper @ColSpanClass(panel.ColSpan) @(!panel.IsVisible ? "panel-invisible" : "")"
-                     data-panel-id="@panel.PanelId">
-                    <div class="dashboard-panel">
-                        <div class="dashboard-panel-header">
-                            @if (_editMode)
-                            {
-                                <i class="bi bi-grip-vertical dashboard-panel-drag-handle me-1"></i>
-                            }
-                            <span class="dashboard-panel-title">@PanelLabel(panel.PanelId)</span>
+            <div @key="panel.PanelId"
+                 class="dashboard-panel-wrapper"
+                 data-panel-id="@panel.PanelId">
+                <div class="dashboard-panel">
+                    <div class="dashboard-panel-header">
+                        <span class="dashboard-panel-title">@PanelLabel(panel.PanelId)</span>
+                        @if (panel.PanelId == KnownPanels.Teams)
+                        {
+                            <div class="ms-auto d-flex align-items-center gap-2">
+                                <a class="btn btn-sm btn-outline-secondary"
+                                   href="/popout-teams"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   title="In neuem Fenster öffnen (Multi-Monitor)">
+                                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                                </a>
+                                <button class="btn btn-sm btn-primary" @onclick="OpenNewTeamModal">
+                                    <i class="bi bi-plus-circle me-1"></i>Team anlegen
+                                </button>
+                            </div>
+                        }
+                        else if (panel.PanelId == KnownPanels.Notizen)
+                        {
+                            <div class="ms-auto">
+                                <a class="btn btn-sm btn-outline-secondary"
+                                   href="/popout-notes"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   title="In neuem Fenster öffnen (Multi-Monitor)">
+                                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                                </a>
+                            </div>
+                        }
+                        else if (panel.PanelId == KnownPanels.EinsatzInfo)
+                        {
+                            <div class="ms-auto">
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="OpenEditEinsatzModal" title="Bearbeiten">
+                                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        }
+                        else if (panel.PanelId == KnownPanels.Vermissten)
+                        {
+                            <div class="ms-auto">
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="OpenVermisstenModal" title="Bearbeiten">
+                                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        }
+                    </div>
 
-                            @if (_editMode)
-                            {
-                                <div class="dashboard-panel-edit-controls ms-auto">
-                                    <div class="btn-group btn-group-sm me-1" title="Breite">
-                                        @foreach (var cs in new[] { 3, 4, 6, 8, 12 })
-                                        {
-                                            <button class="btn btn-sm @(panel.ColSpan == cs ? "btn-primary" : "btn-outline-secondary")"
-                                                    @onclick="() => SetPanelColSpan(panel.PanelId, cs)"
-                                                    title="Breite: @ColSpanLabel(cs)">
-                                                @ColSpanLabel(cs)
-                                            </button>
-                                        }
-                                    </div>
-                                    <div class="btn-group btn-group-sm me-1" title="Höhe">
-                                        @foreach (var h in new[] { 0, 250, 400, 600, 800 })
-                                        {
-                                            <button class="btn btn-sm @(panel.PanelHeight == h ? "btn-info" : "btn-outline-secondary")"
-                                                    @onclick="() => SetPanelHeight(panel.PanelId, h)"
-                                                    title="Höhe: @PanelHeightLabel(h)">
-                                                @PanelHeightLabel(h)
-                                            </button>
-                                        }
-                                    </div>
-                                    <button class="btn btn-sm @(panel.IsVisible ? "btn-outline-secondary" : "btn-outline-warning")"
-                                            @onclick="() => TogglePanelVisible(panel.PanelId)"
-                                            title="@(panel.IsVisible ? "Panel ausblenden" : "Panel einblenden")">
-                                        <i class="bi @(panel.IsVisible ? "bi-eye" : "bi-eye-slash")"></i>
-                                    </button>
-                                </div>
-                            }
-                            else
-                            {
-                                @if (panel.PanelId == KnownPanels.Teams)
-                                {
-                                    <div class="ms-auto d-flex align-items-center gap-2">
-                                        <a class="btn btn-sm btn-outline-secondary"
-                                           href="/popout-teams"
-                                           target="_blank"
-                                           rel="noopener noreferrer"
-                                           title="In neuem Fenster öffnen (Multi-Monitor)">
-                                            <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
-                                        </a>
-                                        <button class="btn btn-sm btn-primary" @onclick="OpenNewTeamModal">
-                                            <i class="bi bi-plus-circle me-1"></i>Team anlegen
-                                        </button>
-                                    </div>
-                                }
-                                else if (panel.PanelId == KnownPanels.Notizen)
-                                {
-                                    <div class="ms-auto">
-                                        <a class="btn btn-sm btn-outline-secondary"
-                                           href="/popout-notes"
-                                           target="_blank"
-                                           rel="noopener noreferrer"
-                                           title="In neuem Fenster öffnen (Multi-Monitor)">
-                                            <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
-                                        </a>
-                                    </div>
-                                }
-                                else if (panel.PanelId == KnownPanels.EinsatzInfo)
-                                {
-                                    <div class="ms-auto">
-                                        <button class="btn btn-sm btn-outline-secondary" @onclick="OpenEditEinsatzModal">
-                                            <i class="bi bi-pencil me-1"></i>Bearbeiten
-                                        </button>
-                                    </div>
-                                }
-                                else if (panel.PanelId == KnownPanels.Vermissten)
-                                {
-                                    <div class="ms-auto">
-                                        <button class="btn btn-sm btn-outline-secondary" @onclick="OpenVermisstenModal">
-                                            <i class="bi bi-pencil me-1"></i>Bearbeiten
-                                        </button>
-                                    </div>
-                                }
-                            }
-                        </div>
-
-                        <div class="dashboard-panel-body" style="@PanelBodyStyle(panel)">
-                            @switch (panel.PanelId)
-                            {
+                    <div class="dashboard-panel-body">
+                        @switch (panel.PanelId)
+                        {
                                 case KnownPanels.EinsatzInfo:
                                     <dl class="row mb-0 small">
                                         <dt class="col-5">Typ</dt>
@@ -580,12 +547,6 @@
                                     }
                                     break;
 
-                                case KnownPanels.Minimap:
-                                    <div id="minimap-panel-map"
-                                         style="height:@(panel.PanelHeight > 0 ? $"{panel.PanelHeight - 10}px" : "320px");width:100%;border-radius:0.25rem;overflow:hidden;">
-                                    </div>
-                                    break;
-
                                 case KnownPanels.Vermissten:
                                     @if (EinsatzService.CurrentEinsatz.VermisstenInfo is null)
                                     {
@@ -670,12 +631,11 @@
                                             </div>
                                         </div>
                                     }
-                                    break;
-                            }
-                        </div>
+                    break;
+                        }
                     </div>
                 </div>
-            }
+            </div>
         }
     </div>
 </div>

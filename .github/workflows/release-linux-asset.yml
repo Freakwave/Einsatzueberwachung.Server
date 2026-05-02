@@ -13,8 +13,34 @@ permissions:
   contents: write
 
 jobs:
-  build-and-upload:
+  build-livetracking:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Publish LiveTracking (Windows x64)
+        run: dotnet publish src/Einsatzueberwachung.LiveTracking -c Release -r win-x64 --self-contained true -o artifacts/livetracking
+
+      - name: Create livetracking.zip
+        shell: pwsh
+        run: Compress-Archive -Path artifacts/livetracking/* -DestinationPath artifacts/livetracking.zip
+
+      - name: Upload livetracking artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: livetracking-zip
+          path: artifacts/livetracking.zip
+
+  build-server:
     runs-on: ubuntu-latest
+    needs: build-livetracking
 
     steps:
       - name: Checkout
@@ -41,6 +67,12 @@ jobs:
 
       - name: Publish server linux-x64
         run: dotnet publish src/Einsatzueberwachung.Server -c Release -r linux-x64 --self-contained false -o artifacts/release/linux-x64/server-${{ steps.version.outputs.version }}
+
+      - name: Download livetracking artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: livetracking-zip
+          path: artifacts/release/linux-x64/server-${{ steps.version.outputs.version }}
 
       - name: Create zip asset
         shell: bash

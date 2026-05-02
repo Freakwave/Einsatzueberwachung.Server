@@ -214,7 +214,9 @@
                                     else
                                     {
                                         <div class="teams-monitor-list">
-                                            @foreach (var team in EinsatzService.Teams.OrderBy(team => team.TeamName))
+                                            @foreach (var team in EinsatzService.Teams
+                                                .OrderBy(team => team.IsPausing ? 2 : team.IsRunning ? 0 : 1)
+                                                .ThenBy(team => team.TeamName))
                                             {
                                                 var isDogConflict = !team.IsRunning && !team.IsPausing
                                                     && !string.IsNullOrWhiteSpace(team.DogId)
@@ -258,9 +260,10 @@
                                                                 {
                                                                     <span class="team-detail"><i class="bi bi-person-fill me-1"></i>@team.HundefuehrerName</span>
                                                                 }
-                                                                @if (!string.IsNullOrWhiteSpace(team.HelferName))
+                                                                @if (team.HelferNames.Count > 0)
                                                                 {
-                                                                    <span class="team-detail"><i class="bi bi-person me-1"></i>@team.HelferName (Helfer)</span>
+                                                                    var helferLabel = team.HelferNames.Count == 1 ? "Helfer" : $"Helfer ({team.HelferNames.Count})";
+                                                                    <span class="team-detail"><i class="bi bi-person me-1"></i>@team.HelferNamesJoined (@helferLabel)</span>
                                                                 }
                                                                 @if (!string.IsNullOrWhiteSpace(team.SearchAreaName))
                                                                 {
@@ -1234,9 +1237,29 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label">Helfer</label>
+                            <label class="form-label">Helfer 1</label>
                             <select class="form-select" @bind="_teamForm.HelferId">
                                 <option value="">Helfer auswaehlen</option>
+                                @foreach (var person in HelferOptions)
+                                {
+                                    <option value="@person.Id">@person.FullName</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Helfer 2 <span class="text-muted small">(optional)</span></label>
+                            <select class="form-select" @bind="_teamForm.HelferId2">
+                                <option value="">— kein zweiter Helfer —</option>
+                                @foreach (var person in HelferOptions)
+                                {
+                                    <option value="@person.Id">@person.FullName</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Helfer 3 <span class="text-muted small">(optional)</span></label>
+                            <select class="form-select" @bind="_teamForm.HelferId3">
+                                <option value="">— kein dritter Helfer —</option>
                                 @foreach (var person in HelferOptions)
                                 {
                                     <option value="@person.Id">@person.FullName</option>

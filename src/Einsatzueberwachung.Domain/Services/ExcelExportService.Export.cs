@@ -158,7 +158,7 @@ namespace Einsatzueberwachung.Domain.Services
                 wsTeams.Cell(tr, 2).Value = typ;
                 wsTeams.Cell(tr, 3).Value = team.DogName ?? "";
                 wsTeams.Cell(tr, 4).Value = team.HundefuehrerName ?? "";
-                wsTeams.Cell(tr, 5).Value = team.HelferName ?? "";
+                wsTeams.Cell(tr, 5).Value = team.HelferNamesJoined;
                 wsTeams.Cell(tr, 6).Value = team.SearchAreaName ?? "";
                 wsTeams.Cell(tr, 7).Value = team.ElapsedTime.ToString(@"hh\:mm\:ss");
                 wsTeams.Cell(tr, 8).Value = status;

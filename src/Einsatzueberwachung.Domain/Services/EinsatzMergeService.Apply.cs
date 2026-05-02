@@ -400,9 +400,12 @@ namespace Einsatzueberwachung.Domain.Services
                 remapping.TryGetValue(t.HundefuehrerId, out var hfId))
                 t.HundefuehrerId = hfId;
 
-            if (!string.IsNullOrEmpty(t.HelferId) &&
-                remapping.TryGetValue(t.HelferId, out var hId))
-                t.HelferId = hId;
+            for (int i = 0; i < t.HelferIds.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(t.HelferIds[i]) &&
+                    remapping.TryGetValue(t.HelferIds[i], out var hId))
+                    t.HelferIds[i] = hId;
+            }
 
             if (!string.IsNullOrEmpty(t.DogId) &&
                 remapping.TryGetValue(t.DogId, out var dId))
@@ -413,7 +416,6 @@ namespace Einsatzueberwachung.Domain.Services
                 t.DroneId = drId;
 
             if (t.HundefuehrerId == string.Empty) { t.HundefuehrerName = string.Empty; }
-            if (t.HelferId == string.Empty) { t.HelferName = string.Empty; }
             if (t.DogId == string.Empty) { t.DogName = string.Empty; }
             if (t.DroneId == string.Empty) { t.DroneType = string.Empty; }
 
@@ -431,8 +433,8 @@ namespace Einsatzueberwachung.Domain.Services
                 DogSpecialization = src.DogSpecialization,
                 HundefuehrerName = src.HundefuehrerName,
                 HundefuehrerId = src.HundefuehrerId,
-                HelferName = src.HelferName,
-                HelferId = src.HelferId,
+                HelferIds = new List<string>(src.HelferIds),
+                HelferNames = new List<string>(src.HelferNames),
                 SearchAreaName = src.SearchAreaName,
                 SearchAreaId = src.SearchAreaId,
                 ElapsedTime = src.ElapsedTime,
@@ -454,7 +456,10 @@ namespace Einsatzueberwachung.Domain.Services
         {
             var names = new List<string>();
             if (!string.IsNullOrEmpty(team.HundefuehrerName)) names.Add(team.HundefuehrerName);
-            if (!string.IsNullOrEmpty(team.HelferName)) names.Add(team.HelferName);
+            foreach (var h in team.HelferNames)
+            {
+                if (!string.IsNullOrEmpty(h)) names.Add(h);
+            }
             return names;
         }
 
@@ -462,7 +467,10 @@ namespace Einsatzueberwachung.Domain.Services
         {
             var names = new List<string>();
             if (!string.IsNullOrEmpty(team.HundefuehrerName)) names.Add(team.HundefuehrerName);
-            if (!string.IsNullOrEmpty(team.HelferName)) names.Add(team.HelferName);
+            foreach (var h in team.HelferNames)
+            {
+                if (!string.IsNullOrEmpty(h)) names.Add(h);
+            }
             return names;
         }
 

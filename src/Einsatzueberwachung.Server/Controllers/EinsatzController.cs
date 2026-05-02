@@ -148,7 +148,7 @@ public class EinsatzController : ControllerBase
             team.TeamName,
             team.DogName,
             team.HundefuehrerName,
-            team.HelferName,
+            team.HelferNamesJoined,
             team.SearchAreaName,
             team.ElapsedTime,
             team.IsRunning,

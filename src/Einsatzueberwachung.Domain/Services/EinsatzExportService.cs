@@ -126,17 +126,26 @@ namespace Einsatzueberwachung.Domain.Services
         private static Team ConvertArchivedTeamToTeam(ArchivedTeam archivedTeam)
         {
             var isDrone = !string.IsNullOrEmpty(archivedTeam.DroneName);
-            return new Team
+            var team = new Team
             {
                 TeamId = archivedTeam.TeamId,
                 TeamName = archivedTeam.TeamName,
                 HundefuehrerName = archivedTeam.MemberNames.ElementAtOrDefault(0) ?? string.Empty,
-                HelferName = archivedTeam.MemberNames.ElementAtOrDefault(1) ?? string.Empty,
                 DogName = archivedTeam.DogName ?? string.Empty,
                 IsDroneTeam = isDrone,
                 DroneType = archivedTeam.DroneName ?? string.Empty,
                 TrackSnapshots = archivedTeam.TrackSnapshots?.ToList() ?? new()
             };
+
+            for (int i = 1; i < archivedTeam.MemberNames.Count && team.HelferNames.Count < 3; i++)
+            {
+                var name = archivedTeam.MemberNames[i];
+                if (string.IsNullOrWhiteSpace(name)) continue;
+                team.HelferIds.Add(string.Empty);
+                team.HelferNames.Add(name);
+            }
+
+            return team;
         }
 
         public byte[] Serialize(EinsatzExportPacket packet)

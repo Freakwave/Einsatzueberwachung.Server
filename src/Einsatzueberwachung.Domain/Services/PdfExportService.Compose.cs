@@ -93,8 +93,9 @@ namespace Einsatzueberwachung.Domain.Services
                         table.Cell().Element(c => CellStyle(c, bg)).Column(col =>
                         {
                             col.Item().Text(team.HundefuehrerName).FontSize(9);
-                            if (!string.IsNullOrWhiteSpace(team.HelferName))
-                                col.Item().Text($"Helfer: {team.HelferName}").FontSize(8).Italic();
+                            var helferText = team.HelferNamesJoined;
+                            if (!string.IsNullOrWhiteSpace(helferText))
+                                col.Item().Text($"Helfer: {helferText}").FontSize(8).Italic();
                         });
 
                         table.Cell().Element(c => CellStyle(c, bg)).Text(team.SearchAreaName ?? "-").FontSize(9);

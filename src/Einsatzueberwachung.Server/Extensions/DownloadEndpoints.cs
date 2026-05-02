@@ -169,6 +169,23 @@ internal static class DownloadEndpoints
 
         app.MapGet("/downloads/livetracking.zip", () =>
         {
+            var candidateZipFiles = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "livetracking.zip"),
+                Path.Combine(AppPathResolver.GetDataDirectory(), "livetracking.zip"),
+                Path.Combine(AppPathResolver.GetDataDirectory(), "livetracking", "livetracking.zip"),
+                Path.Combine(AppContext.BaseDirectory, "wwwroot", "downloads", "livetracking.zip")
+            };
+
+            foreach (var zipPath in candidateZipFiles)
+            {
+                if (File.Exists(zipPath))
+                {
+                    var fileName = $"einsatzueberwachung-livetracking-{DateTime.Now:yyyyMMdd-HHmmss}.zip";
+                    return Results.File(File.ReadAllBytes(zipPath), "application/zip", fileName);
+                }
+            }
+
             var candidateDirectories = new[]
             {
                 Path.Combine(AppContext.BaseDirectory, "livetracking"),
@@ -183,7 +200,7 @@ internal static class DownloadEndpoints
 
             if (sourceDirectory is null)
             {
-                return Results.NotFound("LiveTracking-Paket wurde auf diesem System noch nicht bereitgestellt.");
+                return Results.NotFound("LiveTracking-Paket wurde auf diesem System noch nicht bereitgestellt. Bitte legen Sie 'livetracking.zip' im Datenverzeichnis ab.");
             }
 
             using var memoryStream = new MemoryStream();
@@ -197,8 +214,8 @@ internal static class DownloadEndpoints
                 }
             }
 
-            var fileName = $"einsatzueberwachung-livetracking-{DateTime.Now:yyyyMMdd-HHmmss}.zip";
-            return Results.File(memoryStream.ToArray(), "application/zip", fileName);
+            var bundledFileName = $"einsatzueberwachung-livetracking-{DateTime.Now:yyyyMMdd-HHmmss}.zip";
+            return Results.File(memoryStream.ToArray(), "application/zip", bundledFileName);
         });
 
         return app;

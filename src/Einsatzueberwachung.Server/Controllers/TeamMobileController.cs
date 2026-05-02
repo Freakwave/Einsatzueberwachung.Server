@@ -126,7 +126,15 @@ public sealed class TeamMobileController : ControllerBase
         var teamId = User.FindFirst(TeamMobileAuth.TeamIdClaim)?.Value;
         if (string.IsNullOrWhiteSpace(teamId)) return Unauthorized();
 
-        await _einsatzService.UpdateTeamPhoneLocationAsync(teamId, request.Lat, request.Lng, request.Accuracy);
+        try
+        {
+            await _einsatzService.UpdateTeamPhoneLocationAsync(teamId, request.Lat, request.Lng, request.Accuracy);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "TeamMobile-Standort konnte nicht verarbeitet werden (Team {TeamId})", teamId);
+            return Ok();
+        }
         return Ok();
     }
 
@@ -189,7 +197,7 @@ public sealed class TeamMobileController : ControllerBase
                 teamName = team.TeamName,
                 dogName = team.DogName,
                 hundefuehrerName = team.HundefuehrerName,
-                helferName = team.HelferName,
+                helferName = team.HelferNamesJoined,
                 isRunning = team.IsRunning,
                 collarId = team.CollarId,
                 collarName = team.CollarName

@@ -832,10 +832,13 @@ public partial class EinsatzMonitor
                 _selectedPersonnelIds.Add(fuehrerId);
             }
 
-            if (!string.IsNullOrWhiteSpace(team.HelferName)
-                && personnelByName.TryGetValue(team.HelferName.Trim(), out var helferId))
+            foreach (var helferName in team.HelferNames)
             {
-                _selectedPersonnelIds.Add(helferId);
+                if (!string.IsNullOrWhiteSpace(helferName)
+                    && personnelByName.TryGetValue(helferName.Trim(), out var helferId))
+                {
+                    _selectedPersonnelIds.Add(helferId);
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(team.DogName)
@@ -1149,7 +1152,9 @@ public partial class EinsatzMonitor
         _teamForm.DogId = team.DogId;
         _teamForm.DroneId = team.DroneId;
         _teamForm.HundefuehrerId = team.HundefuehrerId;
-        _teamForm.HelferId = team.HelferId;
+        _teamForm.HelferId = team.HelferIds.ElementAtOrDefault(0) ?? string.Empty;
+        _teamForm.HelferId2 = team.HelferIds.ElementAtOrDefault(1) ?? string.Empty;
+        _teamForm.HelferId3 = team.HelferIds.ElementAtOrDefault(2) ?? string.Empty;
         _teamForm.SearchAreaId = team.SearchAreaId;
         _teamForm.CollarId = team.CollarId ?? string.Empty;
         _teamForm.FirstWarningMinutes = team.FirstWarningMinutes;
@@ -1326,7 +1331,7 @@ public partial class EinsatzMonitor
         var resolvedTeamName = ResolveTeamNameFromForm();
         team.TeamName = resolvedTeamName;
         team.HundefuehrerId = _teamForm.HundefuehrerId;
-        team.HelferId = _teamForm.HelferId;
+        ApplyHelfersToTeam(team);
         team.DogId = string.Empty;
         team.DogName = string.Empty;
         team.DogSpecialization = DogSpecialization.None;
@@ -1339,9 +1344,7 @@ public partial class EinsatzMonitor
         team.Notes = _teamForm.Notes.Trim();
 
         var primaryPerson = _personalList.FirstOrDefault(person => person.Id == _teamForm.HundefuehrerId);
-        var helperPerson = _personalList.FirstOrDefault(person => person.Id == _teamForm.HelferId);
         team.HundefuehrerName = primaryPerson?.FullName ?? string.Empty;
-        team.HelferName = helperPerson?.FullName ?? string.Empty;
 
         if (_teamForm.TeamType == "dog")
         {
@@ -1358,11 +1361,29 @@ public partial class EinsatzMonitor
         }
     }
 
+    private void ApplyHelfersToTeam(Team team)
+    {
+        var ids = new[] { _teamForm.HelferId, _teamForm.HelferId2, _teamForm.HelferId3 };
+        team.HelferIds.Clear();
+        team.HelferNames.Clear();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var id in ids)
+        {
+            if (string.IsNullOrWhiteSpace(id)) continue;
+            if (!seen.Add(id)) continue;
+            var person = _personalList.FirstOrDefault(p => p.Id == id);
+            team.HelferIds.Add(id);
+            team.HelferNames.Add(person?.FullName ?? string.Empty);
+        }
+    }
+
     private async Task OnTeamTypeChangedAsync()
     {
         _teamForm.DogId = string.Empty;
         _teamForm.DroneId = string.Empty;
         _teamForm.HelferId = string.Empty;
+        _teamForm.HelferId2 = string.Empty;
+        _teamForm.HelferId3 = string.Empty;
 
         if (_teamForm.TeamType == "support")
         {
@@ -1594,6 +1615,8 @@ public partial class EinsatzMonitor
         _teamForm.DroneId = string.Empty;
         _teamForm.HundefuehrerId = string.Empty;
         _teamForm.HelferId = string.Empty;
+        _teamForm.HelferId2 = string.Empty;
+        _teamForm.HelferId3 = string.Empty;
         _teamForm.SearchAreaId = string.Empty;
         _teamForm.CollarId = string.Empty;
         _teamForm.FirstWarningMinutes = _appSettings.DefaultFirstWarningMinutes;
@@ -1621,6 +1644,8 @@ public partial class EinsatzMonitor
         public string DroneId { get; set; } = string.Empty;
         public string HundefuehrerId { get; set; } = string.Empty;
         public string HelferId { get; set; } = string.Empty;
+        public string HelferId2 { get; set; } = string.Empty;
+        public string HelferId3 { get; set; } = string.Empty;
         public string SearchAreaId { get; set; } = string.Empty;
         public string CollarId { get; set; } = string.Empty;
         public int FirstWarningMinutes { get; set; } = 45;

@@ -16,7 +16,10 @@ namespace Einsatzueberwachung.Domain.Services
             foreach (var team in teams)
             {
                 if (!string.IsNullOrEmpty(team.HundefuehrerId)) personalIds.Add(team.HundefuehrerId);
-                if (!string.IsNullOrEmpty(team.HelferId))       personalIds.Add(team.HelferId);
+                foreach (var hid in team.HelferIds)
+                {
+                    if (!string.IsNullOrEmpty(hid)) personalIds.Add(hid);
+                }
                 if (!string.IsNullOrEmpty(team.DogId))          dogIds.Add(team.DogId);
                 if (!string.IsNullOrEmpty(team.DroneId))        droneIds.Add(team.DroneId);
             }

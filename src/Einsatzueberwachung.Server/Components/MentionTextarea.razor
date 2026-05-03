@@ -1,0 +1,35 @@
+@using Einsatzueberwachung.Server.Components
+
+<div class="mention-container">
+    <textarea @ref="_textareaRef"
+              class="form-control @AdditionalClass"
+              rows="@Rows"
+              placeholder="@Placeholder"
+              value="@Value"
+              @oninput="HandleInputAsync"
+              @onblur="HandleBlur"></textarea>
+
+    @if (_showDropdown && _filteredSuggestions.Count > 0)
+    {
+        <div class="mention-dropdown" role="listbox">
+            @for (int i = 0; i < _filteredSuggestions.Count; i++)
+            {
+                var idx = i;
+                var suggestion = _filteredSuggestions[i];
+                <div class="mention-item @(idx == _selectedIndex ? "active" : "")"
+                     role="option"
+                     aria-selected="@(idx == _selectedIndex)"
+                     @onmousedown:preventDefault="true"
+                     @onclick="() => SelectSuggestionAsync(suggestion)">
+                    <i class="bi @GetSuggestionIcon(suggestion.Type)"></i>
+                    <span class="mention-type-badge mention-type-@GetTypeCssModifier(suggestion.Type)">@GetTypeLabel(suggestion.Type)</span>
+                    <span class="mention-item-name">@suggestion.DisplayName</span>
+                    @if (!string.IsNullOrEmpty(suggestion.Subtitle))
+                    {
+                        <span class="mention-item-subtitle">@suggestion.Subtitle</span>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>

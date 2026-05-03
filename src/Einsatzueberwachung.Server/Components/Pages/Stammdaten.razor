@@ -115,7 +115,7 @@
                                     <tbody>
                                         @foreach (var person in _personal)
                                         {
-                                            <tr>
+                                            <tr id="entry-@person.Id" class="@(HighlightId == person.Id ? "mention-highlight-row" : "")">
                                                 <td>
                                                     <strong>@person.FullName</strong>
                                                     @if (!string.IsNullOrWhiteSpace(person.Notizen))
@@ -235,7 +235,7 @@
                                     <tbody>
                                         @foreach (var dog in _dogs)
                                         {
-                                            <tr>
+                                            <tr id="entry-@dog.Id" class="@(HighlightId == dog.Id ? "mention-highlight-row" : "")">
                                                 <td>
                                                     <strong>@dog.Name</strong>
                                                     <div class="small text-muted">@dog.Rasse, @dog.Alter Jahre</div>

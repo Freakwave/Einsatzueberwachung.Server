@@ -154,7 +154,7 @@
                                 <div class="el-note-row">
                                     <span class="el-note-time">@note.FormattedTimestamp</span>
                                     <span class="el-note-source">@(string.IsNullOrWhiteSpace(note.SourceTeamName) ? "EL" : note.SourceTeamName)</span>
-                                    <span class="el-note-text">@note.Text</span>
+                                    <span class="el-note-text">@MentionTextarea.RenderWithMentions(note.Text)</span>
                                 </div>
                             }
                         }
@@ -547,7 +547,7 @@
                                         <span class="el-notiz-source">@(string.IsNullOrWhiteSpace(note.SourceTeamName) ? "System" : note.SourceTeamName)</span>
                                         <span class="el-notiz-time">@note.FormattedTimestamp</span>
                                     </div>
-                                    <div class="el-notiz-text">@note.Text</div>
+                                    <div class="el-notiz-text">@MentionTextarea.RenderWithMentions(note.Text)</div>
                                 </div>
                             }
                         }

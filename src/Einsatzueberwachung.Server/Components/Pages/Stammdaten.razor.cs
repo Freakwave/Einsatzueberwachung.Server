@@ -3,6 +3,7 @@ using Einsatzueberwachung.Domain.Models;
 using Einsatzueberwachung.Domain.Models.Enums;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.JSInterop;
 
 namespace Einsatzueberwachung.Server.Components.Pages;
 
@@ -11,6 +12,13 @@ public partial class Stammdaten
     [Inject] private IMasterDataService MasterDataService { get; set; } = default!;
     [Inject] private IExcelExportService ExcelExportService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? InitialTab { get; set; }
+
+    [SupplyParameterFromQuery(Name = "highlight")]
+    public string? HighlightId { get; set; }
 
     private static readonly PersonalSkills[] _personalSkillOptions = Enum.GetValues<PersonalSkills>().Where(value => value != PersonalSkills.None).ToArray();
     private static readonly DogSpecialization[] _dogSpecializationOptions = Enum.GetValues<DogSpecialization>().Where(value => value != DogSpecialization.None).ToArray();
@@ -34,10 +42,29 @@ public partial class Stammdaten
     private bool _showCreateDogModal;
     private bool _showCreateDroneModal;
 
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(InitialTab))
+            _activeTab = InitialTab;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !string.IsNullOrWhiteSpace(HighlightId) && IsValidEntityId(HighlightId))
+            await JS.InvokeVoidAsync("layoutTools.scrollToElement", $"entry-{HighlightId}");
+    }
+
+    /// <summary>
+    /// Sanity-checks that an ID coming from a URL query parameter only contains characters
+    /// that appear in GUIDs (hex digits and hyphens) before it is forwarded to JavaScript.
+    /// </summary>
+    private static bool IsValidEntityId(string id) =>
+        id.Length <= 64 && id.AsSpan().IndexOfAnyExcept("0123456789abcdefABCDEF-".AsSpan()) == -1;
 
     private async Task RefreshAsync()
     {

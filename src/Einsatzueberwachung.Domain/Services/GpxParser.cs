@@ -25,7 +25,7 @@ public static class GpxParser
     /// <exception cref="FormatException">Wenn die GPX-Datei nicht valide XML ist oder keine GPX-Struktur aufweist.</exception>
     public static async Task<List<TrackPoint>> ParseAsync(Stream gpxStream)
     {
-        using var reader = new StreamReader(gpxStream, leaveOpen: true);
+        using var reader = new StreamReader(gpxStream);
         var content = await reader.ReadToEndAsync();
         return Parse(content);
     }

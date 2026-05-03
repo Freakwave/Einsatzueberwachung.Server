@@ -116,7 +116,7 @@ public class GpxImportController : ControllerBase
                 return BadRequest(new ErrorResponse("Nach Anwendung des Zeitfensters wurden keine Punkte übernommen."));
 
             var resolvedColor = color is { Length: > 0 } ? color
-                : TrackColors[Math.Abs(teamId.GetHashCode()) % TrackColors.Length];
+                : TrackColors[(teamId.GetHashCode() & 0x7FFFFFFF) % TrackColors.Length];
 
             var snapshot = new TeamTrackSnapshot
             {
@@ -136,7 +136,7 @@ public class GpxImportController : ControllerBase
 
             _logger.LogInformation(
                 "GPX-Import: {PointCount} Punkte als {TrackType} für Team '{TeamName}' importiert.",
-                filteredPoints.Count, parsedTrackType, team.TeamName);
+                filteredPoints.Count, parsedTrackType, team.TeamName.Replace('\n', ' ').Replace('\r', ' '));
 
             return Ok(snapshot);
         }

@@ -117,7 +117,7 @@ namespace Einsatzueberwachung.Domain.Services
                 Address = PickValue(einsatzData.StaffelAdresse, settings.StaffelAdresse),
                 Telefon = PickValue(einsatzData.StaffelTelefon, settings.StaffelTelefon),
                 Email = PickValue(einsatzData.StaffelEmail, settings.StaffelEmail),
-                LogoPath = PickValue(einsatzData.StaffelLogoPfad, settings.StaffelLogoPfad)
+                LogoPath = PickValue(settings.PdfLogoPfad, settings.StaffelLogoPfad)
             };
         }
 
@@ -130,7 +130,7 @@ namespace Einsatzueberwachung.Domain.Services
                 Address = PickValue(einsatz.StaffelAdresse, settings.StaffelAdresse),
                 Telefon = PickValue(einsatz.StaffelTelefon, settings.StaffelTelefon),
                 Email = PickValue(einsatz.StaffelEmail, settings.StaffelEmail),
-                LogoPath = PickValue(einsatz.StaffelLogoPfad, settings.StaffelLogoPfad)
+                LogoPath = PickValue(settings.PdfLogoPfad, settings.StaffelLogoPfad)
             };
         }
 

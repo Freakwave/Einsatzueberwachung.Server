@@ -99,6 +99,28 @@ public partial class EinsatzMonitor
     private List<DashboardPanelConfig> _currentLayout = new();
     private bool _showPanelPicker;
 
+    // Screensaver (kein aktiver Einsatz)
+    private System.Threading.Timer? _screensaverClockTimer;
+    private DateTime _screensaverNow;
+
+    private bool HasActiveEinsatz =>
+        !string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzort)
+        && EinsatzService.CurrentEinsatz.EinsatzEnde is null;
+
+    private static readonly string[] _screensaverTips =
+    [
+        "Teams können über die Karte visuell verfolgt werden.",
+        "QR-Codes ermöglichen Echtzeit-Updates auf Team-Smartphones.",
+        "GPS-Halsbänder senden Positionen automatisch an den Server.",
+        "Notizen und Funksprüche werden im Einsatzbericht gespeichert.",
+        "Suchgebiete können direkt auf der Karte eingezeichnet werden.",
+        "Der Einsatzbericht kann als PDF oder Excel exportiert werden.",
+        "Archivierte Einsätze können jederzeit eingesehen werden.",
+        "Push-Nachrichten erreichen Teams direkt auf ihren Smartphones.",
+        "Das Dashboard-Layout kann individuell angepasst werden.",
+        "Wetterdaten werden automatisch für den Einsatzort geladen.",
+    ];
+
     private sealed class ClientLocalNowDto
     {
         public int Year { get; set; }
@@ -127,6 +149,12 @@ public partial class EinsatzMonitor
         await RefreshMonitorWeatherAsync(forceGeocoding: true);
         StartWeatherRefreshTimer();
         StartDurationRefreshTimer();
+        _screensaverNow = TimeService.Now;
+        _screensaverClockTimer = new System.Threading.Timer(async _ =>
+        {
+            _screensaverNow = TimeService.Now;
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
     protected override bool ShouldRender() => true;
@@ -149,6 +177,7 @@ public partial class EinsatzMonitor
         EinsatzService.NoteAdded -= OnNoteAdded;
         _weatherRefreshTimer?.Dispose();
         _durationRefreshTimer?.Dispose();
+        _screensaverClockTimer?.Dispose();
     }
 
     // ===== Dashboard-Layout-Methoden =====

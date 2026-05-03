@@ -4675,3 +4675,117 @@ main:has(.monitor-dashboard-wrapper) .app-content {
     border-color: var(--danger-color) !important;
     color: var(--danger-color) !important;
 }
+
+/* ============================================================
+   Home Lobby
+   ============================================================ */
+.home-lobby-wrapper {
+    display: flex;
+    flex-direction: column;
+    /* topbar ~52px + app-content padding ~3.7rem + own padding ~1rem */
+    min-height: calc(100dvh - 52px - 4.7rem);
+    padding: 0.5rem 0.25rem;
+}
+
+.home-lobby-row {
+    flex: 1;
+    min-height: 0;
+}
+
+/* Cards that should stretch to fill column height */
+.home-fill-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.home-fill-body {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.home-clock {
+    font-family: monospace;
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    font-weight: 700;
+    letter-spacing: .05em;
+    line-height: 1;
+}
+
+.home-logo {
+    width: clamp(260px, 28vw, 480px);
+    max-height: clamp(180px, 25vh, 380px);
+    object-fit: contain;
+}
+
+.home-alarm-btn {
+    min-width: 260px;
+    animation: home-alarm-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes home-alarm-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, .5); }
+    50%       { box-shadow: 0 0 0 12px rgba(220, 53, 69, 0); }
+}
+
+.home-stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .75rem;
+}
+
+.home-stat-cell {
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border-radius: .5rem;
+    padding: .75rem;
+    text-align: center;
+}
+
+[data-bs-theme="dark"] .home-stat-cell {
+    background: rgba(255, 255, 255, .05);
+}
+
+.home-stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--primary-color, #0d6efd);
+}
+
+.home-stat-label {
+    font-size: .7rem;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-top: .2rem;
+}
+
+.home-note-list {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.home-note-item {
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border-radius: .4rem;
+    padding: .4rem .6rem;
+    flex-shrink: 0;
+}
+
+[data-bs-theme="dark"] .home-note-item {
+    background: rgba(255, 255, 255, .05);
+}
+
+@media (max-width: 767px) {
+    .home-lobby-wrapper {
+        min-height: auto;
+    }
+}
+
+[data-bs-theme="dark"] .home-note-item {
+    background: rgba(255, 255, 255, .05);
+}

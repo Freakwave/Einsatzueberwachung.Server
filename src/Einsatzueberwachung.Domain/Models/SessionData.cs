@@ -30,6 +30,7 @@ namespace Einsatzueberwachung.Domain.Models
         public string StaffelTelefon { get; set; }
         public string StaffelEmail { get; set; }
         public string StaffelLogoPfad { get; set; }
+        public string PdfLogoPfad { get; set; }
 
         public StaffelSettings()
         {
@@ -38,6 +39,7 @@ namespace Einsatzueberwachung.Domain.Models
             StaffelTelefon = string.Empty;
             StaffelEmail = string.Empty;
             StaffelLogoPfad = string.Empty;
+            PdfLogoPfad = string.Empty;
         }
     }
 

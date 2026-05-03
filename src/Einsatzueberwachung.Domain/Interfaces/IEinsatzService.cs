@@ -86,6 +86,13 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// </summary>
         bool IsDogRunning(string dogId);
 
+        /// <summary>
+        /// Fügt einen manuell importierten oder extern erzeugten Track-Snapshot zum aktuellen Einsatz hinzu.
+        /// </summary>
+        Task AddTrackSnapshotAsync(TeamTrackSnapshot snapshot);
+
+        event Action<TeamTrackSnapshot>? TrackSnapshotAdded;
+
         Task UpdateVermisstenInfoAsync(VermisstenInfo info);
         Task AddElNotizAsync(string text, string prefix = "");
         Task DeleteElNotizAsync(string notizId);

@@ -173,6 +173,7 @@ public partial class EinsatzKarte
                 CollarTrackingService.CollarHistoryCleared += OnCollarHistoryCleared;
                 CollarTrackingService.TrackSnapshotSaved += OnTrackSnapshotSaved;
                 EinsatzService.TeamPhoneLocationChanged += OnTeamPhoneLocationChanged;
+                EinsatzService.TrackSnapshotAdded += OnTrackSnapshotSaved;
 
                 // Bestehende Tracking-Daten automatisch laden (falls Daten vor Seitenbesuch gesendet wurden)
                 _collars = CollarTrackingService.Collars.ToList();
@@ -209,7 +210,7 @@ public partial class EinsatzKarte
                         _completedTrackVisibility[snap.Id] = true;
                         await JSRuntime.InvokeVoidAsync("CollarTracking.addCompletedTrack",
                             "einsatzMap", snap.Id, snap.Points, snap.Color,
-                            snap.TeamName, snap.CollarName ?? snap.CollarId);
+                            snap.TeamName, snap.CollarName ?? snap.CollarId, snap.TrackType.ToString());
                     }
                     StateHasChanged();
                 }
@@ -631,6 +632,14 @@ public partial class EinsatzKarte
         await ToggleCompletedTrackAsync(args.Id, args.Visible);
     }
 
+    private async Task HandleGpxImportedAsync(TeamTrackSnapshot snapshot)
+    {
+        await EinsatzService.AddTrackSnapshotAsync(snapshot);
+        // Das TrackSnapshotAdded-Event löst OnTrackSnapshotSaved aus, welches die Karte aktualisiert.
+        // Sidebar-Tab GPS aktivieren damit der neue Track sichtbar wird.
+        await SetSidebarTabAsync("gps");
+    }
+
     private async Task ActivateClickToPlaceMode()
     {
         _coordInputMode = "click";
@@ -725,7 +734,7 @@ public partial class EinsatzKarte
                     {
                         await JSRuntime.InvokeVoidAsync("CollarTracking.addCompletedTrack",
                             "einsatzMap", snap.Id, snap.Points, snap.Color,
-                            snap.TeamName, snap.CollarName ?? snap.CollarId);
+                            snap.TeamName, snap.CollarName ?? snap.CollarId, snap.TrackType.ToString());
                     }
                 }
             }
@@ -916,7 +925,7 @@ public partial class EinsatzKarte
                 {
                     await JSRuntime.InvokeVoidAsync("CollarTracking.addCompletedTrack",
                         "einsatzMap", snapshot.Id, snapshot.Points, snapshot.Color,
-                        snapshot.TeamName, snapshot.CollarName ?? snapshot.CollarId);
+                        snapshot.TeamName, snapshot.CollarName ?? snapshot.CollarId, snapshot.TrackType.ToString());
                 }
                 StateHasChanged();
             }
@@ -1093,6 +1102,7 @@ public partial class EinsatzKarte
             CollarTrackingService.CollarHistoryCleared -= OnCollarHistoryCleared;
             CollarTrackingService.TrackSnapshotSaved -= OnTrackSnapshotSaved;
             EinsatzService.TeamPhoneLocationChanged -= OnTeamPhoneLocationChanged;
+            EinsatzService.TrackSnapshotAdded -= OnTrackSnapshotSaved;
             await JSRuntime.InvokeVoidAsync("LeafletMap.dispose", "einsatzMap");
             _dotNetReference?.Dispose();
         }

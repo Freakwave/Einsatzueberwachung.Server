@@ -4,10 +4,17 @@
 
 <div class="sidebar-content-header">
     <span class="small fw-semibold text-muted"><i class="bi bi-broadcast me-1"></i>GPS Tracking</span>
-    @if (OobWarnings.Any())
-    {
-        <span class="badge bg-danger pulse-badge">!</span>
-    }
+    <div class="d-flex align-items-center gap-1">
+        @if (OobWarnings.Any())
+        {
+            <span class="badge bg-danger pulse-badge">!</span>
+        }
+        <button class="btn btn-xs btn-outline-primary ms-1"
+                title="GPX-Track importieren"
+                @onclick="OpenImportDialog">
+            <i class="bi bi-cloud-upload me-1"></i>GPX importieren
+        </button>
+    </div>
 </div>
 
 <div class="sidebar-list gps-tab-content">
@@ -97,6 +104,14 @@
                     <div class="snapshot-meta">
                         <div class="snapshot-team-name">@snap.TeamName</div>
                         <div class="snapshot-sub">
+                            @if (snap.TrackType == TrackType.HumanTrack)
+                            {
+                                <span class="badge bg-secondary badge-xs me-1" title="Mensch-Laufweg"><i class="bi bi-person-walking"></i></span>
+                            }
+                            @if (snap.ImportedAt.HasValue)
+                            {
+                                <span class="badge bg-info text-dark badge-xs me-1" title="GPX-Import">Import</span>
+                            }
                             @(snap.CollarName ?? snap.CollarId)
                             @if (!string.IsNullOrEmpty(snap.SearchAreaName))
                             {
@@ -144,6 +159,7 @@
                     <table class="table table-sm table-borderless snapshot-stats-table mb-2">
                         <tbody>
                             <tr><td class="text-muted">Team</td><td><strong>@_detailSnapshot.TeamName</strong></td></tr>
+                            <tr><td class="text-muted">Typ</td><td>@(_detailSnapshot.TrackType == TrackType.HumanTrack ? "Mensch-Laufweg" : "Halsband-Track")@(_detailSnapshot.ImportedAt.HasValue ? " (Import)" : "")</td></tr>
                             <tr><td class="text-muted">Halsband</td><td>@(_detailSnapshot.CollarName ?? _detailSnapshot.CollarId)</td></tr>
                             <tr><td class="text-muted">Suchgebiet</td><td>@(string.IsNullOrEmpty(_detailSnapshot.SearchAreaName) ? "–" : _detailSnapshot.SearchAreaName)</td></tr>
                             <tr><td class="text-muted">Beginn</td><td>@(_detailSnapshot.Points.FirstOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
@@ -187,6 +203,204 @@
     </div>
 }
 
+@* GPX-Import-Dialog *@
+@if (_showImportDialog)
+{
+    <div class="modal-backdrop show" style="z-index: 2100;" @onclick="CloseImportDialog"></div>
+    <div class="modal show d-block" style="z-index: 2101;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title mb-0"><i class="bi bi-cloud-upload me-1"></i>GPX-Track importieren</h6>
+                    <button type="button" class="btn-close" @onclick="CloseImportDialog" disabled="@_importBusy"></button>
+                </div>
+                <div class="modal-body">
+
+                    @* Fehler-Banner *@
+                    @if (!string.IsNullOrEmpty(_importError))
+                    {
+                        <div class="alert alert-danger py-2 small">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>@_importError
+                        </div>
+                    }
+
+                    @* Schritt 1: Datei + Team + Typ *@
+                    @if (_importStep == 1)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">GPX-Datei wählen</label>
+                            <InputFile class="form-control form-control-sm" accept=".gpx"
+                                       OnChange="OnGpxFileSelected" disabled="@_importBusy" />
+                            <div class="form-text">Unterstützt GPX 1.0/1.1. Maximale Dateigröße: 10 MB.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Team zuweisen <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" @bind="_importTeamId">
+                                <option value="">— Team auswählen —</option>
+                                @foreach (var t in Teams)
+                                {
+                                    <option value="@t.TeamId">@t.TeamName</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Track-Typ</label>
+                            <div class="d-flex flex-column gap-1">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" id="importTypeCollar"
+                                           name="importTrackType" value="CollarTrack"
+                                           checked="@(_importTrackType == TrackType.CollarTrack)"
+                                           @onchange="() => _importTrackType = TrackType.CollarTrack" />
+                                    <label class="form-check-label" for="importTypeCollar">
+                                        <i class="bi bi-broadcast me-1 text-primary"></i>
+                                        <strong>Halsband-Track</strong> – GPS-Aufzeichnung eines Hunde-Halsbands
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" id="importTypeHuman"
+                                           name="importTrackType" value="HumanTrack"
+                                           checked="@(_importTrackType == TrackType.HumanTrack)"
+                                           @onchange="() => _importTrackType = TrackType.HumanTrack" />
+                                    <label class="form-check-label" for="importTypeHuman">
+                                        <i class="bi bi-person-walking me-1 text-info"></i>
+                                        <strong>Mensch-Laufweg</strong> – Smartphone- oder Handgerät-Aufzeichnung
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Farbe</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="color" class="form-control form-control-color form-control-sm"
+                                       style="width:40px;height:32px;"
+                                       @bind="_importColor" />
+                                <div class="d-flex gap-1 flex-wrap">
+                                    @foreach (var c in _colorPalette)
+                                    {
+                                        <button type="button"
+                                                class="color-swatch @(_importColor == c ? "active" : "")"
+                                                style="background:@c;"
+                                                @onclick="() => _importColor = c"
+                                                title="@c"></button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @* Schritt 2: Vorschau + Zeitfenster *@
+                    @if (_importStep == 2 && _parsedPoints != null)
+                    {
+                        <div class="mb-2">
+                            <p class="mb-1 small">
+                                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                Datei <strong>@_importFileName</strong> gelesen –
+                                <strong>@_parsedPoints.Count</strong> Punkte gefunden
+                                @if (_parsedPoints.Count > 0 && _parsedPoints[0].Timestamp != DateTime.MinValue)
+                                {
+                                    <text> · @_parsedPoints[0].Timestamp.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                    bis @_parsedPoints[^1].Timestamp.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</text>
+                                }
+                            </p>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-sm-6">
+                                <label class="form-label small mb-1">Von (optional)</label>
+                                <input type="datetime-local" class="form-control form-control-sm"
+                                       @bind="_importStartTime" @bind:format="yyyy-MM-ddTHH:mm"
+                                       @oninput="UpdateFilteredPoints" />
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label small mb-1">Bis (optional)</label>
+                                <input type="datetime-local" class="form-control form-control-sm"
+                                       @bind="_importEndTime" @bind:format="yyyy-MM-ddTHH:mm"
+                                       @oninput="UpdateFilteredPoints" />
+                            </div>
+                        </div>
+
+                        @if (_filteredPoints != null)
+                        {
+                            var excluded = _parsedPoints.Count - _filteredPoints.Count;
+                            <p class="small mb-2">
+                                <i class="bi bi-funnel me-1"></i>
+                                <strong>@_filteredPoints.Count</strong> Punkte übernommen
+                                @if (excluded > 0)
+                                {
+                                    <span class="text-muted"> (@excluded ausgeblendet)</span>
+                                }
+                            </p>
+                        }
+
+                        @* Punkte-Vorschau-Tabelle (max. 200 Zeilen) *@
+                        @if (_parsedPoints.Count > 0)
+                        {
+                            <div class="snapshot-points-scroll">
+                                <table class="table table-xs snapshot-points-table mb-0">
+                                    <thead>
+                                        <tr><th>#</th><th>Zeit</th><th>Lat</th><th>Lng</th><th></th></tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (var pi = 0; pi < Math.Min(_parsedPoints.Count, 200); pi++)
+                                        {
+                                            var pt = _parsedPoints[pi];
+                                            var excluded = _filteredPoints != null && !_filteredPoints.Contains(pt);
+                                            <tr class="@(excluded ? "table-secondary opacity-50 text-decoration-line-through" : "")">
+                                                <td class="text-muted">@(pi + 1)</td>
+                                                <td>@(pt.Timestamp == DateTime.MinValue ? "–" : pt.Timestamp.ToLocalTime().ToString("HH:mm:ss"))</td>
+                                                <td class="font-monospace">@pt.Latitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
+                                                <td class="font-monospace">@pt.Longitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
+                                                <td>@(excluded ? "✗" : "")</td>
+                                            </tr>
+                                        }
+                                        @if (_parsedPoints.Count > 200)
+                                        {
+                                            <tr><td colspan="5" class="text-center text-muted small">... und @(_parsedPoints.Count - 200) weitere Punkte</td></tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="modal-footer py-2">
+                    @if (_importStep == 1)
+                    {
+                        <button class="btn btn-sm btn-primary"
+                                @onclick="AdvanceToStep2"
+                                disabled="@(_importBusy || string.IsNullOrEmpty(_importTeamId) || _parsedPoints == null)">
+                            @if (_importBusy)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            Weiter
+                        </button>
+                    }
+                    else if (_importStep == 2)
+                    {
+                        <button class="btn btn-sm btn-secondary" @onclick="() => _importStep = 1">
+                            <i class="bi bi-arrow-left me-1"></i>Zurück
+                        </button>
+                        <button class="btn btn-sm btn-success"
+                                @onclick="ConfirmImport"
+                                disabled="@(_importBusy || _filteredPoints == null || _filteredPoints.Count == 0)">
+                            @if (_importBusy)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            <i class="bi bi-check-lg me-1"></i>Importieren (@(_filteredPoints?.Count ?? 0) Punkte)
+                        </button>
+                    }
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CloseImportDialog" disabled="@_importBusy">Abbrechen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter, EditorRequired] public List<Collar> Collars { get; set; } = new();
     [Parameter, EditorRequired] public Dictionary<string, string> OobWarnings { get; set; } = new();
@@ -197,7 +411,28 @@
     [Parameter, EditorRequired] public Func<string, string> GetCollarColorFn { get; set; } = _ => "#007bff";
     [Parameter] public EventCallback<Collar> OnZoomToCollar { get; set; }
     [Parameter] public EventCallback<(string Id, bool Visible)> OnToggleTrackVisibility { get; set; }
+    [Parameter] public EventCallback<TeamTrackSnapshot> OnGpxImported { get; set; }
     [Parameter] public Dictionary<string, CollarLocation> CollarLastLocations { get; set; } = new();
+
+    // --- Import-Dialog State ---
+    private bool _showImportDialog;
+    private int _importStep = 1;
+    private string _importTeamId = string.Empty;
+    private TrackType _importTrackType = TrackType.CollarTrack;
+    private string _importColor = "#45B7D1";
+    private string _importFileName = string.Empty;
+    private string _importError = string.Empty;
+    private bool _importBusy;
+    private List<TrackPoint>? _parsedPoints;
+    private List<TrackPoint>? _filteredPoints;
+    private DateTime? _importStartTime;
+    private DateTime? _importEndTime;
+
+    private static readonly string[] _colorPalette =
+    [
+        "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8",
+        "#F7DC6F", "#BB8FCE", "#85C1E2", "#FF8800", "#44FF88"
+    ];
 
     private TeamTrackSnapshot? _detailSnapshot;
     private string? _prevExpandedSnapshotId;
@@ -264,6 +499,134 @@
 
     private void OpenDetailPopup(TeamTrackSnapshot snap) => _detailSnapshot = snap;
     private void CloseDetailPopup() => _detailSnapshot = null;
+
+    // --- GPX Import ---
+
+    private void OpenImportDialog()
+    {
+        _showImportDialog = true;
+        _importStep = 1;
+        _importTeamId = Teams.Count == 1 ? Teams[0].TeamId : string.Empty;
+        _importTrackType = TrackType.CollarTrack;
+        _importColor = "#45B7D1";
+        _importFileName = string.Empty;
+        _importError = string.Empty;
+        _parsedPoints = null;
+        _filteredPoints = null;
+        _importStartTime = null;
+        _importEndTime = null;
+    }
+
+    private void CloseImportDialog()
+    {
+        if (_importBusy) return;
+        _showImportDialog = false;
+    }
+
+    private async Task OnGpxFileSelected(InputFileChangeEventArgs e)
+    {
+        _importError = string.Empty;
+        _parsedPoints = null;
+        _filteredPoints = null;
+        var file = e.File;
+        if (file == null) return;
+
+        if (!file.Name.EndsWith(".gpx", StringComparison.OrdinalIgnoreCase))
+        {
+            _importError = "Nur GPX-Dateien (.gpx) werden unterstützt.";
+            return;
+        }
+
+        _importBusy = true;
+        _importFileName = file.Name;
+        StateHasChanged();
+
+        try
+        {
+            await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            _parsedPoints = await GpxParser.ParseAsync(stream);
+            _filteredPoints = new List<TrackPoint>(_parsedPoints);
+
+            // Zeitfenster initialisieren
+            if (_parsedPoints.Count > 0 && _parsedPoints[0].Timestamp != DateTime.MinValue)
+            {
+                _importStartTime = null;
+                _importEndTime = null;
+            }
+        }
+        catch (FormatException ex)
+        {
+            _importError = $"Fehler beim Lesen der GPX-Datei: {ex.Message}";
+            _parsedPoints = null;
+        }
+        catch (Exception ex)
+        {
+            _importError = $"Unerwarteter Fehler: {ex.Message}";
+            _parsedPoints = null;
+        }
+        finally
+        {
+            _importBusy = false;
+        }
+    }
+
+    private void AdvanceToStep2()
+    {
+        if (string.IsNullOrEmpty(_importTeamId) || _parsedPoints == null) return;
+        _importError = string.Empty;
+        UpdateFilteredPoints();
+        _importStep = 2;
+    }
+
+    private void UpdateFilteredPoints()
+    {
+        if (_parsedPoints == null) return;
+        _filteredPoints = GpxParser.ApplyTimeFilter(_parsedPoints, _importStartTime, _importEndTime);
+    }
+
+    private async Task ConfirmImport()
+    {
+        if (_parsedPoints == null || _filteredPoints == null || _filteredPoints.Count == 0) return;
+
+        var team = Teams.FirstOrDefault(t => t.TeamId == _importTeamId);
+        if (team == null)
+        {
+            _importError = "Team nicht gefunden.";
+            return;
+        }
+
+        _importBusy = true;
+        _importError = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var snapshot = new TeamTrackSnapshot
+            {
+                TeamId = team.TeamId,
+                TeamName = team.TeamName,
+                SearchAreaName = team.SearchAreaName ?? string.Empty,
+                CollarId = _importTrackType == TrackType.CollarTrack ? (team.CollarId ?? string.Empty) : string.Empty,
+                CollarName = _importTrackType == TrackType.CollarTrack ? (team.CollarName ?? string.Empty) : string.Empty,
+                Color = _importColor,
+                CapturedAt = DateTime.Now,
+                TrackType = _importTrackType,
+                ImportedAt = DateTime.Now,
+                Points = _filteredPoints
+            };
+
+            await OnGpxImported.InvokeAsync(snapshot);
+            _showImportDialog = false;
+        }
+        catch (Exception ex)
+        {
+            _importError = $"Fehler beim Importieren: {ex.Message}";
+        }
+        finally
+        {
+            _importBusy = false;
+        }
+    }
 
     private async Task DownloadTrackGpxAsync()
     {

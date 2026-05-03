@@ -68,6 +68,26 @@ jobs:
       - name: Publish server linux-x64
         run: dotnet publish src/Einsatzueberwachung.Server -c Release -r linux-x64 --self-contained false -o artifacts/release/linux-x64/server-${{ steps.version.outputs.version }}
 
+      # Sicherstellen, dass libSkiaSharp.so im Publish-Output liegt.
+      # Mit `--self-contained false` und framework-dependent Publish kommt die native lib
+      # nicht zuverlaessig mit, obwohl SkiaSharp.NativeAssets.Linux referenziert ist.
+      # Wir kopieren sie deshalb explizit aus dem NuGet-Cache.
+      - name: Ensure libSkiaSharp.so in publish output
+        shell: bash
+        run: |
+          PUBLISH_DIR="artifacts/release/linux-x64/server-${{ steps.version.outputs.version }}"
+          if [ -f "$PUBLISH_DIR/libSkiaSharp.so" ] || [ -f "$PUBLISH_DIR/runtimes/linux-x64/native/libSkiaSharp.so" ]; then
+            echo "libSkiaSharp.so bereits im Publish-Output vorhanden"
+          else
+            SKIA_SO=$(find ~/.nuget/packages/skiasharp.nativeassets.linux -path "*/linux-x64/native/libSkiaSharp.so" | sort -V | tail -1)
+            if [ -z "$SKIA_SO" ]; then
+              echo "::error::libSkiaSharp.so nicht im NuGet-Cache gefunden"
+              exit 1
+            fi
+            cp "$SKIA_SO" "$PUBLISH_DIR/libSkiaSharp.so"
+            echo "libSkiaSharp.so kopiert von $SKIA_SO ($(stat -c%s "$PUBLISH_DIR/libSkiaSharp.so") bytes)"
+          fi
+
       - name: Download livetracking artifact
         uses: actions/download-artifact@v4
         with:

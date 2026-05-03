@@ -33,7 +33,7 @@
                         <strong>@(string.IsNullOrWhiteSpace(note.SourceTeamName) ? "System" : note.SourceTeamName)</strong>
                         <span class="text-muted">@note.FormattedDateTime</span>
                     </div>
-                    <div class="mb-2">@note.Text</div>
+                    <div class="mb-2">@MentionTextarea.RenderWithMentions(note.Text)</div>
 
                     <div class="d-flex align-items-center gap-2 mb-2">
                         @if (note.IsEdited)
@@ -71,7 +71,7 @@
                         {
                             <div class="border-start ps-2 mb-1 small">
                                 <span class="text-muted">@reply.SourceTeamName - @reply.FormattedTimestamp</span>
-                                <div>@reply.Text</div>
+                                <div>@MentionTextarea.RenderWithMentions(reply.Text)</div>
                             </div>
                         }
                     }

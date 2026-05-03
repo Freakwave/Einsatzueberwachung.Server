@@ -26,6 +26,15 @@ window.layoutTools.setEmbedMode = function (enabled) {
     }
 };
 
+window.layoutTools.scrollToElement = function (elementId) {
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('mention-scroll-highlight');
+        window.setTimeout(function () { el.classList.remove('mention-scroll-highlight'); }, 2500);
+    }
+};
+
 window.layoutTools.getSidebarCollapsed = function () {
     const value = localStorage.getItem("einsatz.sidebarCollapsed");
     return value === "1" || value === "true";

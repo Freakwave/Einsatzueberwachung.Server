@@ -4787,3 +4787,34 @@ textarea:focus-visible {
     background: rgba(255, 189, 89, 0.15);
     color: #ffbd59;
 }
+
+/* Clickable mention badge (generated as <a>) */
+a.mention-badge-link {
+    text-decoration: none;
+    cursor: pointer;
+}
+
+a.mention-badge-link:hover {
+    filter: brightness(1.15);
+    text-decoration: none;
+}
+
+/* Table row highlight when navigated from a mention */
+.mention-highlight-row {
+    background-color: rgba(13, 110, 253, 0.07) !important;
+}
+
+[data-bs-theme="dark"] .mention-highlight-row {
+    background-color: rgba(99, 179, 237, 0.1) !important;
+}
+
+/* Temporary scroll-into-view pulse for team cards and table rows */
+@keyframes mention-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(13, 110, 253, 0.55); }
+    40%  { box-shadow: 0 0 0 6px rgba(13, 110, 253, 0.25); }
+    100% { box-shadow: 0 0 0 0   rgba(13, 110, 253, 0); }
+}
+
+.mention-scroll-highlight {
+    animation: mention-pulse 2.5s ease-out;
+}

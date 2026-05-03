@@ -23,6 +23,9 @@ public partial class EinsatzMonitor
     [Inject] IJSRuntime JS { get; set; } = default!;
     [Inject] NavigationManager Navigation { get; set; } = default!;
 
+    [SupplyParameterFromQuery(Name = "scrollTo")]
+    public string? ScrollToTeamId { get; set; }
+
     private readonly TeamEditorModel _teamForm = new();
     private readonly Dictionary<string, string> _replyTexts = new();
     private readonly Dictionary<string, string> _replySourceIds = new();
@@ -152,6 +155,8 @@ public partial class EinsatzMonitor
             _dotNetRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("dashboardLayout.init", _dotNetRef, "monitor-dashboard-grid");
             await RefreshEinsatzdauerFromHeaderTimeAsync();
+            if (!string.IsNullOrWhiteSpace(ScrollToTeamId) && IsValidEntityId(ScrollToTeamId))
+                await JS.InvokeVoidAsync("layoutTools.scrollToElement", $"team-{ScrollToTeamId}");
             await InvokeAsync(StateHasChanged);
             return;
         }
@@ -1882,4 +1887,11 @@ public partial class EinsatzMonitor
             () => _vForm.PolizeiDatenschutzGeklaert,
             v => _vForm.PolizeiDatenschutzGeklaert = v);
     }
+
+    /// <summary>
+    /// Validates that an ID coming from a URL query parameter only contains characters
+    /// expected in a GUID (hex digits and hyphens) before it is forwarded to JavaScript.
+    /// </summary>
+    private static bool IsValidEntityId(string id) =>
+        id.Length <= 64 && id.AsSpan().IndexOfAnyExcept("0123456789abcdefABCDEF-".AsSpan()) == -1;
 }

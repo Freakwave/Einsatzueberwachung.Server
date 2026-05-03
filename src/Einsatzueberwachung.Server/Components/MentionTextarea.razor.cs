@@ -119,7 +119,8 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
     private async Task SelectSuggestionAsync(MentionSuggestion suggestion)
     {
         var typePrefix = GetTypeLabel(suggestion.Type); // "Team" | "Person" | "Hund"
-        var mentionText = $"@[{typePrefix}:{suggestion.DisplayName}]";
+        // Embed the entity ID after a "|" separator so rendered badges can navigate to the entity.
+        var mentionText = $"@[{typePrefix}:{suggestion.DisplayName}|{suggestion.Id}]";
         var endOfQuery = _atPosition + 1 + _mentionQuery.Length;
 
         var beforeAt = _atPosition > 0 ? Value[.._atPosition] : string.Empty;
@@ -218,7 +219,7 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
     {
         MentionType.Team => "bi-people-fill",
         MentionType.Person => "bi-person-fill",
-        MentionType.Hund => "bi-heart-fill",
+        MentionType.Hund => "bi-paw-fill",
         _ => "bi-at"
     };
 
@@ -248,9 +249,10 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
     // ── Rendering helpers (used by note display) ────────────────────────────
 
     /// <summary>
-    /// Parses <c>@[Type:Name]</c> (and the legacy <c>@[Name]</c>) tokens inside
-    /// <paramref name="text"/> and returns an HTML fragment in which each token is
-    /// replaced by a typed, color-coded badge span.
+    /// Parses <c>@[Type:Name|Id]</c> (and the legacy <c>@[Type:Name]</c> / <c>@[Name]</c>) tokens
+    /// inside <paramref name="text"/> and returns an HTML fragment in which each token is
+    /// replaced by a typed, color-coded badge.  Tokens with an embedded entity ID become
+    /// clickable <c>&lt;a&gt;</c> links; legacy tokens (no ID) render as plain <c>&lt;span&gt;</c>.
     /// All surrounding text is HTML-encoded to prevent injection.
     /// </summary>
     public static Microsoft.AspNetCore.Components.MarkupString RenderWithMentions(string text)
@@ -268,13 +270,15 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
             sb.Append(encoder.Encode(text[lastIdx..match.Index]));
 
             // Group 1 = optional type prefix (Team, Hund, Person, …)
-            // Group 2 = the display name
-            var typeStr = match.Groups[1].Success ? match.Groups[1].Value : null;
-            var name = encoder.Encode(match.Groups[2].Value);
+            // Group 2 = display name
+            // Group 3 = optional entity ID (after the "|" separator)
+            var typeStr   = match.Groups[1].Success ? match.Groups[1].Value : null;
+            var name      = encoder.Encode(match.Groups[2].Value);
+            var entityId  = match.Groups[3].Success ? match.Groups[3].Value : null;
 
             // Reuse GetSuggestionIcon / GetTypeCssModifier to keep icon and CSS in sync
-            var parsedType = ParseMentionType(typeStr);
-            var iconClass = parsedType.HasValue ? GetSuggestionIcon(parsedType.Value) : "bi-at";
+            var parsedType   = ParseMentionType(typeStr);
+            var iconClass    = parsedType.HasValue ? GetSuggestionIcon(parsedType.Value) : "bi-at";
             var typeModifier = parsedType.HasValue
                 ? $"mention-badge-{GetTypeCssModifier(parsedType.Value)}"
                 : string.Empty;
@@ -283,7 +287,32 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
                 ? "mention-badge"
                 : $"mention-badge {typeModifier}";
 
-            sb.Append($"<span class=\"{cssClass}\"><i class=\"bi {iconClass}\"></i>{name}</span>");
+            // Build a navigation URL when we have both a type and an ID
+            string? href = null;
+            if (entityId != null && parsedType.HasValue)
+            {
+                var safeId = Uri.EscapeDataString(entityId);
+                href = parsedType.Value switch
+                {
+                    MentionType.Team   => $"/einsatz-monitor?scrollTo={safeId}",
+                    MentionType.Person => $"/stammdaten?tab=personal&highlight={safeId}",
+                    MentionType.Hund   => $"/stammdaten?tab=dogs&highlight={safeId}",
+                    _                  => null
+                };
+            }
+
+            if (href != null)
+            {
+                // Uri.EscapeDataString encodes the GUID for URL safety; HtmlEncoder then encodes
+                // '&' to '&amp;' in the attribute value — both steps are correct and required.
+                var safeHref = encoder.Encode(href);
+                sb.Append($"<a href=\"{safeHref}\" class=\"{cssClass} mention-badge-link\" title=\"Details anzeigen\"><i class=\"bi {iconClass}\"></i>{name}</a>");
+            }
+            else
+            {
+                sb.Append($"<span class=\"{cssClass}\"><i class=\"bi {iconClass}\"></i>{name}</span>");
+            }
+
             lastIdx = match.Index + match.Length;
         }
 
@@ -292,12 +321,17 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
     }
 
     /// <summary>
-    /// Matches both the new typed format <c>@[Type:Name]</c> and the legacy
-    /// format <c>@[Name]</c>.
-    /// Group 1 — optional type prefix (letters only, before the colon).
-    /// Group 2 — the display name (at least one non-whitespace, non-] character).
+    /// Matches the stored mention formats:
+    /// <list type="bullet">
+    /// <item><c>@[Type:Name|Id]</c> — new format with entity ID (Groups 1, 2, 3)</item>
+    /// <item><c>@[Type:Name]</c>    — typed without ID (Groups 1, 2; Group 3 absent)</item>
+    /// <item><c>@[Name]</c>         — legacy untyped (only Group 2)</item>
+    /// </list>
+    /// Group 1 — optional type prefix (letters only, before the colon).<br/>
+    /// Group 2 — display name (no <c>|</c> or <c>]</c>).<br/>
+    /// Group 3 — optional entity ID (after <c>|</c>, no <c>]</c>).
     /// </summary>
-    [System.Text.RegularExpressions.GeneratedRegex(@"@\[(?:([A-Za-z]+):)?([^\]\s][^\]]*)\]")]
+    [System.Text.RegularExpressions.GeneratedRegex(@"@\[(?:([A-Za-z]+):)?([^\]\s|][^\]|]*)(?:\|([^\]]+))?\]")]
     private static partial System.Text.RegularExpressions.Regex MentionPattern();
 
     public async ValueTask DisposeAsync()

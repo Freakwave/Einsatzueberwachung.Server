@@ -23,7 +23,11 @@
                      @onclick="() => SelectSuggestionAsync(suggestion)">
                     <i class="bi @GetSuggestionIcon(suggestion.Type)"></i>
                     <span class="mention-type-badge mention-type-@GetTypeCssModifier(suggestion.Type)">@GetTypeLabel(suggestion.Type)</span>
-                    <span>@suggestion.DisplayName</span>
+                    <span class="mention-item-name">@suggestion.DisplayName</span>
+                    @if (!string.IsNullOrEmpty(suggestion.Subtitle))
+                    {
+                        <span class="mention-item-subtitle">@suggestion.Subtitle</span>
+                    }
                 </div>
             }
         </div>

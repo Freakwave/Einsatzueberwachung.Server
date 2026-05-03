@@ -4649,6 +4649,24 @@ textarea:focus-visible {
     transition: background 0.1s;
 }
 
+.mention-item-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mention-item-subtitle {
+    font-size: 0.77rem;
+    color: var(--bs-secondary-color, #6c757d);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 10rem;
+    flex-shrink: 0;
+}
+
 .mention-item:hover,
 .mention-item.active {
     background: rgba(13, 110, 253, 0.08);
@@ -4689,13 +4707,29 @@ textarea:focus-visible {
     display: inline-flex;
     align-items: center;
     gap: 0.15rem;
-    background: rgba(13, 110, 253, 0.1);
-    color: #0d6efd;
+    background: rgba(108, 117, 125, 0.12);
+    color: var(--bs-secondary-color, #6c757d);
     border-radius: 0.25rem;
     padding: 0.05rem 0.35rem;
     font-size: 0.88em;
     font-weight: 500;
     white-space: nowrap;
+}
+
+/* Typed badge modifiers — match the dropdown's color scheme per category */
+.mention-badge.mention-badge-team {
+    background: rgba(25, 135, 84, 0.12);
+    color: #198754;
+}
+
+.mention-badge.mention-badge-person {
+    background: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+}
+
+.mention-badge.mention-badge-hund {
+    background: rgba(255, 152, 0, 0.12);
+    color: #e65100;
 }
 
 /* Dark mode overrides */
@@ -4715,6 +4749,10 @@ textarea:focus-visible {
     background: rgba(99, 179, 237, 0.15);
 }
 
+[data-bs-theme="dark"] .mention-item-subtitle {
+    color: rgba(255, 255, 255, 0.45);
+}
+
 [data-bs-theme="dark"] .mention-type-team {
     background: rgba(72, 199, 142, 0.15);
     color: #48c78e;
@@ -4731,6 +4769,21 @@ textarea:focus-visible {
 }
 
 [data-bs-theme="dark"] .mention-badge {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.55);
+}
+
+[data-bs-theme="dark"] .mention-badge.mention-badge-team {
+    background: rgba(72, 199, 142, 0.15);
+    color: #48c78e;
+}
+
+[data-bs-theme="dark"] .mention-badge.mention-badge-person {
     background: rgba(99, 179, 237, 0.15);
     color: #63b3ed;
+}
+
+[data-bs-theme="dark"] .mention-badge.mention-badge-hund {
+    background: rgba(255, 189, 89, 0.15);
+    color: #ffbd59;
 }

@@ -417,14 +417,76 @@ public partial class EinsatzMonitor
     {
         var result = new List<MentionSuggestion>();
 
+        // ── Teams ────────────────────────────────────────────────────────────
         foreach (var team in EinsatzService.Teams.OrderBy(t => t.TeamName))
-            result.Add(new MentionSuggestion(team.TeamId, team.TeamName, MentionType.Team));
+        {
+            string subtitle;
+            if (team.IsDroneTeam)
+                subtitle = string.IsNullOrWhiteSpace(team.DroneType) ? "Drohnenteam" : $"Drohne: {team.DroneType}";
+            else if (team.IsSupportTeam)
+                subtitle = "Unterstützungsteam";
+            else if (!string.IsNullOrWhiteSpace(team.DogName))
+                subtitle = string.IsNullOrWhiteSpace(team.HundefuehrerName)
+                    ? $"Hund: {team.DogName}"
+                    : $"Hund: {team.DogName} · Führer: {team.HundefuehrerName}";
+            else
+                subtitle = string.IsNullOrWhiteSpace(team.HundefuehrerName) ? string.Empty : $"Führer: {team.HundefuehrerName}";
 
-        foreach (var person in _personalList.Where(p => p.IsActive).OrderBy(p => p.FullName))
-            result.Add(new MentionSuggestion(person.Id, person.FullName, MentionType.Person));
+            result.Add(new MentionSuggestion(team.TeamId, team.TeamName, MentionType.Team, subtitle));
+        }
 
-        foreach (var dog in _dogList.Where(d => d.IsActive).OrderBy(d => d.Name))
-            result.Add(new MentionSuggestion(dog.Id, dog.Name, MentionType.Hund));
+        // ── Persons ──────────────────────────────────────────────────────────
+        var activePersons = _personalList.Where(p => p.IsActive).OrderBy(p => p.FullName).ToList();
+        var personNameGroups = activePersons.GroupBy(p => p.FullName).ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var person in activePersons)
+        {
+            // Disambiguate duplicate full names: ALL copies get a numeric suffix (1), (2), …
+            var displayName = person.FullName;
+            var group = personNameGroups[person.FullName];
+            if (group.Count > 1)
+            {
+                var idx = group.IndexOf(person) + 1;
+                displayName = $"{person.FullName} ({idx})";
+            }
+
+            var subtitle = person.Skills != Domain.Models.Enums.PersonalSkills.None
+                ? person.SkillsShortDisplay
+                : string.Empty;
+
+            result.Add(new MentionSuggestion(person.Id, displayName, MentionType.Person, subtitle));
+        }
+
+        // ── Dogs ─────────────────────────────────────────────────────────────
+        var activeDogs = _dogList.Where(d => d.IsActive).OrderBy(d => d.Name).ToList();
+        var dogNameGroups = activeDogs.GroupBy(d => d.Name).ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var dog in activeDogs)
+        {
+            // Resolve primary handler name for subtitle and disambiguation
+            var handlerName = dog.HundefuehrerIds.Count > 0
+                ? _personalList.FirstOrDefault(p => p.Id == dog.HundefuehrerIds[0])?.FullName ?? string.Empty
+                : string.Empty;
+
+            // When two or more dogs share the same name, disambiguate:
+            // prefer handler name; fall back to numeric suffix when no handler is set.
+            var displayName = dog.Name;
+            var group = dogNameGroups[dog.Name];
+            if (group.Count > 1)
+            {
+                displayName = !string.IsNullOrWhiteSpace(handlerName)
+                    ? $"{dog.Name} / {handlerName}"
+                    : $"{dog.Name} ({group.IndexOf(dog) + 1})";
+            }
+
+            // Subtitle: breed + handler (handler only when not already embedded in displayName)
+            var subtitleParts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(dog.Rasse)) subtitleParts.Add(dog.Rasse);
+            if (!string.IsNullOrWhiteSpace(handlerName) && displayName == dog.Name)
+                subtitleParts.Add($"Führer: {handlerName}");
+
+            result.Add(new MentionSuggestion(dog.Id, displayName, MentionType.Hund, string.Join(", ", subtitleParts)));
+        }
 
         return result;
     }

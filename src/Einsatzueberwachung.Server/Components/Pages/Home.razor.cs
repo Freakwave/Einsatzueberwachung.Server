@@ -1,3 +1,4 @@
+using System.Reflection;
 using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
 using Einsatzueberwachung.Domain.Models.Divera;
@@ -5,55 +6,78 @@ using Microsoft.AspNetCore.Components;
 
 namespace Einsatzueberwachung.Server.Components.Pages;
 
-public partial class Home : IDisposable
+public partial class Home : IAsyncDisposable
 {
-    [Inject] private IEinsatzService EinsatzService { get; set; } = default!;
+    [Inject] private IHomeNotesService HomeNotesService { get; set; } = default!;
     [Inject] private IArchivService ArchivService { get; set; } = default!;
-    [Inject] private IHttpClientFactory HttpClientFactory { get; set; } = default!;
     [Inject] private IDiveraService DiveraService { get; set; } = default!;
-    [Inject] private IWeatherService WeatherService { get; set; } = default!;
+    [Inject] private ISettingsService SettingsService { get; set; } = default!;
+    [Inject] private IEinsatzService EinsatzService { get; set; } = default!;
 
-    private Action<Team>? _teamAddedHandler;
-    private Action<Team>? _teamRemovedHandler;
-    private Action<Team>? _teamUpdatedHandler;
-    private Action<GlobalNotesEntry>? _noteAddedHandler;
-    private bool _serverHealthy;
-    private bool _serverStatusLoading;
-    private string _serverHealthText = "Unbekannt";
-    private string _serverStatusError = string.Empty;
-    private DateTime? _serverLastCheckedAt;
+    private List<HomeNoteEntry> _notes = [];
+    private string _newNoteText = string.Empty;
 
-    private List<DiveraAlarm> _diveraAlarms = new();
+    private ArchivStatistics? _stats;
+    private List<ArchivedEinsatz> _recentEinsaetze = [];
+
+    private List<DiveraAlarm> _diveraAlarms = [];
     private System.Threading.Timer? _diveraTimer;
+    private System.Threading.Timer? _clockTimer;
 
-    private WeatherData? _weather;
-    private FlugwetterData? _flugwetter;
-    private bool _weatherLoading;
-    private string _weatherError = string.Empty;
+    private DateTime _now = DateTime.Now;
+    private string _staffelName = string.Empty;
+    private bool _logoVisible = true;
 
-    protected override void OnInitialized()
-    {
-        _teamAddedHandler = _ => Refresh();
-        _teamRemovedHandler = _ => Refresh();
-        _teamUpdatedHandler = _ => Refresh();
-        _noteAddedHandler = _ => Refresh();
+    private bool _einsatzAktiv;
+    private string _einsatzOrt = string.Empty;
 
-        EinsatzService.EinsatzChanged += Refresh;
-        EinsatzService.TeamAdded += _teamAddedHandler;
-        EinsatzService.TeamRemoved += _teamRemovedHandler;
-        EinsatzService.TeamUpdated += _teamUpdatedHandler;
-        EinsatzService.NoteAdded += _noteAddedHandler;
+    private string _appVersion =
+        Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
 
-        _ = RefreshServerStatusAsync();
-    }
+    private string AvgPersonal =>
+        _stats is { GesamtAnzahl: > 0 }
+            ? (_stats.GesamtPersonalEinsaetze / (double)_stats.GesamtAnzahl).ToString("0.0")
+            : "—";
+
+    private string AvgDuration =>
+        _stats is { GesamtAnzahl: > 0 } && _stats.DurchschnittlicheDauer > TimeSpan.Zero
+            ? _stats.DurchschnittlicheDauer.ToString(@"h\:mm")
+            : "—";
 
     protected override async Task OnInitializedAsync()
     {
+        _notes = await HomeNotesService.GetNotesAsync();
+
+        var staffelSettings = await SettingsService.GetStaffelSettingsAsync();
+        _staffelName = staffelSettings.StaffelName ?? string.Empty;
+
+        _stats = await ArchivService.GetStatisticsAsync();
+        var all = await ArchivService.GetAllArchivedAsync();
+        _recentEinsaetze = all.OrderByDescending(e => e.ArchivedAt).Take(3).ToList();
+
+        RefreshEinsatzState();
+        EinsatzService.EinsatzChanged += OnEinsatzChanged;
+
         await PollDiveraAsync();
 
+        _clockTimer = new System.Threading.Timer(async _ =>
+        {
+            _now = DateTime.Now;
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    private void RefreshEinsatzState()
+    {
         var e = EinsatzService.CurrentEinsatz;
-        if (!string.IsNullOrWhiteSpace(e.Einsatzort))
-            await RefreshWeatherAsync();
+        _einsatzAktiv = !string.IsNullOrWhiteSpace(e.Einsatzort);
+        _einsatzOrt = e.Einsatzort ?? string.Empty;
+    }
+
+    private void OnEinsatzChanged()
+    {
+        RefreshEinsatzState();
+        InvokeAsync(StateHasChanged);
     }
 
     private void ScheduleDiveraTimer()
@@ -75,100 +99,36 @@ public partial class Home : IDisposable
 
     private async Task PollDiveraAsync()
     {
-        try
-        {
-            _diveraAlarms = await DiveraService.GetActiveAlarmsAsync();
-        }
-        catch
-        {
-            _diveraAlarms = new();
-        }
+        try { _diveraAlarms = await DiveraService.GetActiveAlarmsAsync(); }
+        catch { _diveraAlarms = []; }
         ScheduleDiveraTimer();
     }
 
-    private void Refresh() => InvokeAsync(StateHasChanged);
-
-    private async Task RefreshServerStatusAsync()
+    private async Task AddNoteAsync()
     {
-        _serverStatusLoading = true;
-        _serverStatusError = string.Empty;
-
-        try
-        {
-            var client = HttpClientFactory.CreateClient();
-            var response = await client.GetAsync("/health");
-
-            _serverHealthy = response.IsSuccessStatusCode;
-            _serverHealthText = _serverHealthy ? "OK" : $"Fehler ({(int)response.StatusCode})";
-        }
-        catch (Exception ex)
-        {
-            _serverHealthy = false;
-            _serverHealthText = "Nicht erreichbar";
-            _serverStatusError = ex.Message;
-        }
-        finally
-        {
-            _serverLastCheckedAt = DateTime.Now;
-            _serverStatusLoading = false;
-            await InvokeAsync(StateHasChanged);
-        }
+        if (string.IsNullOrWhiteSpace(_newNoteText)) return;
+        await HomeNotesService.AddNoteAsync(_newNoteText);
+        _newNoteText = string.Empty;
+        _notes = await HomeNotesService.GetNotesAsync();
     }
 
-    private async Task RefreshWeatherAsync()
+    private async Task DeleteNoteAsync(string id)
     {
-        var einsatzort = EinsatzService.CurrentEinsatz.Einsatzort;
-        if (string.IsNullOrWhiteSpace(einsatzort)) return;
-
-        _weatherLoading = true;
-        _weatherError = string.Empty;
-        StateHasChanged();
-
-        try
-        {
-            _weather = await WeatherService.GetCurrentWeatherByAddressAsync(einsatzort);
-            if (_weather == null)
-            {
-                _weatherError = "Keine Wetterdaten verfügbar.";
-            }
-            else
-            {
-                var elw = EinsatzService.CurrentEinsatz.ElwPosition;
-                if (elw.HasValue)
-                {
-                    _flugwetter = await WeatherService.GetFlugwetterAsync(elw.Value.Latitude, elw.Value.Longitude);
-                }
-                else
-                {
-                    var coords = await WeatherService.GeocodeAddressAsync(einsatzort);
-                    if (coords.HasValue)
-                        _flugwetter = await WeatherService.GetFlugwetterAsync(coords.Value.Latitude, coords.Value.Longitude);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _weatherError = $"Wetter konnte nicht geladen werden: {ex.Message}";
-        }
-        finally
-        {
-            _weatherLoading = false;
-            await InvokeAsync(StateHasChanged);
-        }
+        await HomeNotesService.DeleteNoteAsync(id);
+        _notes = await HomeNotesService.GetNotesAsync();
     }
 
-    private static string DisplayDateTime(DateTime? value)
+    private async Task OnNoteKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
     {
-        return value.HasValue ? value.Value.ToString("dd.MM.yyyy HH:mm") : "-";
+        if (e.Key == "Enter") await AddNoteAsync();
     }
 
-    public void Dispose()
+    private void OnLogoError() => _logoVisible = false;
+
+    public async ValueTask DisposeAsync()
     {
-        EinsatzService.EinsatzChanged -= Refresh;
-        if (_teamAddedHandler is not null) EinsatzService.TeamAdded -= _teamAddedHandler;
-        if (_teamRemovedHandler is not null) EinsatzService.TeamRemoved -= _teamRemovedHandler;
-        if (_teamUpdatedHandler is not null) EinsatzService.TeamUpdated -= _teamUpdatedHandler;
-        if (_noteAddedHandler is not null) EinsatzService.NoteAdded -= _noteAddedHandler;
-        _diveraTimer?.Dispose();
+        EinsatzService.EinsatzChanged -= OnEinsatzChanged;
+        if (_clockTimer is not null) await _clockTimer.DisposeAsync();
+        if (_diveraTimer is not null) await _diveraTimer.DisposeAsync();
     }
 }

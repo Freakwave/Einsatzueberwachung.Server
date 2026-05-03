@@ -40,6 +40,8 @@ public partial class Einstellungen
     private bool _maintenanceError;
     private string _logoStatus = string.Empty;
     private bool _logoStatusIsError;
+    private string _pdfLogoStatus = string.Empty;
+    private bool _pdfLogoStatusIsError;
     private string _audioTestStatus = string.Empty;
     private bool _audioTestError;
     private UpdateRuntimeStatus _updateStatus = new();
@@ -182,6 +184,7 @@ public partial class Einstellungen
 
         _status = "Einstellungen gespeichert.";
         SetLogoStatus(string.Empty, false);
+        SetPdfLogoStatus(string.Empty, false);
     }
 
     private void OpenTrainerDashboardAsync()
@@ -536,6 +539,74 @@ public partial class Einstellungen
     {
         _logoStatus = message;
         _logoStatusIsError = isError;
+    }
+
+    private void SetPdfLogoStatus(string message, bool isError)
+    {
+        _pdfLogoStatus = message;
+        _pdfLogoStatusIsError = isError;
+    }
+
+    private async Task UploadPdfLogoAsync(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (file is null)
+        {
+            SetPdfLogoStatus("Keine Datei ausgewaehlt.", true);
+            return;
+        }
+
+        var extension = Path.GetExtension(file.Name)?.ToLowerInvariant() ?? string.Empty;
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".png", ".jpg", ".jpeg", ".webp"
+        };
+
+        if (!allowed.Contains(extension))
+        {
+            SetPdfLogoStatus("Ungueltiges Format. Erlaubt sind PNG, JPG, JPEG oder WEBP.", true);
+            return;
+        }
+
+        try
+        {
+            var logoDirectory = Path.Combine(AppPathResolver.GetDataDirectory(), "logos");
+            Directory.CreateDirectory(logoDirectory);
+
+            var targetPath = Path.Combine(logoDirectory, $"pdf-logo{extension}");
+            await using var source = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            await using var target = File.Create(targetPath);
+            await source.CopyToAsync(target);
+
+            _staffelSettings.PdfLogoPfad = targetPath;
+            await SettingsService.SaveStaffelSettingsAsync(_staffelSettings);
+
+            SetPdfLogoStatus("PDF-Logo wurde hochgeladen und gespeichert.", false);
+            _status = "Einstellungen gespeichert.";
+        }
+        catch (Exception ex)
+        {
+            SetPdfLogoStatus($"PDF-Logo-Upload fehlgeschlagen: {ex.Message}", true);
+        }
+    }
+
+    private async Task ClearPdfLogoAsync()
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(_staffelSettings.PdfLogoPfad) && File.Exists(_staffelSettings.PdfLogoPfad))
+            {
+                File.Delete(_staffelSettings.PdfLogoPfad);
+            }
+
+            _staffelSettings.PdfLogoPfad = string.Empty;
+            await SettingsService.SaveStaffelSettingsAsync(_staffelSettings);
+            SetPdfLogoStatus("PDF-Logo wurde entfernt.", false);
+        }
+        catch (Exception ex)
+        {
+            SetPdfLogoStatus($"PDF-Logo konnte nicht entfernt werden: {ex.Message}", true);
+        }
     }
 
     private async Task TestDiveraConnectionAsync()

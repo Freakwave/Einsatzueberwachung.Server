@@ -13,6 +13,7 @@ public partial class Home : IAsyncDisposable
     [Inject] private IDiveraService DiveraService { get; set; } = default!;
     [Inject] private ISettingsService SettingsService { get; set; } = default!;
     [Inject] private IEinsatzService EinsatzService { get; set; } = default!;
+    [Inject] private ITimeService TimeService { get; set; } = default!;
 
     private List<HomeNoteEntry> _notes = [];
     private string _newNoteText = string.Empty;
@@ -24,7 +25,7 @@ public partial class Home : IAsyncDisposable
     private System.Threading.Timer? _diveraTimer;
     private System.Threading.Timer? _clockTimer;
 
-    private DateTime _now = DateTime.Now;
+    private DateTime _now;
     private string _staffelName = string.Empty;
     private bool _logoVisible = true;
 
@@ -60,9 +61,10 @@ public partial class Home : IAsyncDisposable
 
         await PollDiveraAsync();
 
+        _now = TimeService.Now;
         _clockTimer = new System.Threading.Timer(async _ =>
         {
-            _now = DateTime.Now;
+            _now = TimeService.Now;
             await InvokeAsync(StateHasChanged);
         }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
     }

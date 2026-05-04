@@ -362,39 +362,62 @@
                             </label>
                         </div>
 
-                        @if (_importCreateNew)
+                        @if (_importCreateNew && SearchAreas.Any())
                         {
                             <div class="row g-2 mt-1 ms-3">
-                                <div class="col-sm-6">
-                                    <label class="form-label small mb-1">Beginn <span class="text-danger">*</span></label>
-                                    <input type="datetime-local" class="form-control form-control-sm"
-                                           @bind="_importNewSearchStart" @bind:format="@DateTimeLocalFormat" />
+                                <div class="col-12">
+                                    <label class="form-label small mb-1">Suchgebiet (optional)</label>
+                                    <select class="form-select form-select-sm" @bind="_importNewSearchAreaId">
+                                        <option value="">— Kein Suchgebiet —</option>
+                                        @foreach (var area in SearchAreas)
+                                        {
+                                            <option value="@area.Id">@area.Name</option>
+                                        }
+                                    </select>
                                 </div>
-                                <div class="col-sm-6">
-                                    <label class="form-label small mb-1">Ende <span class="text-danger">*</span></label>
-                                    <input type="datetime-local" class="form-control form-control-sm"
-                                           @bind="_importNewSearchEnd" @bind:format="@DateTimeLocalFormat" />
-                                </div>
-                                @if (SearchAreas.Any())
-                                {
-                                    <div class="col-12">
-                                        <label class="form-label small mb-1">Suchgebiet (optional)</label>
-                                        <select class="form-select form-select-sm" @bind="_importNewSearchAreaId">
-                                            <option value="">— Kein Suchgebiet —</option>
-                                            @foreach (var area in SearchAreas)
-                                            {
-                                                <option value="@area.Id">@area.Name</option>
-                                            }
-                                        </select>
-                                    </div>
-                                }
                             </div>
                         }
                     }
 
-                    @* Schritt 3: Vorschau + Zeitfenster *@
+                    @* Schritt 3: Suchzeiten + Vorschau + Truncation *@
                     @if (_importStep == 3 && _parsedPoints != null)
                     {
+                        @* Suchzeiten-Sektion *@
+                        @if (_importCreateNew)
+                        {
+                            <div class="border rounded p-2 mb-3 bg-success bg-opacity-10 border-success">
+                                <p class="small fw-semibold mb-2"><i class="bi bi-plus-circle me-1 text-success"></i>Neue Suche – Zeiten festlegen</p>
+                                <div class="row g-2">
+                                    <div class="col-sm-6">
+                                        <label class="form-label small mb-1">Beginn <span class="text-danger">*</span></label>
+                                        <input type="datetime-local" class="form-control form-control-sm"
+                                               value="@(_importNewSearchStart?.ToString(DateTimeLocalFormat))"
+                                               @oninput="e => OnNewSearchTimeInput(e, true)" />
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label class="form-label small mb-1">Ende <span class="text-danger">*</span></label>
+                                        <input type="datetime-local" class="form-control form-control-sm"
+                                               value="@(_importNewSearchEnd?.ToString(DateTimeLocalFormat))"
+                                               @oninput="e => OnNewSearchTimeInput(e, false)" />
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            var selSearch = _availableSearches.FirstOrDefault(cs => cs.Id == _importCompletedSearchId);
+                            @if (selSearch != null)
+                            {
+                                <div class="border rounded p-2 mb-3 bg-primary bg-opacity-10 border-primary">
+                                    <p class="small mb-0">
+                                        <i class="bi bi-clock me-1 text-primary"></i>
+                                        <strong>Suche:</strong> @selSearch.FormattedTimeRange –
+                                        Punkte werden automatisch auf dieses Zeitfenster gefiltert.
+                                    </p>
+                                </div>
+                            }
+                        }
+
                         <div class="mb-2">
                             <p class="mb-1 small">
                                 <i class="bi bi-check-circle-fill text-success me-1"></i>
@@ -410,16 +433,16 @@
 
                         <div class="row g-2 mb-3">
                             <div class="col-sm-6">
-                                <label class="form-label small mb-1">Von (optional)</label>
-                                <input type="datetime-local" class="form-control form-control-sm"
-                                       value="@(_importStartTime?.ToString(DateTimeLocalFormat))"
-                                       @oninput="e => OnFilterTimeInput(e, true)" />
+                                <label class="form-label small mb-1">Anfang kürzen (Punkte)</label>
+                                <input type="number" class="form-control form-control-sm" min="0"
+                                       value="@_truncateStart"
+                                       @oninput="e => OnTruncateInput(e, true)" />
                             </div>
                             <div class="col-sm-6">
-                                <label class="form-label small mb-1">Bis (optional)</label>
-                                <input type="datetime-local" class="form-control form-control-sm"
-                                       value="@(_importEndTime?.ToString(DateTimeLocalFormat))"
-                                       @oninput="e => OnFilterTimeInput(e, false)" />
+                                <label class="form-label small mb-1">Ende kürzen (Punkte)</label>
+                                <input type="number" class="form-control form-control-sm" min="0"
+                                       value="@_truncateEnd"
+                                       @oninput="e => OnTruncateInput(e, false)" />
                             </div>
                         </div>
 
@@ -498,7 +521,7 @@
                         </button>
                         <button class="btn btn-sm btn-success"
                                 @onclick="ConfirmImport"
-                                disabled="@(_importBusy || _filteredPoints == null || _filteredPoints.Count == 0)">
+                                disabled="@(_importBusy || _filteredPoints == null || _filteredPoints.Count == 0 || (_importCreateNew && (!_importNewSearchStart.HasValue || !_importNewSearchEnd.HasValue)))">
                             @if (_importBusy)
                             {
                                 <span class="spinner-border spinner-border-sm me-1"></span>
@@ -549,16 +572,16 @@
     private bool _importBusy;
     private List<TrackPoint>? _parsedPoints;
     private List<TrackPoint>? _filteredPoints;
-    private DateTime? _importStartTime;
-    private DateTime? _importEndTime;
 
-    // --- Schritt-2-State ---
+    // --- Schritt-2/3-State ---
     private List<CompletedSearch> _availableSearches = new();
     private string? _importCompletedSearchId;
     private bool _importCreateNew;
     private DateTime? _importNewSearchStart;
     private DateTime? _importNewSearchEnd;
     private string? _importNewSearchAreaId;
+    private int _truncateStart;
+    private int _truncateEnd;
 
     private static readonly string[] _colorPalette =
     [
@@ -647,14 +670,14 @@
         _importError = string.Empty;
         _parsedPoints = null;
         _filteredPoints = null;
-        _importStartTime = null;
-        _importEndTime = null;
         _availableSearches = new();
         _importCompletedSearchId = null;
         _importCreateNew = false;
         _importNewSearchStart = null;
         _importNewSearchEnd = null;
         _importNewSearchAreaId = null;
+        _truncateStart = 0;
+        _truncateEnd = 0;
     }
 
     private void CloseImportDialog()
@@ -686,13 +709,6 @@
             await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
             _parsedPoints = await GpxParser.ParseAsync(stream);
             _filteredPoints = new List<TrackPoint>(_parsedPoints);
-
-            // Zeitfenster initialisieren
-            if (_parsedPoints.Count > 0 && _parsedPoints[0].Timestamp != DateTime.MinValue)
-            {
-                _importStartTime = null;
-                _importEndTime = null;
-            }
         }
         catch (FormatException ex)
         {
@@ -739,8 +755,7 @@
 
     private bool CanAdvanceStep2()
     {
-        if (_importCreateNew)
-            return _importNewSearchStart.HasValue && _importNewSearchEnd.HasValue;
+        if (_importCreateNew) return true; // Zeiten werden in Schritt 3 eingegeben
         return !string.IsNullOrEmpty(_importCompletedSearchId);
     }
 
@@ -748,17 +763,30 @@
     {
         if (!CanAdvanceStep2()) return;
         _importError = string.Empty;
+        _truncateStart = 0;
+        _truncateEnd = 0;
         UpdateFilteredPoints();
         _importStep = 3;
+    }
+
+    private (DateTime? Start, DateTime? End) GetEffectiveTimeFilter()
+    {
+        if (_importCreateNew) return (_importNewSearchStart, _importNewSearchEnd);
+        var search = _availableSearches.FirstOrDefault(cs => cs.Id == _importCompletedSearchId);
+        return search != null ? (search.SearchStart, search.SearchEnd) : (null, null);
     }
 
     private void UpdateFilteredPoints()
     {
         if (_parsedPoints == null) return;
-        _filteredPoints = GpxParser.ApplyTimeFilter(_parsedPoints, _importStartTime, _importEndTime);
+        var (start, end) = GetEffectiveTimeFilter();
+        var timeFiltered = GpxParser.ApplyTimeFilter(_parsedPoints, start, end);
+        var skipStart = Math.Max(0, Math.Min(_truncateStart, timeFiltered.Count));
+        var skipEnd = Math.Max(0, Math.Min(_truncateEnd, timeFiltered.Count - skipStart));
+        _filteredPoints = timeFiltered.Skip(skipStart).Take(timeFiltered.Count - skipStart - skipEnd).ToList();
     }
 
-    private void OnFilterTimeInput(ChangeEventArgs e, bool isStart)
+    private void OnNewSearchTimeInput(ChangeEventArgs e, bool isStart)
     {
         var raw = e.Value?.ToString();
         DateTime? parsed = string.IsNullOrWhiteSpace(raw) ? null
@@ -766,12 +794,16 @@
                 System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None, out var dt) ? dt
             : (DateTime?)null;
+        if (isStart) _importNewSearchStart = parsed;
+        else _importNewSearchEnd = parsed;
+        UpdateFilteredPoints();
+    }
 
-        if (isStart)
-            _importStartTime = parsed;
-        else
-            _importEndTime = parsed;
-
+    private void OnTruncateInput(ChangeEventArgs e, bool isStart)
+    {
+        var val = int.TryParse(e.Value?.ToString(), out var n) ? Math.Max(0, n) : 0;
+        if (isStart) _truncateStart = val;
+        else _truncateEnd = val;
         UpdateFilteredPoints();
     }
 

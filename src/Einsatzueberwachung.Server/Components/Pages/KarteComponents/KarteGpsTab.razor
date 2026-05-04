@@ -770,13 +770,20 @@
         _importCompletedSearchId = null;
         _importCreateNew = _availableSearches.Count == 0; // Direkt "Neue Suche" wenn keine vorhanden
 
-        // Zeitvorschlag aus Track-Punkten IMMER vorausfüllen (unabhängig vom CreateNew-Modus),
+        // Zeitvorschlag aus Track-Punkten vorausfüllen (unabhängig vom CreateNew-Modus),
         // damit die Werte auch dann verfügbar sind wenn der Benutzer erst später auf
         // „Neue Suche anlegen" wechselt.
+        // Hat die Datei keine Zeitstempel, veraltete Werte aus einem früheren Import zurücksetzen
+        // damit kein inkonsistentes Start > Ende angezeigt wird.
         if (_parsedPoints.Count > 0 && _parsedPoints[0].Timestamp != DateTime.MinValue)
         {
             _importNewSearchStart = _parsedPoints[0].Timestamp.ToLocalTime();
             _importNewSearchEnd = _parsedPoints[^1].Timestamp.ToLocalTime();
+        }
+        else
+        {
+            _importNewSearchStart = null;
+            _importNewSearchEnd = null;
         }
 
         _importStep = 2;

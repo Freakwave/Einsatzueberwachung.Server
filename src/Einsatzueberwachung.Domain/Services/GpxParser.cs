@@ -78,8 +78,11 @@ public static class GpxParser
         if (points.Count == 0)
             throw new FormatException("GPX-Datei enthält keine Trackpunkte (<trkpt>), Wegpunkte (<wpt>) oder Routenpunkte (<rtept>).");
 
-        // Chronologisch sortieren (Timestamps können ungeordnet vorliegen)
-        points.Sort((a, b) => a.Timestamp.CompareTo(b.Timestamp));
+        // Chronologisch sortieren (Timestamps können ungeordnet vorliegen).
+        // Nur sortieren wenn echte Zeitstempel vorhanden sind – List<T>.Sort ist instabil,
+        // würde bei reinen DateTime.MinValue-Punkten die Datei-Reihenfolge zerstören.
+        if (points.Any(p => p.Timestamp != DateTime.MinValue))
+            points.Sort((a, b) => a.Timestamp.CompareTo(b.Timestamp));
 
         return points;
     }

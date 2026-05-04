@@ -182,7 +182,7 @@ public class GpxImportController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fehler beim GPX-Import für Team {TeamId}", teamId);
+            _logger.LogError(ex, "Fehler beim GPX-Import für Team {TeamId}", teamId.Replace('\n', ' ').Replace('\r', ' '));
             return StatusCode(500, new ErrorResponse("Interner Fehler beim Importieren der GPX-Datei."));
         }
     }

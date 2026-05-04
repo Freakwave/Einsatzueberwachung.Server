@@ -368,12 +368,12 @@
                                 <div class="col-sm-6">
                                     <label class="form-label small mb-1">Beginn <span class="text-danger">*</span></label>
                                     <input type="datetime-local" class="form-control form-control-sm"
-                                           @bind="_importNewSearchStart" @bind:format="yyyy-MM-ddTHH:mm" />
+                                           @bind="_importNewSearchStart" @bind:format="@DateTimeLocalFormat" />
                                 </div>
                                 <div class="col-sm-6">
                                     <label class="form-label small mb-1">Ende <span class="text-danger">*</span></label>
                                     <input type="datetime-local" class="form-control form-control-sm"
-                                           @bind="_importNewSearchEnd" @bind:format="yyyy-MM-ddTHH:mm" />
+                                           @bind="_importNewSearchEnd" @bind:format="@DateTimeLocalFormat" />
                                 </div>
                                 @if (SearchAreas.Any())
                                 {
@@ -412,13 +412,13 @@
                             <div class="col-sm-6">
                                 <label class="form-label small mb-1">Von (optional)</label>
                                 <input type="datetime-local" class="form-control form-control-sm"
-                                       @bind="_importStartTime" @bind:format="yyyy-MM-ddTHH:mm"
+                                       @bind="_importStartTime" @bind:format="@DateTimeLocalFormat"
                                        @oninput="UpdateFilteredPoints" />
                             </div>
                             <div class="col-sm-6">
                                 <label class="form-label small mb-1">Bis (optional)</label>
                                 <input type="datetime-local" class="form-control form-control-sm"
-                                       @bind="_importEndTime" @bind:format="yyyy-MM-ddTHH:mm"
+                                       @bind="_importEndTime" @bind:format="@DateTimeLocalFormat"
                                        @oninput="UpdateFilteredPoints" />
                             </div>
                         </div>
@@ -565,6 +565,8 @@
         "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8",
         "#F7DC6F", "#BB8FCE", "#85C1E2", "#FF8800", "#44FF88"
     ];
+
+    private const string DateTimeLocalFormat = "yyyy-MM-ddTHH:mm";
 
     private TeamTrackSnapshot? _detailSnapshot;
     private string? _prevExpandedSnapshotId;

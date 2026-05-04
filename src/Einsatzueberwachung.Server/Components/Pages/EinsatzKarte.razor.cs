@@ -814,6 +814,15 @@ public partial class EinsatzKarte
         await JSRuntime.InvokeVoidAsync("CollarTracking.zoomToCollar", "einsatzMap", collar.Id);
     }
 
+    private async Task ZoomToCompletedTrackAsync(string snapshotId)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("CollarTracking.zoomToCompletedTrack", "einsatzMap", snapshotId);
+        }
+        catch (Exception) { }
+    }
+
     private async Task ApplyCollarFocusFromQueryAsync()
     {
         if (!_mapInitialized || _collarFocusApplyRunning || string.IsNullOrWhiteSpace(_focusCollarId))

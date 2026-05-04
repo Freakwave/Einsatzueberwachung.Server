@@ -134,15 +134,17 @@
                                     {
                                         <span class="badge bg-primary badge-xs me-1" title="Halsband-Track"><i class="bi bi-broadcast"></i></span>
                                     }
-                                    @if (snap.ImportedAt.HasValue)
-                                    {
-                                        <span class="badge bg-secondary badge-xs me-1" title="GPX-Import">Import</span>
-                                    }
                                     @(snap.CollarName ?? snap.CollarId)
                                 </div>
                                 <div class="snapshot-sub">@snap.FormattedDuration · @snap.FormattedDistance · @snap.Points.Count Pkt.</div>
                             </div>
                             <div class="snapshot-controls">
+                                <button class="btn btn-xs btn-outline-secondary"
+                                        title="Auf Karte anzeigen"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => OnZoomToTrack.InvokeAsync(snap.Id)">
+                                    <i class="bi bi-geo-alt"></i>
+                                </button>
                                 <button class="btn btn-xs @(isVisible ? "btn-outline-secondary" : "btn-outline-secondary opacity-50")"
                                         title="@(isVisible ? "Auf Karte ausblenden" : "Auf Karte einblenden")"
                                         @onclick:stopPropagation="true"
@@ -183,7 +185,7 @@
                     <table class="table table-sm table-borderless snapshot-stats-table mb-2">
                         <tbody>
                             <tr><td class="text-muted">Team</td><td><strong>@_detailSnapshot.TeamName</strong></td></tr>
-                            <tr><td class="text-muted">Typ</td><td>@(_detailSnapshot.TrackType == TrackType.HumanTrack ? "Mensch-Laufweg" : "Halsband-Track")@(_detailSnapshot.ImportedAt.HasValue ? " (Import)" : "")</td></tr>
+                            <tr><td class="text-muted">Typ</td><td>@(_detailSnapshot.TrackType == TrackType.HumanTrack ? "Mensch-Laufweg" : "Halsband-Track")</td></tr>
                             <tr><td class="text-muted">Halsband</td><td>@(_detailSnapshot.CollarName ?? _detailSnapshot.CollarId)</td></tr>
                             <tr><td class="text-muted">Suchgebiet</td><td>@(string.IsNullOrEmpty(_detailSnapshot.SearchAreaName) ? "–" : _detailSnapshot.SearchAreaName)</td></tr>
                             <tr><td class="text-muted">Beginn</td><td>@(_detailSnapshot.Points.FirstOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
@@ -468,7 +470,7 @@
                                         <tr><th>#</th><th>Zeit</th><th>Lat</th><th>Lng</th><th></th></tr>
                                     </thead>
                                     <tbody>
-                                        @for (var pi = 0; pi < Math.Min(_parsedPoints.Count, 200); pi++)
+                                        @for (var pi = 0; pi < Math.Min(_parsedPoints.Count, _importShowAllPoints ? int.MaxValue : 200); pi++)
                                         {
                                             var pt = _parsedPoints[pi];
                                             var excluded = _filteredPoints != null && !_filteredPoints.Contains(pt);
@@ -480,9 +482,15 @@
                                                 <td>@(excluded ? "✗" : "")</td>
                                             </tr>
                                         }
-                                        @if (_parsedPoints.Count > 200)
+                                        @if (_parsedPoints.Count > 200 && !_importShowAllPoints)
                                         {
-                                            <tr><td colspan="5" class="text-center text-muted small">... und @(_parsedPoints.Count - 200) weitere Punkte</td></tr>
+                                            <tr>
+                                                <td colspan="5" class="text-center small p-1">
+                                                    <button class="btn btn-link btn-sm p-0" @onclick="() => _importShowAllPoints = true">
+                                                        ... und @(_parsedPoints.Count - 200) weitere Punkte anzeigen
+                                                    </button>
+                                                </td>
+                                            </tr>
                                         }
                                     </tbody>
                                 </table>
@@ -548,6 +556,7 @@
     [Parameter] public string? ExpandedSnapshotId { get; set; }
     [Parameter, EditorRequired] public Func<string, string> GetCollarColorFn { get; set; } = _ => "#007bff";
     [Parameter] public EventCallback<Collar> OnZoomToCollar { get; set; }
+    [Parameter] public EventCallback<string> OnZoomToTrack { get; set; }
     [Parameter] public EventCallback<(string Id, bool Visible)> OnToggleTrackVisibility { get; set; }
     [Parameter] public EventCallback<GpxImportRequest> OnGpxImported { get; set; }
     [Parameter] public Dictionary<string, CollarLocation> CollarLastLocations { get; set; } = new();
@@ -582,6 +591,7 @@
     private string? _importNewSearchAreaId;
     private int _truncateStart;
     private int _truncateEnd;
+    private bool _importShowAllPoints;
 
     private static readonly string[] _colorPalette =
     [
@@ -765,6 +775,7 @@
         _importError = string.Empty;
         _truncateStart = 0;
         _truncateEnd = 0;
+        _importShowAllPoints = false;
         UpdateFilteredPoints();
         _importStep = 3;
     }

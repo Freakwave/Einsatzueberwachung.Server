@@ -64,6 +64,12 @@ namespace Einsatzueberwachung.Domain.Models
         // === GPS-Tracks ===
         public List<TeamTrackSnapshot> TrackSnapshots { get; set; } = new();
 
+        /// <summary>
+        /// Abgeschlossene Suchen (gruppiert). Max. 1 Hund- + 1 Mensch-Track pro Suche.
+        /// Kann null sein bei alten archivierten Einsätzen – Fallback auf <see cref="TrackSnapshots"/>.
+        /// </summary>
+        public List<CompletedSearch>? CompletedSearches { get; set; }
+
         // === Zusammenführungs-Protokoll ===
         /// <summary>Zeitpunkt der letzten Import-Zusammenführung (null = noch nie zusammengeführt).</summary>
         public DateTime? LastMergedAt { get; set; }
@@ -115,7 +121,8 @@ namespace Einsatzueberwachung.Domain.Models
                 GlobalNotesEntries = data.GlobalNotesEntries ?? new List<GlobalNotesEntry>(),
                 SearchAreas = data.SearchAreas ?? new List<SearchArea>(),
                 ElwPosition = data.ElwPosition,
-                TrackSnapshots = data.TrackSnapshots?.ToList() ?? new()
+                TrackSnapshots = data.TrackSnapshots?.ToList() ?? new(),
+                CompletedSearches = data.CompletedSearches?.ToList() ?? new()
             };
 
             var personalNamen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

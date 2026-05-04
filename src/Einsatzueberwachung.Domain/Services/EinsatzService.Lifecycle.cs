@@ -183,6 +183,7 @@ namespace Einsatzueberwachung.Domain.Services
             }
 
             EnsureCurrentEinsatzTeamReference();
+            MigrateTrackSnapshotsToCompletedSearches();
             EinsatzChanged?.Invoke();
 
             return Task.CompletedTask;

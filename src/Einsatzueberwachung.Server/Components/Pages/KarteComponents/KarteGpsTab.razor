@@ -86,50 +86,74 @@
         </div>
     }
 
-    @* Abgeschlossene Suchen *@
-    @if (CompletedSnapshots.Any())
+    @* Abgeschlossene Suchen – gruppiert nach CompletedSearch *@
+    @if (CompletedSearches.Any())
     {
         <div class="sidebar-section-header mt-2">
             <span><i class="bi bi-archive me-1"></i>Abgeschlossene Suchen</span>
-            <span class="badge bg-secondary">@CompletedSnapshots.Count</span>
+            <span class="badge bg-secondary">@CompletedSearches.Count</span>
         </div>
-        @foreach (var snap in CompletedSnapshots)
+        @foreach (var search in CompletedSearches)
         {
-            var isVisible = !CompletedTrackVisibility.TryGetValue(snap.Id, out var sv) || sv;
-            <div class="snapshot-item">
-                <div class="snapshot-summary"
-                     @onclick="() => OpenDetailPopup(snap)"
-                     title="Details anzeigen">
-                    <span class="snapshot-color-bar" style="background:@snap.Color"></span>
-                    <div class="snapshot-meta">
-                        <div class="snapshot-team-name">@snap.TeamName</div>
-                        <div class="snapshot-sub">
-                            @if (snap.TrackType == TrackType.HumanTrack)
-                            {
-                                <span class="badge bg-secondary badge-xs me-1" title="Mensch-Laufweg"><i class="bi bi-person-walking"></i></span>
-                            }
-                            @if (snap.ImportedAt.HasValue)
-                            {
-                                <span class="badge bg-info text-dark badge-xs me-1" title="GPX-Import">Import</span>
-                            }
-                            @(snap.CollarName ?? snap.CollarId)
-                            @if (!string.IsNullOrEmpty(snap.SearchAreaName))
-                            {
-                                <text> · @snap.SearchAreaName</text>
-                            }
-                        </div>
-                        <div class="snapshot-sub">@snap.FormattedDuration · @snap.FormattedDistance · @snap.Points.Count Pkt.</div>
+            <div class="completed-search-group mb-1">
+                <div class="completed-search-header px-2 py-1">
+                    <div class="d-flex align-items-baseline gap-1 flex-wrap">
+                        <span class="fw-semibold small">@search.TeamName</span>
+                        <span class="text-muted" style="font-size:0.7rem;">@search.FormattedTimeRange</span>
+                        @if (!string.IsNullOrEmpty(search.SearchAreaName))
+                        {
+                            <span class="text-muted" style="font-size:0.7rem;"> · @search.SearchAreaName</span>
+                        }
                     </div>
-                    <div class="snapshot-controls">
-                        <button class="btn btn-xs @(isVisible ? "btn-outline-secondary" : "btn-outline-secondary opacity-50")"
-                                title="@(isVisible ? "Auf Karte ausblenden" : "Auf Karte einblenden")"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => OnToggleTrackVisibility.InvokeAsync((snap.Id, !isVisible))">
-                            <i class="bi @(isVisible ? "bi-eye" : "bi-eye-slash")"></i>
-                        </button>
-                        <i class="bi bi-info-circle text-muted small" title="Details anzeigen"></i>
+                    <div class="d-flex gap-1 mt-1 flex-wrap">
+                        @if (search.CanAddCollarTrack)
+                        {
+                            <span class="badge bg-secondary badge-xs opacity-50" title="Kein Halsband-Track vorhanden"><i class="bi bi-broadcast me-1"></i>–</span>
+                        }
+                        @if (search.CanAddHumanTrack)
+                        {
+                            <span class="badge bg-secondary badge-xs opacity-50" title="Kein Mensch-Laufweg vorhanden"><i class="bi bi-person-walking me-1"></i>–</span>
+                        }
                     </div>
                 </div>
+                @foreach (var snap in search.Tracks)
+                {
+                    var isVisible = !CompletedTrackVisibility.TryGetValue(snap.Id, out var sv) || sv;
+                    <div class="snapshot-item ms-2">
+                        <div class="snapshot-summary"
+                             @onclick="() => OpenDetailPopup(snap)"
+                             title="Details anzeigen">
+                            <span class="snapshot-color-bar" style="background:@snap.Color"></span>
+                            <div class="snapshot-meta">
+                                <div class="snapshot-sub">
+                                    @if (snap.TrackType == TrackType.HumanTrack)
+                                    {
+                                        <span class="badge bg-info text-dark badge-xs me-1" title="Mensch-Laufweg"><i class="bi bi-person-walking"></i></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-primary badge-xs me-1" title="Halsband-Track"><i class="bi bi-broadcast"></i></span>
+                                    }
+                                    @if (snap.ImportedAt.HasValue)
+                                    {
+                                        <span class="badge bg-secondary badge-xs me-1" title="GPX-Import">Import</span>
+                                    }
+                                    @(snap.CollarName ?? snap.CollarId)
+                                </div>
+                                <div class="snapshot-sub">@snap.FormattedDuration · @snap.FormattedDistance · @snap.Points.Count Pkt.</div>
+                            </div>
+                            <div class="snapshot-controls">
+                                <button class="btn btn-xs @(isVisible ? "btn-outline-secondary" : "btn-outline-secondary opacity-50")"
+                                        title="@(isVisible ? "Auf Karte ausblenden" : "Auf Karte einblenden")"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => OnToggleTrackVisibility.InvokeAsync((snap.Id, !isVisible))">
+                                    <i class="bi @(isVisible ? "bi-eye" : "bi-eye-slash")"></i>
+                                </button>
+                                <i class="bi bi-info-circle text-muted small" title="Details anzeigen"></i>
+                            </div>
+                        </div>
+                    </div>
+                }
             </div>
         }
     }
@@ -291,8 +315,85 @@
                         </div>
                     }
 
-                    @* Schritt 2: Vorschau + Zeitfenster *@
-                    @if (_importStep == 2 && _parsedPoints != null)
+                    @* Schritt 2: Suche auswählen oder neu anlegen *@
+                    @if (_importStep == 2)
+                    {
+                        @if (_availableSearches.Count > 0)
+                        {
+                            <p class="small text-muted mb-2">
+                                Bestehende Suchen dieses Teams, in die ein <strong>@(_importTrackType == TrackType.CollarTrack ? "Halsband-Track" : "Mensch-Laufweg")</strong> noch importiert werden kann:
+                            </p>
+                            @foreach (var cs in _availableSearches)
+                            {
+                                <div class="form-check mb-2 p-2 border rounded @(_importCompletedSearchId == cs.Id ? "border-primary bg-primary bg-opacity-10" : "")">
+                                    <input class="form-check-input" type="radio" id="search-@cs.Id"
+                                           name="completedSearch"
+                                           checked="@(_importCompletedSearchId == cs.Id && !_importCreateNew)"
+                                           @onchange="() => { _importCompletedSearchId = cs.Id; _importCreateNew = false; }" />
+                                    <label class="form-check-label w-100" for="search-@cs.Id" style="cursor:pointer;">
+                                        <div class="fw-semibold">@cs.TeamName – @cs.FormattedTimeRange</div>
+                                        @if (!string.IsNullOrEmpty(cs.SearchAreaName))
+                                        {
+                                            <div class="text-muted small"><i class="bi bi-geo me-1"></i>@cs.SearchAreaName</div>
+                                        }
+                                        <div class="text-muted small">
+                                            @if (!cs.CanAddCollarTrack)
+                                            {
+                                                <span class="me-2"><i class="bi bi-broadcast text-primary me-1"></i>Halsband belegt</span>
+                                            }
+                                            @if (!cs.CanAddHumanTrack)
+                                            {
+                                                <span><i class="bi bi-person-walking text-info me-1"></i>Mensch belegt</span>
+                                            }
+                                        </div>
+                                    </label>
+                                </div>
+                            }
+                            <hr class="my-2" />
+                        }
+
+                        <div class="form-check mb-2 p-2 border rounded @(_importCreateNew ? "border-success bg-success bg-opacity-10" : "")">
+                            <input class="form-check-input" type="radio" id="createNewSearch"
+                                   name="completedSearch"
+                                   checked="@_importCreateNew"
+                                   @onchange="() => { _importCreateNew = true; _importCompletedSearchId = null; }" />
+                            <label class="form-check-label fw-semibold" for="createNewSearch" style="cursor:pointer;">
+                                <i class="bi bi-plus-circle me-1 text-success"></i>Neue Suche anlegen
+                            </label>
+                        </div>
+
+                        @if (_importCreateNew)
+                        {
+                            <div class="row g-2 mt-1 ms-3">
+                                <div class="col-sm-6">
+                                    <label class="form-label small mb-1">Beginn <span class="text-danger">*</span></label>
+                                    <input type="datetime-local" class="form-control form-control-sm"
+                                           @bind="_importNewSearchStart" @bind:format="yyyy-MM-ddTHH:mm" />
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="form-label small mb-1">Ende <span class="text-danger">*</span></label>
+                                    <input type="datetime-local" class="form-control form-control-sm"
+                                           @bind="_importNewSearchEnd" @bind:format="yyyy-MM-ddTHH:mm" />
+                                </div>
+                                @if (SearchAreas.Any())
+                                {
+                                    <div class="col-12">
+                                        <label class="form-label small mb-1">Suchgebiet (optional)</label>
+                                        <select class="form-select form-select-sm" @bind="_importNewSearchAreaId">
+                                            <option value="">— Kein Suchgebiet —</option>
+                                            @foreach (var area in SearchAreas)
+                                            {
+                                                <option value="@area.Id">@area.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+
+                    @* Schritt 3: Vorschau + Zeitfenster *@
+                    @if (_importStep == 3 && _parsedPoints != null)
                     {
                         <div class="mb-2">
                             <p class="mb-1 small">
@@ -384,6 +485,17 @@
                         <button class="btn btn-sm btn-secondary" @onclick="() => _importStep = 1">
                             <i class="bi bi-arrow-left me-1"></i>Zurück
                         </button>
+                        <button class="btn btn-sm btn-primary"
+                                @onclick="AdvanceToStep3"
+                                disabled="@(!CanAdvanceStep2())">
+                            Weiter
+                        </button>
+                    }
+                    else if (_importStep == 3)
+                    {
+                        <button class="btn btn-sm btn-secondary" @onclick="() => _importStep = 2">
+                            <i class="bi bi-arrow-left me-1"></i>Zurück
+                        </button>
                         <button class="btn btn-sm btn-success"
                                 @onclick="ConfirmImport"
                                 disabled="@(_importBusy || _filteredPoints == null || _filteredPoints.Count == 0)">
@@ -404,15 +516,27 @@
 @code {
     [Parameter, EditorRequired] public List<Collar> Collars { get; set; } = new();
     [Parameter, EditorRequired] public Dictionary<string, string> OobWarnings { get; set; } = new();
-    [Parameter, EditorRequired] public List<TeamTrackSnapshot> CompletedSnapshots { get; set; } = new();
+    /// <summary>Abgeschlossene Suchen (gruppiert). Ersetzt die flache CompletedSnapshots-Liste.</summary>
+    [Parameter, EditorRequired] public List<CompletedSearch> CompletedSearches { get; set; } = new();
+    /// <summary>Suchgebiete – für das Suchgebiet-Dropdown im Import-Dialog.</summary>
+    [Parameter] public List<SearchArea> SearchAreas { get; set; } = new();
     [Parameter, EditorRequired] public List<Team> Teams { get; set; } = new();
     [Parameter, EditorRequired] public Dictionary<string, bool> CompletedTrackVisibility { get; set; } = new();
     [Parameter] public string? ExpandedSnapshotId { get; set; }
     [Parameter, EditorRequired] public Func<string, string> GetCollarColorFn { get; set; } = _ => "#007bff";
     [Parameter] public EventCallback<Collar> OnZoomToCollar { get; set; }
     [Parameter] public EventCallback<(string Id, bool Visible)> OnToggleTrackVisibility { get; set; }
-    [Parameter] public EventCallback<TeamTrackSnapshot> OnGpxImported { get; set; }
+    [Parameter] public EventCallback<GpxImportRequest> OnGpxImported { get; set; }
     [Parameter] public Dictionary<string, CollarLocation> CollarLastLocations { get; set; } = new();
+
+    /// <summary>Datenpaket, das beim Bestätigen des Import-Dialogs gesendet wird.</summary>
+    public record GpxImportRequest(
+        TeamTrackSnapshot Snapshot,
+        string? CompletedSearchId,  // null = neue Suche anlegen
+        DateTime? SearchStart,      // Pflicht wenn CompletedSearchId null
+        DateTime? SearchEnd,        // Pflicht wenn CompletedSearchId null
+        string? SearchAreaId        // optional
+    );
 
     // --- Import-Dialog State ---
     private bool _showImportDialog;
@@ -427,6 +551,14 @@
     private List<TrackPoint>? _filteredPoints;
     private DateTime? _importStartTime;
     private DateTime? _importEndTime;
+
+    // --- Schritt-2-State ---
+    private List<CompletedSearch> _availableSearches = new();
+    private string? _importCompletedSearchId;
+    private bool _importCreateNew;
+    private DateTime? _importNewSearchStart;
+    private DateTime? _importNewSearchEnd;
+    private string? _importNewSearchAreaId;
 
     private static readonly string[] _colorPalette =
     [
@@ -461,7 +593,7 @@
         // Auto-open popup when parent navigates to a specific snapshot (e.g. map click)
         if (ExpandedSnapshotId != null && ExpandedSnapshotId != _prevExpandedSnapshotId)
         {
-            var snap = CompletedSnapshots.FirstOrDefault(s => s.Id == ExpandedSnapshotId);
+            var snap = CompletedSearches.SelectMany(cs => cs.Tracks).FirstOrDefault(s => s.Id == ExpandedSnapshotId);
             if (snap != null) _detailSnapshot = snap;
         }
         _prevExpandedSnapshotId = ExpandedSnapshotId;
@@ -515,6 +647,12 @@
         _filteredPoints = null;
         _importStartTime = null;
         _importEndTime = null;
+        _availableSearches = new();
+        _importCompletedSearchId = null;
+        _importCreateNew = false;
+        _importNewSearchStart = null;
+        _importNewSearchEnd = null;
+        _importNewSearchAreaId = null;
     }
 
     private void CloseImportDialog()
@@ -574,8 +712,40 @@
     {
         if (string.IsNullOrEmpty(_importTeamId) || _parsedPoints == null) return;
         _importError = string.Empty;
-        UpdateFilteredPoints();
+
+        // Verfügbare Suchen für dieses Team + TrackType ermitteln
+        _availableSearches = CompletedSearches
+            .Where(cs => cs.TeamId == _importTeamId &&
+                (_importTrackType == TrackType.CollarTrack ? cs.CanAddCollarTrack : cs.CanAddHumanTrack))
+            .ToList();
+
+        // Schritt-2-Auswahl zurücksetzen
+        _importCompletedSearchId = null;
+        _importCreateNew = _availableSearches.Count == 0; // Direkt "Neue Suche" wenn keine vorhanden
+
+        // Zeitvorschlag aus Track-Punkten
+        if (_importCreateNew && _parsedPoints.Count > 0 && _parsedPoints[0].Timestamp != DateTime.MinValue)
+        {
+            _importNewSearchStart = _parsedPoints[0].Timestamp.ToLocalTime();
+            _importNewSearchEnd = _parsedPoints[^1].Timestamp.ToLocalTime();
+        }
+
         _importStep = 2;
+    }
+
+    private bool CanAdvanceStep2()
+    {
+        if (_importCreateNew)
+            return _importNewSearchStart.HasValue && _importNewSearchEnd.HasValue;
+        return !string.IsNullOrEmpty(_importCompletedSearchId);
+    }
+
+    private void AdvanceToStep3()
+    {
+        if (!CanAdvanceStep2()) return;
+        _importError = string.Empty;
+        UpdateFilteredPoints();
+        _importStep = 3;
     }
 
     private void UpdateFilteredPoints()
@@ -615,7 +785,15 @@
                 Points = _filteredPoints
             };
 
-            await OnGpxImported.InvokeAsync(snapshot);
+            var request = new GpxImportRequest(
+                Snapshot: snapshot,
+                CompletedSearchId: _importCreateNew ? null : _importCompletedSearchId,
+                SearchStart: _importCreateNew ? _importNewSearchStart : null,
+                SearchEnd: _importCreateNew ? _importNewSearchEnd : null,
+                SearchAreaId: _importCreateNew ? _importNewSearchAreaId : null
+            );
+
+            await OnGpxImported.InvokeAsync(request);
             _showImportDialog = false;
         }
         catch (Exception ex)

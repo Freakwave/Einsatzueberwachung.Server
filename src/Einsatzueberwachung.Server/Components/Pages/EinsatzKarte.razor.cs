@@ -632,9 +632,23 @@ public partial class EinsatzKarte
         await ToggleCompletedTrackAsync(args.Id, args.Visible);
     }
 
-    private async Task HandleGpxImportedAsync(TeamTrackSnapshot snapshot)
+    private async Task HandleGpxImportedAsync(KarteGpsTab.GpxImportRequest request)
     {
-        await EinsatzService.AddTrackSnapshotAsync(snapshot);
+        if (request.CompletedSearchId != null)
+        {
+            // Track in bestehende Suche importieren
+            await EinsatzService.AddTrackToCompletedSearchAsync(request.CompletedSearchId, request.Snapshot);
+        }
+        else
+        {
+            // Neue Suche anlegen und Track hinzufügen
+            var newSearch = await EinsatzService.CreateCompletedSearchAsync(
+                request.Snapshot.TeamId,
+                request.SearchStart!.Value,
+                request.SearchEnd!.Value,
+                request.SearchAreaId);
+            await EinsatzService.AddTrackToCompletedSearchAsync(newSearch.Id, request.Snapshot);
+        }
         // Das TrackSnapshotAdded-Event löst OnTrackSnapshotSaved aus, welches die Karte aktualisiert.
         // Sidebar-Tab GPS aktivieren damit der neue Track sichtbar wird.
         await SetSidebarTabAsync("gps");

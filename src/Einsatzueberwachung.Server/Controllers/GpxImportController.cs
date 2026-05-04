@@ -84,7 +84,11 @@ public class GpxImportController : ControllerBase
         [FromForm] string trackType = "collar",
         [FromForm] DateTime? startTime = null,
         [FromForm] DateTime? endTime = null,
-        [FromForm] string? color = null)
+        [FromForm] string? color = null,
+        [FromForm] string? completedSearchId = null,
+        [FromForm] DateTime? searchStart = null,
+        [FromForm] DateTime? searchEnd = null,
+        [FromForm] string? searchAreaId = null)
     {
         if (file == null || file.Length == 0)
             return BadRequest(new ErrorResponse("Keine Datei angegeben."));
@@ -98,6 +102,10 @@ public class GpxImportController : ControllerBase
         var team = _einsatzService.Teams.FirstOrDefault(t => t.TeamId == teamId);
         if (team == null)
             return NotFound(new ErrorResponse($"Team '{teamId}' nicht gefunden."));
+
+        // Wenn keine bestehende Suche angegeben, müssen Start und Ende vorhanden sein
+        if (string.IsNullOrWhiteSpace(completedSearchId) && (searchStart == null || searchEnd == null))
+            return BadRequest(new ErrorResponse("Ohne completedSearchId sind searchStart und searchEnd erforderlich."));
 
         var parsedTrackType = string.Equals(trackType, "human", StringComparison.OrdinalIgnoreCase)
             ? TrackType.HumanTrack
@@ -132,13 +140,41 @@ public class GpxImportController : ControllerBase
                 Points = filteredPoints
             };
 
-            await _einsatzService.AddTrackSnapshotAsync(snapshot);
+            if (!string.IsNullOrWhiteSpace(completedSearchId))
+            {
+                // In bestehende Suche importieren
+                var existingSearches = _einsatzService.CurrentEinsatz.CompletedSearches ?? new();
+                var targetSearch = existingSearches.FirstOrDefault(cs => cs.Id == completedSearchId);
+
+                if (targetSearch == null)
+                    return NotFound(new ErrorResponse($"CompletedSearch '{completedSearchId}' nicht gefunden."));
+
+                if (targetSearch.TeamId != teamId)
+                    return StatusCode(403, new ErrorResponse("Diese Suche gehört nicht zum angegebenen Team."));
+
+                var canAdd = parsedTrackType == TrackType.CollarTrack ? targetSearch.CanAddCollarTrack : targetSearch.CanAddHumanTrack;
+                if (!canAdd)
+                    return Conflict(new ErrorResponse($"Diese Suche enthält bereits einen Track vom Typ '{parsedTrackType}'."));
+
+                await _einsatzService.AddTrackToCompletedSearchAsync(completedSearchId, snapshot);
+            }
+            else
+            {
+                // Neue Suche anlegen und Track hinzufügen
+                var newSearch = await _einsatzService.CreateCompletedSearchAsync(
+                    teamId, searchStart!.Value, searchEnd!.Value, searchAreaId);
+                await _einsatzService.AddTrackToCompletedSearchAsync(newSearch.Id, snapshot);
+            }
 
             _logger.LogInformation(
                 "GPX-Import: {PointCount} Punkte als {TrackType} für Team '{TeamName}' importiert.",
                 filteredPoints.Count, parsedTrackType, team.TeamName.Replace('\n', ' ').Replace('\r', ' '));
 
             return Ok(snapshot);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new ErrorResponse(ex.Message));
         }
         catch (FormatException ex)
         {

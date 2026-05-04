@@ -88,10 +88,24 @@ namespace Einsatzueberwachung.Domain.Interfaces
 
         /// <summary>
         /// Fügt einen manuell importierten oder extern erzeugten Track-Snapshot zum aktuellen Einsatz hinzu.
+        /// Erzeugt implizit eine neue <see cref="CompletedSearch"/> (Legacy-Wrapper).
         /// </summary>
         Task AddTrackSnapshotAsync(TeamTrackSnapshot snapshot);
 
         event Action<TeamTrackSnapshot>? TrackSnapshotAdded;
+
+        /// <summary>
+        /// Legt eine neue abgeschlossene Suchepisode für ein Team an.
+        /// </summary>
+        Task<CompletedSearch> CreateCompletedSearchAsync(string teamId, DateTime start, DateTime end, string? searchAreaId = null);
+
+        /// <summary>
+        /// Fügt einen Track-Snapshot zu einer bestehenden abgeschlossenen Suche hinzu.
+        /// Wirft <see cref="InvalidOperationException"/> wenn der TrackType bereits vorhanden ist.
+        /// </summary>
+        Task AddTrackToCompletedSearchAsync(string completedSearchId, TeamTrackSnapshot snapshot);
+
+        event Action<CompletedSearch>? CompletedSearchUpdated;
 
         Task UpdateVermisstenInfoAsync(VermisstenInfo info);
         Task AddElNotizAsync(string text, string prefix = "");

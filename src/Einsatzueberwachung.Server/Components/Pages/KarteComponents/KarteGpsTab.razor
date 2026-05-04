@@ -412,14 +412,14 @@
                             <div class="col-sm-6">
                                 <label class="form-label small mb-1">Von (optional)</label>
                                 <input type="datetime-local" class="form-control form-control-sm"
-                                       @bind="_importStartTime" @bind:format="@DateTimeLocalFormat"
-                                       @oninput="UpdateFilteredPoints" />
+                                       value="@(_importStartTime?.ToString(DateTimeLocalFormat))"
+                                       @oninput="e => OnFilterTimeInput(e, true)" />
                             </div>
                             <div class="col-sm-6">
                                 <label class="form-label small mb-1">Bis (optional)</label>
                                 <input type="datetime-local" class="form-control form-control-sm"
-                                       @bind="_importEndTime" @bind:format="@DateTimeLocalFormat"
-                                       @oninput="UpdateFilteredPoints" />
+                                       value="@(_importEndTime?.ToString(DateTimeLocalFormat))"
+                                       @oninput="e => OnFilterTimeInput(e, false)" />
                             </div>
                         </div>
 
@@ -725,8 +725,10 @@
         _importCompletedSearchId = null;
         _importCreateNew = _availableSearches.Count == 0; // Direkt "Neue Suche" wenn keine vorhanden
 
-        // Zeitvorschlag aus Track-Punkten
-        if (_importCreateNew && _parsedPoints.Count > 0 && _parsedPoints[0].Timestamp != DateTime.MinValue)
+        // Zeitvorschlag aus Track-Punkten IMMER vorausfüllen (unabhängig vom CreateNew-Modus),
+        // damit die Werte auch dann verfügbar sind wenn der Benutzer erst später auf
+        // „Neue Suche anlegen" wechselt.
+        if (_parsedPoints.Count > 0 && _parsedPoints[0].Timestamp != DateTime.MinValue)
         {
             _importNewSearchStart = _parsedPoints[0].Timestamp.ToLocalTime();
             _importNewSearchEnd = _parsedPoints[^1].Timestamp.ToLocalTime();
@@ -754,6 +756,23 @@
     {
         if (_parsedPoints == null) return;
         _filteredPoints = GpxParser.ApplyTimeFilter(_parsedPoints, _importStartTime, _importEndTime);
+    }
+
+    private void OnFilterTimeInput(ChangeEventArgs e, bool isStart)
+    {
+        var raw = e.Value?.ToString();
+        DateTime? parsed = string.IsNullOrWhiteSpace(raw) ? null
+            : DateTime.TryParseExact(raw, DateTimeLocalFormat,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var dt) ? dt
+            : (DateTime?)null;
+
+        if (isStart)
+            _importStartTime = parsed;
+        else
+            _importEndTime = parsed;
+
+        UpdateFilteredPoints();
     }
 
     private async Task ConfirmImport()

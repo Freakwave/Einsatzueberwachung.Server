@@ -824,11 +824,16 @@
     private void OnNewSearchTimeInput(ChangeEventArgs e, bool isStart)
     {
         var raw = e.Value?.ToString();
-        DateTime? parsed = string.IsNullOrWhiteSpace(raw) ? null
-            : DateTime.TryParseExact(raw, DateTimeLocalFormat,
-                System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.AssumeLocal, out var dt) ? dt
-            : (DateTime?)null;
+        DateTime? parsed = null;
+        if (!string.IsNullOrWhiteSpace(raw))
+        {
+            // Some browsers include seconds or milliseconds in datetime-local values
+            string[] formats = [DateTimeLocalFormat, DateTimeLocalFormat + ":ss", DateTimeLocalFormat + ":ss.fff"];
+            if (DateTime.TryParseExact(raw, formats,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeLocal, out var dt))
+                parsed = dt;
+        }
         if (isStart) _importNewSearchStart = parsed;
         else _importNewSearchEnd = parsed;
         UpdateFilteredPoints();

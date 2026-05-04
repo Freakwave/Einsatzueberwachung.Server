@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 using System.IO.Compression;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 
@@ -27,6 +28,9 @@ public partial class Einstellungen
     {
         PropertyNameCaseInsensitive = true
     };
+
+    private string _appVersion =
+        Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
 
     private StaffelSettings _staffelSettings = new();
     private AppSettings _appSettings = new();

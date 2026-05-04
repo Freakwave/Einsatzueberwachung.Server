@@ -2346,6 +2346,7 @@ main:has(.map-page-layout) {
     border-bottom: 1px solid #dee2e6;
     flex-shrink: 0;
     position: relative;
+    z-index: 10;
 }
 
 .map-header .header-left {

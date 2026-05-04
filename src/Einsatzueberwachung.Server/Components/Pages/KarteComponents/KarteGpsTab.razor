@@ -161,8 +161,8 @@
 @* Detail-Popup für abgeschlossene Suche *@
 @if (_detailSnapshot != null)
 {
-    <div class="modal-backdrop show" style="z-index: 2000;" @onclick="CloseDetailPopup"></div>
-    <div class="modal show d-block" style="z-index: 2001;" tabindex="-1">
+    <div class="modal-backdrop show" style="z-index: 9000;" @onclick="CloseDetailPopup"></div>
+    <div class="modal show d-block" style="z-index: 9001;" tabindex="-1">
         <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header py-2">
@@ -223,8 +223,8 @@
 @* GPX-Import-Dialog *@
 @if (_showImportDialog)
 {
-    <div class="modal-backdrop show" style="z-index: 2100;" @onclick="CloseImportDialog"></div>
-    <div class="modal show d-block" style="z-index: 2101;" tabindex="-1">
+    <div class="modal-backdrop show" style="z-index: 9100;" @onclick="CloseImportDialog"></div>
+    <div class="modal show d-block" style="z-index: 9101;" tabindex="-1">
         <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header py-2">
@@ -489,9 +489,13 @@
                         }
                     }
                 </div>
-                <div class="modal-footer py-2">
+                <div class="modal-footer py-2 flex-wrap gap-1">
                     @if (_importStep == 1)
                     {
+                        @if (Step1DisabledReason != null)
+                        {
+                            <small class="text-muted me-auto"><i class="bi bi-info-circle me-1"></i>@Step1DisabledReason</small>
+                        }
                         <button class="btn btn-sm btn-primary"
                                 @onclick="AdvanceToStep2"
                                 disabled="@(_importBusy || string.IsNullOrEmpty(_importTeamId) || _parsedPoints == null)">
@@ -504,6 +508,10 @@
                     }
                     else if (_importStep == 2)
                     {
+                        @if (Step2DisabledReason != null)
+                        {
+                            <small class="text-muted me-auto"><i class="bi bi-info-circle me-1"></i>@Step2DisabledReason</small>
+                        }
                         <button class="btn btn-sm btn-secondary" @onclick="() => _importStep = 1">
                             <i class="bi bi-arrow-left me-1"></i>Zurück
                         </button>
@@ -515,6 +523,10 @@
                     }
                     else if (_importStep == 3)
                     {
+                        @if (Step3DisabledReason != null)
+                        {
+                            <small class="text-muted me-auto"><i class="bi bi-info-circle me-1"></i>@Step3DisabledReason</small>
+                        }
                         <button class="btn btn-sm btn-secondary" @onclick="() => _importStep = 2">
                             <i class="bi bi-arrow-left me-1"></i>Zurück
                         </button>
@@ -657,6 +669,22 @@
 
     private void OpenDetailPopup(TeamTrackSnapshot snap) => _detailSnapshot = snap;
     private void CloseDetailPopup() => _detailSnapshot = null;
+
+    private string? Step1DisabledReason => _importBusy ? null
+        : string.IsNullOrEmpty(_importTeamId) && _parsedPoints == null ? "Bitte Team auswählen und GPX-Datei laden"
+        : string.IsNullOrEmpty(_importTeamId) ? "Bitte Team auswählen"
+        : _parsedPoints == null ? "Bitte GPX-Datei laden"
+        : null;
+
+    private string? Step2DisabledReason => _importBusy ? null
+        : !_importCreateNew && string.IsNullOrEmpty(_importCompletedSearchId) ? "Bitte eine bestehende Suche auswählen oder „Neue Suche anlegen" aktivieren"
+        : null;
+
+    private string? Step3DisabledReason => _importBusy ? null
+        : _filteredPoints == null || _filteredPoints.Count == 0 ? "Keine Punkte für den Import vorhanden"
+        : _importCreateNew && !_importNewSearchStart.HasValue ? "Bitte Startzeit festlegen"
+        : _importCreateNew && !_importNewSearchEnd.HasValue ? "Bitte Endzeit festlegen"
+        : null;
 
     // --- GPX Import ---
 

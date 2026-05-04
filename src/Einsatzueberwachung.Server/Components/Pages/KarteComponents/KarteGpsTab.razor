@@ -780,7 +780,12 @@
     {
         if (_parsedPoints == null) return;
         var (start, end) = GetEffectiveTimeFilter();
-        var timeFiltered = GpxParser.ApplyTimeFilter(_parsedPoints, start, end);
+        // p.Timestamp is always Kind=Utc (from GpxParser). Normalize filter bounds to UTC
+        // so that Kind=Local or Kind=Unspecified values (e.g. from .ToLocalTime() or user input)
+        // are correctly compared without raw-tick mismatch across time zones.
+        var startUtc = start.HasValue ? start.Value.ToUniversalTime() : (DateTime?)null;
+        var endUtc   = end.HasValue   ? end.Value.ToUniversalTime()   : (DateTime?)null;
+        var timeFiltered = GpxParser.ApplyTimeFilter(_parsedPoints, startUtc, endUtc);
         var skipStart = Math.Max(0, Math.Min(_truncateStart, timeFiltered.Count));
         var skipEnd = Math.Max(0, Math.Min(_truncateEnd, timeFiltered.Count - skipStart));
         _filteredPoints = timeFiltered.Skip(skipStart).Take(timeFiltered.Count - skipStart - skipEnd).ToList();
@@ -792,7 +797,7 @@
         DateTime? parsed = string.IsNullOrWhiteSpace(raw) ? null
             : DateTime.TryParseExact(raw, DateTimeLocalFormat,
                 System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None, out var dt) ? dt
+                System.Globalization.DateTimeStyles.AssumeLocal, out var dt) ? dt
             : (DateTime?)null;
         if (isStart) _importNewSearchStart = parsed;
         else _importNewSearchEnd = parsed;

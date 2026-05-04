@@ -261,11 +261,20 @@ function ringRising(ctx, baseFrequency, volume, totalDuration) {
 }
 
 // Scrolls an element into view by id. Returns true when found, false otherwise.
+// Seit Release 1.7.4 hat der Einsatz-Monitor pro Panel einen eigenen Scrollbalken
+// (.dashboard-panel-body, overflow-y:auto) statt Seiten-Scrolling. Ein reines
+// scrollIntoView reicht dann nicht zuverlässig, daher zuerst den inneren
+// Panel-Scroller direkt setzen und scrollIntoView als Fallback nutzen.
 window.warnToastScrollTo = function (elementId) {
     var el = document.getElementById(elementId);
-    if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        return true;
+    if (!el) return false;
+
+    var scroller = el.closest('.dashboard-panel-body');
+    if (scroller) {
+        var top = el.offsetTop - scroller.clientHeight / 2 + el.clientHeight / 2;
+        scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }
-    return false;
+
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return true;
 };

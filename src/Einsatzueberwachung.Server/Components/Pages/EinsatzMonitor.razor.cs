@@ -2,6 +2,7 @@ using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
 using Einsatzueberwachung.Domain.Models.Enums;
 using Einsatzueberwachung.Domain.Models.Merge;
+using Einsatzueberwachung.Server.Components;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -21,6 +22,9 @@ public partial class EinsatzMonitor
     [Inject] IDashboardLayoutService DashboardLayoutService { get; set; } = default!;
     [Inject] IJSRuntime JS { get; set; } = default!;
     [Inject] NavigationManager Navigation { get; set; } = default!;
+
+    [SupplyParameterFromQuery(Name = "scrollTo")]
+    public string? ScrollToTeamId { get; set; }
 
     private readonly TeamEditorModel _teamForm = new();
     private readonly Dictionary<string, string> _replyTexts = new();
@@ -164,6 +168,8 @@ public partial class EinsatzMonitor
         if (firstRender)
         {
             await RefreshEinsatzdauerFromHeaderTimeAsync();
+            if (!string.IsNullOrWhiteSpace(ScrollToTeamId) && IsValidEntityId(ScrollToTeamId))
+                await JS.InvokeVoidAsync("layoutTools.scrollToElement", $"team-{ScrollToTeamId}");
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -266,6 +272,84 @@ public partial class EinsatzMonitor
         _personalList = await MasterDataService.GetPersonalListAsync();
         _dogList = await MasterDataService.GetDogListAsync();
         _droneList = await MasterDataService.GetDroneListAsync();
+    }
+
+    private IReadOnlyList<MentionSuggestion> GetNoteMentions()
+    {
+        var result = new List<MentionSuggestion>();
+
+        // ── Teams ────────────────────────────────────────────────────────────
+        foreach (var team in EinsatzService.Teams.OrderBy(t => t.TeamName))
+        {
+            string subtitle;
+            if (team.IsDroneTeam)
+                subtitle = string.IsNullOrWhiteSpace(team.DroneType) ? "Drohnenteam" : $"Drohne: {team.DroneType}";
+            else if (team.IsSupportTeam)
+                subtitle = "Unterstützungsteam";
+            else if (!string.IsNullOrWhiteSpace(team.DogName))
+                subtitle = string.IsNullOrWhiteSpace(team.HundefuehrerName)
+                    ? $"Hund: {team.DogName}"
+                    : $"Hund: {team.DogName} · Führer: {team.HundefuehrerName}";
+            else
+                subtitle = string.IsNullOrWhiteSpace(team.HundefuehrerName) ? string.Empty : $"Führer: {team.HundefuehrerName}";
+
+            result.Add(new MentionSuggestion(team.TeamId, team.TeamName, MentionType.Team, subtitle));
+        }
+
+        // ── Persons ──────────────────────────────────────────────────────────
+        var activePersons = _personalList.Where(p => p.IsActive).OrderBy(p => p.FullName).ToList();
+        var personNameGroups = activePersons.GroupBy(p => p.FullName).ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var person in activePersons)
+        {
+            // Disambiguate duplicate full names: ALL copies get a numeric suffix (1), (2), …
+            var displayName = person.FullName;
+            var group = personNameGroups[person.FullName];
+            if (group.Count > 1)
+            {
+                var idx = group.IndexOf(person) + 1;
+                displayName = $"{person.FullName} ({idx})";
+            }
+
+            var subtitle = person.Skills != Domain.Models.Enums.PersonalSkills.None
+                ? person.SkillsShortDisplay
+                : string.Empty;
+
+            result.Add(new MentionSuggestion(person.Id, displayName, MentionType.Person, subtitle));
+        }
+
+        // ── Dogs ─────────────────────────────────────────────────────────────
+        var activeDogs = _dogList.Where(d => d.IsActive).OrderBy(d => d.Name).ToList();
+        var dogNameGroups = activeDogs.GroupBy(d => d.Name).ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var dog in activeDogs)
+        {
+            // Resolve primary handler name for subtitle and disambiguation
+            var handlerName = dog.HundefuehrerIds.Count > 0
+                ? _personalList.FirstOrDefault(p => p.Id == dog.HundefuehrerIds[0])?.FullName ?? string.Empty
+                : string.Empty;
+
+            // When two or more dogs share the same name, disambiguate:
+            // prefer handler name; fall back to numeric suffix when no handler is set.
+            var displayName = dog.Name;
+            var group = dogNameGroups[dog.Name];
+            if (group.Count > 1)
+            {
+                displayName = !string.IsNullOrWhiteSpace(handlerName)
+                    ? $"{dog.Name} / {handlerName}"
+                    : $"{dog.Name} ({group.IndexOf(dog) + 1})";
+            }
+
+            // Subtitle: breed + handler (handler only when not already embedded in displayName)
+            var subtitleParts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(dog.Rasse)) subtitleParts.Add(dog.Rasse);
+            if (!string.IsNullOrWhiteSpace(handlerName) && displayName == dog.Name)
+                subtitleParts.Add($"Führer: {handlerName}");
+
+            result.Add(new MentionSuggestion(dog.Id, displayName, MentionType.Hund, string.Join(", ", subtitleParts)));
+        }
+
+        return result;
     }
 
     private void LoadQuickNoteTemplates()
@@ -1677,4 +1761,11 @@ public partial class EinsatzMonitor
             () => _vForm.PolizeiDatenschutzGeklaert,
             v => _vForm.PolizeiDatenschutzGeklaert = v);
     }
+
+    /// <summary>
+    /// Validates that an ID coming from a URL query parameter only contains characters
+    /// expected in a GUID (hex digits and hyphens) before it is forwarded to JavaScript.
+    /// </summary>
+    private static bool IsValidEntityId(string id) =>
+        id.Length <= 64 && id.AsSpan().IndexOfAnyExcept("0123456789abcdefABCDEF-".AsSpan()) == -1;
 }

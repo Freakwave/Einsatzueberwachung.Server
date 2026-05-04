@@ -55,24 +55,16 @@
                         <span class="collar-team text-muted">Nicht zugewiesen</span>
                     }
                 </div>
-                <div class="collar-status-line">
+                <div class="collar-status-line d-flex justify-content-between align-items-center">
                     @if (lastLoc != null)
                     {
                         var (icon, color) = GetBatteryDisplay(lastLoc.BatteryLevel);
                         <span class="collar-status-pill"><i class="bi @icon @color me-1"></i>Akku</span>
+                        <span class="collar-status-pill text-muted">Letztes Update: @FormatAge(lastLoc.Timestamp)</span>
                     }
                     else
                     {
                         <span class="collar-status-pill text-muted"><i class="bi bi-battery me-1"></i>Akku: -</span>
-                    }
-                </div>
-                <div class="collar-status-line">
-                    @if (lastLoc != null)
-                    {
-                        <span class="collar-status-pill">Letztes Update: @FormatAge(lastLoc.Timestamp)</span>
-                    }
-                    else
-                    {
                         <span class="collar-status-pill text-muted">Letztes Update: keine Daten</span>
                     }
                 </div>
@@ -121,8 +113,8 @@
                     var isVisible = !CompletedTrackVisibility.TryGetValue(snap.Id, out var sv) || sv;
                     <div class="snapshot-item ms-2">
                         <div class="snapshot-summary"
-                             @onclick="() => OpenDetailPopup(snap)"
-                             title="Details anzeigen">
+                             @onclick="() => OnZoomToTrack.InvokeAsync(snap.Id)"
+                             title="Auf Karte anzeigen">
                             <span class="snapshot-color-bar" style="background:@snap.Color"></span>
                             <div class="snapshot-meta">
                                 <div class="snapshot-sub">
@@ -139,19 +131,18 @@
                                 <div class="snapshot-sub">@snap.FormattedDuration · @snap.FormattedDistance · @snap.Points.Count Pkt.</div>
                             </div>
                             <div class="snapshot-controls">
-                                <button class="btn btn-xs btn-outline-secondary"
-                                        title="Auf Karte anzeigen"
-                                        @onclick:stopPropagation="true"
-                                        @onclick="() => OnZoomToTrack.InvokeAsync(snap.Id)">
-                                    <i class="bi bi-geo-alt"></i>
-                                </button>
                                 <button class="btn btn-xs @(isVisible ? "btn-outline-secondary" : "btn-outline-secondary opacity-50")"
                                         title="@(isVisible ? "Auf Karte ausblenden" : "Auf Karte einblenden")"
                                         @onclick:stopPropagation="true"
                                         @onclick="() => OnToggleTrackVisibility.InvokeAsync((snap.Id, !isVisible))">
                                     <i class="bi @(isVisible ? "bi-eye" : "bi-eye-slash")"></i>
                                 </button>
-                                <i class="bi bi-info-circle text-muted small" title="Details anzeigen"></i>
+                                <button class="btn btn-xs btn-outline-secondary"
+                                        title="Details anzeigen"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => OpenDetailPopup(snap)">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
                             </div>
                         </div>
                     </div>

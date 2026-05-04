@@ -67,12 +67,16 @@ public static class GpxParser
         // Versuche zuerst Trackpunkte (<trkpt>)
         var points = ExtractTrackPoints(doc, nsMgr, ns);
 
-        // Fallback: Wegpunkte (<wpt>) wenn kein Track vorhanden
+        // Fallback 1: Wegpunkte (<wpt>) wenn kein Track vorhanden
         if (points.Count == 0)
             points = ExtractWaypoints(doc, nsMgr, ns);
 
+        // Fallback 2: Routenpunkte (<rtept>) – z.B. Google Maps, OsmAnd, ältere Garmin-Exporte
         if (points.Count == 0)
-            throw new FormatException("GPX-Datei enthält keine Trackpunkte (<trkpt>) oder Wegpunkte (<wpt>).");
+            points = ExtractRoutePoints(doc, nsMgr, ns);
+
+        if (points.Count == 0)
+            throw new FormatException("GPX-Datei enthält keine Trackpunkte (<trkpt>), Wegpunkte (<wpt>) oder Routenpunkte (<rtept>).");
 
         // Chronologisch sortieren (Timestamps können ungeordnet vorliegen)
         points.Sort((a, b) => a.Timestamp.CompareTo(b.Timestamp));
@@ -110,6 +114,25 @@ public static class GpxParser
         if (wptNodes == null) return points;
 
         foreach (XmlNode node in wptNodes)
+        {
+            if (TryParsePoint(node, nsMgr, ns, out var point))
+                points.Add(point);
+        }
+
+        return points;
+    }
+
+    private static List<TrackPoint> ExtractRoutePoints(XmlDocument doc, XmlNamespaceManager nsMgr, string ns)
+    {
+        var points = new List<TrackPoint>();
+
+        var rteptNodes = string.IsNullOrEmpty(ns)
+            ? doc.SelectNodes("//rtept")
+            : doc.SelectNodes("//g:rtept", nsMgr);
+
+        if (rteptNodes == null) return points;
+
+        foreach (XmlNode node in rteptNodes)
         {
             if (TryParsePoint(node, nsMgr, ns, out var point))
                 points.Add(point);

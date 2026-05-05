@@ -4,10 +4,6 @@
     flex-direction: column;
 }
 
-.main-column {
-    flex: 1;
-}
-
 main {
     flex: 1;
 }

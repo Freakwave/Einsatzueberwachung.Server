@@ -212,6 +212,8 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
         _einsatzService.TeamRemoved += OnTeamDirty;
         _einsatzService.TeamUpdated += OnTeamDirty;
         _einsatzService.NoteAdded += OnNoteDirty;
+        _einsatzService.TrackSnapshotAdded += OnTrackDirty;
+        _einsatzService.CompletedSearchUpdated += OnCompletedSearchDirty;
     }
 
     private void Unsubscribe()
@@ -221,9 +223,13 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
         _einsatzService.TeamRemoved -= OnTeamDirty;
         _einsatzService.TeamUpdated -= OnTeamDirty;
         _einsatzService.NoteAdded -= OnNoteDirty;
+        _einsatzService.TrackSnapshotAdded -= OnTrackDirty;
+        _einsatzService.CompletedSearchUpdated -= OnCompletedSearchDirty;
     }
 
     private void OnDirty() => _isDirty = true;
     private void OnTeamDirty(Einsatzueberwachung.Domain.Models.Team _) => _isDirty = true;
     private void OnNoteDirty(Einsatzueberwachung.Domain.Models.GlobalNotesEntry _) => _isDirty = true;
+    private void OnTrackDirty(Einsatzueberwachung.Domain.Models.TeamTrackSnapshot _) => _isDirty = true;
+    private void OnCompletedSearchDirty(Einsatzueberwachung.Domain.Models.CompletedSearch _) => _isDirty = true;
 }

@@ -2365,6 +2365,12 @@ main:has(.map-page-layout) {
     max-width: 400px;
 }
 
+/* Bootstrap sets position:relative + z-index:2 on .input-group .btn.
+   Override here so the search button doesn't stack above page dialogs. */
+.map-header .input-group .btn {
+    z-index: auto;
+}
+
 .map-header .header-right {
     display: flex;
     gap: 0.5rem;

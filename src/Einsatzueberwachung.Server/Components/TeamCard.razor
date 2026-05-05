@@ -1,0 +1,305 @@
+@* Team card — zones: identity+timer | context strip | actions | expand *@
+<div id="team-@Team.TeamId"
+     class="monitor-team-card @CardClass @(IsDogConflict ? "team-dog-blocked" : "")">
+
+    @* ── Dog conflict banner ───────────────────────────────────────── *@
+    @if (IsDogConflict)
+    {
+        <div class="team-dog-conflict-banner">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>Hund läuft in anderem Team
+            @if (!string.IsNullOrWhiteSpace(ConflictingTeamName))
+            {
+                <span class="ms-1">— aktiv in <strong>@ConflictingTeamName</strong></span>
+            }
+        </div>
+    }
+
+    @* ── Zone 1: Identity + Timer ─────────────────────────────────── *@
+    <div class="tc-head">
+        <div class="tc-identity">
+            <div class="tc-name">@Team.TeamName</div>
+            <div class="tc-crew">
+                @if (!string.IsNullOrWhiteSpace(Team.DogName))
+                {
+                    <span><i class="bi bi-paw-fill"></i>@Team.DogName</span>
+                }
+                @if (Team.IsDroneTeam && !string.IsNullOrWhiteSpace(Team.DroneType))
+                {
+                    var droneEntry = DroneList.FirstOrDefault(d => d.Id == Team.DroneId);
+                    <span>
+                        <i class="bi bi-airplane"></i>@Team.DroneType
+                        @if (droneEntry is not null && !string.IsNullOrWhiteSpace(droneEntry.LivestreamUrl))
+                        {
+                            <a href="@droneEntry.LivestreamUrl" target="_blank" rel="noopener noreferrer" title="Drohne112 Livestream öffnen">
+                                <i class="bi bi-camera-video-fill"></i>
+                            </a>
+                        }
+                    </span>
+                }
+                @if (!string.IsNullOrWhiteSpace(Team.HundefuehrerName))
+                {
+                    <span><i class="bi bi-person-fill"></i>@Team.HundefuehrerName</span>
+                }
+            </div>
+        </div>
+        <div class="tc-timer">
+            @if (!Team.IsDroneTeam && !Team.IsSupportTeam)
+            {
+                @if (Team.IsPausing)
+                {
+                    <div class="tc-time tc-time--pausing">
+                        @if (Team.IsPauseComplete)
+                        {
+                            <i class="bi bi-check-circle-fill me-1"></i>
+                        }
+                        @FormatPauseRemaining()
+                    </div>
+                    <div class="tc-badge @(Team.IsPauseComplete ? "tc-badge--ok" : "tc-badge--pause")">
+                        @(Team.IsPauseComplete ? "PAUSE OK" : "IN PAUSE")
+                    </div>
+                    <div class="tc-pause-info">
+                        Gelaufen: @((int)Team.RunTimeBeforePause.TotalMinutes) Min. &bull;
+                        Pflichtpause: @Team.RequiredPauseMinutes Min.
+                    </div>
+                }
+                else
+                {
+                    <div class="tc-time @TimerDisplayClass">@Team.ElapsedTime.ToString(@"hh\:mm\:ss")</div>
+                    @if (Team.IsSecondWarning)
+                    {
+                        <div class="tc-badge tc-badge--critical">KRITISCH</div>
+                    }
+                    else if (Team.IsFirstWarning)
+                    {
+                        <div class="tc-badge tc-badge--warning">Warnung</div>
+                    }
+                }
+            }
+        </div>
+    </div>
+
+    @* ── Zone 2: Context strip (situational info at a glance) ──────── *@
+    @{
+        bool hasCtx = !string.IsNullOrWhiteSpace(Team.SearchAreaName)
+                   || !string.IsNullOrWhiteSpace(Team.Notes)
+                   || !string.IsNullOrWhiteSpace(Team.CollarId);
+    }
+    @if (hasCtx)
+    {
+        <div class="tc-ctx">
+            @if (!string.IsNullOrWhiteSpace(Team.SearchAreaName))
+            {
+                <span class="tc-ctx-chip">
+                    <i class="bi bi-geo-alt"></i>@Team.SearchAreaName
+                </span>
+            }
+            @if (!string.IsNullOrWhiteSpace(Team.Notes))
+            {
+                <span class="tc-ctx-chip tc-ctx-chip--note" title="@Team.Notes">
+                    <i class="bi bi-sticky"></i><span class="tc-ctx-clip">@Team.Notes</span>
+                </span>
+            }
+            @if (!string.IsNullOrWhiteSpace(Team.CollarId))
+            {
+                <span class="tc-ctx-chip tc-ctx-chip--gps">
+                    <i class="bi bi-broadcast-pin"></i>
+                    @if (LastCollarLocation is not null)
+                    {
+                        <span>@FormatRelativeTime(LastCollarLocation.Timestamp)</span>
+                        @if (LastCollarLocation.BatteryLevel.HasValue)
+                        {
+                            <span class="tc-ctx-muted">· @LastCollarLocation.BatteryLevel&thinsp;%</span>
+                        }
+                    }
+                    else
+                    {
+                        <span class="tc-ctx-muted">kein Signal</span>
+                    }
+                </span>
+            }
+        </div>
+    }
+
+    @* ── Zone 3: Actions ─────────────────────────────────────────── *@
+    <div class="tc-foot">
+        <div class="tc-controls">
+            @if (!Team.IsDroneTeam && !Team.IsSupportTeam)
+            {
+                @if (Team.IsRunning)
+                {
+                    <button class="btn btn-warning btn-sm" @onclick="() => OnStop.InvokeAsync(Team.TeamId)">Stopp</button>
+                }
+                else if (!Team.IsPausing)
+                {
+                    <button class="btn btn-success btn-sm" disabled="@IsDogConflict"
+                            @onclick="() => OnStart.InvokeAsync(Team.TeamId)"
+                            title="@(IsDogConflict ? "Hund läuft bereits in einem anderen Team" : "Timer starten")">Start</button>
+                }
+                else
+                {
+                    <button class="btn btn-success btn-sm" @onclick="() => OnStart.InvokeAsync(Team.TeamId)" title="Neuen Einsatz starten (Pause beendet)">Start</button>
+                }
+                <button class="btn btn-outline-secondary btn-sm btn-team-reset" disabled="@IsDogConflict"
+                        @onclick="() => OnReset.InvokeAsync(Team.TeamId)" title="Timer zurücksetzen">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+            }
+            <button class="btn btn-primary btn-sm" @onclick="() => OnEdit.InvokeAsync(Team.TeamId)">Bearbeiten</button>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm tc-expand-toggle"
+                @onclick="() => OnToggleExpand.InvokeAsync(Team.TeamId)"
+                title="@(IsExpanded ? "Weniger anzeigen" : "Mehr anzeigen")">
+            <i class="bi @(IsExpanded ? "bi-chevron-up" : "bi-chevron-down")"></i>
+        </button>
+    </div>
+
+    @* ── Zone 4: Expand panel ────────────────────────────────────── *@
+    @if (IsExpanded)
+    {
+        <div class="tc-expand">
+
+            @* Crew *@
+            @if (Team.HelferNames.Count > 0)
+            {
+                <div class="tc-section-label">Besatzung</div>
+                <div class="tc-expand-row">
+                    <i class="bi bi-people tc-expand-icon"></i>
+                    <span>@Team.HelferNamesJoined</span>
+                    <span class="tc-expand-muted">(@(Team.HelferNames.Count == 1 ? "Helfer" : $"{Team.HelferNames.Count} Helfer"))</span>
+                </div>
+            }
+
+            @* Notizen *@
+            @if (!string.IsNullOrWhiteSpace(Team.Notes))
+            {
+                <div class="tc-section-label">Notiz</div>
+                <div class="tc-expand-row">
+                    <i class="bi bi-sticky tc-expand-icon"></i>
+                    <span>@Team.Notes</span>
+                </div>
+            }
+
+            @* Halsband + GPS *@
+            @if (!string.IsNullOrWhiteSpace(Team.CollarId))
+            {
+                <div class="tc-section-label">GPS-Halsband</div>
+                <div class="tc-expand-row">
+                    <i class="bi bi-broadcast-pin tc-expand-icon"></i>
+                    <span>@(string.IsNullOrWhiteSpace(Team.CollarName) ? Team.CollarId : Team.CollarName)</span>
+                    @if (LastCollarLocation is not null)
+                    {
+                        <span class="tc-expand-muted">
+                            · @LastCollarLocation.Timestamp.ToString("HH:mm:ss")
+                            (@FormatRelativeTime(LastCollarLocation.Timestamp))
+                            @if (LastCollarLocation.BatteryLevel.HasValue)
+                            {
+                                <text> · Akku @LastCollarLocation.BatteryLevel&nbsp;%</text>
+                            }
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="tc-expand-muted">· Noch kein Signal</span>
+                    }
+                </div>
+                @if (LastCollarLocation is not null)
+                {
+                    var lat = LastCollarLocation.Latitude;
+                    var lon = LastCollarLocation.Longitude;
+                    var (utmZone, utmBand, utmE, utmN) = UtmConverter.LatLongToUtm(lat, lon);
+                    <div class="tc-expand-row tc-expand-row--coords">
+                        <i class="bi bi-crosshair tc-expand-icon"></i>
+                        <span class="font-monospace tc-coord">@lat.ToString("F5", System.Globalization.CultureInfo.InvariantCulture), @lon.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</span>
+                        <span class="tc-expand-muted tc-coord-utm">· UTM @utmZone@utmBand @((int)utmE) @((int)utmN)</span>
+                    </div>
+                }
+            }
+
+            @* Abgeschlossene Suchen *@
+            @if (CompletedSearchAreas.Count > 0)
+            {
+                <div class="tc-section-label">Abgeschlossene Suchen</div>
+                @foreach (var area in CompletedSearchAreas)
+                {
+                    <div class="tc-expand-row">
+                        <i class="bi bi-check-circle-fill tc-expand-icon tc-icon--ok"></i>
+                        <span>@area.Name</span>
+                        @if (area.CompletedAt.HasValue)
+                        {
+                            <span class="tc-expand-muted">· @area.CompletedAt.Value.ToString("HH:mm")</span>
+                        }
+                    </div>
+                }
+            }
+
+            @* Letzte Einträge *@
+            @if (LatestNoteEntries.Count > 0)
+            {
+                <div class="tc-section-label">Letzte Einträge</div>
+                @foreach (var entry in LatestNoteEntries)
+                {
+                    <div class="tc-expand-row">
+                        <span class="tc-expand-ts">@entry.Timestamp.ToString("HH:mm")</span>
+                        <span class="tc-expand-type">@entry.SourceType</span>
+                        <span class="tc-expand-text">@entry.Text</span>
+                    </div>
+                }
+            }
+
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Team Team { get; set; } = default!;
+    [Parameter] public bool IsDogConflict { get; set; }
+    [Parameter] public string? ConflictingTeamName { get; set; }
+    [Parameter] public IReadOnlyList<DroneEntry> DroneList { get; set; } = Array.Empty<DroneEntry>();
+    [Parameter] public bool IsExpanded { get; set; }
+    [Parameter] public CollarLocation? LastCollarLocation { get; set; }
+    [Parameter] public IReadOnlyList<GlobalNotesEntry> LatestNoteEntries { get; set; } = Array.Empty<GlobalNotesEntry>();
+    [Parameter] public IReadOnlyList<SearchArea> CompletedSearchAreas { get; set; } = Array.Empty<SearchArea>();
+    [Parameter] public EventCallback<string> OnStart { get; set; }
+    [Parameter] public EventCallback<string> OnStop { get; set; }
+    [Parameter] public EventCallback<string> OnReset { get; set; }
+    [Parameter] public EventCallback<string> OnEdit { get; set; }
+    [Parameter] public EventCallback<string> OnToggleExpand { get; set; }
+
+    private string CardClass
+    {
+        get
+        {
+            var classes = new System.Text.StringBuilder();
+            if (Team.IsRunning) classes.Append("team-running ");
+            if (Team.IsPausing) classes.Append("team-pausing ");
+            if (Team.IsSecondWarning) classes.Append("team-critical ");
+            else if (Team.IsFirstWarning) classes.Append("team-warning ");
+            return classes.ToString().TrimEnd();
+        }
+    }
+
+    private string TimerDisplayClass
+    {
+        get
+        {
+            if (Team.IsSecondWarning) return "timer-critical";
+            if (Team.IsFirstWarning) return "timer-warning";
+            return string.Empty;
+        }
+    }
+
+    private string FormatPauseRemaining()
+    {
+        if (Team.IsPauseComplete) return "Pause abgeschlossen";
+        var remaining = TimeSpan.FromMinutes(Team.RemainingPauseMinutes);
+        return $"Noch {remaining:hh\\:mm} Pause";
+    }
+
+    private static string FormatRelativeTime(DateTime timestamp)
+    {
+        var delta = DateTime.Now - timestamp;
+        if (delta.TotalSeconds < 60) return "gerade eben";
+        if (delta.TotalMinutes < 60) return $"vor {(int)delta.TotalMinutes} Min.";
+        return $"vor {(int)delta.TotalHours} Std.";
+    }
+}

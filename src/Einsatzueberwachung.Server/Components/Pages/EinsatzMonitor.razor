@@ -99,11 +99,36 @@
                  class="dashboard-panel-wrapper"
                  data-panel-id="@panel.PanelId">
                 <div class="dashboard-panel">
-                    <div class="dashboard-panel-header">
+                    <div class="dashboard-panel-header @(panel.PanelId == KnownPanels.Teams && EinsatzService.Teams.Count > 0 ? "dashboard-panel-header--teams" : "")">
                         <span class="dashboard-panel-title">@PanelLabel(panel.PanelId)</span>
                         @if (panel.PanelId == KnownPanels.Teams)
                         {
-                            <div class="ms-auto d-flex align-items-center gap-2">
+                            @if (EinsatzService.Teams.Count > 0)
+                            {
+                                <div class="teams-header-filters" role="group" aria-label="Teamstatus Filter">
+                                    <button type="button"
+                                            class="btn btn-xs @(_teamStatusFilter == TeamStatusFilter.All ? "btn-primary" : "btn-outline-primary")"
+                                            @onclick="() => SetTeamStatusFilter(TeamStatusFilter.All)">
+                                        Alle <span class="badge text-bg-light ms-1">@GetTeamCountForFilter(TeamStatusFilter.All)</span>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-xs @(_teamStatusFilter == TeamStatusFilter.Running ? "btn-success" : "btn-outline-success")"
+                                            @onclick="() => SetTeamStatusFilter(TeamStatusFilter.Running)">
+                                        Aktiv <span class="badge text-bg-light ms-1">@GetTeamCountForFilter(TeamStatusFilter.Running)</span>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-xs @(_teamStatusFilter == TeamStatusFilter.Pausing ? "btn-warning text-dark" : "btn-outline-warning")"
+                                            @onclick="() => SetTeamStatusFilter(TeamStatusFilter.Pausing)">
+                                        Pause <span class="badge text-bg-light ms-1">@GetTeamCountForFilter(TeamStatusFilter.Pausing)</span>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-xs @(_teamStatusFilter == TeamStatusFilter.Critical ? "btn-danger" : "btn-outline-danger")"
+                                            @onclick="() => SetTeamStatusFilter(TeamStatusFilter.Critical)">
+                                        Kritisch <span class="badge text-bg-light ms-1">@GetTeamCountForFilter(TeamStatusFilter.Critical)</span>
+                                    </button>
+                                </div>
+                            }
+                            <div class="ms-auto d-flex align-items-center gap-2 flex-shrink-0">
                                 <a class="btn btn-sm btn-outline-secondary"
                                    href="/popout-teams"
                                    target="_blank"
@@ -206,135 +231,29 @@
                                     else
                                     {
                                         <div class="teams-monitor-list">
-                                            @foreach (var team in EinsatzService.Teams
+                                            @foreach (var team in GetFilteredTeams()
                                                 .OrderBy(team => team.IsPausing ? 2 : team.IsRunning ? 0 : 1)
                                                 .ThenBy(team => team.TeamName))
                                             {
                                                 var isDogConflict = !team.IsRunning && !team.IsPausing
                                                     && !string.IsNullOrWhiteSpace(team.DogId)
                                                     && EinsatzService.IsDogRunning(team.DogId);
-                                                var conflictingTeam = isDogConflict
-                                                    ? EinsatzService.Teams.FirstOrDefault(t => t.TeamId != team.TeamId && t.IsRunning && t.DogId == team.DogId)
+                                                var conflictingTeamName = isDogConflict
+                                                    ? EinsatzService.Teams.FirstOrDefault(t => t.TeamId != team.TeamId && t.IsRunning && t.DogId == team.DogId)?.TeamName
                                                     : null;
-                                                <div id="team-@team.TeamId"
-                                                     class="monitor-team-card @GetTeamCardClass(team) @(isDogConflict ? "team-dog-blocked" : "")">
-                                                    @if (isDogConflict)
-                                                    {
-                                                        <div class="team-dog-conflict-banner">
-                                                            <i class="bi bi-exclamation-triangle-fill me-2"></i>Hund läuft in anderem Team
-                                                            @if (conflictingTeam != null)
-                                                            {
-                                                                <span class="ms-1">— aktiv in <strong>@conflictingTeam.TeamName</strong></span>
-                                                            }
-                                                        </div>
-                                                    }
-                                                    <div class="team-card-body" style="border-left: 5px solid @GetTeamColor(team); padding-left: 1rem;">
-                                                        <div class="team-card-top">
-                                                            <div class="team-name-section">
-                                                                <h5>@team.TeamName</h5>
-                                                                @if (!string.IsNullOrWhiteSpace(team.DogName))
-                                                                {
-                                                                    <span class="team-detail">🐕 @team.DogName</span>
-                                                                }
-                                                                @if (team.IsDroneTeam && !string.IsNullOrWhiteSpace(team.DroneType))
-                                                                {
-                                                                    <span class="team-detail">
-                                                                        <i class="bi bi-airplane me-1"></i>@team.DroneType
-                                                                        @{ var _droneEntry = _droneList.FirstOrDefault(d => d.Id == team.DroneId); }
-                                                                        @if (_droneEntry is not null && !string.IsNullOrWhiteSpace(_droneEntry.LivestreamUrl))
-                                                                        {
-                                                                            <a href="@_droneEntry.LivestreamUrl" target="_blank" rel="noopener noreferrer" class="ms-2 text-info" title="Drohne112 Livestream öffnen">
-                                                                                <i class="bi bi-camera-video-fill"></i>
-                                                                            </a>
-                                                                        }
-                                                                    </span>
-                                                                }
-                                                                @if (!string.IsNullOrWhiteSpace(team.HundefuehrerName))
-                                                                {
-                                                                    <span class="team-detail"><i class="bi bi-person-fill me-1"></i>@team.HundefuehrerName</span>
-                                                                }
-                                                                @if (team.HelferNames.Count > 0)
-                                                                {
-                                                                    var helferLabel = team.HelferNames.Count == 1 ? "Helfer" : $"Helfer ({team.HelferNames.Count})";
-                                                                    <span class="team-detail"><i class="bi bi-person me-1"></i>@team.HelferNamesJoined (@helferLabel)</span>
-                                                                }
-                                                                @if (!string.IsNullOrWhiteSpace(team.SearchAreaName))
-                                                                {
-                                                                    <span class="team-detail"><i class="bi bi-geo-alt me-1"></i>Gebiet: @team.SearchAreaName</span>
-                                                                }
-                                                            </div>
-
-                                                            <div class="team-timer">
-                                                                @if (!team.IsDroneTeam && !team.IsSupportTeam)
-                                                                {
-                                                                    @if (team.IsPausing)
-                                                                    {
-                                                                        <div class="timer-display timer-pausing">
-                                                                            @if (team.IsPauseComplete)
-                                                                            {
-                                                                                <i class="bi bi-check-circle-fill text-success me-1"></i>
-                                                                            }
-                                                                            @FormatPauseRemaining(team)
-                                                                        </div>
-                                                                        <span class="warning-badge badge @(team.IsPauseComplete ? "bg-success" : "bg-warning text-dark")">
-                                                                            @(team.IsPauseComplete ? "PAUSE OK" : "IN PAUSE")
-                                                                        </span>
-                                                                        <div class="pause-info-line small text-muted mt-1">
-                                                                            Gelaufen: @((int)team.RunTimeBeforePause.TotalMinutes) Min. &bull;
-                                                                            Pflichtpause: @team.RequiredPauseMinutes Min.
-                                                                        </div>
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                        <div class="timer-display @GetTimerDisplayClass(team)">@team.ElapsedTime.ToString(@"hh\:mm\:ss")</div>
-                                                                        @if (team.IsSecondWarning)
-                                                                        {
-                                                                            <span class="warning-badge badge bg-danger">KRITISCH</span>
-                                                                        }
-                                                                        else if (team.IsFirstWarning)
-                                                                        {
-                                                                            <span class="warning-badge badge bg-warning text-dark">Warnung</span>
-                                                                        }
-                                                                    }
-                                                                }
-                                                                else
-                                                                {
-                                                                    <small class="text-muted">Kein Timer erforderlich</small>
-                                                                }
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="team-card-bottom">
-                                                            <div class="team-controls">
-                                                                @if (!team.IsDroneTeam && !team.IsSupportTeam)
-                                                                {
-                                                                    @if (team.IsRunning)
-                                                                    {
-                                                                        <button class="btn btn-warning" @onclick="() => StopTeamAsync(team.TeamId)">Stopp</button>
-                                                                    }
-                                                                    else if (!team.IsPausing)
-                                                                    {
-                                                                        <button class="btn btn-success" disabled="@isDogConflict"
-                                                                                @onclick="() => StartTeamAsync(team.TeamId)"
-                                                                                title="@(isDogConflict ? "Hund läuft bereits in einem anderen Team" : "Timer starten")">Start</button>
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                        <button class="btn btn-success" @onclick="() => StartTeamAsync(team.TeamId)" title="Neuen Einsatz starten (Pause beendet)">Start</button>
-                                                                    }
-                                                                    <button class="btn btn-secondary btn-team-reset ms-3" disabled="@isDogConflict" @onclick="() => RequestResetTeamAsync(team.TeamId)" title="Timer zurücksetzen"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
-                                                                }
-                                                                <button class="btn btn-primary" @onclick="() => EditTeam(team.TeamId)">Bearbeiten</button>
-                                                            </div>
-                                                            @if (!string.IsNullOrWhiteSpace(team.Notes))
-                                                            {
-                                                                <div class="team-notes-badge mt-1">
-                                                                    <i class="bi bi-sticky-fill me-1 text-warning"></i><span class="small text-muted">@team.Notes</span>
-                                                                </div>
-                                                            }
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                <TeamCard Team="team"
+                                                          IsDogConflict="isDogConflict"
+                                                          ConflictingTeamName="conflictingTeamName"
+                                                          DroneList="_droneList"
+                                                          IsExpanded="_expandedTeamIds.Contains(team.TeamId)"
+                                                          LastCollarLocation="GetLastCollarLocation(team)"
+                                                          LatestNoteEntries="GetLatestTeamNoteEntries(team, 3)"
+                                                          CompletedSearchAreas="GetCompletedSearchAreas(team)"
+                                                          OnStart="StartTeamAsync"
+                                                          OnStop="StopTeamAsync"
+                                                          OnReset="RequestResetTeamAsync"
+                                                          OnEdit="id => EditTeam(id)"
+                                                          OnToggleExpand="ToggleTeamExpand" />
                                             }
                                         </div>
                                     }

@@ -205,6 +205,9 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    // WICHTIG: Wird ein neues Event zu IEinsatzService hinzugefügt, das persistenten Zustand verändert,
+    // muss es hier in Subscribe() UND Unsubscribe() eingetragen werden — sonst gehen Daten bei einem
+    // Server-Neustart verloren (der Dirty-Flag wird nie gesetzt und der Timer schreibt nichts in SQLite).
     private void Subscribe()
     {
         _einsatzService.EinsatzChanged += OnDirty;

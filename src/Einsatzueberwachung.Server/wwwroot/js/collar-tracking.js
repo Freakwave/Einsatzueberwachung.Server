@@ -332,10 +332,13 @@ window.CollarTracking = {
     },
 
     // Abgeschlossenen Track (Snapshot) auf der Karte einzeichnen (gedimmt, gestrichelt)
-    addCompletedTrack: function (mapId, snapshotId, points, color, teamName, collarName) {
+    // trackType: "CollarTrack" (Standard) oder "HumanTrack" (Mensch-Laufweg, anders dargestellt)
+    addCompletedTrack: function (mapId, snapshotId, points, color, teamName, collarName, trackType) {
         const mapData = window.LeafletMap.maps[mapId];
         if (!mapData || !mapData.trackingLayer) return;
         if (!points || points.length === 0) return;
+
+        const isHumanTrack = trackType === 'HumanTrack';
 
         // Bereits vorhandenen Eintrag entfernen
         this._removeCompletedTrackLayers(mapData, snapshotId);
@@ -344,9 +347,9 @@ window.CollarTracking = {
 
         const polyline = L.polyline(positions, {
             color: color,
-            weight: 4,
-            opacity: 0.5,
-            dashArray: '6 5'
+            weight: isHumanTrack ? 3 : 4,
+            opacity: isHumanTrack ? 0.7 : 0.5,
+            dashArray: isHumanTrack ? '3 8' : '6 5'
         });
         polyline.addTo(mapData.trackingLayer);
 
@@ -356,8 +359,10 @@ window.CollarTracking = {
                 this._dotNetRef.invokeMethodAsync('OnCompletedTrackClicked', snapshotId);
             }
         });
-        polyline.on('mouseover', function () { this.setStyle({ weight: 6, opacity: 0.8 }); });
-        polyline.on('mouseout', function () { this.setStyle({ weight: 4, opacity: 0.5 }); });
+        polyline.on('mouseover', function () { this.setStyle({ weight: isHumanTrack ? 5 : 6, opacity: 0.8 }); });
+        polyline.on('mouseout', function () { this.setStyle({ weight: isHumanTrack ? 3 : 4, opacity: isHumanTrack ? 0.7 : 0.5 }); });
+
+        const trackLabel = isHumanTrack ? 'Laufweg' : collarName;
 
         // Start-Marker (kleines Dreieck)
         const startIcon = L.divIcon({
@@ -367,7 +372,7 @@ window.CollarTracking = {
             iconSize: [14, 14], iconAnchor: [7, 7], className: 'collar-completed-icon'
         });
         const startMarker = L.marker(positions[0], { icon: startIcon })
-            .bindPopup(`<strong>${teamName}</strong><br><small>Start · ${collarName}</small>`);
+            .bindPopup(`<strong>${teamName}</strong><br><small>Start · ${trackLabel}</small>`);
         startMarker.addTo(mapData.trackingLayer);
 
         // End-Marker (kleines Quadrat)
@@ -379,7 +384,7 @@ window.CollarTracking = {
             iconSize: [14, 14], iconAnchor: [7, 7], className: 'collar-completed-icon'
         });
         const endMarker = L.marker(lastPos, { icon: endIcon })
-            .bindPopup(`<strong>${teamName}</strong><br><small>Ende · ${collarName}</small>`);
+            .bindPopup(`<strong>${teamName}</strong><br><small>Ende · ${trackLabel}</small>`);
         endMarker.addTo(mapData.trackingLayer);
 
         this._completedTracks[snapshotId] = {

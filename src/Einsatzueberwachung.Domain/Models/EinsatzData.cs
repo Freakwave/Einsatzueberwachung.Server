@@ -36,8 +36,14 @@ namespace Einsatzueberwachung.Domain.Models
 
         public (double Latitude, double Longitude)? ElwPosition { get; set; }
 
-        // Alle gespeicherten GPS-Tracks des Einsatzes
+        // Alle gespeicherten GPS-Tracks des Einsatzes (Legacy – bleibt für Rückwärtskompatibilität)
         public List<TeamTrackSnapshot> TrackSnapshots { get; set; }
+
+        /// <summary>
+        /// Abgeschlossene Suchen (gruppiert). Max. 1 Hund- + 1 Mensch-Track pro Suche.
+        /// Ersetzt die flache <see cref="TrackSnapshots"/>-Liste; wird beim Laden ggf. automatisch migriert.
+        /// </summary>
+        public List<CompletedSearch> CompletedSearches { get; set; }
 
         // Protokoll aller Import-Zusammenführungen für diesen Einsatz
         public List<MergeHistoryEntry> MergeHistory { get; set; }
@@ -78,6 +84,7 @@ namespace Einsatzueberwachung.Domain.Models
             Teams = new List<Team>();
             ElwPosition = null;
             TrackSnapshots = new List<TeamTrackSnapshot>();
+            CompletedSearches = new List<CompletedSearch>();
             MergeHistory = new List<MergeHistoryEntry>();
             VermisstenInfo = null;
             ElNotizen = new List<ElNotizEntry>();

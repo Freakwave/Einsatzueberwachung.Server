@@ -132,14 +132,17 @@
                     {
                            <KarteGpsTab Collars="_collars"
                                   OobWarnings="_oobWarnings"
-                                  CompletedSnapshots="@(EinsatzService.CurrentEinsatz.TrackSnapshots ?? new())"
+                                  CompletedSearches="@(EinsatzService.CurrentEinsatz.CompletedSearches ?? new())"
+                                  SearchAreas="@(EinsatzService.CurrentEinsatz.SearchAreas ?? new())"
                                   Teams="_teams"
                                   CompletedTrackVisibility="_completedTrackVisibility"
                                   ExpandedSnapshotId="_expandedSnapshotId"
                                   CollarLastLocations="_collarLastLocations"
                                   GetCollarColorFn="GetCollarColor"
                                   OnZoomToCollar="ZoomToCollarAsync"
-                                  OnToggleTrackVisibility="HandleToggleTrackVisibility" />
+                                  OnZoomToTrack="ZoomToCompletedTrackAsync"
+                                  OnToggleTrackVisibility="HandleToggleTrackVisibility"
+                                  OnGpxImported="HandleGpxImportedAsync" />
                     }
 
                     @if (_activeSidebarTab == "points")

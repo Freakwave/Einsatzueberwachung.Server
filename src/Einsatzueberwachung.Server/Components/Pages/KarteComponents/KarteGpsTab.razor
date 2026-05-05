@@ -4,10 +4,17 @@
 
 <div class="sidebar-content-header">
     <span class="small fw-semibold text-muted"><i class="bi bi-broadcast me-1"></i>GPS Tracking</span>
-    @if (OobWarnings.Any())
-    {
-        <span class="badge bg-danger pulse-badge">!</span>
-    }
+    <div class="d-flex align-items-center gap-1">
+        @if (OobWarnings.Any())
+        {
+            <span class="badge bg-danger pulse-badge">!</span>
+        }
+        <button class="btn btn-xs btn-outline-primary ms-1"
+                title="GPX-Track importieren"
+                @onclick="OpenImportDialog">
+            <i class="bi bi-cloud-upload me-1"></i>GPX importieren
+        </button>
+    </div>
 </div>
 
 <div class="sidebar-list gps-tab-content">
@@ -48,24 +55,16 @@
                         <span class="collar-team text-muted">Nicht zugewiesen</span>
                     }
                 </div>
-                <div class="collar-status-line">
+                <div class="collar-status-line d-flex justify-content-between align-items-center">
                     @if (lastLoc != null)
                     {
                         var (icon, color) = GetBatteryDisplay(lastLoc.BatteryLevel);
                         <span class="collar-status-pill"><i class="bi @icon @color me-1"></i>Akku</span>
+                        <span class="collar-status-pill text-muted">Letztes Update: @FormatAge(lastLoc.Timestamp)</span>
                     }
                     else
                     {
                         <span class="collar-status-pill text-muted"><i class="bi bi-battery me-1"></i>Akku: -</span>
-                    }
-                </div>
-                <div class="collar-status-line">
-                    @if (lastLoc != null)
-                    {
-                        <span class="collar-status-pill">Letztes Update: @FormatAge(lastLoc.Timestamp)</span>
-                    }
-                    else
-                    {
                         <span class="collar-status-pill text-muted">Letztes Update: keine Daten</span>
                     }
                 </div>
@@ -79,42 +78,75 @@
         </div>
     }
 
-    @* Abgeschlossene Suchen *@
-    @if (CompletedSnapshots.Any())
+    @* Abgeschlossene Suchen – gruppiert nach CompletedSearch *@
+    @if (CompletedSearches.Any())
     {
         <div class="sidebar-section-header mt-2">
             <span><i class="bi bi-archive me-1"></i>Abgeschlossene Suchen</span>
-            <span class="badge bg-secondary">@CompletedSnapshots.Count</span>
+            <span class="badge bg-secondary">@CompletedSearches.Count</span>
         </div>
-        @foreach (var snap in CompletedSnapshots)
+        @foreach (var search in CompletedSearches)
         {
-            var isVisible = !CompletedTrackVisibility.TryGetValue(snap.Id, out var sv) || sv;
-            <div class="snapshot-item">
-                <div class="snapshot-summary"
-                     @onclick="() => OpenDetailPopup(snap)"
-                     title="Details anzeigen">
-                    <span class="snapshot-color-bar" style="background:@snap.Color"></span>
-                    <div class="snapshot-meta">
-                        <div class="snapshot-team-name">@snap.TeamName</div>
-                        <div class="snapshot-sub">
-                            @(snap.CollarName ?? snap.CollarId)
-                            @if (!string.IsNullOrEmpty(snap.SearchAreaName))
-                            {
-                                <text> · @snap.SearchAreaName</text>
-                            }
-                        </div>
-                        <div class="snapshot-sub">@snap.FormattedDuration · @snap.FormattedDistance · @snap.Points.Count Pkt.</div>
+            <div class="completed-search-group mb-1">
+                <div class="completed-search-header px-2 py-1">
+                    <div class="d-flex align-items-baseline gap-1 flex-wrap">
+                        <span class="fw-semibold small">@search.TeamName</span>
+                        <span class="text-muted" style="font-size:0.7rem;">@search.FormattedTimeRange</span>
+                        @if (!string.IsNullOrEmpty(search.SearchAreaName))
+                        {
+                            <span class="text-muted" style="font-size:0.7rem;"> · @search.SearchAreaName</span>
+                        }
                     </div>
-                    <div class="snapshot-controls">
-                        <button class="btn btn-xs @(isVisible ? "btn-outline-secondary" : "btn-outline-secondary opacity-50")"
-                                title="@(isVisible ? "Auf Karte ausblenden" : "Auf Karte einblenden")"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => OnToggleTrackVisibility.InvokeAsync((snap.Id, !isVisible))">
-                            <i class="bi @(isVisible ? "bi-eye" : "bi-eye-slash")"></i>
-                        </button>
-                        <i class="bi bi-info-circle text-muted small" title="Details anzeigen"></i>
+                    <div class="d-flex gap-1 mt-1 flex-wrap">
+                        @if (search.CanAddCollarTrack)
+                        {
+                            <span class="badge bg-secondary badge-xs opacity-50" title="Kein Halsband-Track vorhanden"><i class="bi bi-broadcast me-1"></i>–</span>
+                        }
+                        @if (search.CanAddHumanTrack)
+                        {
+                            <span class="badge bg-secondary badge-xs opacity-50" title="Kein Mensch-Laufweg vorhanden"><i class="bi bi-person-walking me-1"></i>–</span>
+                        }
                     </div>
                 </div>
+                @foreach (var snap in search.Tracks)
+                {
+                    var isVisible = !CompletedTrackVisibility.TryGetValue(snap.Id, out var sv) || sv;
+                    <div class="snapshot-item ms-2">
+                        <div class="snapshot-summary"
+                             @onclick="() => OnZoomToTrack.InvokeAsync(snap.Id)"
+                             title="Auf Karte anzeigen">
+                            <span class="snapshot-color-bar" style="background:@snap.Color"></span>
+                            <div class="snapshot-meta">
+                                <div class="snapshot-sub">
+                                    @if (snap.TrackType == TrackType.HumanTrack)
+                                    {
+                                        <span class="badge bg-info text-dark badge-xs me-1" title="Mensch-Laufweg"><i class="bi bi-person-walking"></i></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-primary badge-xs me-1" title="Halsband-Track"><i class="bi bi-broadcast"></i></span>
+                                    }
+                                    @(snap.CollarName ?? snap.CollarId)
+                                </div>
+                                <div class="snapshot-sub">@snap.FormattedDuration · @snap.FormattedDistance · @snap.Points.Count Pkt.</div>
+                            </div>
+                            <div class="snapshot-controls">
+                                <button class="btn btn-xs @(isVisible ? "btn-outline-secondary" : "btn-outline-secondary opacity-50")"
+                                        title="@(isVisible ? "Auf Karte ausblenden" : "Auf Karte einblenden")"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => OnToggleTrackVisibility.InvokeAsync((snap.Id, !isVisible))">
+                                    <i class="bi @(isVisible ? "bi-eye" : "bi-eye-slash")"></i>
+                                </button>
+                                <button class="btn btn-xs btn-outline-secondary"
+                                        title="Details anzeigen"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => OpenDetailPopup(snap)">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
             </div>
         }
     }
@@ -129,8 +161,8 @@
 @* Detail-Popup für abgeschlossene Suche *@
 @if (_detailSnapshot != null)
 {
-    <div class="modal-backdrop show" style="z-index: 2000;" @onclick="CloseDetailPopup"></div>
-    <div class="modal show d-block" style="z-index: 2001;" tabindex="-1">
+    <div class="modal-backdrop show" style="z-index: 9000;" @onclick="CloseDetailPopup"></div>
+    <div class="modal show d-block" style="z-index: 9001;" tabindex="-1">
         <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header py-2">
@@ -144,6 +176,7 @@
                     <table class="table table-sm table-borderless snapshot-stats-table mb-2">
                         <tbody>
                             <tr><td class="text-muted">Team</td><td><strong>@_detailSnapshot.TeamName</strong></td></tr>
+                            <tr><td class="text-muted">Typ</td><td>@(_detailSnapshot.TrackType == TrackType.HumanTrack ? "Mensch-Laufweg" : "Halsband-Track")</td></tr>
                             <tr><td class="text-muted">Halsband</td><td>@(_detailSnapshot.CollarName ?? _detailSnapshot.CollarId)</td></tr>
                             <tr><td class="text-muted">Suchgebiet</td><td>@(string.IsNullOrEmpty(_detailSnapshot.SearchAreaName) ? "–" : _detailSnapshot.SearchAreaName)</td></tr>
                             <tr><td class="text-muted">Beginn</td><td>@(_detailSnapshot.Points.FirstOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
@@ -187,17 +220,389 @@
     </div>
 }
 
+@* GPX-Import-Dialog *@
+@if (_showImportDialog)
+{
+    <div class="modal-backdrop show" style="z-index: 9100;" @onclick="CloseImportDialog"></div>
+    <div class="modal show d-block" style="z-index: 9101;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title mb-0"><i class="bi bi-cloud-upload me-1"></i>GPX-Track importieren</h6>
+                    <button type="button" class="btn-close" @onclick="CloseImportDialog" disabled="@_importBusy"></button>
+                </div>
+                <div class="modal-body">
+
+                    @* Fehler-Banner *@
+                    @if (!string.IsNullOrEmpty(_importError))
+                    {
+                        <div class="alert alert-danger py-2 small">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>@_importError
+                        </div>
+                    }
+
+                    @* Schritt 1: Datei + Team + Typ *@
+                    @if (_importStep == 1)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">GPX-Datei wählen</label>
+                            <InputFile class="form-control form-control-sm" accept=".gpx"
+                                       OnChange="OnGpxFileSelected" disabled="@_importBusy" />
+                            <div class="form-text">Unterstützt GPX 1.0/1.1. Maximale Dateigröße: 10 MB.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Team zuweisen <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" @bind="_importTeamId">
+                                <option value="">— Team auswählen —</option>
+                                @foreach (var t in Teams)
+                                {
+                                    <option value="@t.TeamId">@t.TeamName</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Track-Typ</label>
+                            <div class="d-flex flex-column gap-1">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" id="importTypeCollar"
+                                           name="importTrackType" value="CollarTrack"
+                                           checked="@(_importTrackType == TrackType.CollarTrack)"
+                                           @onchange="() => _importTrackType = TrackType.CollarTrack" />
+                                    <label class="form-check-label" for="importTypeCollar">
+                                        <i class="bi bi-broadcast me-1 text-primary"></i>
+                                        <strong>Halsband-Track</strong> – GPS-Aufzeichnung eines Hunde-Halsbands
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" id="importTypeHuman"
+                                           name="importTrackType" value="HumanTrack"
+                                           checked="@(_importTrackType == TrackType.HumanTrack)"
+                                           @onchange="() => _importTrackType = TrackType.HumanTrack" />
+                                    <label class="form-check-label" for="importTypeHuman">
+                                        <i class="bi bi-person-walking me-1 text-info"></i>
+                                        <strong>Mensch-Laufweg</strong> – Smartphone- oder Handgerät-Aufzeichnung
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Farbe</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="color" class="form-control form-control-color form-control-sm"
+                                       style="width:40px;height:32px;"
+                                       @bind="_importColor" />
+                                <div class="d-flex gap-1 flex-wrap">
+                                    @foreach (var c in _colorPalette)
+                                    {
+                                        <button type="button"
+                                                class="color-swatch @(_importColor == c ? "active" : "")"
+                                                style="background:@c;"
+                                                @onclick="() => _importColor = c"
+                                                title="@c"></button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @* Schritt 2: Suche auswählen oder neu anlegen *@
+                    @if (_importStep == 2)
+                    {
+                        @if (_availableSearches.Count > 0)
+                        {
+                            <p class="small text-muted mb-2">
+                                Bestehende Suchen dieses Teams, in die ein <strong>@(_importTrackType == TrackType.CollarTrack ? "Halsband-Track" : "Mensch-Laufweg")</strong> noch importiert werden kann:
+                            </p>
+                            @foreach (var cs in _availableSearches)
+                            {
+                                <div class="form-check mb-2 p-2 border rounded @(_importCompletedSearchId == cs.Id ? "border-primary bg-primary bg-opacity-10" : "")">
+                                    <input class="form-check-input" type="radio" id="search-@cs.Id"
+                                           name="completedSearch"
+                                           checked="@(_importCompletedSearchId == cs.Id && !_importCreateNew)"
+                                           @onchange="() => { _importCompletedSearchId = cs.Id; _importCreateNew = false; }" />
+                                    <label class="form-check-label w-100" for="search-@cs.Id" style="cursor:pointer;">
+                                        <div class="fw-semibold">@cs.TeamName – @cs.FormattedTimeRange</div>
+                                        @if (!string.IsNullOrEmpty(cs.SearchAreaName))
+                                        {
+                                            <div class="text-muted small"><i class="bi bi-geo me-1"></i>@cs.SearchAreaName</div>
+                                        }
+                                        <div class="text-muted small">
+                                            @if (!cs.CanAddCollarTrack)
+                                            {
+                                                <span class="me-2"><i class="bi bi-broadcast text-primary me-1"></i>Halsband belegt</span>
+                                            }
+                                            @if (!cs.CanAddHumanTrack)
+                                            {
+                                                <span><i class="bi bi-person-walking text-info me-1"></i>Mensch belegt</span>
+                                            }
+                                        </div>
+                                    </label>
+                                </div>
+                            }
+                            <hr class="my-2" />
+                        }
+
+                        <div class="form-check mb-2 p-2 border rounded @(_importCreateNew ? "border-success bg-success bg-opacity-10" : "")">
+                            <input class="form-check-input" type="radio" id="createNewSearch"
+                                   name="completedSearch"
+                                   checked="@_importCreateNew"
+                                   @onchange="() => { _importCreateNew = true; _importCompletedSearchId = null; }" />
+                            <label class="form-check-label fw-semibold" for="createNewSearch" style="cursor:pointer;">
+                                <i class="bi bi-plus-circle me-1 text-success"></i>Neue Suche anlegen
+                            </label>
+                        </div>
+
+                        @if (_importCreateNew && SearchAreas.Any())
+                        {
+                            <div class="row g-2 mt-1 ms-3">
+                                <div class="col-12">
+                                    <label class="form-label small mb-1">Suchgebiet (optional)</label>
+                                    <select class="form-select form-select-sm" @bind="_importNewSearchAreaId">
+                                        <option value="">— Kein Suchgebiet —</option>
+                                        @foreach (var area in SearchAreas)
+                                        {
+                                            <option value="@area.Id">@area.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                        }
+                    }
+
+                    @* Schritt 3: Suchzeiten + Vorschau + Truncation *@
+                    @if (_importStep == 3 && _parsedPoints != null)
+                    {
+                        @* Suchzeiten-Sektion *@
+                        @if (_importCreateNew)
+                        {
+                            <div class="border rounded p-2 mb-3 bg-success bg-opacity-10 border-success">
+                                <p class="small fw-semibold mb-2"><i class="bi bi-plus-circle me-1 text-success"></i>Neue Suche – Zeiten festlegen</p>
+                                <div class="row g-2">
+                                    <div class="col-sm-6">
+                                        <label class="form-label small mb-1">Beginn <span class="text-danger">*</span></label>
+                                        <input type="datetime-local" class="form-control form-control-sm"
+                                               value="@(_importNewSearchStart?.ToString(DateTimeLocalFormat))"
+                                               @oninput="e => OnNewSearchTimeInput(e, true)" />
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label class="form-label small mb-1">Ende <span class="text-danger">*</span></label>
+                                        <input type="datetime-local" class="form-control form-control-sm"
+                                               value="@(_importNewSearchEnd?.ToString(DateTimeLocalFormat))"
+                                               @oninput="e => OnNewSearchTimeInput(e, false)" />
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            var selSearch = _availableSearches.FirstOrDefault(cs => cs.Id == _importCompletedSearchId);
+                            @if (selSearch != null)
+                            {
+                                <div class="border rounded p-2 mb-3 bg-primary bg-opacity-10 border-primary">
+                                    <p class="small mb-0">
+                                        <i class="bi bi-clock me-1 text-primary"></i>
+                                        <strong>Suche:</strong> @selSearch.FormattedTimeRange –
+                                        Punkte werden automatisch auf dieses Zeitfenster gefiltert.
+                                    </p>
+                                </div>
+                            }
+                        }
+
+                        <div class="mb-2">
+                            <p class="mb-1 small">
+                                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                Datei <strong>@_importFileName</strong> gelesen –
+                                <strong>@_parsedPoints.Count</strong> Punkte gefunden
+                                @if (_parsedPoints.Count > 0 && _parsedPoints[0].Timestamp != DateTime.MinValue)
+                                {
+                                    <text> · @_parsedPoints[0].Timestamp.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                    bis @_parsedPoints[^1].Timestamp.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</text>
+                                }
+                            </p>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-sm-6">
+                                <label class="form-label small mb-1">Anfang kürzen (Punkte)</label>
+                                <input type="number" class="form-control form-control-sm" min="0"
+                                       value="@_truncateStart"
+                                       @oninput="e => OnTruncateInput(e, true)" />
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label small mb-1">Ende kürzen (Punkte)</label>
+                                <input type="number" class="form-control form-control-sm" min="0"
+                                       value="@_truncateEnd"
+                                       @oninput="e => OnTruncateInput(e, false)" />
+                            </div>
+                        </div>
+
+                        @if (_filteredPoints != null)
+                        {
+                            var excluded = _parsedPoints.Count - _filteredPoints.Count;
+                            <p class="small mb-2">
+                                <i class="bi bi-funnel me-1"></i>
+                                <strong>@_filteredPoints.Count</strong> Punkte übernommen
+                                @if (excluded > 0)
+                                {
+                                    <span class="text-muted"> (@excluded ausgeblendet)</span>
+                                }
+                            </p>
+                        }
+
+                        @* Punkte-Vorschau-Tabelle (max. 200 Zeilen) *@
+                        @if (_parsedPoints.Count > 0)
+                        {
+                            <div class="snapshot-points-scroll">
+                                <table class="table table-xs snapshot-points-table mb-0">
+                                    <thead>
+                                        <tr><th>#</th><th>Zeit</th><th>Lat</th><th>Lng</th><th></th></tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (var pi = 0; pi < Math.Min(_parsedPoints.Count, _importShowAllPoints ? int.MaxValue : 200); pi++)
+                                        {
+                                            var pt = _parsedPoints[pi];
+                                            var excluded = _filteredPoints != null && !_filteredPoints.Contains(pt);
+                                            <tr class="@(excluded ? "table-secondary opacity-50 text-decoration-line-through" : "")">
+                                                <td class="text-muted">@(pi + 1)</td>
+                                                <td>@(pt.Timestamp == DateTime.MinValue ? "–" : pt.Timestamp.ToLocalTime().ToString("HH:mm:ss"))</td>
+                                                <td class="font-monospace">@pt.Latitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
+                                                <td class="font-monospace">@pt.Longitude.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</td>
+                                                <td>@(excluded ? "✗" : "")</td>
+                                            </tr>
+                                        }
+                                        @if (_parsedPoints.Count > 200 && !_importShowAllPoints)
+                                        {
+                                            <tr>
+                                                <td colspan="5" class="text-center small p-1">
+                                                    <button class="btn btn-link btn-sm p-0" @onclick="() => _importShowAllPoints = true">
+                                                        ... und @(_parsedPoints.Count - 200) weitere Punkte anzeigen
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="modal-footer py-2 flex-wrap gap-1">
+                    @if (_importStep == 1)
+                    {
+                        @if (Step1DisabledReason != null)
+                        {
+                            <small class="text-muted me-auto"><i class="bi bi-info-circle me-1"></i>@Step1DisabledReason</small>
+                        }
+                        <button class="btn btn-sm btn-primary"
+                                @onclick="AdvanceToStep2"
+                                disabled="@(_importBusy || string.IsNullOrEmpty(_importTeamId) || _parsedPoints == null)">
+                            @if (_importBusy)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            Weiter
+                        </button>
+                    }
+                    else if (_importStep == 2)
+                    {
+                        @if (Step2DisabledReason != null)
+                        {
+                            <small class="text-muted me-auto"><i class="bi bi-info-circle me-1"></i>@Step2DisabledReason</small>
+                        }
+                        <button class="btn btn-sm btn-secondary" @onclick="() => _importStep = 1">
+                            <i class="bi bi-arrow-left me-1"></i>Zurück
+                        </button>
+                        <button class="btn btn-sm btn-primary"
+                                @onclick="AdvanceToStep3"
+                                disabled="@(!CanAdvanceStep2())">
+                            Weiter
+                        </button>
+                    }
+                    else if (_importStep == 3)
+                    {
+                        @if (Step3DisabledReason != null)
+                        {
+                            <small class="text-muted me-auto"><i class="bi bi-info-circle me-1"></i>@Step3DisabledReason</small>
+                        }
+                        <button class="btn btn-sm btn-secondary" @onclick="() => _importStep = 2">
+                            <i class="bi bi-arrow-left me-1"></i>Zurück
+                        </button>
+                        <button class="btn btn-sm btn-success"
+                                @onclick="ConfirmImport"
+                                disabled="@(_importBusy || _filteredPoints == null || _filteredPoints.Count == 0 || (_importCreateNew && (!_importNewSearchStart.HasValue || !_importNewSearchEnd.HasValue)))">
+                            @if (_importBusy)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            <i class="bi bi-check-lg me-1"></i>Importieren (@(_filteredPoints?.Count ?? 0) Punkte)
+                        </button>
+                    }
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CloseImportDialog" disabled="@_importBusy">Abbrechen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter, EditorRequired] public List<Collar> Collars { get; set; } = new();
     [Parameter, EditorRequired] public Dictionary<string, string> OobWarnings { get; set; } = new();
-    [Parameter, EditorRequired] public List<TeamTrackSnapshot> CompletedSnapshots { get; set; } = new();
+    /// <summary>Abgeschlossene Suchen (gruppiert). Ersetzt die flache CompletedSnapshots-Liste.</summary>
+    [Parameter, EditorRequired] public List<CompletedSearch> CompletedSearches { get; set; } = new();
+    /// <summary>Suchgebiete – für das Suchgebiet-Dropdown im Import-Dialog.</summary>
+    [Parameter] public List<SearchArea> SearchAreas { get; set; } = new();
     [Parameter, EditorRequired] public List<Team> Teams { get; set; } = new();
     [Parameter, EditorRequired] public Dictionary<string, bool> CompletedTrackVisibility { get; set; } = new();
     [Parameter] public string? ExpandedSnapshotId { get; set; }
     [Parameter, EditorRequired] public Func<string, string> GetCollarColorFn { get; set; } = _ => "#007bff";
     [Parameter] public EventCallback<Collar> OnZoomToCollar { get; set; }
+    [Parameter] public EventCallback<string> OnZoomToTrack { get; set; }
     [Parameter] public EventCallback<(string Id, bool Visible)> OnToggleTrackVisibility { get; set; }
+    [Parameter] public EventCallback<GpxImportRequest> OnGpxImported { get; set; }
     [Parameter] public Dictionary<string, CollarLocation> CollarLastLocations { get; set; } = new();
+
+    /// <summary>Datenpaket, das beim Bestätigen des Import-Dialogs gesendet wird.</summary>
+    public record GpxImportRequest(
+        TeamTrackSnapshot Snapshot,
+        string? CompletedSearchId,  // null = neue Suche anlegen
+        DateTime? SearchStart,      // Pflicht wenn CompletedSearchId null
+        DateTime? SearchEnd,        // Pflicht wenn CompletedSearchId null
+        string? SearchAreaId        // optional
+    );
+
+    // --- Import-Dialog State ---
+    private bool _showImportDialog;
+    private int _importStep = 1;
+    private string _importTeamId = string.Empty;
+    private TrackType _importTrackType = TrackType.CollarTrack;
+    private string _importColor = "#45B7D1";
+    private string _importFileName = string.Empty;
+    private string _importError = string.Empty;
+    private bool _importBusy;
+    private List<TrackPoint>? _parsedPoints;
+    private List<TrackPoint>? _filteredPoints;
+
+    // --- Schritt-2/3-State ---
+    private List<CompletedSearch> _availableSearches = new();
+    private string? _importCompletedSearchId;
+    private bool _importCreateNew;
+    private DateTime? _importNewSearchStart;
+    private DateTime? _importNewSearchEnd;
+    private string? _importNewSearchAreaId;
+    private int _truncateStart;
+    private int _truncateEnd;
+    private bool _importShowAllPoints;
+
+    private static readonly string[] _colorPalette =
+    [
+        "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8",
+        "#F7DC6F", "#BB8FCE", "#85C1E2", "#FF8800", "#44FF88"
+    ];
+
+    private const string DateTimeLocalFormat = "yyyy-MM-ddTHH:mm";
 
     private TeamTrackSnapshot? _detailSnapshot;
     private string? _prevExpandedSnapshotId;
@@ -226,7 +631,7 @@
         // Auto-open popup when parent navigates to a specific snapshot (e.g. map click)
         if (ExpandedSnapshotId != null && ExpandedSnapshotId != _prevExpandedSnapshotId)
         {
-            var snap = CompletedSnapshots.FirstOrDefault(s => s.Id == ExpandedSnapshotId);
+            var snap = CompletedSearches.SelectMany(cs => cs.Tracks).FirstOrDefault(s => s.Id == ExpandedSnapshotId);
             if (snap != null) _detailSnapshot = snap;
         }
         _prevExpandedSnapshotId = ExpandedSnapshotId;
@@ -264,6 +669,242 @@
 
     private void OpenDetailPopup(TeamTrackSnapshot snap) => _detailSnapshot = snap;
     private void CloseDetailPopup() => _detailSnapshot = null;
+
+    private string? Step1DisabledReason => _importBusy ? null
+        : string.IsNullOrEmpty(_importTeamId) && _parsedPoints == null ? "Bitte Team auswählen und GPX-Datei laden"
+        : string.IsNullOrEmpty(_importTeamId) ? "Bitte Team auswählen"
+        : _parsedPoints == null ? "Bitte GPX-Datei laden"
+        : null;
+
+    private string? Step2DisabledReason => _importBusy ? null
+        : !_importCreateNew && string.IsNullOrEmpty(_importCompletedSearchId) ? "Bitte eine bestehende Suche ausw\u00e4hlen oder 'Neue Suche anlegen' aktivieren"
+        : null;
+
+    private string? Step3DisabledReason => _importBusy ? null
+        : _filteredPoints == null || _filteredPoints.Count == 0 ? "Keine Punkte für den Import vorhanden"
+        : _importCreateNew && !_importNewSearchStart.HasValue ? "Bitte Startzeit festlegen"
+        : _importCreateNew && !_importNewSearchEnd.HasValue ? "Bitte Endzeit festlegen"
+        : null;
+
+    // --- GPX Import ---
+
+    private void OpenImportDialog()
+    {
+        _showImportDialog = true;
+        _importStep = 1;
+        _importTeamId = Teams.Count == 1 ? Teams[0].TeamId : string.Empty;
+        _importTrackType = TrackType.CollarTrack;
+        _importColor = "#45B7D1";
+        _importFileName = string.Empty;
+        _importError = string.Empty;
+        _parsedPoints = null;
+        _filteredPoints = null;
+        _availableSearches = new();
+        _importCompletedSearchId = null;
+        _importCreateNew = false;
+        _importNewSearchStart = null;
+        _importNewSearchEnd = null;
+        _importNewSearchAreaId = null;
+        _truncateStart = 0;
+        _truncateEnd = 0;
+    }
+
+    private void CloseImportDialog()
+    {
+        if (_importBusy) return;
+        _showImportDialog = false;
+    }
+
+    private async Task OnGpxFileSelected(InputFileChangeEventArgs e)
+    {
+        _importError = string.Empty;
+        _parsedPoints = null;
+        _filteredPoints = null;
+        var file = e.File;
+        if (file == null) return;
+
+        if (!file.Name.EndsWith(".gpx", StringComparison.OrdinalIgnoreCase))
+        {
+            _importError = "Nur GPX-Dateien (.gpx) werden unterstützt.";
+            return;
+        }
+
+        _importBusy = true;
+        _importFileName = file.Name;
+        StateHasChanged();
+
+        try
+        {
+            await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            _parsedPoints = await GpxParser.ParseAsync(stream);
+            _filteredPoints = new List<TrackPoint>(_parsedPoints);
+        }
+        catch (FormatException ex)
+        {
+            _importError = $"Fehler beim Lesen der GPX-Datei: {ex.Message}";
+            _parsedPoints = null;
+        }
+        catch (Exception ex)
+        {
+            _importError = $"Unerwarteter Fehler: {ex.Message}";
+            _parsedPoints = null;
+        }
+        finally
+        {
+            _importBusy = false;
+        }
+    }
+
+    private void AdvanceToStep2()
+    {
+        if (string.IsNullOrEmpty(_importTeamId) || _parsedPoints == null) return;
+        _importError = string.Empty;
+
+        // Verfügbare Suchen für dieses Team + TrackType ermitteln
+        _availableSearches = CompletedSearches
+            .Where(cs => cs.TeamId == _importTeamId &&
+                (_importTrackType == TrackType.CollarTrack ? cs.CanAddCollarTrack : cs.CanAddHumanTrack))
+            .ToList();
+
+        // Schritt-2-Auswahl zurücksetzen
+        _importCompletedSearchId = null;
+        _importCreateNew = _availableSearches.Count == 0; // Direkt "Neue Suche" wenn keine vorhanden
+
+        // Zeitvorschlag aus Track-Punkten vorausfüllen (unabhängig vom CreateNew-Modus),
+        // damit die Werte auch dann verfügbar sind wenn der Benutzer erst später auf
+        // „Neue Suche anlegen" wechselt.
+        // Hat die Datei keine Zeitstempel, veraltete Werte aus einem früheren Import zurücksetzen
+        // damit kein inkonsistentes Start > Ende angezeigt wird.
+        if (_parsedPoints.Count > 0 && _parsedPoints[0].Timestamp != DateTime.MinValue)
+        {
+            _importNewSearchStart = _parsedPoints[0].Timestamp.ToLocalTime();
+            _importNewSearchEnd = _parsedPoints[^1].Timestamp.ToLocalTime();
+        }
+        else
+        {
+            _importNewSearchStart = null;
+            _importNewSearchEnd = null;
+        }
+
+        _importStep = 2;
+    }
+
+    private bool CanAdvanceStep2()
+    {
+        if (_importCreateNew) return true; // Zeiten werden in Schritt 3 eingegeben
+        return !string.IsNullOrEmpty(_importCompletedSearchId);
+    }
+
+    private void AdvanceToStep3()
+    {
+        if (!CanAdvanceStep2()) return;
+        _importError = string.Empty;
+        _truncateStart = 0;
+        _truncateEnd = 0;
+        _importShowAllPoints = false;
+        UpdateFilteredPoints();
+        _importStep = 3;
+    }
+
+    private (DateTime? Start, DateTime? End) GetEffectiveTimeFilter()
+    {
+        if (_importCreateNew) return (_importNewSearchStart, _importNewSearchEnd);
+        var search = _availableSearches.FirstOrDefault(cs => cs.Id == _importCompletedSearchId);
+        return search != null ? (search.SearchStart, search.SearchEnd) : (null, null);
+    }
+
+    private void UpdateFilteredPoints()
+    {
+        if (_parsedPoints == null) return;
+        var (start, end) = GetEffectiveTimeFilter();
+        // p.Timestamp is always Kind=Utc (from GpxParser). Normalize filter bounds to UTC
+        // so that Kind=Local or Kind=Unspecified values (e.g. from .ToLocalTime() or user input)
+        // are correctly compared without raw-tick mismatch across time zones.
+        var startUtc = start.HasValue ? start.Value.ToUniversalTime() : (DateTime?)null;
+        var endUtc   = end.HasValue   ? end.Value.ToUniversalTime()   : (DateTime?)null;
+        var timeFiltered = GpxParser.ApplyTimeFilter(_parsedPoints, startUtc, endUtc);
+        var skipStart = Math.Max(0, Math.Min(_truncateStart, timeFiltered.Count));
+        var skipEnd = Math.Max(0, Math.Min(_truncateEnd, timeFiltered.Count - skipStart));
+        _filteredPoints = timeFiltered.Skip(skipStart).Take(timeFiltered.Count - skipStart - skipEnd).ToList();
+    }
+
+    private void OnNewSearchTimeInput(ChangeEventArgs e, bool isStart)
+    {
+        var raw = e.Value?.ToString();
+        DateTime? parsed = null;
+        if (!string.IsNullOrWhiteSpace(raw))
+        {
+            // Some browsers include seconds or milliseconds in datetime-local values
+            string[] formats = [DateTimeLocalFormat, DateTimeLocalFormat + ":ss", DateTimeLocalFormat + ":ss.fff"];
+            if (DateTime.TryParseExact(raw, formats,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeLocal, out var dt))
+                parsed = dt;
+        }
+        if (isStart) _importNewSearchStart = parsed;
+        else _importNewSearchEnd = parsed;
+        UpdateFilteredPoints();
+    }
+
+    private void OnTruncateInput(ChangeEventArgs e, bool isStart)
+    {
+        var val = int.TryParse(e.Value?.ToString(), out var n) ? Math.Max(0, n) : 0;
+        if (isStart) _truncateStart = val;
+        else _truncateEnd = val;
+        UpdateFilteredPoints();
+    }
+
+    private async Task ConfirmImport()
+    {
+        if (_parsedPoints == null || _filteredPoints == null || _filteredPoints.Count == 0) return;
+
+        var team = Teams.FirstOrDefault(t => t.TeamId == _importTeamId);
+        if (team == null)
+        {
+            _importError = "Team nicht gefunden.";
+            return;
+        }
+
+        _importBusy = true;
+        _importError = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var snapshot = new TeamTrackSnapshot
+            {
+                TeamId = team.TeamId,
+                TeamName = team.TeamName,
+                SearchAreaName = team.SearchAreaName ?? string.Empty,
+                CollarId = _importTrackType == TrackType.CollarTrack ? (team.CollarId ?? string.Empty) : string.Empty,
+                CollarName = _importTrackType == TrackType.CollarTrack ? (team.CollarName ?? string.Empty) : string.Empty,
+                Color = _importColor,
+                CapturedAt = DateTime.Now,
+                TrackType = _importTrackType,
+                ImportedAt = DateTime.Now,
+                Points = _filteredPoints
+            };
+
+            var request = new GpxImportRequest(
+                Snapshot: snapshot,
+                CompletedSearchId: _importCreateNew ? null : _importCompletedSearchId,
+                SearchStart: _importCreateNew ? _importNewSearchStart : null,
+                SearchEnd: _importCreateNew ? _importNewSearchEnd : null,
+                SearchAreaId: _importCreateNew ? _importNewSearchAreaId : null
+            );
+
+            await OnGpxImported.InvokeAsync(request);
+            _showImportDialog = false;
+        }
+        catch (Exception ex)
+        {
+            _importError = $"Fehler beim Importieren: {ex.Message}";
+        }
+        finally
+        {
+            _importBusy = false;
+        }
+    }
 
     private async Task DownloadTrackGpxAsync()
     {

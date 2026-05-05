@@ -205,6 +205,9 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    // WICHTIG: Wird ein neues Event zu IEinsatzService hinzugefügt, das persistenten Zustand verändert,
+    // muss es hier in Subscribe() UND Unsubscribe() eingetragen werden — sonst gehen Daten bei einem
+    // Server-Neustart verloren (der Dirty-Flag wird nie gesetzt und der Timer schreibt nichts in SQLite).
     private void Subscribe()
     {
         _einsatzService.EinsatzChanged += OnDirty;
@@ -212,6 +215,8 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
         _einsatzService.TeamRemoved += OnTeamDirty;
         _einsatzService.TeamUpdated += OnTeamDirty;
         _einsatzService.NoteAdded += OnNoteDirty;
+        _einsatzService.TrackSnapshotAdded += OnTrackDirty;
+        _einsatzService.CompletedSearchUpdated += OnCompletedSearchDirty;
     }
 
     private void Unsubscribe()
@@ -221,9 +226,13 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
         _einsatzService.TeamRemoved -= OnTeamDirty;
         _einsatzService.TeamUpdated -= OnTeamDirty;
         _einsatzService.NoteAdded -= OnNoteDirty;
+        _einsatzService.TrackSnapshotAdded -= OnTrackDirty;
+        _einsatzService.CompletedSearchUpdated -= OnCompletedSearchDirty;
     }
 
     private void OnDirty() => _isDirty = true;
     private void OnTeamDirty(Einsatzueberwachung.Domain.Models.Team _) => _isDirty = true;
     private void OnNoteDirty(Einsatzueberwachung.Domain.Models.GlobalNotesEntry _) => _isDirty = true;
+    private void OnTrackDirty(Einsatzueberwachung.Domain.Models.TeamTrackSnapshot _) => _isDirty = true;
+    private void OnCompletedSearchDirty(Einsatzueberwachung.Domain.Models.CompletedSearch _) => _isDirty = true;
 }

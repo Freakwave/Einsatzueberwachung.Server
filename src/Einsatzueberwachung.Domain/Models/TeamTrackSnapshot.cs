@@ -1,13 +1,14 @@
-// Aufgezeichneter GPS-Track eines Halsbands, gesichert beim Stoppen eines Teams
+// Aufgezeichneter GPS-Track eines Halsbands oder eines Mensch-Laufwegs
 // Wird für den Einsatzbericht und PDF-Export verwendet
 
 using System;
 using System.Collections.Generic;
+using Einsatzueberwachung.Domain.Models.Enums;
 
 namespace Einsatzueberwachung.Domain.Models
 {
     /// <summary>
-    /// Snapshot eines aufgezeichneten GPS-Tracks (Halsband-Pfad)
+    /// Snapshot eines aufgezeichneten GPS-Tracks (Halsband-Pfad oder Mensch-Laufweg)
     /// </summary>
     public class TeamTrackSnapshot
     {
@@ -19,6 +20,16 @@ namespace Einsatzueberwachung.Domain.Models
         public string SearchAreaName { get; set; } = string.Empty;
         public string Color { get; set; } = "#FF4444";
         public DateTime CapturedAt { get; set; } = DateTime.Now;
+
+        /// <summary>
+        /// Unterscheidet Halsband-Track von importiertem Mensch-Laufweg.
+        /// </summary>
+        public TrackType TrackType { get; set; } = TrackType.CollarTrack;
+
+        /// <summary>
+        /// Gesetzt wenn dieser Track per GPX-Import hinzugefügt wurde (nicht per Live-Recording).
+        /// </summary>
+        public DateTime? ImportedAt { get; set; }
 
         /// <summary>
         /// Koordinaten des zugewiesenen Suchgebiets (für PDF-Darstellung)

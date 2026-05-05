@@ -6,7 +6,7 @@
         <NavMenu IsCollapsed="_sidebarCollapsed" OnToggleSidebar="ToggleSidebarAsync" />
     </div>
 
-    <main>
+    <div class="main-column">
         <div class="mission-topbar @(HasActiveEinsatz ? "mission-active" : "")">
             <button class="mission-topbar-close"
                     type="button"
@@ -67,10 +67,12 @@
             </div>
         </div>
 
+        <main>
         <article class="content app-content">
             @Body
         </article>
-    </main>
+        </main>
+    </div>
 </div>
 
 @if (_showCriticalWarningPopup)

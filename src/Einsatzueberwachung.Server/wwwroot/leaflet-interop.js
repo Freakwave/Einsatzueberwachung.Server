@@ -504,6 +504,29 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             return false;
         }
     },
+
+    // Zoomt auf ein bestimmtes Suchgebiet anhand der gespeicherten Layer-ID
+    zoomToSearchArea: function(mapId, areaId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData || !areaId) return false;
+
+            const layer = mapData.markers?.[areaId];
+            if (!layer || typeof layer.getBounds !== 'function') return false;
+
+            const bounds = layer.getBounds();
+            if (!bounds || !bounds.isValid()) return false;
+
+            mapData.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 17 });
+            if (typeof layer.openPopup === 'function') {
+                layer.openPopup();
+            }
+            return true;
+        } catch (error) {
+            error('Fehler beim Zoomen auf Suchgebiet:', error);
+            return false;
+        }
+    },
     
     // Gibt die aktuelle Kartenmitte zurueck
     getMapCenter: function(mapId) {

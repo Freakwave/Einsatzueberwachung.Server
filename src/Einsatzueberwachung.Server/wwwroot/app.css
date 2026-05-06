@@ -1354,6 +1354,19 @@ a.list-group-item {
     color: #4ade80;
 }
 
+/* Clickable chips (search area + GPS collar) */
+.tc-ctx-chip--link {
+    cursor: pointer;
+    transition: filter 0.12s ease, background 0.12s ease;
+}
+.tc-ctx-chip--link:hover {
+    filter: brightness(1.08);
+    background: rgba(0, 0, 0, 0.06);
+}
+[data-bs-theme="dark"] .tc-ctx-chip--link:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
 /* Clip long note text inside its chip */
 .tc-ctx-clip {
     overflow: hidden;

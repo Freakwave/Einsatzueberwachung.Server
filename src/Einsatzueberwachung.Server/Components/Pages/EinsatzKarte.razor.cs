@@ -24,6 +24,9 @@ public partial class EinsatzKarte
     [SupplyParameterFromQuery(Name = "focusCollarId")]
     private string? _focusCollarId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "focusAreaId")]
+    private string? _focusAreaId { get; set; }
+
     private const double CoordinateEpsilon = 0.0000001;
 
     private List<SearchArea> _searchAreas = new();
@@ -86,6 +89,8 @@ public partial class EinsatzKarte
     private bool _mapInitialized;
     private bool _collarFocusApplyRunning;
     private string? _lastAppliedFocusUri;
+    private bool _areaFocusApplyRunning;
+    private string? _lastAppliedAreaFocusUri;
 
     // Koordinaten-Marker
     private List<MapMarker> _mapMarkers = new();
@@ -101,6 +106,13 @@ public partial class EinsatzKarte
     protected override async Task OnInitializedAsync()
     {
         _searchAreas = EinsatzService.CurrentEinsatz.SearchAreas.ToList();
+        foreach (var area in _searchAreas)
+        {
+            if ((area.Coordinates == null || area.Coordinates.Count == 0) && !string.IsNullOrWhiteSpace(area.GeoJsonData))
+            {
+                ExtractCoordinatesFromGeoJson(area);
+            }
+        }
         _teams = EinsatzService.Teams;
         _collars = CollarTrackingService.Collars.ToList();
         _mapMarkers = EinsatzService.CurrentEinsatz.MapMarkers.ToList();
@@ -239,6 +251,7 @@ public partial class EinsatzKarte
         }
 
         await ApplyCollarFocusFromQueryAsync();
+        await ApplyAreaFocusFromQueryAsync();
     }
 
     private async Task SearchAddress()
@@ -357,15 +370,25 @@ public partial class EinsatzKarte
 
     private async Task SaveArea()
     {
-        // Team zuweisen
-        if (!string.IsNullOrWhiteSpace(_selectedTeamId))
+        var selectedTeamId = _selectedTeamId?.Trim() ?? string.Empty;
+
+        // Hält beide Geometriedarstellungen konsistent (GeoJsonData <-> Coordinates).
+        if (!string.IsNullOrWhiteSpace(_currentArea.GeoJsonData))
         {
-            var team = _teams.FirstOrDefault(t => t.TeamId == _selectedTeamId);
-            if (team != null)
-            {
-                _currentArea.AssignedTeamId = team.TeamId;
-                _currentArea.AssignedTeamName = team.TeamName;
-            }
+            ExtractCoordinatesFromGeoJson(_currentArea);
+        }
+
+        // Auswahl immer explizit auf das Suchgebiet anwenden, auch beim Entfernen der Teamzuweisung.
+        if (!string.IsNullOrWhiteSpace(selectedTeamId))
+        {
+            var team = _teams.FirstOrDefault(t => t.TeamId == selectedTeamId);
+            _currentArea.AssignedTeamId = team?.TeamId ?? string.Empty;
+            _currentArea.AssignedTeamName = team?.TeamName ?? string.Empty;
+        }
+        else
+        {
+            _currentArea.AssignedTeamId = string.Empty;
+            _currentArea.AssignedTeamName = string.Empty;
         }
 
         if (_editingArea != null)
@@ -392,6 +415,9 @@ public partial class EinsatzKarte
                     "einsatzMap", _currentArea.Id, _currentArea.GeoJsonData, _currentArea.Color, _currentArea.Name);
             }
         }
+
+        // Persistiert die Team<->Suchgebiet-Relation beidseitig (SearchArea + Team).
+        await EinsatzService.AssignTeamToSearchAreaAsync(_currentArea.Id, selectedTeamId);
 
         _searchAreas = EinsatzService.CurrentEinsatz.SearchAreas.ToList();
 
@@ -444,6 +470,15 @@ public partial class EinsatzKarte
 
     private async Task ZoomToArea(SearchArea area)
     {
+        if (!string.IsNullOrWhiteSpace(area.Id))
+        {
+            var zoomed = await JSRuntime.InvokeAsync<bool>("LeafletMap.zoomToSearchArea", "einsatzMap", area.Id);
+            if (zoomed)
+            {
+                return;
+            }
+        }
+
         if (area.Coordinates.Any())
         {
             var avgLat = area.Coordinates.Average(c => c.Latitude);
@@ -824,6 +859,32 @@ public partial class EinsatzKarte
         finally
         {
             _collarFocusApplyRunning = false;
+        }
+    }
+
+    private async Task ApplyAreaFocusFromQueryAsync()
+    {
+        if (!_mapInitialized || _areaFocusApplyRunning || string.IsNullOrWhiteSpace(_focusAreaId))
+            return;
+
+        var focusUri = Navigation.Uri;
+        if (string.Equals(_lastAppliedAreaFocusUri, focusUri, StringComparison.Ordinal))
+            return;
+
+        _areaFocusApplyRunning = true;
+        try
+        {
+            var area = _searchAreas.FirstOrDefault(a => a.Id == _focusAreaId);
+            if (area != null)
+            {
+                await SetSidebarTabAsync("areas");
+                await ZoomToArea(area);
+                _lastAppliedAreaFocusUri = focusUri;
+            }
+        }
+        finally
+        {
+            _areaFocusApplyRunning = false;
         }
     }
 

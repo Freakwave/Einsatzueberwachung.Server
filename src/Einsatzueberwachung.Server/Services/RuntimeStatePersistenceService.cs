@@ -12,6 +12,7 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
 
     private readonly IDbContextFactory<RuntimeDbContext> _dbContextFactory;
     private readonly IEinsatzService _einsatzService;
+    private readonly ICollarTrackingService _collarTrackingService;
     private readonly ILogger<RuntimeStatePersistenceService> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
 
@@ -20,10 +21,12 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
     public RuntimeStatePersistenceService(
         IDbContextFactory<RuntimeDbContext> dbContextFactory,
         IEinsatzService einsatzService,
+        ICollarTrackingService collarTrackingService,
         ILogger<RuntimeStatePersistenceService> logger)
     {
         _dbContextFactory = dbContextFactory;
         _einsatzService = einsatzService;
+        _collarTrackingService = collarTrackingService;
         _logger = logger;
         _jsonOptions = new JsonSerializerOptions
         {
@@ -101,8 +104,27 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
         }
 
         await _einsatzService.ImportRuntimeSnapshotAsync(snapshot);
+        await RestoreCollarAssignmentsAsync();
         await MigrateLegacyFunkToRadioAsync(db, cancellationToken);
         _logger.LogInformation("Runtime-Status aus SQLite wiederhergestellt ({UpdatedAtUtc})", state.UpdatedAtUtc);
+    }
+
+    private async Task RestoreCollarAssignmentsAsync()
+    {
+        foreach (var team in _einsatzService.Teams.Where(t => !string.IsNullOrWhiteSpace(t.CollarId)))
+        {
+            try
+            {
+                await _collarTrackingService.AssignCollarToTeamAsync(team.CollarId!, team.TeamId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Konnte Halsband-Zuordnung nach Restore nicht wiederherstellen (Team: {TeamId}, Collar: {CollarId})",
+                    team.TeamId,
+                    team.CollarId);
+            }
+        }
     }
 
     private async Task MigrateLegacyFunkToRadioAsync(RuntimeDbContext db, CancellationToken cancellationToken)

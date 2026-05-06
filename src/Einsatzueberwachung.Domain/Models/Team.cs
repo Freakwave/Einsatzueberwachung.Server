@@ -164,9 +164,10 @@ namespace Einsatzueberwachung.Domain.Models
                 IsRunning = false;
                 TimerStopped?.Invoke(this);
 
-                if (IsHundeteam && ElapsedTime.TotalMinutes >= 10)
+                var pauseThreshold = PauseThresholdMinutes > 0 ? PauseThresholdMinutes : 20;
+                if (IsHundeteam && ElapsedTime.TotalMinutes >= pauseThreshold)
                 {
-                    EnterPauseMode(pauseThreshold: PauseThresholdMinutes, pauseShort: PauseMinutesShortRun, pauseLong: PauseMinutesLongRun);
+                    EnterPauseMode(pauseThreshold: pauseThreshold, pauseShort: PauseMinutesShortRun, pauseLong: PauseMinutesLongRun);
                 }
             }
         }

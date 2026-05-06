@@ -41,6 +41,9 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// <summary>Positionsverlauf eines Halsbands abrufen</summary>
         IReadOnlyList<CollarLocation> GetLocationHistory(string collarId);
 
+        /// <summary>Letzte bekannte Position eines Halsbands (auch ausserhalb aktiver Aufzeichnung)</summary>
+        CollarLocation? GetLatestLocation(string collarId);
+
         /// <summary>Positionsverlauf eines einzelnen Halsbands löschen (z.B. bei neuem Suchstart)</summary>
         void ClearCollarHistory(string collarId);
 

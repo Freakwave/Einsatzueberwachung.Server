@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Einsatzüberwachung — Rettungshundestaffeln</title>
+  <meta name="description" content="Einsatzüberwachung.Server — Blazor Server Einsatzleit-Anwendung für Rettungshundestaffeln. Live-GPS, SignalR, Mobile PWA, Linux/VPN-Betrieb." />
+  <meta property="og:title" content="Einsatzüberwachung für Rettungshundestaffeln" />
+  <meta property="og:description" content="Moderne Einsatzleit-Software: GPS-Tracking, Live-Karte, Funksprüche, Mobile PWA." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-base: #0d1117;
+      --bg-surface: #161b22;
+      --bg-card: #1c2128;
+      --bg-card-hover: #22272e;
+      --border: #30363d;
+      --border-subtle: #21262d;
+      --accent: #f97316;
+      --accent-dim: rgba(249, 115, 22, 0.15);
+      --accent-glow: rgba(249, 115, 22, 0.35);
+      --blue: #58a6ff;
+      --green: #3fb950;
+      --purple: #bc8cff;
+      --red: #f85149;
+      --yellow: #d29922;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #484f58;
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.7);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── GRID BACKGROUND ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(249,115,22,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(249,115,22,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 2rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-primary);
+      text-decoration: none;
+    }
+    .nav-logo .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+      animation: pulse-dot 2s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.7; }
+    }
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text-primary); }
+    .nav-cta {
+      background: var(--accent);
+      color: #fff !important;
+      padding: 0.4rem 1rem;
+      border-radius: var(--radius-sm);
+      font-weight: 600 !important;
+      transition: background 0.2s, box-shadow 0.2s !important;
+    }
+    .nav-cta:hover {
+      background: #ea6c0a !important;
+      box-shadow: 0 0 12px var(--accent-glow) !important;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 2rem 80px;
+      z-index: 1;
+    }
+    .hero-bg-glow {
+      position: absolute;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(249,115,22,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(249,115,22,0.3);
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.3rem 0.9rem;
+      border-radius: 100px;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--accent), #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.7;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 3rem;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #fff;
+      padding: 0.75rem 1.75rem;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+    .btn-primary:hover {
+      background: #ea6c0a;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 24px var(--accent-glow);
+    }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      color: var(--text-primary);
+      padding: 0.75rem 1.75rem;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95rem;
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 2.5rem;
+      flex-wrap: wrap;
+    }
+    .hero-stat {
+      text-align: center;
+    }
+    .hero-stat .val {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .hero-stat .lbl {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── SECTIONS ── */
+    section { position: relative; z-index: 1; }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+    .section-header {
+      text-align: center;
+      margin-bottom: 3.5rem;
+    }
+    .section-label {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.75rem;
+    }
+    .section-header h2 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .section-header p {
+      color: var(--text-secondary);
+      margin-top: 0.75rem;
+      font-size: 1.05rem;
+    }
+
+    /* ── FEATURES GRID ── */
+    #features { padding: 100px 0; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.25rem;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.75rem;
+      transition: all 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .feature-card:hover {
+      border-color: rgba(249,115,22,0.25);
+      background: var(--bg-card-hover);
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+    }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-icon {
+      width: 44px; height: 44px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+    }
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .feature-card p {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ── TECH STACK ── */
+    #tech { padding: 100px 0; background: linear-gradient(180deg, transparent, rgba(22,27,34,0.6), transparent); }
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+    .tech-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.5rem 1.25rem;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .tech-card:hover {
+      border-color: var(--border);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+    .tech-icon { font-size: 2rem; margin-bottom: 0.6rem; }
+    .tech-card .tech-name {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .tech-card .tech-detail {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    /* ── ARCHITECTURE ── */
+    #architektur { padding: 100px 0; }
+    .arch-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: start;
+    }
+    @media (max-width: 768px) { .arch-grid { grid-template-columns: 1fr; } }
+    .arch-desc h3 { font-size: 1.4rem; font-weight: 600; margin-bottom: 1rem; }
+    .arch-desc p { color: var(--text-secondary); line-height: 1.7; margin-bottom: 1rem; font-size: 0.95rem; }
+    .arch-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+    .arch-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    .arch-list li::before {
+      content: '›';
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .code-block {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+    .code-block .line { display: flex; gap: 0.75rem; }
+    .code-block .ln { color: var(--text-muted); user-select: none; min-width: 1.5rem; text-align: right; }
+    .code-block .kw { color: #ff7b72; }
+    .code-block .st { color: #a5d6ff; }
+    .code-block .cm { color: var(--text-muted); }
+    .code-block .fn { color: #d2a8ff; }
+    .code-block .ty { color: #79c0ff; }
+    .code-block .nu { color: #79c0ff; }
+
+    /* ── DEPLOYMENT ── */
+    #deployment { padding: 100px 0; }
+    .deploy-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.25rem;
+    }
+    .deploy-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.75rem;
+      position: relative;
+    }
+    .deploy-card .badge {
+      position: absolute;
+      top: 1rem; right: 1rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 100px;
+    }
+    .badge-green { background: rgba(63,185,80,0.15); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+    .badge-blue  { background: rgba(88,166,255,0.15); color: var(--blue);  border: 1px solid rgba(88,166,255,0.3); }
+    .badge-purple{ background: rgba(188,140,255,0.15); color: var(--purple);border: 1px solid rgba(188,140,255,0.3); }
+    .deploy-card h3 { font-size: 1rem; font-weight: 600; margin: 0.75rem 0 0.5rem; }
+    .deploy-card p  { font-size: 0.85rem; color: var(--text-secondary); }
+    .deploy-icon    { font-size: 1.75rem; }
+
+    /* ── CTA ── */
+    #cta {
+      padding: 120px 0;
+      text-align: center;
+    }
+    .cta-box {
+      background: var(--bg-card);
+      border: 1px solid rgba(249,115,22,0.2);
+      border-radius: var(--radius-lg);
+      padding: 4rem 2rem;
+      position: relative;
+      overflow: hidden;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .cta-box::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(249,115,22,0.08), transparent 60%);
+      pointer-events: none;
+    }
+    .cta-box h2 {
+      font-size: clamp(1.6rem, 4vw, 2.2rem);
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+    .cta-box p {
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+      font-size: 1.05rem;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: 2.5rem 2rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      position: relative;
+      z-index: 1;
+    }
+    footer a { color: var(--text-secondary); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+
+    /* ── SCROLL REVEAL ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── RESPONSIVE NAV ── */
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <span class="dot"></span>
+    Einsatzüberwachung
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#tech">Tech-Stack</a></li>
+    <li><a href="#architektur">Architektur</a></li>
+    <li><a href="#deployment">Deployment</a></li>
+    <li><a href="https://github.com/Elemirus1996/Einsatzueberwachung.Server" class="nav-cta">GitHub</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg-glow"></div>
+  <div>
+    <div class="hero-badge">🐕 Open Source · Rettungshundestaffeln</div>
+    <h1>Einsatz&shy;überwachung<br /><span>in Echtzeit</span></h1>
+    <p class="hero-sub">
+      Professionelle Einsatzleit-Software für Such&shy;hundestaffeln —
+      mit GPS-Live-Tracking, interaktiver Karte, Funk&shy;sprüchen und mobiler PWA.
+    </p>
+    <div class="hero-actions">
+      <a href="https://github.com/Elemirus1996/Einsatzueberwachung.Server" class="btn-primary">
+        ⭐ GitHub ansehen
+      </a>
+      <a href="https://github.com/Elemirus1996/Einsatzueberwachung.Server/releases" class="btn-secondary">
+        📦 Releases
+      </a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="val">.NET 9</div><div class="lbl">Blazor Server</div></div>
+      <div class="hero-stat"><div class="val">SignalR</div><div class="lbl">Live-Updates</div></div>
+      <div class="hero-stat"><div class="val">PWA</div><div class="lbl">Mobile Ready</div></div>
+      <div class="hero-stat"><div class="val">VPN</div><div class="lbl">Sicher & Privat</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Funktionen</span>
+      <h2>Alles für den Sucheinsatz</h2>
+      <p>Von der Einsatzplanung bis zur Nachbereitung — vollständig digital.</p>
+    </div>
+    <div class="features-grid">
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(249,115,22,0.12);color:var(--accent);">🗺️</div>
+        <h3>Live-Karte mit GPS-Tracking</h3>
+        <p>Interaktive Leaflet.js-Karte mit Echtzeit-Positionen aller Teams und GPS-Halsbänder über WebSocket/SignalR.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(88,166,255,0.12);color:var(--blue);">📡</div>
+        <h3>SignalR Echtzeit-Updates</h3>
+        <p>Alle Statusänderungen, Notizen, Funk&shy;sprüche und Positions&shy;daten werden sofort auf allen Geräten synchronisiert.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(63,185,80,0.12);color:var(--green);">📱</div>
+        <h3>Mobile PWA</h3>
+        <p>Vollständig responsive Benutzeroberfläche — als Progressive Web App direkt auf mobilen Endgeräten installierbar.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(188,140,255,0.12);color:var(--purple);">🎙️</div>
+        <h3>Funksprüche & Threads</h3>
+        <p>Strukturierte Funkspruch-Dokumentation mit Antwort-Threads, Zeitstempeln und Team-Zuordnung.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(249,115,22,0.12);color:var(--accent);">🐕</div>
+        <h3>Team- & Hundeverwaltung</h3>
+        <p>Übersichtliche Verwaltung aller Teams, Hundeführer und Suchhunde inklusive Status und Einsatzhistorie.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(248,81,73,0.12);color:var(--red);">🔔</div>
+        <h3>Divera 24/7 Integration</h3>
+        <p>Direkte Anbindung an Divera 24/7 für automatische Alarmierung und Einsatz&shy;übernahme.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(210,153,34,0.12);color:var(--yellow);">📄</div>
+        <h3>PDF-Karten-Export</h3>
+        <p>Statischer Karten-Export mit OSM/Carto-Tiles als druckfähiges PDF für Offline-Nutzung im Gelände.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(63,185,80,0.12);color:var(--green);">🏋️</div>
+        <h3>Trainings-Modul</h3>
+        <p>Separate Trainer-Authentifizierung und Trainings-API für die Integration mit der externen Trainings-App.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(88,166,255,0.12);color:var(--blue);">🔄</div>
+        <h3>Auto-Updates via GitHub</h3>
+        <p>Integriertes Update-Management — neue Versionen direkt über den eingebauten Update-Controller einspielen.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- TECH STACK -->
+<section id="tech">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Tech-Stack</span>
+      <h2>Moderner, stabiler Stack</h2>
+      <p>Bewährte Technologien — produktionsreif auf Linux.</p>
+    </div>
+    <div class="tech-grid">
+      <div class="tech-card reveal"><div class="tech-icon">🔷</div><div class="tech-name">Blazor Server</div><div class="tech-detail">.NET 9</div></div>
+      <div class="tech-card reveal"><div class="tech-icon">🗄️</div><div class="tech-name">SQLite + EF Core</div><div class="tech-detail">Runtime State</div></div>
+      <div class="tech-card reveal"><div class="tech-icon">⚡</div><div class="tech-name">SignalR</div><div class="tech-detail">WebSocket Echtzeit</div></div>
+      <div class="tech-card reveal"><div class="tech-icon">🗺️</div><div class="tech-name">Leaflet.js</div><div class="tech-detail">OSM / Carto Tiles</div></div>
+      <div class="tech-card reveal"><div class="tech-icon">🎨</div><div class="tech-name">Bootstrap 5.3</div><div class="tech-detail">Dark Mode</div></div>
+      <div class="tech-card reveal"><div class="tech-icon">🐧</div><div class="tech-name">Ubuntu 22/24 LTS</div><div class="tech-detail">systemd + Nginx</div></div>
+      <div class="tech-card reveal"><div class="tech-icon">🔒</div><div class="tech-name">WireGuard VPN</div><div class="tech-detail">Sicherer Zugriff</div></div>
+      <div class="tech-card reveal"><div class="tech-icon">🖥️</div><div class="tech-name">WPF Desktop-Client</div><div class="tech-detail">USB-GPS Windows</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITEKTUR -->
+<section id="architektur">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Architektur</span>
+      <h2>Durchdachtes Design</h2>
+    </div>
+    <div class="arch-grid">
+      <div class="arch-desc reveal">
+        <h3>Klare Schichtentrennung</h3>
+        <p>Die Anwendung folgt einer klaren Service-orientierten Architektur mit getrennten Verantwortlichkeiten für Persistenz, Echtzeit-Kommunikation und UI.</p>
+        <ul class="arch-list">
+          <li>Blazor Razor Components als reaktive UI-Schicht</li>
+          <li>REST-API + SignalR Hub für alle Clients</li>
+          <li>Hosted Services für Background-Tasks</li>
+          <li>Domain-Events → SignalR Relay Pattern</li>
+          <li>Separate RuntimeDbContext für flüchtigen State</li>
+          <li>JSON-Dateien für Stammdaten & Konfiguration</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="code-block">
+          <div class="line"><span class="ln">1</span><span class="cm">// SignalR Hub — Live Updates</span></div>
+          <div class="line"><span class="ln">2</span><span class="kw">public class</span> <span class="ty">EinsatzHub</span> : <span class="ty">Hub</span></div>
+          <div class="line"><span class="ln">3</span><span>&#123;</span></div>
+          <div class="line"><span class="ln">4</span>&nbsp;&nbsp;<span class="kw">public async</span> <span class="ty">Task</span> <span class="fn">SendTeamUpdate</span>(</div>
+          <div class="line"><span class="ln">5</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ty">TeamStatusDto</span> status)</div>
+          <div class="line"><span class="ln">6</span>&nbsp;&nbsp;&#123;</div>
+          <div class="line"><span class="ln">7</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> Clients.All</div>
+          <div class="line"><span class="ln">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<span class="fn">SendAsync</span>(<span class="st">"TeamUpdated"</span>, status);</div>
+          <div class="line"><span class="ln">9</span>&nbsp;&nbsp;&#125;</div>
+          <div class="line"><span class="ln">10</span>&#125;</div>
+          <div class="line"><span class="ln">11</span><span class="cm">&nbsp;</span></div>
+          <div class="line"><span class="ln">12</span><span class="cm">// GPS Relay — Collar → SignalR</span></div>
+          <div class="line"><span class="ln">13</span><span class="kw">public class</span> <span class="ty">CollarTrackingRelayService</span></div>
+          <div class="line"><span class="ln">14</span>&nbsp;&nbsp;: <span class="ty">BackgroundService</span></div>
+          <div class="line"><span class="ln">15</span>&#123;</div>
+          <div class="line"><span class="ln">16</span>&nbsp;&nbsp;<span class="cm">// Webhook → Live-Karte</span></div>
+          <div class="line"><span class="ln">17</span>&#125;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEPLOYMENT -->
+<section id="deployment">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Deployment</span>
+      <h2>Produktionsreif auf Linux</h2>
+      <p>Einfaches Setup — sicher, performant und wartbar.</p>
+    </div>
+    <div class="deploy-cards">
+
+      <div class="deploy-card reveal">
+        <span class="badge badge-green">Stabil</span>
+        <div class="deploy-icon">🐧</div>
+        <h3>Ubuntu 22.04 / 24.04 LTS</h3>
+        <p>Läuft als systemd-Service auf Ubuntu — automatischer Neustart, Logging via journalctl.</p>
+      </div>
+
+      <div class="deploy-card reveal">
+        <span class="badge badge-blue">Reverse Proxy</span>
+        <div class="deploy-icon">⚙️</div>
+        <h3>Nginx Reverse Proxy</h3>
+        <p>Nginx leitet HTTPS-Traffic an Kestrel weiter. Brotli + Gzip Kompression für optimale Performance.</p>
+      </div>
+
+      <div class="deploy-card reveal">
+        <span class="badge badge-purple">Sicher</span>
+        <div class="deploy-icon">🔒</div>
+        <h3>VPN-geschützter Zugriff</h3>
+        <p>Nicht öffentlich erreichbar — nur über WireGuard / OpenVPN Netzwerk zugänglich.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="cta">
+  <div class="container">
+    <div class="cta-box reveal">
+      <h2>Bereit für den Einsatz? 🐕</h2>
+      <p>Kostenlos, Open Source und einsatzbereit — für Rettungshundestaffeln, die digital arbeiten möchten.</p>
+      <div class="hero-actions">
+        <a href="https://github.com/Elemirus1996/Einsatzueberwachung.Server" class="btn-primary">Repository ansehen</a>
+        <a href="https://github.com/Elemirus1996/Einsatzueberwachung.Server/releases" class="btn-secondary">📦 Letzte Version</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>
+    Built with ❤️ für Rettungshundestaffeln &nbsp;·&nbsp;
+    <a href="https://github.com/Elemirus1996/Einsatzueberwachung.Server">GitHub</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/Elemirus1996/Einsatzueberwachung.Server/issues">Issues melden</a>
+  </p>
+</footer>
+
+<script>
+  // Scroll Reveal
+  const observer = new IntersectionObserver(
+    entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
+    { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+  );
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

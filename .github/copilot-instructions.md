@@ -251,3 +251,4 @@ Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze 
 *(Liebe KI, füge hier neue Regeln im Format `[Datum] - [Regel]` hinzu, wenn du von Menschen korrigiert wurdest.)*
 
 * [2026-04-28] - Initialer Start des Agenten-Gedächtnisses. Projektstandards, Architektur und Self-Improvement-Protokoll in `.github/copilot-instructions.md` als einziger Wahrheitsquelle zusammengeführt.
+* [2026-05-05] - **RuntimeStatePersistenceService.Subscribe/Unsubscribe**: Jedes neue Event auf `IEinsatzService`, das persistenten Zustand mutiert, MUSS in `Subscribe()` UND `Unsubscribe()` in `RuntimeStatePersistenceService` eingetragen werden — sonst setzt kein Code `_isDirty = true`, der 3-Sekunden-Timer schreibt nichts in SQLite, und die Daten gehen beim nächsten Server-Neustart verloren. Beispiel: `TrackSnapshotAdded` und `CompletedSearchUpdated` fehlten, was dazu führte, dass importierte GPX-Tracks nicht persistiert wurden.

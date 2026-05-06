@@ -207,6 +207,48 @@ public class EinsatzServiceTests
         Assert.Equal(TimeSpan.Zero, svc.Teams.First().ElapsedTime);
     }
 
+    [Fact]
+    public void StopTimer_DogTeam_DoesNotEnterPauseBelowConfiguredThreshold()
+    {
+        var team = new Team
+        {
+            TeamName = "Iota",
+            DogId = "dog-1",
+            IsRunning = true,
+            ElapsedTime = TimeSpan.FromMinutes(13),
+            PauseThresholdMinutes = 45,
+            PauseMinutesShortRun = 60,
+            PauseMinutesLongRun = 180
+        };
+
+        team.StopTimer();
+
+        Assert.False(team.IsPausing);
+        Assert.False(team.IsPauseComplete);
+        Assert.Equal(0, team.RequiredPauseMinutes);
+    }
+
+    [Fact]
+    public void StopTimer_DogTeam_EntersPauseAtConfiguredThreshold()
+    {
+        var team = new Team
+        {
+            TeamName = "Kilo",
+            DogId = "dog-2",
+            IsRunning = true,
+            ElapsedTime = TimeSpan.FromMinutes(45),
+            PauseThresholdMinutes = 45,
+            PauseMinutesShortRun = 60,
+            PauseMinutesLongRun = 180
+        };
+
+        team.StopTimer();
+
+        Assert.True(team.IsPausing);
+        Assert.Equal(60, team.RequiredPauseMinutes);
+        Assert.True(team.PauseStartTime.HasValue);
+    }
+
     // --- Notizen ---
 
     [Fact]

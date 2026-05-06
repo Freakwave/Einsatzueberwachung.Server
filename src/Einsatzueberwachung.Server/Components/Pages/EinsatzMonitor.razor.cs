@@ -145,6 +145,8 @@ public partial class EinsatzMonitor
         EinsatzService.TeamUpdated += OnTeamChanged;
         EinsatzService.EinsatzChanged += OnEinsatzChanged;
         EinsatzService.NoteAdded += OnNoteAdded;
+        CollarTrackingService.CollarLocationReceived += OnCollarLocationChanged;
+        CollarTrackingService.CollarHistoryCleared += OnCollarHistoryChanged;
     }
 
     protected override async Task OnInitializedAsync()
@@ -184,6 +186,8 @@ public partial class EinsatzMonitor
         EinsatzService.TeamUpdated -= OnTeamChanged;
         EinsatzService.EinsatzChanged -= OnEinsatzChanged;
         EinsatzService.NoteAdded -= OnNoteAdded;
+        CollarTrackingService.CollarLocationReceived -= OnCollarLocationChanged;
+        CollarTrackingService.CollarHistoryCleared -= OnCollarHistoryChanged;
         _weatherRefreshTimer?.Dispose();
         _durationRefreshTimer?.Dispose();
         _screensaverClockTimer?.Dispose();
@@ -397,6 +401,16 @@ public partial class EinsatzMonitor
     }
 
     private void OnNoteAdded(GlobalNotesEntry _)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnCollarLocationChanged(string _, CollarLocation __)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnCollarHistoryChanged(string _)
     {
         InvokeAsync(StateHasChanged);
     }
@@ -703,6 +717,13 @@ public partial class EinsatzMonitor
     private CollarLocation? GetLastCollarLocation(Team team)
     {
         if (string.IsNullOrWhiteSpace(team.CollarId)) return null;
+
+        var latest = CollarTrackingService.GetLatestLocation(team.CollarId);
+        if (latest is not null)
+        {
+            return latest;
+        }
+
         var history = CollarTrackingService.GetLocationHistory(team.CollarId);
         return history.Count > 0 ? history[^1] : null;
     }
@@ -717,14 +738,6 @@ public partial class EinsatzMonitor
             .Take(take)
             .ToList();
         return teamEntries;
-    }
-
-    private List<SearchArea> GetCompletedSearchAreas(Team team)
-    {
-        return EinsatzService.CurrentEinsatz.SearchAreas
-            .Where(a => a.IsCompleted && a.AssignedTeamId == team.TeamId)
-            .OrderByDescending(a => a.CompletedAt)
-            .ToList();
     }
 
     private SearchArea? GetTeamSearchArea(Team team)

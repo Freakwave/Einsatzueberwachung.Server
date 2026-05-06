@@ -1,4 +1,5 @@
 @* Team card — zones: identity+timer | context strip | actions | expand *@
+@inject NavigationManager Navigation
 <div id="team-@Team.TeamId"
      class="monitor-team-card @CardClass @(IsDogConflict ? "team-dog-blocked" : "")">
 
@@ -89,7 +90,9 @@
         <div class="tc-ctx">
             @if (!string.IsNullOrWhiteSpace(Team.SearchAreaName))
             {
-                <span class="tc-ctx-chip">
+                <span class="tc-ctx-chip tc-ctx-chip--link"
+                      title="Auf Karte anzeigen"
+                      @onclick="NavigateToSearchArea">
                     <i class="bi bi-geo-alt"></i>@Team.SearchAreaName
                 </span>
             }
@@ -101,14 +104,17 @@
             }
             @if (!string.IsNullOrWhiteSpace(Team.CollarId))
             {
-                <span class="tc-ctx-chip tc-ctx-chip--gps">
+                <span class="tc-ctx-chip tc-ctx-chip--gps tc-ctx-chip--link"
+                      title="GPS-Halsband auf Karte verfolgen"
+                      @onclick="NavigateToCollar">
                     <i class="bi bi-broadcast-pin"></i>
                     @if (LastCollarLocation is not null)
                     {
                         <span>@FormatRelativeTime(LastCollarLocation.Timestamp)</span>
                         @if (LastCollarLocation.BatteryLevel.HasValue)
                         {
-                            <span class="tc-ctx-muted">· @LastCollarLocation.BatteryLevel&thinsp;%</span>
+                            var (batteryIcon, batteryColor) = GetBatteryDisplay(LastCollarLocation.BatteryLevel);
+                            <span class="tc-ctx-muted" title="Akkustatus"><i class="bi @batteryIcon @batteryColor"></i></span>
                         }
                     }
                     else
@@ -144,7 +150,9 @@
                     <i class="bi bi-arrow-counterclockwise"></i>
                 </button>
             }
-            <button class="btn btn-primary btn-sm" @onclick="() => OnEdit.InvokeAsync(Team.TeamId)">Bearbeiten</button>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="() => OnEdit.InvokeAsync(Team.TeamId)" title="Bearbeiten">
+                <i class="bi bi-pencil"></i>
+            </button>
         </div>
         <button class="btn btn-outline-secondary btn-sm tc-expand-toggle"
                 @onclick="() => OnToggleExpand.InvokeAsync(Team.TeamId)"
@@ -169,16 +177,6 @@
                 </div>
             }
 
-            @* Notizen *@
-            @if (!string.IsNullOrWhiteSpace(Team.Notes))
-            {
-                <div class="tc-section-label">Notiz</div>
-                <div class="tc-expand-row">
-                    <i class="bi bi-sticky tc-expand-icon"></i>
-                    <span>@Team.Notes</span>
-                </div>
-            }
-
             @* Halsband + GPS *@
             @if (!string.IsNullOrWhiteSpace(Team.CollarId))
             {
@@ -188,13 +186,11 @@
                     <span>@(string.IsNullOrWhiteSpace(Team.CollarName) ? Team.CollarId : Team.CollarName)</span>
                     @if (LastCollarLocation is not null)
                     {
+                        var (batteryIcon, batteryColor) = GetBatteryDisplay(LastCollarLocation.BatteryLevel);
                         <span class="tc-expand-muted">
                             · @LastCollarLocation.Timestamp.ToString("HH:mm:ss")
                             (@FormatRelativeTime(LastCollarLocation.Timestamp))
-                            @if (LastCollarLocation.BatteryLevel.HasValue)
-                            {
-                                <text> · Akku @LastCollarLocation.BatteryLevel&nbsp;%</text>
-                            }
+                            <text> · <i class="bi @batteryIcon @batteryColor" title="Akkustatus"></i></text>
                         </span>
                     }
                     else
@@ -216,18 +212,15 @@
             }
 
             @* Abgeschlossene Suchen *@
-            @if (CompletedSearchAreas.Count > 0)
+            @if (CompletedSearches.Count > 0)
             {
                 <div class="tc-section-label">Abgeschlossene Suchen</div>
-                @foreach (var area in CompletedSearchAreas)
+                @foreach (var search in CompletedSearches)
                 {
                     <div class="tc-expand-row">
                         <i class="bi bi-check-circle-fill tc-expand-icon tc-icon--ok"></i>
-                        <span>@area.Name</span>
-                        @if (area.CompletedAt.HasValue)
-                        {
-                            <span class="tc-expand-muted">· @area.CompletedAt.Value.ToString("HH:mm")</span>
-                        }
+                        <span>@(string.IsNullOrWhiteSpace(search.SearchAreaName) ? "Suche" : search.SearchAreaName)</span>
+                        <span class="tc-expand-muted">· @search.CapturedAt.ToString("HH:mm") · @search.FormattedDuration</span>
                     </div>
                 }
             }
@@ -258,7 +251,7 @@
     [Parameter] public bool IsExpanded { get; set; }
     [Parameter] public CollarLocation? LastCollarLocation { get; set; }
     [Parameter] public IReadOnlyList<GlobalNotesEntry> LatestNoteEntries { get; set; } = Array.Empty<GlobalNotesEntry>();
-    [Parameter] public IReadOnlyList<SearchArea> CompletedSearchAreas { get; set; } = Array.Empty<SearchArea>();
+    [Parameter] public IReadOnlyList<TeamTrackSnapshot> CompletedSearches { get; set; } = Array.Empty<TeamTrackSnapshot>();
     [Parameter] public EventCallback<string> OnStart { get; set; }
     [Parameter] public EventCallback<string> OnStop { get; set; }
     [Parameter] public EventCallback<string> OnReset { get; set; }
@@ -295,11 +288,41 @@
         return $"Noch {remaining:hh\\:mm} Pause";
     }
 
+    private static (string Icon, string Color) GetBatteryDisplay(int? level) => level switch
+    {
+        3 => ("bi-battery-full", "text-success"),
+        2 => ("bi-battery-half", "text-warning"),
+        1 => ("bi-battery", "text-danger"),
+        _ => ("bi-battery", "text-muted")
+    };
+
     private static string FormatRelativeTime(DateTime timestamp)
     {
-        var delta = DateTime.Now - timestamp;
+        var timestampUtc = timestamp.Kind switch
+        {
+            DateTimeKind.Utc => timestamp,
+            DateTimeKind.Local => timestamp.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(timestamp, DateTimeKind.Utc)
+        };
+
+        var delta = DateTime.UtcNow - timestampUtc;
+        if (delta < TimeSpan.Zero)
+            delta = TimeSpan.Zero;
+
         if (delta.TotalSeconds < 60) return "gerade eben";
         if (delta.TotalMinutes < 60) return $"vor {(int)delta.TotalMinutes} Min.";
         return $"vor {(int)delta.TotalHours} Std.";
+    }
+
+    private void NavigateToSearchArea()
+    {
+        if (!string.IsNullOrWhiteSpace(Team.SearchAreaId))
+            Navigation.NavigateTo($"/einsatz-karte?focusAreaId={Uri.EscapeDataString(Team.SearchAreaId)}");
+    }
+
+    private void NavigateToCollar()
+    {
+        if (!string.IsNullOrWhiteSpace(Team.CollarId))
+            Navigation.NavigateTo($"/einsatz-karte?focusCollarId={Uri.EscapeDataString(Team.CollarId)}");
     }
 }

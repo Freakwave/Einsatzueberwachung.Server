@@ -122,6 +122,11 @@
                                         Pause <span class="badge text-bg-light ms-1">@GetTeamCountForFilter(TeamStatusFilter.Pausing)</span>
                                     </button>
                                     <button type="button"
+                                            class="btn btn-xs @(_teamStatusFilter == TeamStatusFilter.Ready ? "btn-secondary" : "btn-outline-secondary")"
+                                            @onclick="() => SetTeamStatusFilter(TeamStatusFilter.Ready)">
+                                        Bereit <span class="badge text-bg-light ms-1">@GetTeamCountForFilter(TeamStatusFilter.Ready)</span>
+                                    </button>
+                                    <button type="button"
                                             class="btn btn-xs @(_teamStatusFilter == TeamStatusFilter.Critical ? "btn-danger" : "btn-outline-danger")"
                                             @onclick="() => SetTeamStatusFilter(TeamStatusFilter.Critical)">
                                         Kritisch <span class="badge text-bg-light ms-1">@GetTeamCountForFilter(TeamStatusFilter.Critical)</span>
@@ -248,7 +253,7 @@
                                                           IsExpanded="_expandedTeamIds.Contains(team.TeamId)"
                                                           LastCollarLocation="GetLastCollarLocation(team)"
                                                           LatestNoteEntries="GetLatestTeamNoteEntries(team, 3)"
-                                                          CompletedSearchAreas="GetCompletedSearchAreas(team)"
+                                                          CompletedSearches="GetCompletedSearches(team, 5)"
                                                           OnStart="StartTeamAsync"
                                                           OnStop="StopTeamAsync"
                                                           OnReset="RequestResetTeamAsync"

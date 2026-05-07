@@ -50,6 +50,10 @@ public partial class EinsatzMonitor
     private bool _vermisstenIsError;
     private Einsatzueberwachung.Domain.Models.VermisstenInfo _vForm = new();
 
+    private bool _einsatzInfoDetailsExpanded;
+    private bool _wetterDetailsExpanded;
+    private bool _vermisstenDetailsExpanded;
+
     // Halsband-Auswahl beim Start (falls noch kein Halsband zugewiesen)
     private bool _showCollarSelectModal;
     private string? _collarSelectTeamId;

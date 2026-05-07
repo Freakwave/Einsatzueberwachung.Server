@@ -165,6 +165,41 @@
             <!-- Karte -->
             <div id="einsatzMap" class="map-wrapper"></div>
 
+            @* ── Embed-Toolbar (nur sichtbar bei ?embed=true mit passenden controls=...) ── *@
+            <div class="map-embed-toolbar map-embed-tiles" aria-label="Kartentyp">
+                <button class="map-embed-btn @(_karteTileType == "streets" ? "map-embed-btn-on" : "")"
+                        @onclick='() => SetEmbedTileType("streets")' title="Straßenkarte">
+                    <i class="bi bi-map"></i>
+                </button>
+                <button class="map-embed-btn @(_karteTileType == "satellite" ? "map-embed-btn-on" : "")"
+                        @onclick='() => SetEmbedTileType("satellite")' title="Satellit">
+                    <i class="bi bi-globe-europe-africa"></i>
+                </button>
+                <button class="map-embed-btn @(_karteTileType == "topo" ? "map-embed-btn-on" : "")"
+                        @onclick='() => SetEmbedTileType("topo")' title="Topografisch">
+                    <i class="bi bi-triangle"></i>
+                </button>
+            </div>
+
+            <div class="map-embed-toolbar map-embed-gps" aria-label="GPS-Anzeige">
+                <button class="map-embed-btn map-embed-btn-collar @(_trackingVisible ? "map-embed-btn-on" : "")"
+                        @onclick="ToggleTrackingLayer" title="Hund-GPS">
+                    <i class="bi bi-shield"></i>
+                    <span class="map-embed-btn-label">Hund</span>
+                </button>
+                <button class="map-embed-btn map-embed-btn-phone @(_phoneLayerVisible ? "map-embed-btn-on" : "")"
+                        @onclick="TogglePhoneLayer" title="Team-Standort">
+                    <i class="bi bi-broadcast-pin"></i>
+                    <span class="map-embed-btn-label">Team</span>
+                </button>
+            </div>
+
+            <button class="map-embed-toolbar map-embed-recenter map-embed-btn"
+                    @onclick="RecenterMap"
+                    title="Lage zentrieren">
+                <i class="bi bi-bullseye"></i>
+            </button>
+
             @* Polygon-Bearbeitungsmodus Overlay *@
             @if (_polygonEditMode)
             {

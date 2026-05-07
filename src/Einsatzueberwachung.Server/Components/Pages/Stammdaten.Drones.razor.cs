@@ -76,6 +76,7 @@ public partial class Stammdaten
             Seriennummer = source.Seriennummer,
             DrohnenpilotId = source.DrohnenpilotId,
             Notizen = source.Notizen,
+            LivestreamUrl = source.LivestreamUrl,
             IsActive = source.IsActive
         };
     }

@@ -21,6 +21,11 @@ public partial class EinsatzKarte
     [SupplyParameterFromQuery(Name = "embed")]
     private bool _embedMode { get; set; }
 
+    [SupplyParameterFromQuery(Name = "controls")]
+    private string? _embedControlsRaw { get; set; }
+
+    private HashSet<string> _embedControls = new(StringComparer.OrdinalIgnoreCase);
+
     [SupplyParameterFromQuery(Name = "focusCollarId")]
     private string? _focusCollarId { get; set; }
 
@@ -239,6 +244,18 @@ public partial class EinsatzKarte
                 if (_embedMode)
                 {
                     await JSRuntime.InvokeVoidAsync("layoutTools.setEmbedMode", true);
+
+                    // Embed-Controls aus Query parsen und als Body-Klassen setzen
+                    _embedControls = (_embedControlsRaw ?? string.Empty)
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    foreach (var token in _embedControls)
+                    {
+                        await JSRuntime.InvokeVoidAsync(
+                            "eval",
+                            $"document.body.classList.add('embed-controls-{token.ToLowerInvariant()}')");
+                    }
+
                     await Task.Delay(50); // CSS-Transition abwarten
                     await JSRuntime.InvokeVoidAsync("LeafletMap.invalidateSize", "einsatzMap");
                 }
@@ -745,6 +762,21 @@ public partial class EinsatzKarte
         {
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    // --- Embed-Control-Handler (für /el-Karte-Tab) ---
+
+    private async Task SetEmbedTileType(string type)
+    {
+        _karteTileType = type;
+        try { await JSRuntime.InvokeVoidAsync("LeafletMap.changeBaseLayer", "einsatzMap", type); }
+        catch (Exception ex) { Logger.LogWarning(ex, "changeBaseLayer fehlgeschlagen"); }
+    }
+
+    private async Task RecenterMap()
+    {
+        try { await JSRuntime.InvokeVoidAsync("LeafletMap.fitAllElements", "einsatzMap", 40); }
+        catch (Exception ex) { Logger.LogWarning(ex, "fitAllElements fehlgeschlagen"); }
     }
 
     // --- Collar-Tracking Methoden ---

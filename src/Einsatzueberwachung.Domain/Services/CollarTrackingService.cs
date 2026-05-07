@@ -12,7 +12,7 @@ using Einsatzueberwachung.Domain.Models;
 
 namespace Einsatzueberwachung.Domain.Services
 {
-    public class CollarTrackingService : ICollarTrackingService
+    public class CollarTrackingService : ICollarTrackingService, IDisposable
     {
         private readonly IEinsatzService _einsatzService;
         private readonly ConcurrentDictionary<string, Collar> _collars = new();
@@ -205,6 +205,11 @@ namespace Einsatzueberwachung.Domain.Services
                 collar.IsAssigned = false;
                 collar.AssignedTeamId = null;
             }
+        }
+
+        public void Dispose()
+        {
+            _einsatzService.TeamRemoved -= OnTeamRemoved;
         }
 
         private void CheckBounds(string teamId, string collarId, CollarLocation location)

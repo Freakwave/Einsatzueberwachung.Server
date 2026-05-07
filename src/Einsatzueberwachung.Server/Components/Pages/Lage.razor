@@ -1,0 +1,61 @@
+@page "/Lage"
+@layout Layout.LageLayout
+@rendermode InteractiveServer
+@using Einsatzueberwachung.Server.Components
+
+<PageTitle>Lage · @_einsatzTitle</PageTitle>
+
+<div class="lage-page">
+
+    <header class="lage-statusband">
+        <span class="lage-band-id">@_einsatzTitle</span>
+        <span class="lage-band-sep"></span>
+        <span class="lage-band-meta">@_teams.Count Teams · @_droneCount Drohnen</span>
+        <span class="lage-band-spacer"></span>
+        <span class="lage-band-clock">@_now.ToString("HH:mm:ss")</span>
+        <span class="lage-band-dot" title="Live"></span>
+    </header>
+
+    <div class="lage-grid" data-streams="@(_droneCount > 0 ? "active" : "empty")">
+
+        <section class="lage-left">
+
+            <aside class="lage-info">
+                <h1 class="lage-info-title">Einsatz</h1>
+                <dl class="lage-info-list">
+                    <div>
+                        <dt>Vermisste Person</dt>
+                        <dd>@_vermisstName</dd>
+                    </div>
+                    <div>
+                        <dt>Suchgebiete</dt>
+                        <dd>@_searchAreas.Count</dd>
+                    </div>
+                    <div>
+                        <dt>Aktive Teams</dt>
+                        <dd>@_activeTeamCount<small> / @_teams.Count</small></dd>
+                    </div>
+                    <div>
+                        <dt>Drohnen live</dt>
+                        <dd>@_droneCount</dd>
+                    </div>
+                    <div>
+                        <dt>Einsatzdauer</dt>
+                        <dd>@_einsatzDauer</dd>
+                    </div>
+                </dl>
+            </aside>
+
+            <div class="lage-map-wrapper">
+                <div id="lageMap" class="lage-map"></div>
+            </div>
+        </section>
+
+        @if (_droneCount > 0)
+        {
+            <section class="lage-streams">
+                <DroneStreamGrid Teams="@_teams" Variant="lage" />
+            </section>
+        }
+    </div>
+</div>

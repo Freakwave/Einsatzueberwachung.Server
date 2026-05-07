@@ -94,4 +94,26 @@ public class PdfExportSmokeTests
         Assert.True(first.Length > 1024);
         Assert.True(second.Length > 1024);
     }
+
+    [Fact]
+    public async Task ExportEinsatzKarteToPdfBytesAsync_OhneMapRenderer_LiefertGueltigesPdf()
+    {
+        // mapRenderer=null: kein Netzwerk, kein OSM - trotzdem vollstaendiges 2-seitiges PDF.
+        var service = new PdfExportService();
+        var einsatz = MinimalEinsatz();
+        einsatz.SearchAreas = new List<SearchArea>
+        {
+            new SearchArea { Name = "Gebiet Nord", AssignedTeamName = "Team 1" }
+        };
+
+        var bytes = await service.ExportEinsatzKarteToPdfBytesAsync(
+            einsatz, MinimalTeams());
+
+        Assert.NotNull(bytes);
+        Assert.True(bytes.Length > 1024,
+            $"Karte-PDF zu klein ({bytes.Length} Bytes).");
+        Assert.Equal("%PDF-", Encoding.ASCII.GetString(bytes, 0, 5));
+        var tail = Encoding.ASCII.GetString(bytes, Math.Max(0, bytes.Length - 16), Math.Min(16, bytes.Length));
+        Assert.Contains("%%EOF", tail);
+    }
 }

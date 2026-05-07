@@ -183,40 +183,51 @@
                                     <dl class="row mb-0 small">
                                         <dt class="col-5">Typ</dt>
                                         <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.EinsatzTyp</dd>
-                                        @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.EinsatzNummer))
-                                        {
-                                            <dt class="col-5">Einsatznummer</dt>
-                                            <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.EinsatzNummer</dd>
-                                        }
                                         <dt class="col-5">Einsatzort</dt>
                                         <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.Einsatzort</dd>
-                                        <dt class="col-5">Datum</dt>
-                                        <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.EinsatzDatum.ToString("dd.MM.yyyy HH:mm")</dd>
                                         @if (EinsatzService.CurrentEinsatz.AlarmierungsZeit.HasValue)
                                         {
-                                            <dt class="col-5">Alarmierung</dt>
-                                            <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.AlarmierungsZeit.Value.ToString("HH:mm") Uhr</dd>
                                             <dt class="col-5">Einsatzzeit</dt>
                                             <dd class="col-7 mb-1"><i class="bi bi-clock-history me-1"></i>@GetEinsatzdauerDisplay()</dd>
-                                        }
-                                        @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzleiter))
-                                        {
-                                            <dt class="col-5">Einsatzleiter</dt>
-                                            <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.Einsatzleiter</dd>
-                                        }
-                                        @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Fuehrungsassistent))
-                                        {
-                                            <dt class="col-5">FA</dt>
-                                            <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.Fuehrungsassistent</dd>
-                                        }
-                                        @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Alarmiert))
-                                        {
-                                            <dt class="col-5">Alarmiert durch</dt>
-                                            <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.Alarmiert</dd>
                                         }
                                         <dt class="col-5">Teams</dt>
                                         <dd class="col-7 mb-1">@EinsatzService.Teams.Count / @EinsatzService.CurrentEinsatz.AnzahlTeams geplant</dd>
                                     </dl>
+                                    <button class="btn btn-link btn-sm p-0 mt-1 text-muted" @onclick="() => _einsatzInfoDetailsExpanded = !_einsatzInfoDetailsExpanded">
+                                        <i class="bi bi-chevron-@(_einsatzInfoDetailsExpanded ? "up" : "down") me-1"></i>@(_einsatzInfoDetailsExpanded ? "Weniger" : "Details")
+                                    </button>
+                                    @if (_einsatzInfoDetailsExpanded)
+                                    {
+                                        <dl class="row mb-0 small mt-1">
+                                            @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.EinsatzNummer))
+                                            {
+                                                <dt class="col-5">Einsatznummer</dt>
+                                                <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.EinsatzNummer</dd>
+                                            }
+                                            <dt class="col-5">Datum</dt>
+                                            <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.EinsatzDatum.ToString("dd.MM.yyyy HH:mm")</dd>
+                                            @if (EinsatzService.CurrentEinsatz.AlarmierungsZeit.HasValue)
+                                            {
+                                                <dt class="col-5">Alarmierung</dt>
+                                                <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.AlarmierungsZeit.Value.ToString("HH:mm") Uhr</dd>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzleiter))
+                                            {
+                                                <dt class="col-5">Einsatzleiter</dt>
+                                                <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.Einsatzleiter</dd>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Fuehrungsassistent))
+                                            {
+                                                <dt class="col-5">FA</dt>
+                                                <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.Fuehrungsassistent</dd>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Alarmiert))
+                                            {
+                                                <dt class="col-5">Alarmiert durch</dt>
+                                                <dd class="col-7 mb-1">@EinsatzService.CurrentEinsatz.Alarmiert</dd>
+                                            }
+                                        </dl>
+                                    }
                                     break;
 
                                 case KnownPanels.Teams:
@@ -405,6 +416,9 @@
                                     @if (_monitorWeather is not null)
                                     {
                                         <div class="wetter-panel-content">
+                                            @{
+                                                var forecastItems = GetMonitorForecastItems().ToList();
+                                            }
                                             <div class="d-flex align-items-start gap-3 mb-2">
                                                 <div class="fs-2 fw-bold">@_monitorWeather.Temperatur.ToString("0.0")°C</div>
                                                 <div>
@@ -416,37 +430,40 @@
                                                         <i class="bi bi-wind me-1"></i>@_monitorWeather.Windgeschwindigkeit.ToString("0") km/h
                                                         <i class="bi bi-droplet ms-2 me-1"></i>@_monitorWeather.Niederschlag.ToString("0.0") mm/h
                                                     </div>
-                                                    @if (_monitorWeather.Windboeen > 0)
-                                                    {
-                                                        <div class="small text-muted"><i class="bi bi-wind me-1"></i>Böen: @_monitorWeather.Windboeen.ToString("0") km/h</div>
-                                                    }
                                                     <div class="small mt-1">
                                                         <span class="badge @GetWeatherRiskBadgeClass(_monitorWeather)">@GetWeatherRiskLabel(_monitorWeather)</span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="small text-muted mb-2">
-                                                DWD &bull; @_monitorWeatherLoadedAtLocal.ToString("HH:mm") Uhr
-                                                @if (_monitorWeatherUsingFallback)
-                                                {
-                                                    <span class="text-warning ms-1">(Fallback)</span>
-                                                }
-                                            </div>
-                                            @{
-                                                var forecastItems = GetMonitorForecastItems().ToList();
-                                            }
-                                            @if (forecastItems.Count > 0)
+                                            <button class="btn btn-link btn-sm p-0 text-muted" @onclick="() => _wetterDetailsExpanded = !_wetterDetailsExpanded">
+                                                <i class="bi bi-chevron-@(_wetterDetailsExpanded ? "up" : "down") me-1"></i>@(_wetterDetailsExpanded ? "Weniger" : "Vorhersage")
+                                            </button>
+                                            @if (_wetterDetailsExpanded)
                                             {
-                                                <div class="forecast-strip">
-                                                    @foreach (var item in forecastItems)
+                                                @if (_monitorWeather.Windboeen > 0)
+                                                {
+                                                    <div class="small text-muted mt-1"><i class="bi bi-wind me-1"></i>Böen: @_monitorWeather.Windboeen.ToString("0") km/h</div>
+                                                }
+                                                <div class="small text-muted mt-1">
+                                                    DWD &bull; @_monitorWeatherLoadedAtLocal.ToString("HH:mm") Uhr
+                                                    @if (_monitorWeatherUsingFallback)
                                                     {
-                                                        <div class="forecast-item @GetForecastRiskClass(item)">
-                                                            <div class="small fw-bold">@item.Zeitpunkt.ToLocalTime().ToString("HH:mm")</div>
-                                                            <div class="small">@item.Temperatur.ToString("0")°</div>
-                                                            <div class="small text-muted">@item.Niederschlag.ToString("0.0") mm</div>
-                                                        </div>
+                                                        <span class="text-warning ms-1">(Fallback)</span>
                                                     }
                                                 </div>
+                                                @if (forecastItems.Count > 0)
+                                                {
+                                                    <div class="forecast-strip mt-2">
+                                                        @foreach (var item in forecastItems)
+                                                        {
+                                                            <div class="forecast-item @GetForecastRiskClass(item)">
+                                                                <div class="small fw-bold">@item.Zeitpunkt.ToLocalTime().ToString("HH:mm")</div>
+                                                                <div class="small">@item.Temperatur.ToString("0")°</div>
+                                                                <div class="small text-muted">@item.Niederschlag.ToString("0.0") mm</div>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
                                             }
                                         </div>
                                     }
@@ -524,24 +541,6 @@
                                                     <div class="vermissten-field-label">Mobilität</div>
                                                     <div class="vermissten-field-value">@_vi.Mobilitaet</div>
                                                 </div>
-                                                @if (!string.IsNullOrWhiteSpace(_vi.Kleidung))
-                                                {
-                                                    <div class="col-12">
-                                                        <div class="vermissten-field-label">Kleidung</div>
-                                                        <div class="vermissten-field-value">@_vi.Kleidung</div>
-                                                    </div>
-                                                }
-                                                @if (!string.IsNullOrWhiteSpace(_vi.ZuletztGesehenOrt))
-                                                {
-                                                    <div class="col-8">
-                                                        <div class="vermissten-field-label">Zuletzt gesehen (Ort)</div>
-                                                        <div class="vermissten-field-value">@_vi.ZuletztGesehenOrt</div>
-                                                    </div>
-                                                    <div class="col-4">
-                                                        <div class="vermissten-field-label">Uhrzeit</div>
-                                                        <div class="vermissten-field-value">@_vi.ZuletztGesehenZeit</div>
-                                                    </div>
-                                                }
                                                 @if (_vi.Suizidrisiko == Einsatzueberwachung.Domain.Models.RisikoStatus.Ja)
                                                 {
                                                     <div class="col-12">
@@ -558,27 +557,53 @@
                                                         </div>
                                                     </div>
                                                 }
-                                                @if (!string.IsNullOrWhiteSpace(_vi.Vorerkrankungen))
-                                                {
-                                                    <div class="col-12">
-                                                        <div class="vermissten-field-label">Vorerkrankungen</div>
-                                                        <div class="vermissten-field-value">@_vi.Vorerkrankungen</div>
-                                                    </div>
-                                                }
-                                                @if (!string.IsNullOrWhiteSpace(_vi.PolizeiKontaktName))
-                                                {
-                                                    <div class="col-12 mt-1">
-                                                        <div class="vermissten-field-label text-primary"><i class="bi bi-shield me-1"></i>Polizei-Kontakt</div>
-                                                        <div class="vermissten-field-value">@_vi.PolizeiKontaktName @(string.IsNullOrWhiteSpace(_vi.PolizeiTelefon) ? "" : $"· {_vi.PolizeiTelefon}")</div>
-                                                    </div>
-                                                }
-                                                @if (_vi.ZuletztAktualisiert.HasValue)
-                                                {
-                                                    <div class="col-12">
-                                                        <div class="text-muted" style="font-size:.7rem;">Stand: @_vi.ZuletztAktualisiert.Value.ToString("dd.MM. HH:mm")</div>
-                                                    </div>
-                                                }
                                             </div>
+                                            <button class="btn btn-link btn-sm p-0 mt-1 text-muted" @onclick="() => _vermisstenDetailsExpanded = !_vermisstenDetailsExpanded">
+                                                <i class="bi bi-chevron-@(_vermisstenDetailsExpanded ? "up" : "down") me-1"></i>@(_vermisstenDetailsExpanded ? "Weniger" : "Details")
+                                            </button>
+                                            @if (_vermisstenDetailsExpanded)
+                                            {
+                                                <div class="row g-2 small mt-1">
+                                                    @if (!string.IsNullOrWhiteSpace(_vi.Kleidung))
+                                                    {
+                                                        <div class="col-12">
+                                                            <div class="vermissten-field-label">Kleidung</div>
+                                                            <div class="vermissten-field-value">@_vi.Kleidung</div>
+                                                        </div>
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(_vi.ZuletztGesehenOrt))
+                                                    {
+                                                        <div class="col-8">
+                                                            <div class="vermissten-field-label">Zuletzt gesehen (Ort)</div>
+                                                            <div class="vermissten-field-value">@_vi.ZuletztGesehenOrt</div>
+                                                        </div>
+                                                        <div class="col-4">
+                                                            <div class="vermissten-field-label">Uhrzeit</div>
+                                                            <div class="vermissten-field-value">@_vi.ZuletztGesehenZeit</div>
+                                                        </div>
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(_vi.Vorerkrankungen))
+                                                    {
+                                                        <div class="col-12">
+                                                            <div class="vermissten-field-label">Vorerkrankungen</div>
+                                                            <div class="vermissten-field-value">@_vi.Vorerkrankungen</div>
+                                                        </div>
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(_vi.PolizeiKontaktName))
+                                                    {
+                                                        <div class="col-12 mt-1">
+                                                            <div class="vermissten-field-label text-primary"><i class="bi bi-shield me-1"></i>Polizei-Kontakt</div>
+                                                            <div class="vermissten-field-value">@_vi.PolizeiKontaktName @(string.IsNullOrWhiteSpace(_vi.PolizeiTelefon) ? "" : $"· {_vi.PolizeiTelefon}")</div>
+                                                        </div>
+                                                    }
+                                                    @if (_vi.ZuletztAktualisiert.HasValue)
+                                                    {
+                                                        <div class="col-12">
+                                                            <div class="text-muted" style="font-size:.7rem;">Stand: @_vi.ZuletztAktualisiert.Value.ToString("dd.MM. HH:mm")</div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
                                         </div>
                                     }
                     break;

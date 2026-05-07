@@ -245,11 +245,46 @@ window.einsatzMap = (function () {
         currentBaseLayer = requested;
     }
 
+    function recenter() {
+        if (!map) return;
+        let combined = null;
+        try {
+            if (areasLayer && areasLayer.getLayers().length > 0) {
+                const b = areasLayer.getBounds();
+                if (b && b.isValid()) combined = combined ? combined.extend(b) : b;
+            }
+            // Take all map layers that have getBounds (markers, polygons)
+            map.eachLayer(function (layer) {
+                if (typeof layer.getBounds === "function" && layer !== areasLayer && layer !== draftLayer) {
+                    try {
+                        const b = layer.getBounds();
+                        if (b && b.isValid && b.isValid()) {
+                            combined = combined ? combined.extend(b) : b;
+                        }
+                    } catch (e) { /* layer ohne valid bounds */ }
+                }
+                // Marker (kein getBounds aber LatLng)
+                if (typeof layer.getLatLng === "function") {
+                    try {
+                        const ll = layer.getLatLng();
+                        const b = L.latLngBounds([ll, ll]);
+                        combined = combined ? combined.extend(b) : b;
+                    } catch (e) { /* kein latlng */ }
+                }
+            });
+        } catch (e) { /* swallow */ }
+
+        if (combined && combined.isValid()) {
+            map.fitBounds(combined, { padding: [40, 40], maxZoom: 16 });
+        }
+    }
+
     return {
         init,
         renderAreas,
         setView,
         setBaseLayer,
+        recenter,
         startDraft,
         clearDraft,
         undoDraftPoint,

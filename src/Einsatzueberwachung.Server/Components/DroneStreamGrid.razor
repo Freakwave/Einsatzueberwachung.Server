@@ -1,0 +1,104 @@
+@using Einsatzueberwachung.Domain.Models
+@using Einsatzueberwachung.Server.Services
+
+<div class="dsg dsg--@Variant" data-stream-count="@_droneTeams.Count" @ref="_rootRef">
+    @if (_droneTeams.Count == 0)
+    {
+        <div class="dsg-empty">
+            <span class="dsg-empty-dot"></span>
+            <span>Keine Drohne im Einsatz</span>
+        </div>
+    }
+    else
+    {
+        @foreach (var pair in _droneTeams)
+        {
+            var team = pair.Team;
+            var drone = pair.Drone;
+            var kind = pair.Kind;
+            <div class="dsg-tile" @key="team.TeamId">
+                <div class="dsg-stage">
+                    @switch (kind)
+                    {
+                        case DroneStreamKind.None:
+                            <div class="dsg-placeholder">
+                                <span>Kein Stream konfiguriert</span>
+                                <small>URL in den Stammdaten der Drohne hinterlegen</small>
+                            </div>
+                            break;
+
+                        case DroneStreamKind.YouTube:
+                            {
+                                var embed = DroneStreamUrlClassifier.ToYouTubeEmbed(drone!.LivestreamUrl);
+                                if (embed is null)
+                                {
+                                    <div class="dsg-placeholder"><span>Ungültige YouTube-URL</span></div>
+                                }
+                                else
+                                {
+                                    <iframe class="dsg-iframe"
+                                            src="@embed"
+                                            title="@($"Livestream {team.TeamName}")"
+                                            allow="autoplay; encrypted-media; picture-in-picture"
+                                            allowfullscreen
+                                            referrerpolicy="strict-origin-when-cross-origin"
+                                            loading="lazy"></iframe>
+                                }
+                            }
+                            break;
+
+                        case DroneStreamKind.Twitch:
+                            {
+                                var host = string.IsNullOrWhiteSpace(_host) ? "localhost" : _host;
+                                var embed = DroneStreamUrlClassifier.ToTwitchEmbed(drone!.LivestreamUrl, host);
+                                if (embed is null)
+                                {
+                                    <div class="dsg-placeholder"><span>Ungültige Twitch-URL</span></div>
+                                }
+                                else
+                                {
+                                    <iframe class="dsg-iframe"
+                                            src="@embed"
+                                            title="@($"Livestream {team.TeamName}")"
+                                            allow="autoplay; fullscreen"
+                                            allowfullscreen
+                                            loading="lazy"></iframe>
+                                }
+                            }
+                            break;
+
+                        case DroneStreamKind.Hls:
+                            <video class="dsg-video"
+                                   data-hls-src="@drone!.LivestreamUrl"
+                                   autoplay
+                                   muted
+                                   playsinline
+                                   controls></video>
+                            break;
+
+                        case DroneStreamKind.Mjpeg:
+                            <img class="dsg-mjpeg"
+                                 src="@drone!.LivestreamUrl"
+                                 alt="@($"Livestream {team.TeamName}")" />
+                            break;
+
+                        default:
+                            <video class="dsg-video"
+                                   src="@drone!.LivestreamUrl"
+                                   autoplay
+                                   muted
+                                   playsinline
+                                   controls></video>
+                            break;
+                    }
+                </div>
+                <div class="dsg-caption">
+                    <span class="dsg-live"></span>
+                    <span class="dsg-team">@team.TeamName</span>
+                    <span class="dsg-sep">·</span>
+                    <span class="dsg-drone">@(string.IsNullOrWhiteSpace(drone?.DisplayName) ? team.DroneType : drone!.DisplayName)</span>
+                </div>
+            </div>
+        }
+    }
+</div>

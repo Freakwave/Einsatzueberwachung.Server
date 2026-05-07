@@ -523,11 +523,11 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             }
             return true;
         } catch (error) {
-            error('Fehler beim Zoomen auf Suchgebiet:', error);
+            console.error('Fehler beim Zoomen auf Suchgebiet:', error);
             return false;
         }
     },
-    
+
     // Gibt die aktuelle Kartenmitte zurueck
     getMapCenter: function(mapId) {
         try {
@@ -568,8 +568,14 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 case 'satellite':
                     newLayer = mapData.layers.satellite;
                     break;
+                case 'satelliteGoogle':
+                    newLayer = mapData.layers.satelliteGoogle;
+                    break;
                 case 'hybrid':
                     newLayer = mapData.layers.hybrid;
+                    break;
+                case 'topo':
+                    newLayer = mapData.layers.topo;
                     break;
                 default:
                     newLayer = mapData.layers.streets;

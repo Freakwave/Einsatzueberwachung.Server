@@ -43,6 +43,8 @@ if (document.readyState === 'loading') {
 // Muss als window-Property deklariert sein, damit Blazor JS-Interop es findet
 window.elDashboard = {
     _intervalId: null,
+    _audioCtx: null,
+
     startClock(elementId) {
         if (this._intervalId !== null) clearInterval(this._intervalId);
         const update = () => {
@@ -54,5 +56,50 @@ window.elDashboard = {
         };
         update();
         this._intervalId = setInterval(update, 1000);
+    },
+
+    // Web-Audio Beep (für akustischen Alarm bei Eskalation)
+    beep(durationMs, frequency, volume) {
+        durationMs = durationMs || 220;
+        frequency = frequency || 880;
+        volume = (typeof volume === 'number') ? volume : 0.25;
+        try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return;
+            this._audioCtx = this._audioCtx || new Ctx();
+            const ctx = this._audioCtx;
+            // iOS / Safari: Ctx ist nach erstem User-Gesture suspended
+            if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); }
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = frequency;
+            const t = ctx.currentTime;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(volume, t + 0.02);
+            gain.gain.linearRampToValueAtTime(0, t + durationMs / 1000);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + durationMs / 1000);
+        } catch (e) { /* still silence */ }
+    },
+
+    // Zweiton-Alarm bei Übergang in Eskalation
+    alertSound() {
+        this.beep(180, 880, 0.3);
+        setTimeout(() => this.beep(180, 1175, 0.3), 220);
+    },
+
+    // localStorage-Wrapper (Toggles für Akustik, Lagezentrum-Modus etc.)
+    getPref(key, defaultVal) {
+        try {
+            const v = localStorage.getItem('el-' + key);
+            return v === null ? defaultVal : JSON.parse(v);
+        } catch (e) { return defaultVal; }
+    },
+
+    setPref(key, value) {
+        try { localStorage.setItem('el-' + key, JSON.stringify(value)); }
+        catch (e) { /* ignore */ }
     }
 };

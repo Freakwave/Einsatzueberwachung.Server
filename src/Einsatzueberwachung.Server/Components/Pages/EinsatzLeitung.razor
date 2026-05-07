@@ -4,45 +4,28 @@
 
 @using Einsatzueberwachung.Domain.Models
 @using Einsatzueberwachung.Domain.Models.Enums
+@using Einsatzueberwachung.Server.Components
 
 <PageTitle>Einsatzleitung</PageTitle>
 
-<div class="el-dashboard">
+<div class="el-dashboard el-tab-@_activeTab">
 
-    @* ── Fixe Kopfzeile ─────────────────────────────────────────── *@
+    @* ── Stempel-Header ───────────────────────────────────────── *@
     <header class="el-header">
         <div class="el-header-left">
-            <div class="el-header-title">
-                <i class="bi bi-shield-shaded me-2"></i>
-                <span class="el-header-stichwort">@(_e.Einsatzort.Length > 0 ? _e.Einsatzort : "Einsatzleitung")</span>
-            </div>
-            <div class="el-header-sub">
+            <div class="el-header-titlerow">
+                <span class="el-header-title">@(_e.Einsatzort.Length > 0 ? _e.Einsatzort : "Einsatzleitung")</span>
                 @if (!string.IsNullOrWhiteSpace(_e.Stichwort))
                 {
-                    <span class="el-badge-stichwort me-2">@_e.Stichwort</span>
-                }
-                @if (_e.AlarmierungsZeit.HasValue)
-                {
-                    <span class="text-muted small">Alarm: @_e.AlarmierungsZeit.Value.ToString("HH:mm")</span>
+                    <span class="el-badge-stichwort">@_e.Stichwort</span>
                 }
             </div>
-        </div>
-
-        <div class="el-header-center">
-            <div class="el-status-pills">
-                <span class="el-status-pill el-pill-running" title="Laufende Teams">
-                    <i class="bi bi-play-fill"></i> @_teamsRunning
-                </span>
-                @if (_teamsWarning > 0)
-                {
-                    <span class="el-status-pill el-pill-warning" title="Teams mit Warnung">
-                        <i class="bi bi-exclamation-triangle-fill"></i> @_teamsWarning
-                    </span>
-                }
-                <span class="el-status-pill el-pill-ready" title="Bereite Teams">
-                    <i class="bi bi-pause-fill"></i> @_teamsReady
-                </span>
-            </div>
+            @if (_e.AlarmierungsZeit.HasValue)
+            {
+                <div class="el-header-sub">
+                    <span>Alarm @_e.AlarmierungsZeit.Value.ToString("HH:mm")</span>
+                </div>
+            }
         </div>
 
         <div class="el-header-right">
@@ -50,542 +33,810 @@
         </div>
     </header>
 
-    @* ── Inhalt (aktiver Tab) ────────────────────────────────────── *@
-    <main class="el-main">
+    @* ── Funkstammbuch-Tape (Bandschreiber) ───────────────────── *@
+    <div class="el-funktape">
+        <div class="el-funktape-label">Funk</div>
+        <div class="el-funktape-stream">
+            @{ var funkstamm = FunktapeEntries(); }
+            @if (funkstamm.Count == 0)
+            {
+                <span class="el-funktape-empty">Keine Funkmeldungen</span>
+            }
+            else
+            {
+                @foreach (var entry in funkstamm)
+                {
+                    <span class="el-funktape-entry">
+                        <span class="el-funktape-time">@entry.FormattedTimestamp</span>
+                        @if (!string.IsNullOrWhiteSpace(entry.SourceTeamName))
+                        {
+                            <span class="el-funktape-source">@entry.SourceTeamName</span>
+                        }
+                        <span class="el-funktape-text">@entry.Text</span>
+                    </span>
+                }
+            }
+        </div>
+    </div>
 
-        @* ═══ TAB: ÜBERSICHT ═══════════════════════════════════════ *@
-        @if (_activeTab == "uebersicht")
+    @* ── Lagestreifen ─────────────────────────────────────────── *@
+    <div class="el-statusbar @StatusbarClass">
+        <div class="el-statusbar-left">
+            <i class="bi @StatusbarIcon el-statusbar-icon"></i>
+            <span class="el-statusbar-text">@StatusbarText</span>
+            @if (!string.IsNullOrEmpty(StatusbarDetail))
+            {
+                <span class="el-statusbar-detail">· @StatusbarDetail</span>
+            }
+        </div>
+        @if (LongestActiveTimer is not null)
         {
-            <div class="el-tab-content el-fade-in">
-                @* Warnung bei kritischen Teams *@
-                @{
-                    var criticalTeams = EinsatzService.Teams.Where(t => t.IsSecondWarning).ToList();
-                }
-                @if (criticalTeams.Count > 0)
-                {
-                    <div class="el-critical-banner">
-                        <i class="bi bi-exclamation-octagon-fill me-2"></i>
-                        <strong>KRITISCH:</strong>
-                        @string.Join(", ", criticalTeams.Select(t => t.TeamName))
-                        — bitte Teamstatus prüfen!
-                    </div>
-                }
+            <span class="el-statusbar-timer">@LongestActiveTimer.Value.ToString(@"hh\:mm\:ss")</span>
+        }
+    </div>
 
-                @* 4 Stat-Kacheln *@
-                <div class="el-stat-grid">
-                    <div class="el-stat-card el-stat-running">
-                        <div class="el-stat-value">@_teamsRunning</div>
-                        <div class="el-stat-label">Laufend</div>
-                    </div>
-                    <div class="el-stat-card @(_teamsWarning > 0 ? "el-stat-warning" : "el-stat-muted")">
-                        <div class="el-stat-value">@_teamsWarning</div>
-                        <div class="el-stat-label">Warnung</div>
-                    </div>
-                    <div class="el-stat-card el-stat-ready">
-                        <div class="el-stat-value">@_teamsReady</div>
-                        <div class="el-stat-label">Bereit</div>
-                    </div>
-                    <div class="el-stat-card el-stat-muted">
-                        <div class="el-stat-value">@EinsatzService.Teams.Count</div>
-                        <div class="el-stat-label">Teams gesamt</div>
-                    </div>
-                </div>
+    @* ── Wetter-Strip ─────────────────────────────────────────── *@
+    @if (_weather is not null)
+    {
+        <div class="el-weather-strip">
+            <span class="el-weather-item el-weather-main">
+                <i class="bi @_weather.GetBootstrapIcon()"></i>
+                <span class="el-weather-temp">@_weather.TemperaturFormatiert</span>
+                @if (!string.IsNullOrWhiteSpace(_weather.Wetterlage))
+                {
+                    <span class="el-weather-condition">@_weather.Wetterlage</span>
+                }
+            </span>
+            <span class="el-weather-item">
+                <i class="bi bi-wind"></i>
+                <span>@_weather.WindFormatiert</span>
+            </span>
+            @if (_weather.Niederschlag > 0)
+            {
+                <span class="el-weather-item el-weather-rain">
+                    <i class="bi bi-cloud-rain-heavy"></i>
+                    <span>@_weather.Niederschlag.ToString("0.0") mm/h</span>
+                </span>
+            }
+            <span class="el-weather-item el-weather-meta">
+                <i class="bi bi-droplet"></i>
+                <span>@_weather.LuftfeuchtigkeitFormatiert</span>
+            </span>
+            @if (_weather.HatWarnung)
+            {
+                <span class="el-weather-item el-weather-warn">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>@_weather.Warnung</span>
+                </span>
+            }
+        </div>
+    }
 
-                @* Vermissten-Kurzinfo *@
-                @{
-                    var vi = EinsatzService.CurrentEinsatz.VermisstenInfo;
-                }
-                @if (vi is not null)
-                {
-                    <div class="el-card el-card-vermissten mb-3">
-                        <div class="el-card-header">
-                            <i class="bi bi-person-exclamation me-2 text-warning"></i>
-                            <span class="fw-bold">@vi.VollerName</span>
-                            @if (!string.IsNullOrWhiteSpace(vi.Alter)) { <span class="ms-2 text-muted">@vi.Alter J.</span> }
-                            @if (vi.Suizidrisiko == RisikoStatus.Ja)
-                            {
-                                <span class="el-risk-badge ms-auto">⚠ Suizidrisiko</span>
-                            }
-                            @if (vi.Bewaffnet == RisikoStatus.Ja)
-                            {
-                                <span class="el-risk-badge ms-1">⚠ Bewaffnet</span>
-                            }
-                        </div>
-                        @if (!string.IsNullOrWhiteSpace(vi.Kleidung) || !string.IsNullOrWhiteSpace(vi.ZuletztGesehenOrt))
-                        {
-                            <div class="el-card-body small">
-                                @if (!string.IsNullOrWhiteSpace(vi.Kleidung))
-                                {
-                                    <div><span class="text-muted">Kleidung:</span> @vi.Kleidung</div>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(vi.ZuletztGesehenOrt))
-                                {
-                                    <div><span class="text-muted">Zuletzt:</span> @vi.ZuletztGesehenOrt @vi.ZuletztGesehenZeit</div>
-                                }
-                            </div>
-                        }
+    @* ── Push-Toasts ──────────────────────────────────────────── *@
+    @if (_pushToasts.Count > 0)
+    {
+        <div class="el-toast-stack">
+            @foreach (var t in _pushToasts.OrderByDescending(x => x.CreatedAt))
+            {
+                <div class="el-toast" role="alert">
+                    <i class="bi @t.Icon el-toast-icon"></i>
+                    <div class="el-toast-body">
+                        <div class="el-toast-title">@t.Title</div>
+                        <div class="el-toast-text">@t.Body</div>
                     </div>
-                }
-                else
-                {
-                    <button class="el-card el-card-empty w-100 mb-3" @onclick='() => _activeTab = "vermisst"'>
-                        <i class="bi bi-person-plus me-2"></i>Vermissteninfo erfassen →
+                    <button class="el-toast-close" @onclick="() => DismissToast(t.Id)" title="Schließen">
+                        <i class="bi bi-x-lg"></i>
                     </button>
-                }
+                </div>
+            }
+        </div>
+    }
 
-                @* Letzte Notizen *@
-                <div class="el-card">
-                    <div class="el-card-header"><i class="bi bi-chat-left-text me-2"></i>Zuletzt erfasste Meldungen</div>
-                    <div class="el-card-body">
-                        @{
-                            var recentNotes = EinsatzService.GlobalNotes
-                                .OrderByDescending(n => n.Timestamp)
-                                .Take(5)
-                                .ToList();
-                        }
-                        @if (recentNotes.Count == 0)
+    @* ── Idle-Hero (kein Einsatz) ─────────────────────────────── *@
+    @if (!HasActiveEinsatz)
+    {
+        <main class="el-main">
+            <div class="el-tab-content el-fade-in">
+                <div class="el-idle-hero">
+                    @if (_logoVisible)
+                    {
+                        <img src="/downloads/staffel-logo"
+                             class="el-idle-logo"
+                             alt="Staffel-Logo"
+                             @onerror="OnLogoError" />
+                    }
+                    else
+                    {
+                        <div class="el-idle-logo-fallback">
+                            <i class="bi bi-shield-shaded"></i>
+                        </div>
+                    }
+                    <div class="el-idle-staffel">
+                        @(string.IsNullOrWhiteSpace(_e.StaffelName) ? "Einsatzleitung" : _e.StaffelName)
+                    </div>
+                    <div class="el-idle-state">Bereit für Einsatz</div>
+                    <div class="el-idle-hint">Keine aktive Lage</div>
+                    <a href="/einsatzstart" class="el-btn el-btn-primary el-idle-cta">
+                        <i class="bi bi-play-circle-fill"></i> Einsatz starten
+                    </a>
+                </div>
+            </div>
+        </main>
+    }
+    else
+    {
+        @* ── Aktiver Einsatz: 4 Tabs ───────────────────────────── *@
+        <main class="el-main">
+
+            @* ═══ TAB 1: DASHBOARD ════════════════════════════════ *@
+            @if (_activeTab == "uebersicht")
+            {
+                <div class="el-tab-content el-fade-in">
+
+                    @* AKTIV-Sektion *@
+                    <section class="dashboard-sektion">
+                        <div class="dashboard-sektion-kopf">
+                            <span class="dashboard-sektion-titel">Aktiv</span>
+                            <span class="dashboard-sektion-count">(@RunningTeams.Count)</span>
+                        </div>
+                        @if (RunningTeams.Count == 0)
                         {
-                            <p class="text-muted small mb-0">Noch keine Notizen vorhanden.</p>
+                            <div class="dashboard-sektion-leer">Kein Team aktiv</div>
                         }
                         else
                         {
-                            @foreach (var note in recentNotes)
-                            {
-                                <div class="el-note-row">
-                                    <span class="el-note-time">@note.FormattedTimestamp</span>
-                                    <span class="el-note-source">@(string.IsNullOrWhiteSpace(note.SourceTeamName) ? "EL" : note.SourceTeamName)</span>
-                                    <span class="el-note-text">@MentionTextarea.RenderWithMentions(note.Text)</span>
-                                </div>
-                            }
+                            <div class="bahn-cluster">
+                                @foreach (var team in RunningTeams)
+                                {
+                                    @RenderBahn(team)
+                                }
+                            </div>
                         }
-                    </div>
-                </div>
-            </div>
-        }
+                    </section>
 
-        @* ═══ TAB: TEAMS ════════════════════════════════════════════ *@
-        else if (_activeTab == "teams")
-        {
-            <div class="el-tab-content el-fade-in">
-                @if (EinsatzService.Teams.Count == 0)
-                {
-                    <div class="el-empty-state">
-                        <i class="bi bi-people display-4 text-muted"></i>
-                        <p class="mt-2 text-muted">Noch keine Teams angelegt.</p>
-                    </div>
-                }
-                else
-                {
-                    var sortedTeams = EinsatzService.Teams
-                        .OrderByDescending(t => t.IsSecondWarning)
-                        .ThenByDescending(t => t.IsFirstWarning)
-                        .ThenByDescending(t => t.IsRunning)
-                        .ThenBy(t => t.TeamName)
-                        .ToList();
-
-                    @foreach (var team in sortedTeams)
-                    {
-                        <div class="el-team-card @GetElTeamClass(team)">
-                            <div class="el-team-status-bar" style="background: @GetTeamHexColor(team)"></div>
-                            <div class="el-team-body">
-                                <div class="el-team-top">
-                                    <div>
-                                        <div class="el-team-name">@team.TeamName</div>
-                                        <div class="el-team-meta">
-                                            @if (!string.IsNullOrWhiteSpace(team.DogName))
-                                            {
-                                                <span>🐕 @team.DogName</span>
-                                            }
+                    @* BEREIT-Sektion *@
+                    <section class="dashboard-sektion">
+                        <div class="dashboard-sektion-kopf">
+                            <span class="dashboard-sektion-titel">Bereit</span>
+                            <span class="dashboard-sektion-count">(@ReadyTeams.Count)</span>
+                        </div>
+                        @if (ReadyTeams.Count == 0)
+                        {
+                            <div class="dashboard-sektion-leer">Keine bereiten Teams</div>
+                        }
+                        else
+                        {
+                            <ul class="dashboard-liste">
+                                @foreach (var team in ReadyTeams)
+                                {
+                                    <li class="dashboard-team-kompakt">
+                                        <span class="dashboard-team-dot dashboard-team-dot-bereit"></span>
+                                        <div class="dashboard-team-name">@team.TeamName</div>
+                                        <div class="dashboard-team-meta">
                                             @if (!string.IsNullOrWhiteSpace(team.HundefuehrerName))
                                             {
                                                 <span><i class="bi bi-person-fill"></i> @team.HundefuehrerName</span>
                                             }
+                                            @if (!string.IsNullOrWhiteSpace(team.DogName))
+                                            {
+                                                <span><i class="bi bi-shield"></i> @team.DogName</span>
+                                            }
                                             @if (!string.IsNullOrWhiteSpace(team.SearchAreaName))
                                             {
-                                                <span><i class="bi bi-geo-alt-fill"></i> @team.SearchAreaName</span>
+                                                <span><i class="bi bi-geo-alt"></i> @team.SearchAreaName</span>
                                             }
                                         </div>
-                                    </div>
-                                    <div class="el-team-timer @GetTimerClass(team)">
-                                        @team.ElapsedTime.ToString(@"hh\:mm\:ss")
-                                    </div>
-                                </div>
-                                <div class="el-team-status-label">
-                                    @if (team.IsSecondWarning)
-                                    {
-                                        <span class="el-team-badge el-badge-critical"><i class="bi bi-exclamation-octagon-fill me-1"></i>Kritisch</span>
-                                    }
-                                    else if (team.IsFirstWarning)
-                                    {
-                                        <span class="el-team-badge el-badge-warn"><i class="bi bi-exclamation-triangle-fill me-1"></i>Warnung</span>
-                                    }
-                                    else if (team.IsRunning)
-                                    {
-                                        <span class="el-team-badge el-badge-running"><i class="bi bi-play-fill me-1"></i>Laufend</span>
-                                    }
-                                    else if (team.IsPausing)
-                                    {
-                                        <span class="el-team-badge el-badge-pause"><i class="bi bi-pause-fill me-1"></i>Pause</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="el-team-badge el-badge-ready"><i class="bi bi-circle me-1"></i>Bereit</span>
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    }
-                }
-            </div>
-        }
-
-        @* ═══ TAB: VERMISST ════════════════════════════════════════ *@
-        else if (_activeTab == "vermisst")
-        {
-            <div class="el-tab-content el-fade-in">
-                <div class="el-form-container">
-                    @if (!string.IsNullOrWhiteSpace(_saveMessage))
-                    {
-                        <div class="alert @(_saveIsError ? "alert-danger" : "alert-success") py-2 mb-3">@_saveMessage</div>
-                    }
-
-                    @* PERSON *@
-                    <div class="el-section">
-                        <div class="el-section-title"><i class="bi bi-person me-2"></i>Person</div>
-                        <div class="el-field-grid">
-                            <div class="el-field el-field-md">
-                                <label>Vorname</label>
-                                <input class="el-input" @bind="_vi.Vorname" placeholder="Vorname" />
-                            </div>
-                            <div class="el-field el-field-md">
-                                <label>Nachname</label>
-                                <input class="el-input" @bind="_vi.Nachname" placeholder="Nachname" />
-                            </div>
-                            <div class="el-field el-field-sm">
-                                <label>Geburtsdatum</label>
-                                <input class="el-input"
-                                       value="@_vi.Geburtsdatum"
-                                       @onchange="OnGeburtsdatumChanged"
-                                       placeholder="TT.MM.JJJJ" />
-                            </div>
-                            <div class="el-field el-field-sm">
-                                <label>Alter <span style="font-weight:400;font-size:.72rem;color:#888">(auto. berechnet)</span></label>
-                                <input class="el-input" @bind="_vi.Alter" placeholder="z.B. 73" />
-                            </div>
-                            <div class="el-field el-field-full">
-                                <label>Kleidung</label>
-                                <input class="el-input" @bind="_vi.Kleidung" placeholder="z.B. blaue Winterjacke, braune Cordhose, graue Mütze" />
-                            </div>
-                            <div class="el-field el-field-full">
-                                <label>Besonderheiten / Körpergröße</label>
-                                <input class="el-input" @bind="_vi.Besonderheiten" placeholder="z.B. ca. 170 cm, Brille, Gehstock" />
-                            </div>
-                        </div>
-                    </div>
-
-                    @* LETZTER AUFENTHALT *@
-                    <div class="el-section">
-                        <div class="el-section-title"><i class="bi bi-geo-alt me-2"></i>Letzter bekannter Aufenthalt</div>
-                        <div class="el-field-grid">
-                            <div class="el-field el-field-lg">
-                                <label>Ort / Adresse</label>
-                                <input class="el-input" @bind="_vi.ZuletztGesehenOrt" placeholder="z.B. Parkplatz Waldstraße 12, Musterstadt" />
-                            </div>
-                            <div class="el-field el-field-sm">
-                                <label>Uhrzeit</label>
-                                <input class="el-input" @bind="_vi.ZuletztGesehenZeit" placeholder="z.B. 14:30" />
-                            </div>
-                            <div class="el-field el-field-md">
-                                <label>Gesehen von</label>
-                                <input class="el-input" @bind="_vi.ZuletztGesehenVon" placeholder="z.B. Tochter / Nachbar" />
-                            </div>
-                        </div>
-                    </div>
-
-                    @* MEDIZIN & VERHALTEN *@
-                    <div class="el-section">
-                        <div class="el-section-title"><i class="bi bi-heart-pulse me-2"></i>Medizin &amp; Verhalten</div>
-                        <div class="el-field-grid">
-                            <div class="el-field el-field-md">
-                                <label>Orientierung</label>
-                                <select class="el-input" @bind="_vi.Orientierung">
-                                    @foreach (var v in Enum.GetValues<OrientierungsStatus>())
-                                    {
-                                        <option value="@v">@OrientierungLabel(v)</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="el-field el-field-md">
-                                <label>Mobilität</label>
-                                <select class="el-input" @bind="_vi.Mobilitaet">
-                                    @foreach (var v in Enum.GetValues<MobilitaetsStatus>())
-                                    {
-                                        <option value="@v">@MobilitaetLabel(v)</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="el-field el-field-sm">
-                                <label class="@(_vi.Suizidrisiko == RisikoStatus.Ja ? "text-danger fw-bold" : "")">Suizidrisiko</label>
-                                <select class="el-input @(_vi.Suizidrisiko == RisikoStatus.Ja ? "el-input-danger" : "")" @bind="_vi.Suizidrisiko">
-                                    @foreach (var v in Enum.GetValues<RisikoStatus>())
-                                    {
-                                        <option value="@v">@v</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="el-field el-field-sm">
-                                <label class="@(_vi.Bewaffnet == RisikoStatus.Ja ? "text-danger fw-bold" : "")">Bewaffnet</label>
-                                <select class="el-input @(_vi.Bewaffnet == RisikoStatus.Ja ? "el-input-danger" : "")" @bind="_vi.Bewaffnet">
-                                    @foreach (var v in Enum.GetValues<RisikoStatus>())
-                                    {
-                                        <option value="@v">@v</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="el-field el-field-md">
-                                <label>Vorerkrankungen</label>
-                                <input class="el-input" @bind="_vi.Vorerkrankungen" placeholder="z.B. Demenz, Diabetes Typ 2" />
-                            </div>
-                            <div class="el-field el-field-md">
-                                <label>Medikamente</label>
-                                <input class="el-input" @bind="_vi.Medikamente" placeholder="z.B. Metformin, Blutverdünner" />
-                            </div>
-                        </div>
-                    </div>
-
-                    @* POLIZEI-KONTAKT *@
-                    <div class="el-section">
-                        <div class="el-section-title"><i class="bi bi-shield me-2"></i>Polizei-Kontakt</div>
-                        <div class="el-field-grid">
-                            <div class="el-field el-field-md">
-                                <label>Name Kontaktbeamter</label>
-                                <input class="el-input" @bind="_vi.PolizeiKontaktName" placeholder="z.B. PHK Müller" />
-                            </div>
-                            <div class="el-field el-field-sm">
-                                <label>Dienstnr. / Rufname</label>
-                                <input class="el-input" @bind="_vi.PolizeiDienstnummer" placeholder="z.B. 1234" />
-                            </div>
-                            <div class="el-field el-field-sm">
-                                <label>Telefon</label>
-                                <input class="el-input" type="tel" @bind="_vi.PolizeiTelefon" placeholder="+49 ..." />
-                            </div>
-                        </div>
-                        <div class="el-checklist">
-                            <label class="el-check-item">
-                                <input type="checkbox" @bind="_vi.PolizeiVermisstenmeldungAufgenommen" />
-                                <span>Vermisstenmeldung aufgenommen</span>
-                            </label>
-                            <label class="el-check-item">
-                                <input type="checkbox" @bind="_vi.PolizeiKoordinationBesprochen" />
-                                <span>Einsatzkoordination besprochen</span>
-                            </label>
-                            <label class="el-check-item">
-                                <input type="checkbox" @bind="_vi.PolizeiSuchabschnittAbgestimmt" />
-                                <span>Suchabschnitte abgestimmt</span>
-                            </label>
-                            <label class="el-check-item">
-                                <input type="checkbox" @bind="_vi.PolizeiRueckmeldepflichtVereinbart" />
-                                <span>Rückmeldepflicht vereinbart</span>
-                            </label>
-                            <label class="el-check-item">
-                                <input type="checkbox" @bind="_vi.PolizeiDatenschutzGeklaert" />
-                                <span>Datenschutz (Personendaten) geklärt</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    @* FEUERWEHR / BOS *@
-                    <div class="el-section">
-                        <div class="el-section-title"><i class="bi bi-truck me-2"></i>Weitere BOS / Feuerwehr</div>
-                        <div class="el-field-grid">
-                            <div class="el-field el-field-md">
-                                <label>Einheit</label>
-                                <input class="el-input" @bind="_vi.BosEinheit" placeholder="z.B. FF Musterstadt" />
-                            </div>
-                            <div class="el-field el-field-sm">
-                                <label>Zugführer</label>
-                                <input class="el-input" @bind="_vi.BosZugfuehrer" placeholder="Name" />
-                            </div>
-                            <div class="el-field el-field-sm">
-                                <label>Funkrufname</label>
-                                <input class="el-input" @bind="_vi.BosFunkrufname" placeholder="z.B. Florian 1/20" />
-                            </div>
-                            <div class="el-field el-field-full">
-                                <label>Aufgabenteilung</label>
-                                <input class="el-input" @bind="_vi.BosAufgabenteilung" placeholder="z.B. Feuerwehr übernimmt Wassersuche nördl. Bach" />
-                            </div>
-                        </div>
-                        <div class="el-checklist">
-                            <label class="el-check-item">
-                                <input type="checkbox" @bind="_vi.BosAbschnittAbgestimmt" />
-                                <span>Einsatzabschnitt abgestimmt</span>
-                            </label>
-                            <label class="el-check-item">
-                                <input type="checkbox" @bind="_vi.BosRessourcenBesprochen" />
-                                <span>Ressourcen besprochen (Wärmebild, etc.)</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="el-save-row">
-                        <button class="el-btn el-btn-primary" @onclick="SaveVermisstenAsync">
-                            <i class="bi bi-check-lg me-1"></i>Speichern
-                        </button>
-                        @if (EinsatzService.CurrentEinsatz.VermisstenInfo?.ZuletztAktualisiert.HasValue == true)
-                        {
-                            <span class="text-muted small">Gespeichert: @EinsatzService.CurrentEinsatz.VermisstenInfo.ZuletztAktualisiert!.Value.ToString("HH:mm")</span>
-                        }
-                    </div>
-                </div>
-            </div>
-        }
-
-        @* ═══ TAB: NOTIZEN ═════════════════════════════════════════ *@
-        else if (_activeTab == "notizen")
-        {
-            <div class="el-tab-content el-fade-in">
-
-                @* Sub-Tab-Leiste *@
-                <div class="el-subtab-bar">
-                    <button class="el-subtab @(_notizSubTab == "el" ? "el-subtab-active" : "")" @onclick='() => _notizSubTab = "el"'>
-                        <i class="bi bi-lock-fill me-1"></i>EL-Notizen
-                    </button>
-                    <button class="el-subtab @(_notizSubTab == "alle" ? "el-subtab-active" : "")" @onclick='() => _notizSubTab = "alle"'>
-                        <i class="bi bi-chat-left-text me-1"></i>Alle Notizen & Funk
-                    </button>
-                </div>
-
-                @if (_notizSubTab == "el")
-                {
-                    @* EL-Eigene Notizen – Erfassen *@
-                    <div class="el-note-input-area">
-                        <div class="el-note-prefix-row">
-                            @foreach (var p in new[] { "", "Anruf", "Funk", "Wichtig" })
-                            {
-                                <button class="el-prefix-btn @(_elNotizPrefix == p ? "el-prefix-active" : "")"
-                                        @onclick="() => _elNotizPrefix = p">
-                                    @if (p == "Anruf") { <i class="bi bi-telephone-fill me-1"></i> }
-                                    else if (p == "Funk") { <i class="bi bi-broadcast me-1"></i> }
-                                    else if (p == "Wichtig") { <i class="bi bi-exclamation-triangle-fill me-1"></i> }
-                                    else { <i class="bi bi-pencil me-1"></i> }
-                                    @(p == "" ? "Notiz" : p)
-                                </button>
-                            }
-                        </div>
-                        <div class="el-note-input-row">
-                            <textarea class="el-textarea" rows="2"
-                                      placeholder="EL-interne Notiz eingeben..."
-                                      @bind="_elNotizText"
-                                      @bind:event="oninput"></textarea>
-                            <button class="el-btn el-btn-primary el-btn-send"
-                                    @onclick="AddElNotizAsync"
-                                    disabled="@(string.IsNullOrWhiteSpace(_elNotizText))">
-                                <i class="bi bi-send-fill"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    @* EL-Notizen Liste *@
-                    <div class="el-notes-list">
-                        @{
-                            var elNotizen = EinsatzService.CurrentEinsatz.ElNotizen ?? new();
-                        }
-                        @if (elNotizen.Count == 0)
-                        {
-                            <p class="text-muted text-center py-3 small">Noch keine EL-Notizen.</p>
-                        }
-                        else
-                        {
-                            @foreach (var notiz in elNotizen)
-                            {
-                                <div class="el-notiz-card">
-                                    <div class="el-notiz-meta">
-                                        @if (!string.IsNullOrWhiteSpace(notiz.Prefix))
-                                        {
-                                            <span class="el-notiz-prefix el-notiz-prefix-@notiz.Prefix.ToLower()">
-                                                <i class="bi @notiz.PrefixIcon me-1"></i>@notiz.Prefix
-                                            </span>
-                                        }
-                                        <span class="el-notiz-time">@notiz.FormattedDateTime</span>
-                                        <button class="el-notiz-delete" @onclick="() => DeleteElNotizAsync(notiz.Id)" title="Löschen">
-                                            <i class="bi bi-trash3"></i>
+                                        <button class="dashboard-quick-action"
+                                                disabled="@(_busyTeamId == team.TeamId)"
+                                                @onclick="() => StartTeamAsync(team.TeamId)"
+                                                title="Aktiv setzen">
+                                            <i class="bi bi-play-fill"></i> Aktiv
                                         </button>
-                                    </div>
-                                    <div class="el-notiz-text">@notiz.Text</div>
-                                </div>
-                            }
+                                    </li>
+                                }
+                            </ul>
                         }
-                    </div>
-                }
-                else
-                {
-                    @* Geteilte Notizen aus dem EinsatzMonitor *@
-                    <div class="el-notes-filter-row">
-                        <button class="el-filter-btn @(_noteFilter == "alle" ? "active" : "")" @onclick='() => _noteFilter = "alle"'>Alle</button>
-                        <button class="el-filter-btn @(_noteFilter == "funk" ? "active" : "")" @onclick='() => _noteFilter = "funk"'>Funk</button>
-                        <button class="el-filter-btn @(_noteFilter == "notiz" ? "active" : "")" @onclick='() => _noteFilter = "notiz"'>Notiz</button>
-                    </div>
-                    <div class="el-notes-list">
-                        @{
-                            var filteredNotes = EinsatzService.GlobalNotes
-                                .Where(n => _noteFilter == "alle"
-                                    || (_noteFilter == "funk" && n.Type == GlobalNotesEntryType.Manual && n.SourceType == "Funk")
-                                    || (_noteFilter == "notiz" && n.Type == GlobalNotesEntryType.Manual))
-                                .OrderByDescending(n => n.Timestamp)
-                                .ToList();
-                        }
-                        @if (filteredNotes.Count == 0)
+                    </section>
+
+                    @* PAUSE-Sektion *@
+                    <section class="dashboard-sektion">
+                        <div class="dashboard-sektion-kopf">
+                            <span class="dashboard-sektion-titel">Pause</span>
+                            <span class="dashboard-sektion-count">(@PauseTeams.Count)</span>
+                        </div>
+                        @if (PauseTeams.Count == 0)
                         {
-                            <p class="text-muted text-center py-3 small">Keine Einträge.</p>
+                            <div class="dashboard-sektion-leer">Kein Team in Pause</div>
                         }
                         else
                         {
-                            @foreach (var note in filteredNotes)
-                            {
-                                <div class="el-notiz-card el-notiz-shared">
-                                    <div class="el-notiz-meta">
-                                        <span class="el-notiz-source">@(string.IsNullOrWhiteSpace(note.SourceTeamName) ? "System" : note.SourceTeamName)</span>
-                                        <span class="el-notiz-time">@note.FormattedTimestamp</span>
-                                    </div>
-                                    <div class="el-notiz-text">@MentionTextarea.RenderWithMentions(note.Text)</div>
-                                </div>
-                            }
+                            <ul class="dashboard-liste">
+                                @foreach (var team in PauseTeams)
+                                {
+                                    <li class="dashboard-team-kompakt">
+                                        <span class="dashboard-team-dot dashboard-team-dot-pause"></span>
+                                        <div class="dashboard-team-name">@team.TeamName</div>
+                                        <div class="dashboard-team-meta">
+                                            @if (!string.IsNullOrWhiteSpace(team.HundefuehrerName))
+                                            {
+                                                <span><i class="bi bi-person-fill"></i> @team.HundefuehrerName</span>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(team.DogName))
+                                            {
+                                                <span><i class="bi bi-shield"></i> @team.DogName</span>
+                                            }
+                                        </div>
+                                        <button class="dashboard-quick-action"
+                                                disabled="@(_busyTeamId == team.TeamId)"
+                                                @onclick="() => StartTeamAsync(team.TeamId)"
+                                                title="Aktiv setzen">
+                                            <i class="bi bi-play-fill"></i> Aktiv
+                                        </button>
+                                    </li>
+                                }
+                            </ul>
                         }
-                    </div>
-                }
-            </div>
-        }
+                    </section>
 
-
-    </main>
-
-    @* ── Bottom-Tab-Bar ──────────────────────────────────────────── *@
-    <nav class="el-tabbar">
-        <button class="el-tab-btn @(_activeTab == "uebersicht" ? "el-tab-active" : "")"
-                @onclick='() => _activeTab = "uebersicht"'>
-            <i class="bi bi-speedometer2"></i>
-            <span>Übersicht</span>
-        </button>
-        <button class="el-tab-btn @(_activeTab == "teams" ? "el-tab-active" : "") @(_teamsWarning > 0 ? "el-tab-has-warning" : "")"
-                @onclick='() => _activeTab = "teams"'>
-            <i class="bi bi-people-fill"></i>
-            <span>Teams</span>
-            @if (_teamsWarning > 0)
-            {
-                <span class="el-tab-badge">@_teamsWarning</span>
+                    @* KONTAKTBEAMTER-Sektion *@
+                    <section class="dashboard-sektion">
+                        <div class="dashboard-sektion-kopf">
+                            <span class="dashboard-sektion-titel">Kontaktbeamter</span>
+                        </div>
+                        @{ var vi = EinsatzService.CurrentEinsatz.VermisstenInfo; }
+                        @if (vi is not null && !string.IsNullOrWhiteSpace(vi.PolizeiKontaktName))
+                        {
+                            <div class="dashboard-kontakt">
+                                <div class="dashboard-kontakt-name">
+                                    <i class="bi bi-shield"></i>
+                                    <span>@vi.PolizeiKontaktName</span>
+                                </div>
+                                <div class="dashboard-kontakt-felder">
+                                    @if (!string.IsNullOrWhiteSpace(vi.PolizeiDienstnummer))
+                                    {
+                                        <div class="dashboard-kontakt-feld">
+                                            <span class="dashboard-kontakt-label">Dienstnr.</span>
+                                            <span class="dashboard-kontakt-wert">@vi.PolizeiDienstnummer</span>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(vi.PolizeiTelefon))
+                                    {
+                                        <div class="dashboard-kontakt-feld">
+                                            <span class="dashboard-kontakt-label">Telefon</span>
+                                            <a class="dashboard-kontakt-tel" href="tel:@vi.PolizeiTelefon">
+                                                <i class="bi bi-telephone-fill"></i>
+                                                <span>@vi.PolizeiTelefon</span>
+                                            </a>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="dashboard-kontakt-leer">
+                                <span>Kein Polizei-Kontakt erfasst</span>
+                                <button class="el-btn el-btn-ghost" @onclick='() => _activeTab = "vermisst"'>
+                                    <i class="bi bi-pencil-square"></i> Im Vermisst-Tab erfassen
+                                </button>
+                            </div>
+                        }
+                    </section>
+                </div>
             }
-        </button>
-        <button class="el-tab-btn @(_activeTab == "vermisst" ? "el-tab-active" : "")"
-                @onclick='() => _activeTab = "vermisst"'>
-            <i class="bi bi-person-exclamation"></i>
-            <span>Vermisst</span>
-        </button>
-        <button class="el-tab-btn @(_activeTab == "notizen" ? "el-tab-active" : "")"
-                @onclick='() => _activeTab = "notizen"'>
-            <i class="bi bi-chat-left-text-fill"></i>
-            <span>Notizen</span>
-        </button>
-    </nav>
+
+            @* ═══ TAB 2: VERMISSTEN-AUFNAHME ══════════════════════ *@
+            else if (_activeTab == "vermisst")
+            {
+                <div class="el-tab-content el-fade-in">
+                    <div class="el-form-container">
+                        @if (!string.IsNullOrWhiteSpace(_saveMessage))
+                        {
+                            <div class="el-alert @(_saveIsError ? "el-alert-danger" : "el-alert-success")">@_saveMessage</div>
+                        }
+
+                        @* PERSON *@
+                        <details class="el-section" open>
+                            <summary class="el-section-summary">
+                                <i class="bi bi-person el-section-icon"></i>
+                                <span class="el-section-title">Person</span>
+                                <span class="el-section-progress @SectionProgressClass(PersonProgress)">@PersonProgress.filled / @PersonProgress.total</span>
+                                <i class="bi bi-chevron-right el-section-chevron"></i>
+                            </summary>
+                            <div class="el-field-grid">
+                                <div class="el-field">
+                                    <label class="el-field-required">Vorname</label>
+                                    <input class="el-input" @bind="_vi.Vorname" @bind:after="ScheduleAutoSave" placeholder="Vorname" />
+                                </div>
+                                <div class="el-field">
+                                    <label class="el-field-required">Nachname</label>
+                                    <input class="el-input" @bind="_vi.Nachname" @bind:after="ScheduleAutoSave" placeholder="Nachname" />
+                                </div>
+                                <div class="el-field">
+                                    <label>Geburtsdatum</label>
+                                    <input class="el-input"
+                                           value="@_vi.Geburtsdatum"
+                                           @onchange="OnGeburtsdatumChanged"
+                                           placeholder="TT.MM.JJJJ" />
+                                </div>
+                                <div class="el-field">
+                                    <label>Alter <span class="el-field-hint">(auto)</span></label>
+                                    <input class="el-input" @bind="_vi.Alter" @bind:after="ScheduleAutoSave" placeholder="z.B. 73" />
+                                </div>
+                                <div class="el-field el-field-full">
+                                    <label>Kleidung</label>
+                                    <input class="el-input" @bind="_vi.Kleidung" @bind:after="ScheduleAutoSave" placeholder="z.B. blaue Winterjacke" />
+                                </div>
+                                <div class="el-field el-field-full">
+                                    <label>Besonderheiten / Körpergröße</label>
+                                    <input class="el-input" @bind="_vi.Besonderheiten" @bind:after="ScheduleAutoSave" placeholder="z.B. ca. 170 cm, Brille" />
+                                </div>
+                            </div>
+                        </details>
+
+                        @* LETZTER AUFENTHALT *@
+                        <details class="el-section" open>
+                            <summary class="el-section-summary">
+                                <i class="bi bi-geo-alt el-section-icon"></i>
+                                <span class="el-section-title">Letzter Aufenthalt</span>
+                                <span class="el-section-progress @SectionProgressClass(OrtProgress)">@OrtProgress.filled / @OrtProgress.total</span>
+                                <i class="bi bi-chevron-right el-section-chevron"></i>
+                            </summary>
+                            <div class="el-field-grid">
+                                <div class="el-field el-field-full">
+                                    <label class="el-field-required">Ort / Adresse</label>
+                                    <input class="el-input" @bind="_vi.ZuletztGesehenOrt" @bind:after="ScheduleAutoSave" placeholder="z.B. Parkplatz Waldstraße 12" />
+                                </div>
+                                <div class="el-field">
+                                    <label>Uhrzeit</label>
+                                    <input class="el-input" @bind="_vi.ZuletztGesehenZeit" @bind:after="ScheduleAutoSave" placeholder="z.B. 14:30" />
+                                </div>
+                                <div class="el-field">
+                                    <label>Gesehen von</label>
+                                    <input class="el-input" @bind="_vi.ZuletztGesehenVon" @bind:after="ScheduleAutoSave" placeholder="z.B. Tochter" />
+                                </div>
+                            </div>
+                        </details>
+
+                        @* MEDIZIN *@
+                        <details class="el-section">
+                            <summary class="el-section-summary">
+                                <i class="bi bi-heart-pulse el-section-icon"></i>
+                                <span class="el-section-title">Medizin & Verhalten</span>
+                                <span class="el-section-progress @SectionProgressClass(MedizinProgress)">@MedizinProgress.filled / @MedizinProgress.total</span>
+                                <i class="bi bi-chevron-right el-section-chevron"></i>
+                            </summary>
+                            <div class="el-field-grid">
+                                <div class="el-field">
+                                    <label>Orientierung</label>
+                                    <select class="el-input" @bind="_vi.Orientierung" @bind:after="ScheduleAutoSave">
+                                        @foreach (var v in Enum.GetValues<OrientierungsStatus>())
+                                        { <option value="@v">@OrientierungLabel(v)</option> }
+                                    </select>
+                                </div>
+                                <div class="el-field">
+                                    <label>Mobilität</label>
+                                    <select class="el-input" @bind="_vi.Mobilitaet" @bind:after="ScheduleAutoSave">
+                                        @foreach (var v in Enum.GetValues<MobilitaetsStatus>())
+                                        { <option value="@v">@MobilitaetLabel(v)</option> }
+                                    </select>
+                                </div>
+                                <div class="el-field">
+                                    <label class="@(_vi.Suizidrisiko == RisikoStatus.Ja ? "text-danger fw-bold" : "")">Suizidrisiko</label>
+                                    <select class="el-input @(_vi.Suizidrisiko == RisikoStatus.Ja ? "el-input-danger" : "")" @bind="_vi.Suizidrisiko" @bind:after="ScheduleAutoSave">
+                                        @foreach (var v in Enum.GetValues<RisikoStatus>()) { <option value="@v">@v</option> }
+                                    </select>
+                                </div>
+                                <div class="el-field">
+                                    <label class="@(_vi.Bewaffnet == RisikoStatus.Ja ? "text-danger fw-bold" : "")">Bewaffnet</label>
+                                    <select class="el-input @(_vi.Bewaffnet == RisikoStatus.Ja ? "el-input-danger" : "")" @bind="_vi.Bewaffnet" @bind:after="ScheduleAutoSave">
+                                        @foreach (var v in Enum.GetValues<RisikoStatus>()) { <option value="@v">@v</option> }
+                                    </select>
+                                </div>
+                                <div class="el-field el-field-full">
+                                    <label>Vorerkrankungen</label>
+                                    <input class="el-input" @bind="_vi.Vorerkrankungen" @bind:after="ScheduleAutoSave" />
+                                </div>
+                                <div class="el-field el-field-full">
+                                    <label>Medikamente</label>
+                                    <input class="el-input" @bind="_vi.Medikamente" @bind:after="ScheduleAutoSave" />
+                                </div>
+                            </div>
+                        </details>
+
+                        @* POLIZEI *@
+                        <details class="el-section">
+                            <summary class="el-section-summary">
+                                <i class="bi bi-shield el-section-icon"></i>
+                                <span class="el-section-title">Polizei-Kontakt</span>
+                                <span class="el-section-progress @SectionProgressClass(PolizeiProgress)">@PolizeiProgress.filled / @PolizeiProgress.total</span>
+                                <i class="bi bi-chevron-right el-section-chevron"></i>
+                            </summary>
+                            <div class="el-field-grid">
+                                <div class="el-field el-field-full">
+                                    <label>Name Kontaktbeamter</label>
+                                    <input class="el-input" @bind="_vi.PolizeiKontaktName" @bind:after="ScheduleAutoSave" />
+                                </div>
+                                <div class="el-field">
+                                    <label>Dienstnr.</label>
+                                    <input class="el-input" @bind="_vi.PolizeiDienstnummer" @bind:after="ScheduleAutoSave" />
+                                </div>
+                                <div class="el-field">
+                                    <label>Telefon</label>
+                                    <input class="el-input" type="tel" @bind="_vi.PolizeiTelefon" @bind:after="ScheduleAutoSave" />
+                                </div>
+                            </div>
+                            <div class="el-checklist">
+                                <label class="el-check-item">
+                                    <input type="checkbox" @bind="_vi.PolizeiVermisstenmeldungAufgenommen" @bind:after="ScheduleAutoSave" />
+                                    <span>Vermisstenmeldung aufgenommen</span>
+                                </label>
+                                <label class="el-check-item">
+                                    <input type="checkbox" @bind="_vi.PolizeiKoordinationBesprochen" @bind:after="ScheduleAutoSave" />
+                                    <span>Einsatzkoordination besprochen</span>
+                                </label>
+                                <label class="el-check-item">
+                                    <input type="checkbox" @bind="_vi.PolizeiSuchabschnittAbgestimmt" @bind:after="ScheduleAutoSave" />
+                                    <span>Suchabschnitte abgestimmt</span>
+                                </label>
+                                <label class="el-check-item">
+                                    <input type="checkbox" @bind="_vi.PolizeiRueckmeldepflichtVereinbart" @bind:after="ScheduleAutoSave" />
+                                    <span>Rückmeldepflicht vereinbart</span>
+                                </label>
+                                <label class="el-check-item">
+                                    <input type="checkbox" @bind="_vi.PolizeiDatenschutzGeklaert" @bind:after="ScheduleAutoSave" />
+                                    <span>Datenschutz geklärt</span>
+                                </label>
+                            </div>
+                        </details>
+
+                        @* BOS *@
+                        <details class="el-section">
+                            <summary class="el-section-summary">
+                                <i class="bi bi-truck el-section-icon"></i>
+                                <span class="el-section-title">Weitere BOS</span>
+                                <span class="el-section-progress @SectionProgressClass(BosProgress)">@BosProgress.filled / @BosProgress.total</span>
+                                <i class="bi bi-chevron-right el-section-chevron"></i>
+                            </summary>
+                            <div class="el-field-grid">
+                                <div class="el-field el-field-full">
+                                    <label>Einheit</label>
+                                    <input class="el-input" @bind="_vi.BosEinheit" @bind:after="ScheduleAutoSave" />
+                                </div>
+                                <div class="el-field">
+                                    <label>Zugführer</label>
+                                    <input class="el-input" @bind="_vi.BosZugfuehrer" @bind:after="ScheduleAutoSave" />
+                                </div>
+                                <div class="el-field">
+                                    <label>Funkrufname</label>
+                                    <input class="el-input" @bind="_vi.BosFunkrufname" @bind:after="ScheduleAutoSave" />
+                                </div>
+                                <div class="el-field el-field-full">
+                                    <label>Aufgabenteilung</label>
+                                    <input class="el-input" @bind="_vi.BosAufgabenteilung" @bind:after="ScheduleAutoSave" />
+                                </div>
+                            </div>
+                            <div class="el-checklist">
+                                <label class="el-check-item">
+                                    <input type="checkbox" @bind="_vi.BosAbschnittAbgestimmt" @bind:after="ScheduleAutoSave" />
+                                    <span>Einsatzabschnitt abgestimmt</span>
+                                </label>
+                                <label class="el-check-item">
+                                    <input type="checkbox" @bind="_vi.BosRessourcenBesprochen" @bind:after="ScheduleAutoSave" />
+                                    <span>Ressourcen besprochen</span>
+                                </label>
+                            </div>
+                        </details>
+
+                        <div class="el-save-row">
+                            <button class="el-btn el-btn-primary" @onclick="SaveVermisstenAsync">
+                                <i class="bi bi-check-lg"></i>Speichern
+                            </button>
+                            <span class="el-autosave-status @(_autoSavePending ? "el-autosave-pending" : "")">
+                                @if (_autoSavePending) { <i class="bi bi-arrow-repeat el-spin"></i> }
+                                else if (_lastAutoSavedAt is not null) { <i class="bi bi-cloud-check"></i> }
+                                @AutoSaveStatusText
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ═══ TAB 3: KARTE ═══════════════════════════════════ *@
+            else if (_activeTab == "karte")
+            {
+                <div class="el-tab-content-fluid el-fade-in">
+                    <iframe class="el-karte-fullframe"
+                            src="/einsatz/karte?embed=true&controls=tiles,gps-collar,gps-phone,recenter"
+                            title="Lagebild"
+                            loading="lazy"></iframe>
+                </div>
+            }
+
+            @* ═══ TAB 4: NOTIZEN & FUNK ═════════════════════════ *@
+            else if (_activeTab == "notizen")
+            {
+                <div class="el-tab-content el-fade-in">
+                    <div class="notizen-grid">
+
+                        @* Stream-Bereich (links im Querformat, unten im Hochformat) *@
+                        <section class="notizen-stream">
+                            <div class="notizen-spalte-kopf">
+                                <i class="bi bi-broadcast"></i>
+                                <span>Funkstammbuch</span>
+                            </div>
+
+                            <div class="el-filter-row">
+                                <button class="el-filter-chip @(_noteFilter == "alle" ? "el-filter-chip-active" : "")"
+                                        @onclick='() => _noteFilter = "alle"'>Alle</button>
+                                <button class="el-filter-chip @(_noteFilter == "funk" ? "el-filter-chip-active" : "")"
+                                        @onclick='() => _noteFilter = "funk"'><i class="bi bi-broadcast"></i> Funk</button>
+                                <button class="el-filter-chip @(_noteFilter == "wichtig" ? "el-filter-chip-active" : "")"
+                                        @onclick='() => _noteFilter = "wichtig"'><i class="bi bi-exclamation-triangle-fill"></i> Wichtig</button>
+                                <button class="el-filter-chip @(_noteFilter == "el" ? "el-filter-chip-active" : "")"
+                                        @onclick='() => _noteFilter = "el"'><i class="bi bi-lock-fill"></i> Meine</button>
+                            </div>
+
+                            <button class="el-btn el-btn-primary notizen-funk-cta" @onclick="() => OpenFunk(null)">
+                                <i class="bi bi-broadcast"></i> Funkmeldung absetzen
+                            </button>
+
+                            <div class="el-notes-list">
+                                @{ var stream = BuildNoteStream(); }
+                                @if (stream.Count == 0)
+                                {
+                                    <p class="el-empty-state">
+                                        <i class="bi bi-chat-left"></i><span>Keine Einträge</span>
+                                    </p>
+                                }
+                                else
+                                {
+                                    @foreach (var item in stream)
+                                    {
+                                        <div class="el-notiz-card @(item.IsShared ? "el-notiz-shared" : "")">
+                                            <div class="el-notiz-meta">
+                                                @if (!string.IsNullOrWhiteSpace(item.Prefix))
+                                                {
+                                                    <span class="el-notiz-prefix el-notiz-prefix-@item.Prefix.ToLower()">
+                                                        @if (item.PrefixIcon is not null) { <i class="bi @item.PrefixIcon me-1"></i> }
+                                                        @item.Prefix
+                                                    </span>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(item.Source))
+                                                {
+                                                    <span class="el-notiz-source">@item.Source</span>
+                                                }
+                                                <span class="el-notiz-time">@item.TimeFormatted</span>
+                                            </div>
+                                            <div class="el-notiz-text">
+                                                @if (item.IsShared) { @MentionTextarea.RenderWithMentions(item.Text) }
+                                                else { @item.Text }
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </section>
+
+                        @* EL-Notizblock (rechts im Querformat, oben im Hochformat) *@
+                        <aside class="notizblock-mein">
+                            <div class="notizblock-mein-kopf">
+                                <i class="bi bi-pencil"></i>
+                                <span>Mein Notizblock</span>
+                            </div>
+
+                            <div class="notizblock-mein-eingabe">
+                                <div class="el-note-prefix-row">
+                                    @foreach (var p in new[] { "", "Anruf", "Funk", "Wichtig" })
+                                    {
+                                        <button class="el-prefix-btn @(_elNotizPrefix == p ? "el-prefix-active" : "")"
+                                                @onclick="() => _elNotizPrefix = p">
+                                            @if (p == "Anruf") { <i class="bi bi-telephone-fill me-1"></i> }
+                                            else if (p == "Funk") { <i class="bi bi-broadcast me-1"></i> }
+                                            else if (p == "Wichtig") { <i class="bi bi-exclamation-triangle-fill me-1"></i> }
+                                            else { <i class="bi bi-pencil me-1"></i> }
+                                            @(p == "" ? "Notiz" : p)
+                                        </button>
+                                    }
+                                </div>
+                                <div class="el-note-input-row">
+                                    <MentionTextarea @bind-Value="_elNotizText"
+                                                     Mentions="_mentionSuggestions"
+                                                     Rows="3"
+                                                     Placeholder="Eigene Notiz · AT für Team-Erwähnung"
+                                                     AdditionalClass="el-mention-input" />
+                                    <button class="el-btn el-btn-primary el-btn-send"
+                                            @onclick="AddElNotizAsync"
+                                            disabled="@(string.IsNullOrWhiteSpace(_elNotizText))">
+                                        <i class="bi bi-send-fill"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="notizblock-mein-liste">
+                                @{
+                                    var meine = (EinsatzService.CurrentEinsatz.ElNotizen ?? new())
+                                        .OrderByDescending(n => n.Timestamp)
+                                        .ToList();
+                                }
+                                @if (meine.Count == 0)
+                                {
+                                    <p class="notizblock-mein-leer">Noch keine eigenen Notizen.</p>
+                                }
+                                else
+                                {
+                                    @foreach (var n in meine)
+                                    {
+                                        <div class="notizblock-eintrag">
+                                            <div class="notizblock-eintrag-meta">
+                                                @if (!string.IsNullOrWhiteSpace(n.Prefix))
+                                                {
+                                                    <span class="el-notiz-prefix el-notiz-prefix-@n.Prefix.ToLower()">@n.Prefix</span>
+                                                }
+                                                <span class="el-notiz-time">@n.FormattedDateTime</span>
+                                                <button class="el-notiz-delete" @onclick="() => DeleteElNotizAsync(n.Id)" title="Löschen">
+                                                    <i class="bi bi-trash3"></i>
+                                                </button>
+                                            </div>
+                                            <div class="notizblock-eintrag-text">@n.Text</div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </aside>
+
+                    </div>
+                </div>
+            }
+
+        </main>
+    }
+
+    @* ── Bottom-Tab-Bar (immer sichtbar bei aktivem Einsatz) ──── *@
+    @if (HasActiveEinsatz)
+    {
+        <nav class="el-tabbar">
+            <button class="el-tab-btn @(_activeTab == "uebersicht" ? "el-tab-active" : "")"
+                    @onclick='() => _activeTab = "uebersicht"'>
+                <i class="bi bi-broadcast-pin"></i><span>Dashboard</span>
+                @if (_teamsWarning > 0)
+                {
+                    <span class="el-tab-badge">@_teamsWarning</span>
+                }
+            </button>
+            <button class="el-tab-btn @(_activeTab == "vermisst" ? "el-tab-active" : "")"
+                    @onclick='() => _activeTab = "vermisst"'>
+                <i class="bi bi-person-exclamation"></i><span>Vermisst</span>
+            </button>
+            <button class="el-tab-btn @(_activeTab == "karte" ? "el-tab-active" : "")"
+                    @onclick='() => _activeTab = "karte"'>
+                <i class="bi bi-map"></i><span>Karte</span>
+            </button>
+            <button class="el-tab-btn @(_activeTab == "notizen" ? "el-tab-active" : "")"
+                    @onclick='() => _activeTab = "notizen"'>
+                <i class="bi bi-chat-left-text-fill"></i><span>Notizen</span>
+            </button>
+        </nav>
+    }
+
+    @* ── Hardware-Taster: Funk · Alarm ────────────────────────── *@
+    @if (HasActiveEinsatz)
+    {
+        <div class="el-taster-leiste">
+            <button class="el-taster el-taster-funk" title="Funkmeldung absetzen" @onclick="() => OpenFunk(null)">
+                <i class="bi bi-broadcast"></i>
+                <span>Funk</span>
+            </button>
+            <button class="el-taster @(_soundEnabled ? "el-taster-on" : "")"
+                    title="@(_soundEnabled ? "Akustischer Alarm: AN" : "Akustischer Alarm: AUS")"
+                    @onclick="ToggleSoundAsync">
+                <i class="bi @(_soundEnabled ? "bi-volume-up-fill" : "bi-volume-mute")"></i>
+                <span>Alarm</span>
+            </button>
+        </div>
+    }
+
+    @* ── Funk-Modal ─────────────────────────────────────────────── *@
+    @if (_funkOpen)
+    {
+        <div class="el-modal-backdrop" @onclick="CloseFunk"></div>
+        <div class="el-modal" role="dialog" aria-modal="true">
+            <div class="el-modal-head">
+                <i class="bi bi-broadcast"></i>
+                <span>Funkmeldung</span>
+                <button class="el-modal-close" @onclick="CloseFunk" title="Schließen">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="el-modal-body">
+                <label class="el-modal-label">Empfänger</label>
+                <select class="el-input" @bind="_funkRecipientTeamName">
+                    <option value="">— An alle —</option>
+                    @foreach (var t in EinsatzService.Teams.OrderBy(t => t.TeamName))
+                    {
+                        <option value="@t.TeamName">@t.TeamName</option>
+                    }
+                </select>
+
+                <label class="el-modal-label">Meldung</label>
+                <textarea class="el-textarea" rows="4" placeholder="Funkmeldung..."
+                          @bind="_funkText" @bind:event="oninput"></textarea>
+            </div>
+            <div class="el-modal-foot">
+                <button class="el-btn el-btn-ghost" @onclick="CloseFunk">Abbrechen</button>
+                <button class="el-btn el-btn-primary"
+                        disabled="@(string.IsNullOrWhiteSpace(_funkText))"
+                        @onclick="SendFunkAsync">
+                    <i class="bi bi-send-fill"></i> Senden
+                </button>
+            </div>
+        </div>
+    }
 
 </div>
 
+@* ── RenderFragment-Helper ─────────────────────────────────────── *@
+@code {
+    private RenderFragment RenderBahn(Team team) => __builder =>
+    {
+        var b = BelastungsBahn(team);
+        var preWarn = PreWarningText(team);
+
+        <div class="bahn" data-status="@b.Status">
+            <div class="bahn-head">
+                <div>
+                    <div class="bahn-name">@team.TeamName</div>
+                    <div class="bahn-meta">
+                        @if (!string.IsNullOrWhiteSpace(team.HundefuehrerName))
+                        {
+                            <span class="bahn-meta-item"><i class="bi bi-person-fill"></i> @team.HundefuehrerName</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(team.DogName))
+                        {
+                            <span class="bahn-meta-item"><i class="bi bi-shield"></i> @team.DogName</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(team.SearchAreaName))
+                        {
+                            <span class="bahn-meta-item"><i class="bi bi-geo-alt"></i> @team.SearchAreaName</span>
+                        }
+                    </div>
+                </div>
+                <div class="bahn-elapsed">@team.ElapsedTime.ToString(@"hh\:mm\:ss")</div>
+            </div>
+
+            <div class="bahn-track" style="--bahn-warn1: @Pct(b.Warn1Pct);">
+                <div class="bahn-fill" style="width: @Pct(b.ElapsedPct);"></div>
+                <span class="bahn-mark bahn-mark-warn" style="left: @Pct(b.Warn1Pct);" data-label="STUFE 1"></span>
+                <span class="bahn-mark bahn-mark-crit" style="left: 100%;" data-label="STUFE 2"></span>
+                <span class="bahn-needle" style="left: @Pct(b.ElapsedPct);"></span>
+            </div>
+
+            <div class="bahn-foot">
+                <span class="bahn-statuslabel">@b.StatusLabel</span>
+                @if (preWarn is not null)
+                {
+                    <span class="bahn-prewarn"><i class="bi bi-hourglass-split"></i> @preWarn</span>
+                }
+                <div class="bahn-actions">
+                    <button class="bahn-action @(team.IsPausing ? "bahn-action-current" : "")"
+                            disabled="@(_busyTeamId == team.TeamId)"
+                            @onclick="() => PauseTeamAsync(team.TeamId)"
+                            title="Pause">
+                        <i class="bi bi-pause-fill"></i>
+                    </button>
+                    <button class="bahn-action"
+                            disabled="@(_busyTeamId == team.TeamId)"
+                            @onclick="() => ResetTeamAsync(team.TeamId)"
+                            title="Bereit">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                    <button class="bahn-action"
+                            @onclick="() => OpenFunk(team.TeamName)"
+                            title="Funk an dieses Team">
+                        <i class="bi bi-broadcast"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    };
+}

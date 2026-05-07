@@ -5,50 +5,58 @@
 
 <div class="home-lobby-wrapper">
 
-    <div class="row g-4 home-lobby-row">
+    <div class="row g-3 home-lobby-row">
 
-        <!-- Linke Spalte: Notizblock -->
+        <!-- Bereitschaft (links) -->
         <div class="col-12 col-md-3 order-2 order-md-1 d-flex flex-column">
-            <div class="card border-0 shadow-sm home-fill-card">
-                <div class="card-header bg-transparent border-0 fw-semibold">
-                    <i class="bi bi-pencil-square me-2 text-primary"></i>Verfügbarkeit / Notizen
-                </div>
-                <div class="card-body d-flex flex-column gap-3 home-fill-body">
-                    <div class="input-group input-group-sm">
-                        <input class="form-control" placeholder="Notiz hinzufügen…" @bind="_newNoteText" @onkeydown="OnNoteKeyDown" maxlength="200" />
-                        <button class="btn btn-primary" @onclick="AddNoteAsync" disabled="@string.IsNullOrWhiteSpace(_newNoteText)">
+            <section class="home-card home-fill-card">
+                <header class="home-card-head">
+                    <span class="home-card-eyebrow">Bereitschaft</span>
+                </header>
+                <div class="home-card-body home-fill-body">
+                    <div class="home-bereitschaft-add">
+                        <input class="home-bereitschaft-input"
+                               placeholder="Notiz hinzufügen …"
+                               @bind="_newNoteText"
+                               @onkeydown="OnNoteKeyDown"
+                               maxlength="200" />
+                        <button class="home-bereitschaft-add-btn"
+                                @onclick="AddNoteAsync"
+                                disabled="@string.IsNullOrWhiteSpace(_newNoteText)"
+                                title="Hinzufügen">
                             <i class="bi bi-plus-lg"></i>
                         </button>
                     </div>
-                    <div class="home-note-list">
-                        @if (_notes.Count == 0)
-                        {
-                            <p class="text-muted small mb-0">Keine Einträge.</p>
-                        }
-                        else
-                        {
+
+                    @if (_notes.Count == 0)
+                    {
+                        <p class="home-empty">Keine Einträge.</p>
+                    }
+                    else
+                    {
+                        <ul class="home-note-list">
                             @foreach (var note in _notes)
                             {
-                                <div class="home-note-item d-flex justify-content-between align-items-start gap-2">
-                                    <div class="flex-grow-1">
-                                        <div class="small">@note.Text</div>
-                                        <div class="text-muted" style="font-size:.7rem;">@note.CreatedAt.ToString("HH:mm dd.MM")</div>
+                                <li class="home-note-item">
+                                    <div class="home-note-body">
+                                        <span class="home-note-text">@note.Text</span>
+                                        <span class="home-note-meta">@note.CreatedAt.ToString("HH:mm · dd.MM")</span>
                                     </div>
-                                    <button class="btn btn-link btn-sm text-danger p-0 flex-shrink-0" @onclick="() => DeleteNoteAsync(note.Id)" title="Löschen">
+                                    <button class="home-note-del" @onclick="() => DeleteNoteAsync(note.Id)" title="Löschen">
                                         <i class="bi bi-x-lg"></i>
                                     </button>
-                                </div>
+                                </li>
                             }
-                        }
-                    </div>
+                        </ul>
+                    }
                 </div>
-            </div>
+            </section>
         </div>
 
-        <!-- Mittlere Spalte: Staffel-Identität -->
+        <!-- Lagebild (Mitte) -->
         <div class="col-12 col-md-6 order-1 order-md-2 d-flex flex-column">
-            <div class="card border-0 shadow-sm home-fill-card">
-                <div class="card-body home-fill-body d-flex flex-column align-items-center justify-content-center text-center gap-3">
+            <section class="home-lagebild home-fill-card">
+                <div class="home-lagebild-content">
                     @if (_logoVisible)
                     {
                         <img src="/downloads/staffel-logo"
@@ -58,98 +66,133 @@
                     }
                     @if (!string.IsNullOrWhiteSpace(_staffelName))
                     {
-                        <h2 class="fw-bold mb-0">@_staffelName</h2>
+                        <h1 class="home-staffel-name">@_staffelName</h1>
                     }
-                    <div class="home-clock">@_now.ToString("HH:mm:ss")</div>
-                    <div class="text-muted fs-5">@_now.ToString("dddd, dd. MMMM yyyy", new System.Globalization.CultureInfo("de-DE"))</div>
-                    <div class="mt-2">
-                        @if (_diveraAlarms.Any())
+
+                    <div class="home-clock">
+                        <span class="home-clock-main">@_now.ToString("HH:mm")</span><span class="home-clock-seconds">:@_now.ToString("ss")</span>
+                    </div>
+                    <div class="home-clock-date">
+                        @_now.ToString("dddd, dd. MMMM yyyy", new System.Globalization.CultureInfo("de-DE"))
+                    </div>
+
+                    @{
+                        var hasAlarm = _diveraAlarms.Any();
+                        string statusClass;
+                        string statusIcon;
+                        string statusText;
+                        if (hasAlarm)
                         {
-                            <a class="btn btn-danger btn-lg px-5 py-3 home-alarm-btn shadow" href="/einsatz-start">
-                                <i class="bi bi-broadcast-pin me-2 fs-5"></i>
-                                <strong>@_diveraAlarms.Count Divera-Alarm@(_diveraAlarms.Count > 1 ? "e" : "") aktiv</strong>
-                                <span class="d-block small fw-normal mt-1">Jetzt Einsatz anlegen →</span>
+                            statusClass = "is-alarm";
+                            statusIcon = "bi-broadcast-pin";
+                            statusText = $"ALARM — {_diveraAlarms.Count} Divera-Alarm{(_diveraAlarms.Count > 1 ? "e" : "")} aktiv";
+                        }
+                        else if (_einsatzAktiv)
+                        {
+                            statusClass = "is-active";
+                            statusIcon = "bi-display";
+                            statusText = $"Einsatz läuft — {_einsatzOrt}";
+                        }
+                        else
+                        {
+                            statusClass = "is-calm";
+                            statusIcon = "bi-shield-check";
+                            statusText = "Lage ruhig — keine aktiven Alarme";
+                        }
+                    }
+                    <div class="home-status-band @statusClass">
+                        <span class="home-status-pulse"></span>
+                        <i class="bi @statusIcon"></i>
+                        <span>@statusText</span>
+                    </div>
+
+                    <div class="home-action-row">
+                        @if (hasAlarm)
+                        {
+                            <a class="home-action-btn home-action-btn--alarm" href="/einsatz-start">
+                                <span>Jetzt Einsatz anlegen</span>
+                                <i class="bi bi-arrow-right"></i>
                             </a>
                         }
                         else if (_einsatzAktiv)
                         {
-                            <a class="btn btn-success btn-lg px-5 py-3 shadow" href="/einsatz-monitor">
-                                <i class="bi bi-display me-2 fs-5"></i>
-                                <strong>Einsatz aktiv — @_einsatzOrt</strong>
-                                <span class="d-block small fw-normal mt-1">Zum Einsatz-Monitor →</span>
+                            <a class="home-action-btn home-action-btn--active" href="/einsatz-monitor">
+                                <span>Zum Einsatz-Monitor</span>
+                                <i class="bi bi-arrow-right"></i>
                             </a>
                         }
                         else
                         {
-                            <a class="btn btn-outline-primary" href="/einsatz-start">
-                                <i class="bi bi-plus-circle me-1"></i>Neuen Einsatz anlegen
+                            <a class="home-action-btn home-action-btn--calm" href="/einsatz-start">
+                                <i class="bi bi-plus-circle"></i>
+                                <span>Neuen Einsatz anlegen</span>
                             </a>
                         }
                     </div>
-                    <div class="text-muted mt-auto" style="font-size:.75rem;">
-                        v@(_appVersion)
-                    </div>
                 </div>
-            </div>
+
+                <div class="home-watchline">
+                    <span class="home-watchline-dot"></span>
+                    System bereit · v@(_appVersion)
+                </div>
+            </section>
         </div>
 
-        <!-- Rechte Spalte: Statistik + Letzte Einsätze -->
-        <div class="col-12 col-md-3 order-3 d-flex flex-column gap-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-transparent border-0 fw-semibold">
-                    <i class="bi bi-bar-chart-line me-2 text-primary"></i>Archiv-Statistik
-                </div>
-                <div class="card-body p-3">
-                    <div class="home-stat-grid">
-                        <div class="home-stat-cell">
-                            <div class="home-stat-value">@(_stats?.GesamtAnzahl ?? 0)</div>
-                            <div class="home-stat-label">Einsätze gesamt</div>
-                        </div>
-                        <div class="home-stat-cell">
-                            <div class="home-stat-value">@(_stats?.AnzahlDiesesJahr ?? 0)</div>
-                            <div class="home-stat-label">Dieses Jahr</div>
-                        </div>
-                        <div class="home-stat-cell">
-                            <div class="home-stat-value">@AvgPersonal</div>
-                            <div class="home-stat-label">Ø Kräfte/Einsatz</div>
-                        </div>
-                        <div class="home-stat-cell">
-                            <div class="home-stat-value">@AvgDuration</div>
-                            <div class="home-stat-label">Ø Dauer</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card border-0 shadow-sm flex-grow-1">
-                <div class="card-header bg-transparent border-0 fw-semibold d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-archive me-2 text-primary"></i>Letzte Einsätze</span>
-                    <a class="btn btn-link btn-sm p-0 text-muted" href="/einsatz-archiv">Alle →</a>
-                </div>
-                <div class="card-body p-0">
+        <!-- Letzte Lagen + Bilanz (rechts) -->
+        <div class="col-12 col-md-3 order-3 d-flex flex-column gap-3">
+            <section class="home-card home-fill-card">
+                <header class="home-card-head home-card-head--split">
+                    <span class="home-card-eyebrow">Letzte Lagen</span>
+                    <a class="home-card-link" href="/einsatz-archiv">Alle →</a>
+                </header>
+                <div class="home-card-body home-fill-body">
                     @if (_recentEinsaetze.Count == 0)
                     {
-                        <p class="text-muted small p-3 mb-0">Noch keine archivierten Einsätze.</p>
+                        <p class="home-empty">Noch keine archivierten Einsätze.</p>
                     }
                     else
                     {
-                        <ul class="list-group list-group-flush">
+                        <ol class="home-timeline">
                             @foreach (var e in _recentEinsaetze)
                             {
-                                <li class="list-group-item border-0 py-2 px-3">
-                                    <div class="d-flex justify-content-between align-items-center gap-2">
-                                        <div class="small fw-semibold text-truncate">@e.Einsatzort</div>
-                                        <span class="badge @(e.IstEinsatz ? "bg-danger" : "bg-secondary") flex-shrink-0">
-                                            @(e.IstEinsatz ? "Einsatz" : "Übung")
-                                        </span>
+                                <li class="home-timeline-item @(e.IstEinsatz ? "is-einsatz" : "is-uebung")">
+                                    <span class="home-timeline-dot"></span>
+                                    <div class="home-timeline-title">@e.Einsatzort</div>
+                                    <div class="home-timeline-meta">
+                                        @e.ArchivedAt.ToString("dd.MM.yyyy") · @(e.IstEinsatz ? "Einsatz" : "Übung")
                                     </div>
-                                    <div class="text-muted" style="font-size:.75rem;">@e.ArchivedAt.ToString("dd.MM.yyyy")</div>
                                 </li>
                             }
-                        </ul>
+                        </ol>
                     }
                 </div>
-            </div>
+            </section>
+
+            <section class="home-card">
+                <header class="home-card-head">
+                    <span class="home-card-eyebrow">Bilanz</span>
+                </header>
+                <div class="home-card-body home-bilanz-body">
+                    <dl class="home-bilanz">
+                        <div class="home-bilanz-row">
+                            <dt>Einsätze gesamt</dt>
+                            <dd>@(_stats?.GesamtAnzahl ?? 0)</dd>
+                        </div>
+                        <div class="home-bilanz-row">
+                            <dt>Dieses Jahr</dt>
+                            <dd>@(_stats?.AnzahlDiesesJahr ?? 0)</dd>
+                        </div>
+                        <div class="home-bilanz-row">
+                            <dt>Ø Kräfte / Einsatz</dt>
+                            <dd>@AvgPersonal</dd>
+                        </div>
+                        <div class="home-bilanz-row">
+                            <dt>Ø Dauer</dt>
+                            <dd>@AvgDuration</dd>
+                        </div>
+                    </dl>
+                </div>
+            </section>
         </div>
 
     </div>

@@ -37,9 +37,10 @@
         @foreach (var collar in Collars)
         {
             CollarLastLocations.TryGetValue(collar.Id, out var lastLoc);
-            <div class="collar-item"
-                 @onclick="() => OnZoomToCollar.InvokeAsync(collar)"
-                 title="Zum Live-Punkt springen">
+            <button type="button"
+                    class="collar-item"
+                    @onclick="() => OnZoomToCollar.InvokeAsync(collar)"
+                    title="Zum Live-Punkt springen">
                 <div class="collar-head-row">
                     <span class="collar-name">
                         <i class="bi bi-geo-alt-fill" style="color: @GetCollarColorFn(collar.Id);"></i>
@@ -68,7 +69,7 @@
                         <span class="collar-status-pill text-muted">Letztes Update: keine Daten</span>
                     }
                 </div>
-            </div>
+            </button>
         }
     }
     else
@@ -112,9 +113,12 @@
                 {
                     var isVisible = !CompletedTrackVisibility.TryGetValue(snap.Id, out var sv) || sv;
                     <div class="snapshot-item ms-2">
-                        <div class="snapshot-summary"
-                             @onclick="() => OnZoomToTrack.InvokeAsync(snap.Id)"
-                             title="Auf Karte anzeigen">
+                            <div class="snapshot-summary"
+                                role="button"
+                                tabindex="0"
+                                @onclick="() => OnZoomToTrack.InvokeAsync(snap.Id)"
+                                @onkeydown='async e => { if (e.Key == "Enter" || e.Key == " ") await OnZoomToTrack.InvokeAsync(snap.Id); }'
+                                title="Auf Karte anzeigen">
                             <span class="snapshot-color-bar" style="background:@snap.Color"></span>
                             <div class="snapshot-meta">
                                 <div class="snapshot-sub">

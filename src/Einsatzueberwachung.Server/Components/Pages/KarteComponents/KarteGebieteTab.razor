@@ -15,8 +15,11 @@
         @foreach (var area in SearchAreas)
         {
             <div class="search-area-item"
+                 role="button"
+                 tabindex="0"
                  style="cursor:pointer"
                  title="Auf Karte zoomen"
+                  @onkeydown='async e => { if (e.Key == "Enter" || e.Key == " ") await OnZoomToArea.InvokeAsync(area); }'
                  @onclick="() => OnZoomToArea.InvokeAsync(area)">
                 <div class="area-header" style="cursor:pointer" title="Auf Karte zoomen">
                     <span class="color-box" style="background-color: @area.Color;"></span>

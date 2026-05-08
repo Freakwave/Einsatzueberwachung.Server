@@ -315,8 +315,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         this.maps[mapId].hideLiveArea = hideLiveArea;
 
         return true;
-    } catch (error) {
-        error('Fehler beim Initialisieren der Karte:', error);
+    } catch (err) {
+        error('Fehler beim Initialisieren der Karte:', err);
         return false;
     }
 },
@@ -346,8 +346,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             mapData.markers[areaId] = layer;
             
             return true;
-        } catch (error) {
-            error('Fehler beim Hinzufuegen des Suchgebiets:', error);
+        } catch (err) {
+            error('Fehler beim Hinzufuegen des Suchgebiets:', err);
             return false;
         }
     },
@@ -370,8 +370,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             delete mapData.markers[areaId];
             
             return true;
-        } catch (error) {
-            error('Fehler beim Entfernen des Suchgebiets:', error);
+        } catch (err) {
+            error('Fehler beim Entfernen des Suchgebiets:', err);
             return false;
         }
     },
@@ -469,8 +469,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             log('Marker erfolgreich erstellt:', markerId);
             
             return true;
-        } catch (error) {
-            error('Fehler beim Setzen des Markers:', error);
+        } catch (err) {
+            error('Fehler beim Setzen des Markers:', err);
             return false;
         }
     },
@@ -485,8 +485,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             delete mapData.markers[markerId];
             
             return true;
-        } catch (error) {
-            error('Fehler beim Entfernen des Markers:', error);
+        } catch (err) {
+            error('Fehler beim Entfernen des Markers:', err);
             return false;
         }
     },
@@ -499,8 +499,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             
             mapData.map.setView([lat, lng], zoom || mapData.map.getZoom());
             return true;
-        } catch (error) {
-            error('Fehler beim Zentrieren der Karte:', error);
+        } catch (err) {
+            error('Fehler beim Zentrieren der Karte:', err);
             return false;
         }
     },
@@ -522,8 +522,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 layer.openPopup();
             }
             return true;
-        } catch (error) {
-            console.error('Fehler beim Zoomen auf Suchgebiet:', error);
+        } catch (err) {
+            console.error('Fehler beim Zoomen auf Suchgebiet:', err);
             return false;
         }
     },
@@ -539,8 +539,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 lat: center.lat,
                 lng: center.lng
             };
-        } catch (error) {
-            error('Fehler beim Abrufen der Kartenmitte:', error);
+        } catch (err) {
+            error('Fehler beim Abrufen der Kartenmitte:', err);
             return { lat: 0, lng: 0 };
         }
     },
@@ -588,8 +588,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             }
             
             return true;
-        } catch (error) {
-            error('Fehler beim Wechseln des Layers:', error);
+        } catch (err) {
+            error('Fehler beim Wechseln des Layers:', err);
             return false;
         }
     },
@@ -604,8 +604,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             mapData.map.fitBounds(group.getBounds().pad(0.1));
             
             return true;
-        } catch (error) {
-            error('Fehler beim Anpassen der Bounds:', error);
+        } catch (err) {
+            error('Fehler beim Anpassen der Bounds:', err);
             return false;
         }
     },
@@ -689,9 +689,9 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             }
             
             return { success: false, message: 'Adresse nicht gefunden' };
-        } catch (error) {
-            error('Fehler beim Geocoding:', error);
-            return { success: false, message: error.message };
+        } catch (err) {
+            error('Fehler beim Geocoding:', err);
+            return { success: false, message: err.message };
         }
     },
     
@@ -942,8 +942,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             // Hinweis fuer Benutzer
             alert('Tipp: Nutzen Sie "Karte drucken" und speichern Sie als PDF, oder machen Sie einen Screenshot (Windows: Win+Shift+S, Mac: Cmd+Shift+4)');
             return true;
-        } catch (error) {
-            error('Fehler beim Exportieren:', error);
+        } catch (err) {
+            error('Fehler beim Exportieren:', err);
             return false;
         }
     },
@@ -965,8 +965,8 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 delete this.maps[mapId];
             }
             return true;
-        } catch (error) {
-            error('Fehler beim Dispose der Karte:', error);
+        } catch (err) {
+            error('Fehler beim Dispose der Karte:', err);
             return false;
         }
     },
@@ -1589,3 +1589,4 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         }
     }
 };
+

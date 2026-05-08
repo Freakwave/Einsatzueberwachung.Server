@@ -71,10 +71,24 @@
     cursor: pointer;
     flex: 1;
     min-width: 0;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .marker-list-info:hover {
     text-decoration: underline;
+}
+
+.marker-list-info:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+    border-radius: 3px;
 }
 
 .marker-list-label {

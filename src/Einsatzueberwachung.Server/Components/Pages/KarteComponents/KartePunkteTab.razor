@@ -110,7 +110,7 @@
             @foreach (var marker in Markers.OrderByDescending(m => m.CreatedAt))
             {
                 <div class="marker-list-item">
-                    <div class="marker-list-info" @onclick="() => ZoomToMarker(marker)" title="Zum Punkt zoomen">
+                    <button type="button" class="marker-list-info" @onclick="() => ZoomToMarker(marker)" title="Zum Punkt zoomen">
                         <span class="marker-list-label">
                             <i class="bi bi-pin-map-fill" style="color: @marker.Color;"></i>
                             @(string.IsNullOrEmpty(marker.Label) ? $"Punkt {marker.FormattedTimestamp}" : marker.Label)
@@ -120,7 +120,7 @@
                         {
                             <span class="marker-list-coords text-muted">@marker.FormattedUtm</span>
                         }
-                    </div>
+                    </button>
                     <div class="marker-list-actions">
                         <button class="btn btn-xs btn-link p-0" @onclick="() => StartEditMarker(marker)" title="Bearbeiten">
                             <i class="bi bi-pencil"></i>

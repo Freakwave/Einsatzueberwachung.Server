@@ -81,8 +81,15 @@ public static class GpxParser
         // Chronologisch sortieren nur dann, wenn alle Punkte echte Zeitstempel haben.
         // Bei gemischten GPX-Dateien muss die ursprüngliche Datei-Reihenfolge erhalten bleiben,
         // damit Punkte ohne <time> nicht an den Anfang der Strecke verschoben werden.
+        // Bei gleichen Zeitstempeln bleibt die ursprüngliche Reihenfolge ebenfalls erhalten,
+        // damit die Track-Geometrie deterministisch bleibt.
         if (points.All(p => p.Timestamp != DateTime.MinValue))
-            points.Sort((a, b) => a.Timestamp.CompareTo(b.Timestamp));
+            points = points
+                .Select((point, index) => new { point, index })
+                .OrderBy(x => x.point.Timestamp)
+                .ThenBy(x => x.index)
+                .Select(x => x.point)
+                .ToList();
 
         return points;
     }

@@ -10,7 +10,9 @@
          role="alert"
          aria-live="assertive"
          aria-atomic="true"
+         tabindex="@(_current.NavigationUrl is not null ? 0 : -1)"
          title="@(_current.NavigationUrl is not null ? "Klicken zum Navigieren" : null)"
+         @onkeydown='async e => { if (_current.NavigationUrl is not null && (e.Key == "Enter" || e.Key == " ")) await OnToastClickedAsync(); }'
          @onclick="OnToastClickedAsync">
         <div class="warn-toast__header">
             <i class="bi @GetIcon(_current.Level) me-2"></i>

@@ -113,10 +113,22 @@ public partial class EinsatzMonitor
     // Screensaver (kein aktiver Einsatz)
     private System.Threading.Timer? _screensaverClockTimer;
     private DateTime _screensaverNow;
+    private string? _pendingTeamScrollId;
+    private string? _lastScrolledTeamId;
 
     private bool HasActiveEinsatz =>
         !string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzort)
         && EinsatzService.CurrentEinsatz.EinsatzEnde is null;
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(ScrollToTeamId)
+            && IsValidEntityId(ScrollToTeamId)
+            && !string.Equals(ScrollToTeamId, _lastScrolledTeamId, StringComparison.Ordinal))
+        {
+            _pendingTeamScrollId = ScrollToTeamId;
+        }
+    }
 
     private static readonly string[] _screensaverTips =
     [
@@ -177,9 +189,14 @@ public partial class EinsatzMonitor
         if (firstRender)
         {
             await RefreshEinsatzdauerFromHeaderTimeAsync();
-            if (!string.IsNullOrWhiteSpace(ScrollToTeamId) && IsValidEntityId(ScrollToTeamId))
-                await JS.InvokeVoidAsync("layoutTools.scrollToElement", $"team-{ScrollToTeamId}");
             await InvokeAsync(StateHasChanged);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_pendingTeamScrollId))
+        {
+            await JS.InvokeVoidAsync("layoutTools.scrollToElement", $"team-{_pendingTeamScrollId}");
+            _lastScrolledTeamId = _pendingTeamScrollId;
+            _pendingTeamScrollId = null;
         }
     }
 
@@ -341,14 +358,35 @@ public partial class EinsatzMonitor
                 : string.Empty;
 
             // When two or more dogs share the same name, disambiguate:
-            // prefer handler name; fall back to numeric suffix when no handler is set.
+            // prefer handler name, but add a numeric suffix when that still would not be unique.
             var displayName = dog.Name;
             var group = dogNameGroups[dog.Name];
             if (group.Count > 1)
             {
-                displayName = !string.IsNullOrWhiteSpace(handlerName)
-                    ? $"{dog.Name} / {handlerName}"
-                    : $"{dog.Name} ({group.IndexOf(dog) + 1})";
+                if (!string.IsNullOrWhiteSpace(handlerName))
+                {
+                    var sameHandlerGroup = group
+                        .Where(d =>
+                        {
+                            var primaryHandlerName = d.HundefuehrerIds.Count > 0
+                                ? _personalList.FirstOrDefault(p => p.Id == d.HundefuehrerIds[0])?.FullName ?? string.Empty
+                                : string.Empty;
+                            return string.Equals(primaryHandlerName, handlerName, StringComparison.Ordinal);
+                        })
+                        .ToList();
+
+                    displayName = sameHandlerGroup.Count > 1
+                        ? $"{dog.Name} / {handlerName} ({sameHandlerGroup.IndexOf(dog) + 1})"
+                        : $"{dog.Name} / {handlerName}";
+                }
+                else
+                {
+                    var dogsWithoutHandler = group
+                        .Where(d => d.HundefuehrerIds.Count == 0)
+                        .ToList();
+
+                    displayName = $"{dog.Name} ({dogsWithoutHandler.IndexOf(dog) + 1})";
+                }
             }
 
             // Subtitle: breed + handler (handler only when not already embedded in displayName)

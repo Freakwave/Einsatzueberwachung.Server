@@ -739,7 +739,7 @@
     @* ── Funk-Modal ─────────────────────────────────────────────── *@
     @if (_funkOpen)
     {
-        <div class="el-modal-backdrop" @onclick="CloseFunk"></div>
+        <button type="button" class="el-modal-backdrop" @onclick="CloseFunk" aria-label="Dialog schließen"></button>
         <div class="el-modal" role="dialog" aria-modal="true">
             <div class="el-modal-head">
                 <i class="bi bi-broadcast"></i>

@@ -1420,10 +1420,23 @@
 .el-modal-backdrop {
     position: fixed;
     inset: 0;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
     background: rgba(10, 13, 18, 0.65);
     z-index: 100;
     backdrop-filter: blur(2px);
     animation: el-fade-in 0.16s ease-out;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.el-modal-backdrop:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
 }
 
 .el-modal {

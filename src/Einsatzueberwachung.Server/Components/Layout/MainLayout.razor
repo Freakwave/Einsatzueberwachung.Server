@@ -75,7 +75,11 @@
 
 @if (_showCriticalWarningPopup)
 {
-    <div class="global-warning-overlay" @onclick="DismissCriticalWarningAsync">
+    <div class="global-warning-overlay">
+        <button type="button"
+                class="global-warning-overlay-dismiss"
+                @onclick="DismissCriticalWarningAsync"
+                aria-label="Warnung schließen"></button>
         <div class="global-warning-popup" @onclick:stopPropagation="true">
             <div class="global-warning-header">
                 <h4 class="mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Kritische Teamwarnung</h4>
@@ -99,7 +103,11 @@
 
 @if (_showExerciseEndedPopup)
 {
-    <div class="global-warning-overlay" @onclick="DismissExerciseEndedPopup">
+    <div class="global-warning-overlay">
+        <button type="button"
+                class="global-warning-overlay-dismiss"
+                @onclick="DismissExerciseEndedPopup"
+                aria-label="Hinweis schließen"></button>
         <div class="global-warning-popup" @onclick:stopPropagation="true">
             <div class="global-warning-header" style="background: var(--bs-success, #198754);">
                 <h4 class="mb-0"><i class="bi bi-flag-fill me-2"></i>Übung beendet</h4>

@@ -350,7 +350,7 @@
 @* Track-Detail-Popup *@
 @if (_archiveTrackPopup != null)
 {
-    <div class="modal-backdrop show" style="z-index: 2000;" @onclick='() => _archiveTrackPopup = null'></div>
+    <button type="button" class="modal-backdrop modal-backdrop-action show" style="z-index: 2000;" @onclick='() => _archiveTrackPopup = null' aria-label="Dialog schließen"></button>
     <div class="modal show d-block" style="z-index: 2001;" tabindex="-1">
         <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
             <div class="modal-content">
@@ -410,7 +410,8 @@
 
     @if (_deleteCandidate is not null)
     {
-        <div class="modal-overlay" @onclick="CancelDelete">
+        <div class="modal-overlay">
+            <button type="button" class="modal-overlay-dismiss" @onclick="CancelDelete" aria-label="Dialog schließen"></button>
             <div class="modal-modern" @onclick:stopPropagation="true">
                 <div class="modal-modern-header">
                     <h3 class="mb-0">Archiv-Eintrag loeschen</h3>

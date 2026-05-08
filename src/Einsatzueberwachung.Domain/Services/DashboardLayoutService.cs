@@ -70,19 +70,28 @@ namespace Einsatzueberwachung.Domain.Services
                 return GetDefaultLayout();
 
             var knownIds = KnownPanels.Labels.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var result = saved.Where(p => knownIds.Contains(p.PanelId)).ToList();
+            var result = saved
+                .Where(p => p is not null && knownIds.Contains(p.PanelId))
+                .Select(p => p!)
+                .ToList();
 
             var defaults = GetDefaultLayout();
             foreach (var def in defaults)
             {
-                if (!result.Any(p => p.PanelId == def.PanelId))
-                    result.Add(def);
+                if (def is not null && !result.Any(p => p.PanelId == def.PanelId))
+                    result.Add(def!);
             }
 
             // Sicherstellen dass die Reihenfolge der FixedOrder entspricht
-            return [.. KnownPanels.FixedOrder
-                .Select(id => result.FirstOrDefault(p => p.PanelId == id))
-                .Where(p => p is not null)!];
+            var ordered = new List<DashboardPanelConfig>(KnownPanels.FixedOrder.Length);
+            foreach (var panelId in KnownPanels.FixedOrder)
+            {
+                var panel = result.FirstOrDefault(p => p.PanelId == panelId);
+                if (panel is not null)
+                    ordered.Add(panel);
+            }
+
+            return ordered;
         }
 
         private string BuildPath(string key)

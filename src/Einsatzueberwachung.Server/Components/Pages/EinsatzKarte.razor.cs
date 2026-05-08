@@ -227,7 +227,7 @@ public partial class EinsatzKarte
                         _completedTrackVisibility[snap.Id] = true;
                         await JSRuntime.InvokeVoidAsync("CollarTracking.addCompletedTrack",
                             "einsatzMap", snap.Id, snap.Points, snap.Color,
-                            snap.TeamName, snap.CollarName ?? snap.CollarId, snap.TrackType.ToString());
+                            snap.TeamName, snap.DisplayLabel, snap.TrackType.ToString());
                     }
                     StateHasChanged();
                 }
@@ -815,7 +815,7 @@ public partial class EinsatzKarte
                     {
                         await JSRuntime.InvokeVoidAsync("CollarTracking.addCompletedTrack",
                             "einsatzMap", snap.Id, snap.Points, snap.Color,
-                            snap.TeamName, snap.CollarName ?? snap.CollarId, snap.TrackType.ToString());
+                            snap.TeamName, snap.DisplayLabel, snap.TrackType.ToString());
                     }
                 }
             }
@@ -1041,7 +1041,7 @@ public partial class EinsatzKarte
                 {
                     await JSRuntime.InvokeVoidAsync("CollarTracking.addCompletedTrack",
                         "einsatzMap", snapshot.Id, snapshot.Points, snapshot.Color,
-                        snapshot.TeamName, snapshot.CollarName ?? snapshot.CollarId, snapshot.TrackType.ToString());
+                        snapshot.TeamName, snapshot.DisplayLabel, snapshot.TrackType.ToString());
                 }
                 StateHasChanged();
             }

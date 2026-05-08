@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Einsatzueberwachung.Domain\Einsatzueberwachung.Domain.csproj" />
+    <ProjectReference Include="..\Einsatzueberwachung.Server\Einsatzueberwachung.Server.csproj" />
   </ItemGroup>
 
   <ItemGroup>

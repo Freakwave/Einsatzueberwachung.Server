@@ -28,6 +28,10 @@ public partial class Lage : IAsyncDisposable
     private int _mapZoom = 13;
     private bool _hasElwPosition;
 
+    // Karten-Marker Konfiguration (aus AppSettings geladen)
+    private string _collarMarkerIcon = "paw";
+    private string _humanMarkerIcon = "phone";
+
     private string _einsatzTitle = "—";
     private string _vermisstName = "—";
     private string _einsatzDauer = "—";
@@ -46,6 +50,8 @@ public partial class Lage : IAsyncDisposable
         _mapCenterLat = settings.MapDefaultLat;
         _mapCenterLng = settings.MapDefaultLng;
         _mapZoom = settings.MapDefaultZoom;
+        _collarMarkerIcon = string.IsNullOrWhiteSpace(settings.CollarMarkerIcon) ? "paw" : settings.CollarMarkerIcon;
+        _humanMarkerIcon = string.IsNullOrWhiteSpace(settings.HumanMarkerIcon) ? "phone" : settings.HumanMarkerIcon;
 
         if (einsatz.ElwPosition.HasValue)
         {
@@ -124,8 +130,10 @@ public partial class Lage : IAsyncDisposable
 
             // Live-Tracking aktivieren
             await JSRuntime.InvokeVoidAsync("CollarTracking.initialize", "lageMap", _dotNetReference);
+            await JSRuntime.InvokeVoidAsync("CollarTracking.setOptions", new { collarIcon = _collarMarkerIcon });
             await JSRuntime.InvokeVoidAsync("CollarTracking.toggleVisibility", "lageMap", true);
             await JSRuntime.InvokeVoidAsync("PhoneTracking.initialize", "lageMap");
+            await JSRuntime.InvokeVoidAsync("PhoneTracking.setOptions", new { humanIcon = _humanMarkerIcon });
             await JSRuntime.InvokeVoidAsync("PhoneTracking.toggleVisibility", "lageMap", true);
 
             // Bestehende Halsband-Tracks nachladen

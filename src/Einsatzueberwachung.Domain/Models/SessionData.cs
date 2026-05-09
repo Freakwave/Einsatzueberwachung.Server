@@ -83,6 +83,12 @@ namespace Einsatzueberwachung.Domain.Models
         // Monitoring für GPS-Halsbänder (aktive Suche)
         public int CollarNoSignalTimeoutSeconds { get; set; }
 
+        // Karten-Marker Symbole
+        // Collar: "paw" | "dog" | "bone" | "dot"
+        // Human:  "phone" | "person" | "person_walking" | "radio" | "dot"
+        public string CollarMarkerIcon { get; set; }
+        public string HumanMarkerIcon { get; set; }
+
         // Warnzentrum-Regelkonfiguration (keyed by WarningEntry.Source)
         public Dictionary<string, WarningRuleConfig> WarningRules { get; set; } = new();
 
@@ -143,6 +149,10 @@ namespace Einsatzueberwachung.Domain.Models
 
             // Halsband-Monitoring-Defaults
             CollarNoSignalTimeoutSeconds = 30;
+
+            // Karten-Marker-Defaults
+            CollarMarkerIcon = "paw";
+            HumanMarkerIcon = "phone";
 
             // Divera 24/7 Defaults
             DiveraEnabled = false;

@@ -99,6 +99,11 @@ public partial class EinsatzKarte
 
     // Koordinaten-Marker
     private List<MapMarker> _mapMarkers = new();
+
+    // Karten-Marker Konfiguration (aus AppSettings geladen)
+    private string _collarMarkerIcon = "paw";
+    private string _humanMarkerIcon = "phone";
+
     private string _coordInputMode = "click"; // "click", "latlong", "utm" — auch von KartePunkteTab über @bind synchronisiert
     private bool _clickToPlaceActive = false;
 
@@ -130,6 +135,8 @@ public partial class EinsatzKarte
         _mapCenterLat = settings.MapDefaultLat;
         _mapCenterLng = settings.MapDefaultLng;
         _mapZoom = settings.MapDefaultZoom;
+        _collarMarkerIcon = string.IsNullOrWhiteSpace(settings.CollarMarkerIcon) ? "paw" : settings.CollarMarkerIcon;
+        _humanMarkerIcon = string.IsNullOrWhiteSpace(settings.HumanMarkerIcon) ? "phone" : settings.HumanMarkerIcon;
 
         // Wenn Einsatzort-Adresse vorhanden, versuche zu geocoden
         if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.MapAddress))
@@ -180,9 +187,11 @@ public partial class EinsatzKarte
 
                 // Collar-Tracking initialisieren
                 await JSRuntime.InvokeVoidAsync("CollarTracking.initialize", "einsatzMap", _dotNetReference);
+                await JSRuntime.InvokeVoidAsync("CollarTracking.setOptions", new { collarIcon = _collarMarkerIcon });
 
                 // Handy-GPS Layer initialisieren
                 await JSRuntime.InvokeVoidAsync("PhoneTracking.initialize", "einsatzMap");
+                await JSRuntime.InvokeVoidAsync("PhoneTracking.setOptions", new { humanIcon = _humanMarkerIcon });
 
                 // Bestehende Telefon-Tracks laufender Teams laden
                 await LoadRunningTeamPhoneTracksAsync("einsatzMap");

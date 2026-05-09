@@ -1,4 +1,4 @@
-// Handy-GPS-Tracking: Zeigt Team-Telefon-Positionen auf der Karte als Kreise mit 2-Buchstaben-Kürzel
+// Handy-GPS-Tracking: Zeigt Team-Telefon-Positionen auf der Karte als Kreise mit Handy-Symbol
 
 window.PhoneTracking = (function () {
     // teamId -> { marker }
@@ -6,6 +6,23 @@ window.PhoneTracking = (function () {
 
     // teamId -> { polyline, color }
     const _tracks = {};
+
+    // Konfiguriertes Symbol ("phone" | "person" | "person_walking" | "radio" | "dot")
+    let _humanIcon = 'phone';
+
+    function _getHumanContent() {
+        switch (_humanIcon) {
+            case 'person':         return '<i class="bi bi-person-fill"></i>';
+            case 'person_walking': return '<i class="bi bi-person-walking"></i>';
+            case 'radio':          return '<i class="bi bi-broadcast"></i>';
+            case 'dot':            return '<span style="width:10px;height:10px;background:#fff;border-radius:50%;display:block;"></span>';
+            default:               return '<i class="bi bi-phone-fill"></i>'; // phone
+        }
+    }
+
+    function setOptions(opts) {
+        if (opts && opts.humanIcon) _humanIcon = opts.humanIcon;
+    }
 
     function _getMapData(mapId) {
         return window.LeafletMap?.maps?.[mapId] ?? null;
@@ -27,7 +44,7 @@ window.PhoneTracking = (function () {
     function _createIcon(color) {
         return L.divIcon({
             className: '',
-            html: `<div style="width:34px;height:34px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;line-height:1;"><i class="bi bi-phone-fill"></i></div>`,
+            html: `<div style="width:34px;height:34px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;line-height:1;">${_getHumanContent()}</div>`,
             iconSize: [34, 34],
             iconAnchor: [17, 17],
             popupAnchor: [0, -19]
@@ -162,5 +179,5 @@ window.PhoneTracking = (function () {
         Object.keys(_tracks).forEach(k => delete _tracks[k]);
     }
 
-    return { initialize, updateMarker, loadTrack, appendTrackPoint, clearTrack, toggleVisibility, removeMarker, clearAll };
+    return { initialize, updateMarker, loadTrack, appendTrackPoint, clearTrack, toggleVisibility, removeMarker, clearAll, setOptions };
 })();

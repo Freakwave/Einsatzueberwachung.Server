@@ -6,6 +6,34 @@ window.teamMobileMap = (function () {
     let userMarker = null;
     let userTrackLine = null;
 
+    // Konfigurierbare Marker-Symbole
+    let _collarIcon = 'paw';
+    let _humanIcon = 'phone';
+
+    function setOptions(opts) {
+        if (opts && opts.collarIcon) _collarIcon = opts.collarIcon;
+        if (opts && opts.humanIcon)  _humanIcon  = opts.humanIcon;
+    }
+
+    function _getCollarContent() {
+        switch (_collarIcon) {
+            case 'dog':  return '🐕';
+            case 'bone': return '🦴';
+            case 'dot':  return '<span style="width:10px;height:10px;background:#fff;border-radius:50%;display:block;"></span>';
+            default:     return '🐾';
+        }
+    }
+
+    function _getHumanContent() {
+        switch (_humanIcon) {
+            case 'person':         return '<i class="bi bi-person-fill"></i>';
+            case 'person_walking': return '<i class="bi bi-person-walking"></i>';
+            case 'radio':          return '<i class="bi bi-broadcast"></i>';
+            case 'dot':            return '<span style="width:10px;height:10px;background:#fff;border-radius:50%;display:block;"></span>';
+            default:               return '<i class="bi bi-phone-fill"></i>';
+        }
+    }
+
     function init(containerId, fallbackLat, fallbackLng) {
         if (map) return;
         const el = document.getElementById(containerId);
@@ -42,7 +70,7 @@ window.teamMobileMap = (function () {
         if (!dogMarker) {
             const icon = L.divIcon({
                 className: 'team-mobile-dog-marker',
-                html: '<div style="background:#dc3545;border:2px solid #fff;border-radius:50%;width:30px;height:30px;box-shadow:0 0 4px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;">🐾</div>',
+                html: `<div style="background:#dc3545;border:2px solid #fff;border-radius:50%;width:30px;height:30px;box-shadow:0 0 4px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;line-height:1;">${_getCollarContent()}</div>`,
                 iconSize: [30, 30],
                 iconAnchor: [15, 15]
             });
@@ -79,7 +107,7 @@ window.teamMobileMap = (function () {
         if (!userMarker) {
             const icon = L.divIcon({
                 className: 'team-mobile-user-marker',
-                html: '<div style="background:#0d6efd;border:2px solid #fff;border-radius:50%;width:28px;height:28px;box-shadow:0 0 4px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;line-height:1;"><i class="bi bi-phone-fill"></i></div>',
+                html: `<div style="background:#0d6efd;border:2px solid #fff;border-radius:50%;width:28px;height:28px;box-shadow:0 0 4px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;line-height:1;">${_getHumanContent()}</div>`,
                 iconSize: [28, 28],
                 iconAnchor: [14, 14]
             });
@@ -182,6 +210,6 @@ window.teamMobileMap = (function () {
     return {
         init, renderSearchArea, setDogPosition, setTrack, appendTrackPoint,
         setUserPosition, appendUserTrackPoint, loadUserTrack, centerOnDog, destroy,
-        startWatchingUser, stopWatchingUser, getAreaCentroid, postLocation
+        startWatchingUser, stopWatchingUser, getAreaCentroid, postLocation, setOptions
     };
 })();

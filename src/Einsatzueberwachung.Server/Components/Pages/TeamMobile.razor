@@ -11,6 +11,7 @@
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IEinsatzService EinsatzService
 @inject ICollarTrackingService CollarTrackingService
+@inject ISettingsService SettingsService
 @inject ITeamMobileTokenService TokenService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -210,6 +211,14 @@ else
         try
         {
             await JS.InvokeVoidAsync("teamMobileMap.init", "team-mobile-map", 51.1657, 10.4515);
+
+            // Karten-Marker Symbole aus Einstellungen laden und anwenden
+            var mapSettings = await SettingsService.GetAppSettingsAsync();
+            await JS.InvokeVoidAsync("teamMobileMap.setOptions", new
+            {
+                collarIcon = string.IsNullOrWhiteSpace(mapSettings.CollarMarkerIcon) ? "paw" : mapSettings.CollarMarkerIcon,
+                humanIcon  = string.IsNullOrWhiteSpace(mapSettings.HumanMarkerIcon)  ? "phone" : mapSettings.HumanMarkerIcon
+            });
         }
         catch (Exception ex)
         {

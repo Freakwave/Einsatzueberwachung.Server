@@ -273,6 +273,33 @@
 
                     <hr />
 
+                    <h3 class="h5 mb-3"><i class="bi bi-pin-map-fill me-1"></i>Karten-Marker</h3>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Symbol: GPS-Halsband (Hund)</label>
+                            <InputSelect class="form-select" @bind-Value="_appSettings.CollarMarkerIcon">
+                                <option value="paw">🐾 Tatze (Standard)</option>
+                                <option value="dog">🐕 Hund</option>
+                                <option value="bone">🦴 Knochen</option>
+                                <option value="dot">⬤ Farbiger Punkt (klassisch)</option>
+                            </InputSelect>
+                            <div class="form-text">Symbol für die aktuelle Position eines GPS-Halsbands auf der Karte.</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Symbol: Handy-GPS (Mensch)</label>
+                            <InputSelect class="form-select" @bind-Value="_appSettings.HumanMarkerIcon">
+                                <option value="phone">📱 Handy (Standard)</option>
+                                <option value="person">👤 Person</option>
+                                <option value="person_walking">🚶 Person laufend</option>
+                                <option value="radio">📡 Funk</option>
+                                <option value="dot">⬤ Farbiger Punkt (klassisch)</option>
+                            </InputSelect>
+                            <div class="form-text">Symbol für die aktuelle Handy-GPS-Position eines Teams auf der Karte.</div>
+                        </div>
+                    </div>
+
+                    <hr />
+
                     <h3 class="h5 mb-3"><i class="bi bi-hourglass-split me-1"></i>Hundepausen</h3>
                     <div class="row g-3 mb-3">
                         <div class="col-12 col-md-4">

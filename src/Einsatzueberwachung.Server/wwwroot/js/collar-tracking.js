@@ -35,21 +35,40 @@ window.CollarTracking = {
     // Gespeicherte Tracking-Daten pro Halsband
     _tracks: {},
 
-    // Erstellt das divIcon für einen Halsband-Marker (Pfote-Emoji, optional mit OOB-Pulsring)
+    // Konfiguriertes Halsband-Marker-Symbol ("paw" | "dog" | "bone" | "dot")
+    _collarIcon: 'paw',
+
+    // Gibt den HTML-Inhalt des Marker-Icons zurück
+    _getCollarContent: function () {
+        switch (this._collarIcon) {
+            case 'dog':  return '🐕';
+            case 'bone': return '🦴';
+            case 'dot':  return '<span style="width:10px;height:10px;background:#fff;border-radius:50%;display:block;"></span>';
+            default:     return '🐾'; // paw
+        }
+    },
+
+    // Setzt Darstellungsoptionen (wird direkt nach initialize() aufgerufen)
+    setOptions: function (opts) {
+        if (opts && opts.collarIcon) this._collarIcon = opts.collarIcon;
+    },
+
+    // Erstellt das divIcon für einen Halsband-Marker (konfiguriertes Symbol, optional mit OOB-Pulsring)
     _createCollarIcon: function (color, oobActive) {
+        const content = this._getCollarContent();
         if (oobActive) {
             return L.divIcon({
                 html: `<div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">` +
                       `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36" style="position:absolute;top:0;left:0;" class="collar-oob-pulse-svg">` +
                       `<circle cx="18" cy="18" r="16" fill="none" stroke="#FF0000" stroke-width="2" opacity="0.6" class="collar-oob-ring"/></svg>` +
-                      `<div style="width:26px;height:26px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;">🐾</div></div>`,
+                      `<div style="width:26px;height:26px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;">${content}</div></div>`,
                 iconSize: [36, 36],
                 iconAnchor: [18, 18],
                 className: 'collar-marker-icon collar-oob-active'
             });
         }
         return L.divIcon({
-            html: `<div style="width:26px;height:26px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;">🐾</div>`,
+            html: `<div style="width:26px;height:26px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;">${content}</div>`,
             iconSize: [26, 26],
             iconAnchor: [13, 13],
             className: 'collar-marker-icon'

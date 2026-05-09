@@ -105,6 +105,8 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
 
         await _einsatzService.ImportRuntimeSnapshotAsync(snapshot);
         await RestoreCollarAssignmentsAsync();
+        RestoreCollarLocationHistory(snapshot);
+        RestorePhoneTrackHistory(snapshot);
         await MigrateLegacyFunkToRadioAsync(db, cancellationToken);
         _logger.LogInformation("Runtime-Status aus SQLite wiederhergestellt ({UpdatedAtUtc})", state.UpdatedAtUtc);
     }
@@ -125,6 +127,50 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
                     team.CollarId);
             }
         }
+    }
+
+    private void RestoreCollarLocationHistory(EinsatzRuntimeSnapshot snapshot)
+    {
+        if (snapshot.CollarLocationHistory == null || snapshot.CollarLocationHistory.Count == 0)
+            return;
+
+        foreach (var kvp in snapshot.CollarLocationHistory)
+        {
+            if (kvp.Value is { Count: > 0 })
+            {
+                try { _collarTrackingService.SetLocationHistory(kvp.Key, kvp.Value); }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Konnte Halsband-Positionsverlauf nicht wiederherstellen (Collar: {CollarId})", kvp.Key);
+                }
+            }
+        }
+
+        _logger.LogInformation("Halsband-Positionsverlauf für {Count} Halsband(e) wiederhergestellt",
+            snapshot.CollarLocationHistory.Count);
+    }
+
+    private void RestorePhoneTrackHistory(EinsatzRuntimeSnapshot snapshot)
+    {
+        if (snapshot.PhoneTrackHistory == null || snapshot.PhoneTrackHistory.Count == 0)
+            return;
+
+        foreach (var kvp in snapshot.PhoneTrackHistory)
+        {
+            if (kvp.Value is { Count: > 0 })
+            {
+                try { _einsatzService.SetPhoneTrackHistory(kvp.Key, kvp.Value); }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Konnte Telefon-GPS-Verlauf nicht wiederherstellen (Team: {TeamId})", kvp.Key);
+                }
+            }
+        }
+
+        _logger.LogInformation("Telefon-GPS-Verlauf für {Count} Team(s) wiederhergestellt",
+            snapshot.PhoneTrackHistory.Count);
     }
 
     private async Task MigrateLegacyFunkToRadioAsync(RuntimeDbContext db, CancellationToken cancellationToken)
@@ -203,6 +249,22 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
     private async Task PersistRuntimeStateAsync(CancellationToken cancellationToken)
     {
         var snapshot = _einsatzService.ExportRuntimeSnapshot();
+
+        // Halsband-Positionsverlauf der laufenden Suche einschließen
+        foreach (var collar in _collarTrackingService.Collars)
+        {
+            var history = _collarTrackingService.GetLocationHistory(collar.Id);
+            if (history.Count > 0)
+                snapshot.CollarLocationHistory[collar.Id] = history.ToList();
+        }
+
+        // Telefon-GPS-Verlauf der laufenden Suche einschließen
+        foreach (var kvp in _einsatzService.GetAllPhoneTrackHistories())
+        {
+            if (kvp.Value.Count > 0)
+                snapshot.PhoneTrackHistory[kvp.Key] = kvp.Value.ToList();
+        }
+
         var json = JsonSerializer.Serialize(snapshot, _jsonOptions);
 
         await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -239,6 +301,9 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
         _einsatzService.NoteAdded += OnNoteDirty;
         _einsatzService.TrackSnapshotAdded += OnTrackDirty;
         _einsatzService.CompletedSearchUpdated += OnCompletedSearchDirty;
+        // Live-Verläufe: Halsband-GPS und Telefon-GPS während laufender Suche persistieren
+        _collarTrackingService.CollarLocationReceived += OnCollarLocationDirty;
+        _einsatzService.TeamPhoneTrackPointAdded += OnPhoneTrackPointDirty;
     }
 
     private void Unsubscribe()
@@ -250,6 +315,8 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
         _einsatzService.NoteAdded -= OnNoteDirty;
         _einsatzService.TrackSnapshotAdded -= OnTrackDirty;
         _einsatzService.CompletedSearchUpdated -= OnCompletedSearchDirty;
+        _collarTrackingService.CollarLocationReceived -= OnCollarLocationDirty;
+        _einsatzService.TeamPhoneTrackPointAdded -= OnPhoneTrackPointDirty;
     }
 
     private void OnDirty() => _isDirty = true;
@@ -257,4 +324,6 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
     private void OnNoteDirty(Einsatzueberwachung.Domain.Models.GlobalNotesEntry _) => _isDirty = true;
     private void OnTrackDirty(Einsatzueberwachung.Domain.Models.TeamTrackSnapshot _) => _isDirty = true;
     private void OnCompletedSearchDirty(Einsatzueberwachung.Domain.Models.CompletedSearch _) => _isDirty = true;
+    private void OnCollarLocationDirty(string _, Einsatzueberwachung.Domain.Models.CollarLocation __) => _isDirty = true;
+    private void OnPhoneTrackPointDirty(string _, string __, Einsatzueberwachung.Domain.Models.TeamPhoneLocation ___) => _isDirty = true;
 }

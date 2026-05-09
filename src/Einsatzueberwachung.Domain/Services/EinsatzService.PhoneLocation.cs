@@ -82,5 +82,25 @@ namespace Einsatzueberwachung.Domain.Services
                 _phoneTrackHistory.Remove(teamId);
             }
         }
+
+        public void SetPhoneTrackHistory(string teamId, List<TeamPhoneLocation> history)
+        {
+            if (history == null || history.Count == 0) return;
+            lock (_phoneLocationsLock)
+            {
+                _phoneTrackHistory[teamId] = new List<TeamPhoneLocation>(history);
+            }
+        }
+
+        public IReadOnlyDictionary<string, IReadOnlyList<TeamPhoneLocation>> GetAllPhoneTrackHistories()
+        {
+            lock (_phoneLocationsLock)
+            {
+                return _phoneTrackHistory
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => (IReadOnlyList<TeamPhoneLocation>)kvp.Value.ToList().AsReadOnly());
+            }
+        }
     }
 }

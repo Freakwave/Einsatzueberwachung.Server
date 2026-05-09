@@ -253,6 +253,14 @@ else
         _selfRef = DotNetObjectReference.Create(this);
         try { await JS.InvokeVoidAsync("teamMobileMap.startWatchingUser", _selfRef); } catch { /* ignore */ }
 
+        // Bestehenden Telefon-Track aus Server-Verlauf wiederherstellen (überlebt Seiten-Reconnect)
+        var phoneHistory = EinsatzService.GetPhoneTrackHistory(_team.TeamId);
+        if (phoneHistory.Count >= 2)
+        {
+            var phonePts = phoneHistory.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
+            try { await JS.InvokeVoidAsync("teamMobileMap.loadUserTrack", phonePts); } catch { /* tolerant */ }
+        }
+
         // Direkt an Domain-Events andocken
         _collarHandler = OnCollarLocation;
         _generationHandler = OnGenerationChanged;

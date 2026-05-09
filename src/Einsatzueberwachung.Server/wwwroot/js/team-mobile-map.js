@@ -103,6 +103,20 @@ window.teamMobileMap = (function () {
         }
     }
 
+    /**
+     * Stellt einen bestehenden eigenen GPS-Track aus dem Server-Verlauf wieder her.
+     * Wird nach einem Seitenneuladen aufgerufen, damit der Weg nicht verloren geht.
+     * @param {{lat: number, lng: number}[]} points
+     */
+    function loadUserTrack(points) {
+        if (!map || !points || points.length < 2) return;
+        if (userTrackLine) { map.removeLayer(userTrackLine); userTrackLine = null; }
+        userTrackLine = L.polyline(
+            points.map(p => [p.lat, p.lng]),
+            { color: '#0d6efd', weight: 3, opacity: 0.7, dashArray: '3 8' }
+        ).addTo(map);
+    }
+
     function centerOnDog() {
         if (map && dogMarker) map.panTo(dogMarker.getLatLng());
     }
@@ -167,7 +181,7 @@ window.teamMobileMap = (function () {
 
     return {
         init, renderSearchArea, setDogPosition, setTrack, appendTrackPoint,
-        setUserPosition, appendUserTrackPoint, centerOnDog, destroy,
+        setUserPosition, appendUserTrackPoint, loadUserTrack, centerOnDog, destroy,
         startWatchingUser, stopWatchingUser, getAreaCentroid, postLocation
     };
 })();

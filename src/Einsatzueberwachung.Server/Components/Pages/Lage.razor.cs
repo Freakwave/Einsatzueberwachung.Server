@@ -63,6 +63,7 @@ public partial class Lage : IAsyncDisposable
         EinsatzService.VermisstenInfoChanged += OnEinsatzChanged;
         CollarTrackingService.CollarLocationReceived += OnCollarLocationReceived;
         EinsatzService.TeamPhoneLocationChanged += OnTeamPhoneLocationChanged;
+        EinsatzService.TeamPhoneTrackPointAdded += OnTeamPhoneTrackPointAdded;
 
         _clockTimer = new System.Threading.Timer(_ =>
         {
@@ -145,6 +146,18 @@ public partial class Lage : IAsyncDisposable
                 if (team is null) continue;
                 await JSRuntime.InvokeVoidAsync("PhoneTracking.updateMarker",
                     "lageMap", teamId, team.TeamName, loc.Latitude, loc.Longitude, loc.Timestamp);
+            }
+
+            // Bestehende Telefon-Tracks laufender Teams laden
+            foreach (var runningTeam in _teams.Where(t => t.IsRunning))
+            {
+                var phoneHistory = EinsatzService.GetPhoneTrackHistory(runningTeam.TeamId);
+                if (phoneHistory.Count >= 2)
+                {
+                    var teamColor = GetTeamPhoneTrackColor(runningTeam);
+                    var pts = phoneHistory.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
+                    await JSRuntime.InvokeVoidAsync("PhoneTracking.loadTrack", "lageMap", runningTeam.TeamId, pts, teamColor);
+                }
             }
 
             _mapInitialized = true;
@@ -230,6 +243,26 @@ public partial class Lage : IAsyncDisposable
         });
     }
 
+    private void OnTeamPhoneTrackPointAdded(string teamId, string teamName, TeamPhoneLocation location)
+    {
+        if (!_mapInitialized) return;
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("PhoneTracking.appendTrackPoint", "lageMap", teamId, location.Latitude, location.Longitude);
+            }
+            catch (ObjectDisposedException) { }
+            catch (JSDisconnectedException) { }
+        });
+    }
+
+    private string GetTeamPhoneTrackColor(Team team)
+    {
+        var area = _searchAreas.FirstOrDefault(a => a.AssignedTeamId == team.TeamId);
+        return area?.Color ?? "#1976D2";
+    }
+
     // Farbe analog EinsatzKarte: Halsband -> Team -> Suchgebiet -> Suchgebiet-Farbe
     private static readonly string[] FallbackPalette =
     {
@@ -276,6 +309,7 @@ public partial class Lage : IAsyncDisposable
             EinsatzService.VermisstenInfoChanged -= OnEinsatzChanged;
             CollarTrackingService.CollarLocationReceived -= OnCollarLocationReceived;
             EinsatzService.TeamPhoneLocationChanged -= OnTeamPhoneLocationChanged;
+            EinsatzService.TeamPhoneTrackPointAdded -= OnTeamPhoneTrackPointAdded;
 
             _clockTimer?.Dispose();
             _clockTimer = null;

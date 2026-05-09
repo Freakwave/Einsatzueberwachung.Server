@@ -4,6 +4,7 @@ window.teamMobileMap = (function () {
     let dogMarker = null;
     let trackLine = null;
     let userMarker = null;
+    let userTrackLine = null;
 
     function init(containerId, fallbackLat, fallbackLng) {
         if (map) return;
@@ -88,6 +89,20 @@ window.teamMobileMap = (function () {
         }
     }
 
+    function appendUserTrackPoint(lat, lng) {
+        if (!map) return;
+        if (!userTrackLine) {
+            userTrackLine = L.polyline([[lat, lng]], {
+                color: '#0d6efd',
+                weight: 3,
+                opacity: 0.7,
+                dashArray: '3 8'
+            }).addTo(map);
+        } else {
+            userTrackLine.addLatLng([lat, lng]);
+        }
+    }
+
     function centerOnDog() {
         if (map && dogMarker) map.panTo(dogMarker.getLatLng());
     }
@@ -99,6 +114,7 @@ window.teamMobileMap = (function () {
         dogMarker = null;
         trackLine = null;
         userMarker = null;
+        userTrackLine = null;
     }
 
     let watchId = null;
@@ -113,6 +129,7 @@ window.teamMobileMap = (function () {
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
                 setUserPosition(lat, lng);
+                appendUserTrackPoint(lat, lng);
                 if (dotNetRef) {
                     dotNetRef.invokeMethodAsync('OnUserLocation', lat, lng).catch(() => {});
                 }
@@ -150,7 +167,7 @@ window.teamMobileMap = (function () {
 
     return {
         init, renderSearchArea, setDogPosition, setTrack, appendTrackPoint,
-        setUserPosition, centerOnDog, destroy,
+        setUserPosition, appendUserTrackPoint, centerOnDog, destroy,
         startWatchingUser, stopWatchingUser, getAreaCentroid, postLocation
     };
 })();

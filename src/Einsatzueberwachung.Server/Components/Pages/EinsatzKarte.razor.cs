@@ -184,12 +184,25 @@ public partial class EinsatzKarte
                 // Handy-GPS Layer initialisieren
                 await JSRuntime.InvokeVoidAsync("PhoneTracking.initialize", "einsatzMap");
 
+                // Bestehende Telefon-Tracks laufender Teams laden
+                foreach (var runningTeam in _teams.Where(t => t.IsRunning))
+                {
+                    var phoneHistory = EinsatzService.GetPhoneTrackHistory(runningTeam.TeamId);
+                    if (phoneHistory.Count >= 2)
+                    {
+                        var teamColor = GetTeamPhoneTrackColor(runningTeam);
+                        var pts = phoneHistory.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
+                        await JSRuntime.InvokeVoidAsync("PhoneTracking.loadTrack", "einsatzMap", runningTeam.TeamId, pts, teamColor);
+                    }
+                }
+
                 // Domain-Events für Live-Tracking abonnieren
                 CollarTrackingService.CollarLocationReceived += OnCollarLocationReceived;
                 CollarTrackingService.OutOfBoundsDetected += OnOutOfBoundsDetected;
                 CollarTrackingService.CollarHistoryCleared += OnCollarHistoryCleared;
                 CollarTrackingService.TrackSnapshotSaved += OnTrackSnapshotSaved;
                 EinsatzService.TeamPhoneLocationChanged += OnTeamPhoneLocationChanged;
+                EinsatzService.TeamPhoneTrackPointAdded += OnTeamPhoneTrackPointAdded;
                 EinsatzService.TrackSnapshotAdded += OnTrackSnapshotSaved;
 
                 // Bestehende Tracking-Daten automatisch laden (falls Daten vor Seitenbesuch gesendet wurden)
@@ -839,6 +852,17 @@ public partial class EinsatzKarte
                 await JSRuntime.InvokeVoidAsync("PhoneTracking.updateMarker",
                     "einsatzMap", teamId, team.TeamName, loc.Latitude, loc.Longitude, loc.Timestamp);
             }
+
+            foreach (var runningTeam in _teams.Where(t => t.IsRunning))
+            {
+                var phoneHistory = EinsatzService.GetPhoneTrackHistory(runningTeam.TeamId);
+                if (phoneHistory.Count >= 2)
+                {
+                    var teamColor = GetTeamPhoneTrackColor(runningTeam);
+                    var pts = phoneHistory.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
+                    await JSRuntime.InvokeVoidAsync("PhoneTracking.loadTrack", "einsatzMap", runningTeam.TeamId, pts, teamColor);
+                }
+            }
         }
     }
 
@@ -854,6 +878,25 @@ public partial class EinsatzKarte
             }
             catch (ObjectDisposedException) { }
         });
+    }
+
+    private void OnTeamPhoneTrackPointAdded(string teamId, string teamName, TeamPhoneLocation location)
+    {
+        if (!_phoneLayerVisible) return;
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("PhoneTracking.appendTrackPoint", "einsatzMap", teamId, location.Latitude, location.Longitude);
+            }
+            catch (ObjectDisposedException) { }
+        });
+    }
+
+    private string GetTeamPhoneTrackColor(Team team)
+    {
+        var area = _searchAreas.FirstOrDefault(a => a.AssignedTeamId == team.TeamId);
+        return area?.Color ?? "#1976D2";
     }
 
     private string GetCollarColor(string collarId)
@@ -1218,6 +1261,7 @@ public partial class EinsatzKarte
             CollarTrackingService.CollarHistoryCleared -= OnCollarHistoryCleared;
             CollarTrackingService.TrackSnapshotSaved -= OnTrackSnapshotSaved;
             EinsatzService.TeamPhoneLocationChanged -= OnTeamPhoneLocationChanged;
+            EinsatzService.TeamPhoneTrackPointAdded -= OnTeamPhoneTrackPointAdded;
             EinsatzService.TrackSnapshotAdded -= OnTrackSnapshotSaved;
             await JSRuntime.InvokeVoidAsync("LeafletMap.dispose", "einsatzMap");
             _dotNetReference?.Dispose();

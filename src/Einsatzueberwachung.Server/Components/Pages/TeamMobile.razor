@@ -11,6 +11,7 @@
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IEinsatzService EinsatzService
 @inject ICollarTrackingService CollarTrackingService
+@inject ISettingsService SettingsService
 @inject ITeamMobileTokenService TokenService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -217,6 +218,19 @@ else
             return;
         }
 
+        // Karten-Marker Symbole aus Einstellungen laden und anwenden
+        // SettingsService ist ein Singleton mit In-Memory-Cache, daher kein try-catch nötig
+        var mapSettings = await SettingsService.GetAppSettingsAsync();
+        try
+        {
+            await JS.InvokeVoidAsync("teamMobileMap.setOptions", new
+            {
+                collarIcon = mapSettings.CollarMarkerIconOrDefault,
+                humanIcon  = mapSettings.HumanMarkerIconOrDefault
+            });
+        }
+        catch { /* tolerant — Icons bleiben auf Standard-Wert */ }
+
         var einsatz = EinsatzService.CurrentEinsatz;
         var area = TeamMobileLookup.FindSearchAreaForTeam(einsatz, _team);
         if (area?.Coordinates is { Count: > 2 })
@@ -252,6 +266,14 @@ else
         // Geolocation starten
         _selfRef = DotNetObjectReference.Create(this);
         try { await JS.InvokeVoidAsync("teamMobileMap.startWatchingUser", _selfRef); } catch { /* ignore */ }
+
+        // Bestehenden Telefon-Track aus Server-Verlauf wiederherstellen (überlebt Seiten-Reconnect)
+        var phoneHistory = EinsatzService.GetPhoneTrackHistory(_team.TeamId);
+        if (phoneHistory.Count >= 2)
+        {
+            var phonePts = phoneHistory.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
+            try { await JS.InvokeVoidAsync("teamMobileMap.loadUserTrack", phonePts); } catch { /* tolerant */ }
+        }
 
         // Direkt an Domain-Events andocken
         _collarHandler = OnCollarLocation;

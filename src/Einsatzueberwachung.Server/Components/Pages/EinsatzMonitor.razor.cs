@@ -1098,6 +1098,47 @@ public partial class EinsatzMonitor
             await CollarTrackingService.UnassignCollarAsync(team.CollarId);
         }
 
+        // Mensch-Laufweg (HumanTrack) aus Telefon-GPS aufzeichnen
+        if (team != null)
+        {
+            var phoneHistory = EinsatzService.GetPhoneTrackHistory(team.TeamId);
+            if (phoneHistory.Count >= 2)
+            {
+                var searchArea = EinsatzService.CurrentEinsatz.SearchAreas
+                    .FirstOrDefault(a => a.Id == team.SearchAreaId);
+                var humanColor = searchArea?.Color ?? "#1976D2";
+
+                var humanSnapshot = new TeamTrackSnapshot
+                {
+                    CollarId = string.Empty,
+                    // CollarName wird hier als generischer Anzeigename im Snapshot verwendet —
+                    // für HumanTrack-Einträge enthält dieses Feld den Hundeführer-Namen (oder Team-Namen).
+                    CollarName = string.IsNullOrWhiteSpace(team.HundefuehrerName) ? team.TeamName : team.HundefuehrerName,
+                    TeamId = team.TeamId,
+                    TeamName = team.TeamName,
+                    SearchAreaName = team.SearchAreaName,
+                    Color = humanColor,
+                    CapturedAt = DateTime.Now,
+                    TrackType = Einsatzueberwachung.Domain.Models.Enums.TrackType.HumanTrack,
+                    Points = phoneHistory.Select(loc => new TrackPoint
+                    {
+                        Latitude = loc.Latitude,
+                        Longitude = loc.Longitude,
+                        Timestamp = loc.Timestamp
+                    }).ToList()
+                };
+
+                if (searchArea?.Coordinates != null && searchArea.Coordinates.Count >= 3)
+                {
+                    humanSnapshot.SearchAreaCoordinates = new List<(double, double)>(searchArea.Coordinates);
+                    humanSnapshot.SearchAreaColor = searchArea.Color;
+                }
+
+                await EinsatzService.AddTrackSnapshotAsync(humanSnapshot);
+                EinsatzService.ClearPhoneTrackHistory(team.TeamId);
+            }
+        }
+
         await EinsatzService.StopTeamTimerAsync(teamId);
     }
 

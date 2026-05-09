@@ -56,6 +56,7 @@ namespace Einsatzueberwachung.Domain.Services
         public event Action<Guid>? TruemmerAreaRemoved;
         public event Action? ElNotizAdded;
         public event Action<string, string, TeamPhoneLocation>? TeamPhoneLocationChanged;
+        public event Action<string, string, TeamPhoneLocation>? TeamPhoneTrackPointAdded;
         public event Action<Team>? DogPauseStarted;
 
         public EinsatzService(ISettingsService? settingsService = null, ITimeService? timeService = null, IMasterDataService? masterDataService = null)

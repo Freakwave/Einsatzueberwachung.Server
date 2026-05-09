@@ -32,6 +32,7 @@ public sealed class EinsatzHubRelayService : IHostedService
         _einsatzService.TruemmerKarteRemoved += OnTruemmerKarteRemoved;
         _einsatzService.TruemmerAreaUpserted += OnTruemmerAreaUpserted;
         _einsatzService.TruemmerAreaRemoved += OnTruemmerAreaRemoved;
+        _einsatzService.TeamPhoneTrackPointAdded += OnTeamPhoneTrackPointAdded;
 
         return Task.CompletedTask;
     }
@@ -51,6 +52,7 @@ public sealed class EinsatzHubRelayService : IHostedService
         _einsatzService.TruemmerKarteRemoved -= OnTruemmerKarteRemoved;
         _einsatzService.TruemmerAreaUpserted -= OnTruemmerAreaUpserted;
         _einsatzService.TruemmerAreaRemoved -= OnTruemmerAreaRemoved;
+        _einsatzService.TeamPhoneTrackPointAdded -= OnTeamPhoneTrackPointAdded;
 
         return Task.CompletedTask;
     }
@@ -64,14 +66,6 @@ public sealed class EinsatzHubRelayService : IHostedService
             notes = _einsatzService.GlobalNotes.Count
         });
     }
-
-    private void OnTeamAdded(Team team) => _ = PublishAsync("team.added", team);
-
-    private void OnTeamRemoved(Team team) => _ = PublishAsync("team.removed", team);
-
-    private void OnTeamUpdated(Team team) => _ = PublishAsync("team.updated", team);
-
-    private void OnNoteAdded(GlobalNotesEntry note) => _ = PublishAsync("note.added", note);
 
     private void OnSzenarioChanged()
     {
@@ -99,6 +93,26 @@ public sealed class EinsatzHubRelayService : IHostedService
 
     private void OnTruemmerAreaRemoved(Guid id)
         => _ = PublishAsync("truemmer.area.removed", new { id });
+
+    private void OnTeamAdded(Team team) => _ = PublishAsync("team.added", team);
+
+    private void OnTeamRemoved(Team team) => _ = PublishAsync("team.removed", team);
+
+    private void OnTeamUpdated(Team team) => _ = PublishAsync("team.updated", team);
+
+    private void OnNoteAdded(GlobalNotesEntry note) => _ = PublishAsync("note.added", note);
+
+    private void OnTeamPhoneTrackPointAdded(string teamId, string teamName, TeamPhoneLocation location)
+    {
+        _ = PublishAsync("phone.track.point", new
+        {
+            teamId,
+            teamName,
+            lat = location.Latitude,
+            lng = location.Longitude,
+            timestamp = location.Timestamp
+        });
+    }
 
     private Task PublishAsync(string eventName, object payload)
     {

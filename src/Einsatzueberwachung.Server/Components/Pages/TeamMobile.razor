@@ -211,20 +211,25 @@ else
         try
         {
             await JS.InvokeVoidAsync("teamMobileMap.init", "team-mobile-map", 51.1657, 10.4515);
-
-            // Karten-Marker Symbole aus Einstellungen laden und anwenden
-            var mapSettings = await SettingsService.GetAppSettingsAsync();
-            await JS.InvokeVoidAsync("teamMobileMap.setOptions", new
-            {
-                collarIcon = mapSettings.CollarMarkerIconOrDefault,
-                humanIcon  = mapSettings.HumanMarkerIconOrDefault
-            });
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"team-mobile map init failed: {ex.Message}");
             return;
         }
+
+        // Karten-Marker Symbole aus Einstellungen laden und anwenden
+        // SettingsService ist ein Singleton mit In-Memory-Cache, daher kein try-catch nötig
+        var mapSettings = await SettingsService.GetAppSettingsAsync();
+        try
+        {
+            await JS.InvokeVoidAsync("teamMobileMap.setOptions", new
+            {
+                collarIcon = mapSettings.CollarMarkerIconOrDefault,
+                humanIcon  = mapSettings.HumanMarkerIconOrDefault
+            });
+        }
+        catch { /* tolerant — Icons bleiben auf Standard-Wert */ }
 
         var einsatz = EinsatzService.CurrentEinsatz;
         var area = TeamMobileLookup.FindSearchAreaForTeam(einsatz, _team);

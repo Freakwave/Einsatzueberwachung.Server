@@ -1385,6 +1385,8 @@ public partial class EinsatzMonitor
                 var humanSnapshot = new TeamTrackSnapshot
                 {
                     CollarId = string.Empty,
+                    // CollarName wird hier als generischer Anzeigename im Snapshot verwendet —
+                    // für HumanTrack-Einträge enthält dieses Feld den Hundeführer-Namen (oder Team-Namen).
                     CollarName = string.IsNullOrWhiteSpace(team.HundefuehrerName) ? team.TeamName : team.HundefuehrerName,
                     TeamId = team.TeamId,
                     TeamName = team.TeamName,

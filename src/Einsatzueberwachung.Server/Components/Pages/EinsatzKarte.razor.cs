@@ -185,16 +185,7 @@ public partial class EinsatzKarte
                 await JSRuntime.InvokeVoidAsync("PhoneTracking.initialize", "einsatzMap");
 
                 // Bestehende Telefon-Tracks laufender Teams laden
-                foreach (var runningTeam in _teams.Where(t => t.IsRunning))
-                {
-                    var phoneHistory = EinsatzService.GetPhoneTrackHistory(runningTeam.TeamId);
-                    if (phoneHistory.Count >= 2)
-                    {
-                        var teamColor = GetTeamPhoneTrackColor(runningTeam);
-                        var pts = phoneHistory.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
-                        await JSRuntime.InvokeVoidAsync("PhoneTracking.loadTrack", "einsatzMap", runningTeam.TeamId, pts, teamColor);
-                    }
-                }
+                await LoadRunningTeamPhoneTracksAsync("einsatzMap");
 
                 // Domain-Events für Live-Tracking abonnieren
                 CollarTrackingService.CollarLocationReceived += OnCollarLocationReceived;
@@ -853,15 +844,20 @@ public partial class EinsatzKarte
                     "einsatzMap", teamId, team.TeamName, loc.Latitude, loc.Longitude, loc.Timestamp);
             }
 
-            foreach (var runningTeam in _teams.Where(t => t.IsRunning))
+            await LoadRunningTeamPhoneTracksAsync("einsatzMap");
+        }
+    }
+
+    private async Task LoadRunningTeamPhoneTracksAsync(string mapId)
+    {
+        foreach (var runningTeam in _teams.Where(t => t.IsRunning))
+        {
+            var phoneHistory = EinsatzService.GetPhoneTrackHistory(runningTeam.TeamId);
+            if (phoneHistory.Count >= 2)
             {
-                var phoneHistory = EinsatzService.GetPhoneTrackHistory(runningTeam.TeamId);
-                if (phoneHistory.Count >= 2)
-                {
-                    var teamColor = GetTeamPhoneTrackColor(runningTeam);
-                    var pts = phoneHistory.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
-                    await JSRuntime.InvokeVoidAsync("PhoneTracking.loadTrack", "einsatzMap", runningTeam.TeamId, pts, teamColor);
-                }
+                var teamColor = GetTeamPhoneTrackColor(runningTeam);
+                var pts = phoneHistory.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
+                await JSRuntime.InvokeVoidAsync("PhoneTracking.loadTrack", mapId, runningTeam.TeamId, pts, teamColor);
             }
         }
     }

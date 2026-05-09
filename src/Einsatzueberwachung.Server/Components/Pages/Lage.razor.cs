@@ -28,6 +28,10 @@ public partial class Lage : IAsyncDisposable
     private int _mapZoom = 13;
     private bool _hasElwPosition;
 
+    // Karten-Marker Konfiguration (aus AppSettings geladen)
+    private string _collarMarkerIcon = "paw";
+    private string _humanMarkerIcon = "phone";
+
     private string _einsatzTitle = "—";
     private string _vermisstName = "—";
     private string _einsatzDauer = "—";
@@ -46,6 +50,8 @@ public partial class Lage : IAsyncDisposable
         _mapCenterLat = settings.MapDefaultLat;
         _mapCenterLng = settings.MapDefaultLng;
         _mapZoom = settings.MapDefaultZoom;
+        _collarMarkerIcon = settings.CollarMarkerIconOrDefault;
+        _humanMarkerIcon = settings.HumanMarkerIconOrDefault;
 
         if (einsatz.ElwPosition.HasValue)
         {
@@ -63,6 +69,7 @@ public partial class Lage : IAsyncDisposable
         EinsatzService.VermisstenInfoChanged += OnEinsatzChanged;
         CollarTrackingService.CollarLocationReceived += OnCollarLocationReceived;
         EinsatzService.TeamPhoneLocationChanged += OnTeamPhoneLocationChanged;
+        EinsatzService.TeamPhoneTrackPointAdded += OnTeamPhoneTrackPointAdded;
 
         _clockTimer = new System.Threading.Timer(_ =>
         {
@@ -123,8 +130,10 @@ public partial class Lage : IAsyncDisposable
 
             // Live-Tracking aktivieren
             await JSRuntime.InvokeVoidAsync("CollarTracking.initialize", "lageMap", _dotNetReference);
+            await JSRuntime.InvokeVoidAsync("CollarTracking.setOptions", new { collarIcon = _collarMarkerIcon });
             await JSRuntime.InvokeVoidAsync("CollarTracking.toggleVisibility", "lageMap", true);
             await JSRuntime.InvokeVoidAsync("PhoneTracking.initialize", "lageMap");
+            await JSRuntime.InvokeVoidAsync("PhoneTracking.setOptions", new { humanIcon = _humanMarkerIcon });
             await JSRuntime.InvokeVoidAsync("PhoneTracking.toggleVisibility", "lageMap", true);
 
             // Bestehende Halsband-Tracks nachladen
@@ -145,6 +154,18 @@ public partial class Lage : IAsyncDisposable
                 if (team is null) continue;
                 await JSRuntime.InvokeVoidAsync("PhoneTracking.updateMarker",
                     "lageMap", teamId, team.TeamName, loc.Latitude, loc.Longitude, loc.Timestamp);
+            }
+
+            // Bestehende Telefon-Tracks laufender Teams laden
+            foreach (var runningTeam in _teams.Where(t => t.IsRunning))
+            {
+                var phoneHistory = EinsatzService.GetPhoneTrackHistory(runningTeam.TeamId);
+                if (phoneHistory.Count >= 2)
+                {
+                    var teamColor = GetTeamPhoneTrackColor(runningTeam);
+                    var pts = phoneHistory.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
+                    await JSRuntime.InvokeVoidAsync("PhoneTracking.loadTrack", "lageMap", runningTeam.TeamId, pts, teamColor);
+                }
             }
 
             _mapInitialized = true;
@@ -230,6 +251,26 @@ public partial class Lage : IAsyncDisposable
         });
     }
 
+    private void OnTeamPhoneTrackPointAdded(string teamId, string teamName, TeamPhoneLocation location)
+    {
+        if (!_mapInitialized) return;
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("PhoneTracking.appendTrackPoint", "lageMap", teamId, location.Latitude, location.Longitude);
+            }
+            catch (ObjectDisposedException) { }
+            catch (JSDisconnectedException) { }
+        });
+    }
+
+    private string GetTeamPhoneTrackColor(Team team)
+    {
+        var area = _searchAreas.FirstOrDefault(a => a.AssignedTeamId == team.TeamId);
+        return area?.Color ?? "#1976D2";
+    }
+
     // Farbe analog EinsatzKarte: Halsband -> Team -> Suchgebiet -> Suchgebiet-Farbe
     private static readonly string[] FallbackPalette =
     {
@@ -276,6 +317,7 @@ public partial class Lage : IAsyncDisposable
             EinsatzService.VermisstenInfoChanged -= OnEinsatzChanged;
             CollarTrackingService.CollarLocationReceived -= OnCollarLocationReceived;
             EinsatzService.TeamPhoneLocationChanged -= OnTeamPhoneLocationChanged;
+            EinsatzService.TeamPhoneTrackPointAdded -= OnTeamPhoneTrackPointAdded;
 
             _clockTimer?.Dispose();
             _clockTimer = null;

@@ -24,6 +24,7 @@ public sealed class EinsatzHubRelayService : IHostedService
         _einsatzService.TeamRemoved += OnTeamRemoved;
         _einsatzService.TeamUpdated += OnTeamUpdated;
         _einsatzService.NoteAdded += OnNoteAdded;
+        _einsatzService.TeamPhoneTrackPointAdded += OnTeamPhoneTrackPointAdded;
 
         return Task.CompletedTask;
     }
@@ -35,6 +36,7 @@ public sealed class EinsatzHubRelayService : IHostedService
         _einsatzService.TeamRemoved -= OnTeamRemoved;
         _einsatzService.TeamUpdated -= OnTeamUpdated;
         _einsatzService.NoteAdded -= OnNoteAdded;
+        _einsatzService.TeamPhoneTrackPointAdded -= OnTeamPhoneTrackPointAdded;
 
         return Task.CompletedTask;
     }
@@ -56,6 +58,18 @@ public sealed class EinsatzHubRelayService : IHostedService
     private void OnTeamUpdated(Team team) => _ = PublishAsync("team.updated", team);
 
     private void OnNoteAdded(GlobalNotesEntry note) => _ = PublishAsync("note.added", note);
+
+    private void OnTeamPhoneTrackPointAdded(string teamId, string teamName, TeamPhoneLocation location)
+    {
+        _ = PublishAsync("phone.track.point", new
+        {
+            teamId,
+            teamName,
+            lat = location.Latitude,
+            lng = location.Longitude,
+            timestamp = location.Timestamp
+        });
+    }
 
     private Task PublishAsync(string eventName, object payload)
     {

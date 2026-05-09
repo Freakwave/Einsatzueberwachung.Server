@@ -24,10 +24,10 @@ window.PhoneTracking = (function () {
         Object.keys(_tracks).forEach(k => delete _tracks[k]);
     }
 
-    function _createIcon(abbrev, color) {
+    function _createIcon(color) {
         return L.divIcon({
             className: '',
-            html: `<div style="width:34px;height:34px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;line-height:1;">${abbrev}</div>`,
+            html: `<div style="width:34px;height:34px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;line-height:1;"><i class="bi bi-phone-fill"></i></div>`,
             iconSize: [34, 34],
             iconAnchor: [17, 17],
             popupAnchor: [0, -19]
@@ -55,7 +55,6 @@ window.PhoneTracking = (function () {
         const mapData = _getMapData(mapId);
         if (!mapData || !mapData.phoneLayer) return;
 
-        const abbrev = (teamName || '??').substring(0, 2).toUpperCase();
         const color = _teamColor(teamId);
 
         const popupContent = _buildPopup(teamName, lat, lng, timestamp);
@@ -64,7 +63,7 @@ window.PhoneTracking = (function () {
             _markers[teamId].setLatLng([lat, lng]);
             _markers[teamId].setPopupContent(popupContent);
         } else {
-            const icon = _createIcon(abbrev, color);
+            const icon = _createIcon(color);
             const marker = L.marker([lat, lng], { icon })
                 .bindPopup(popupContent);
             marker.addTo(mapData.phoneLayer);

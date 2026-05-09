@@ -42,9 +42,9 @@ window.teamMobileMap = (function () {
         if (!dogMarker) {
             const icon = L.divIcon({
                 className: 'team-mobile-dog-marker',
-                html: '<div style="background:#dc3545;border:2px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 0 4px rgba(0,0,0,0.5);"></div>',
-                iconSize: [18, 18],
-                iconAnchor: [9, 9]
+                html: '<div style="background:#dc3545;border:2px solid #fff;border-radius:50%;width:30px;height:30px;box-shadow:0 0 4px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;">🐾</div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
             });
             dogMarker = L.marker(pos, { icon }).addTo(map);
             if (dogName) dogMarker.bindTooltip(dogName, { permanent: false });
@@ -79,9 +79,9 @@ window.teamMobileMap = (function () {
         if (!userMarker) {
             const icon = L.divIcon({
                 className: 'team-mobile-user-marker',
-                html: '<div style="background:#0d6efd;border:2px solid #fff;border-radius:50%;width:14px;height:14px;box-shadow:0 0 4px rgba(0,0,0,0.5);"></div>',
-                iconSize: [14, 14],
-                iconAnchor: [7, 7]
+                html: '<div style="background:#0d6efd;border:2px solid #fff;border-radius:50%;width:28px;height:28px;box-shadow:0 0 4px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;line-height:1;"><i class="bi bi-phone-fill"></i></div>',
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
             });
             userMarker = L.marker(pos, { icon }).addTo(map);
         } else {

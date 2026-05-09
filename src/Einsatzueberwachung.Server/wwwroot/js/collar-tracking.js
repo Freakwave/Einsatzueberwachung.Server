@@ -35,6 +35,27 @@ window.CollarTracking = {
     // Gespeicherte Tracking-Daten pro Halsband
     _tracks: {},
 
+    // Erstellt das divIcon für einen Halsband-Marker (Pfote-Emoji, optional mit OOB-Pulsring)
+    _createCollarIcon: function (color, oobActive) {
+        if (oobActive) {
+            return L.divIcon({
+                html: `<div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">` +
+                      `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36" style="position:absolute;top:0;left:0;" class="collar-oob-pulse-svg">` +
+                      `<circle cx="18" cy="18" r="16" fill="none" stroke="#FF0000" stroke-width="2" opacity="0.6" class="collar-oob-ring"/></svg>` +
+                      `<div style="width:26px;height:26px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;">🐾</div></div>`,
+                iconSize: [36, 36],
+                iconAnchor: [18, 18],
+                className: 'collar-marker-icon collar-oob-active'
+            });
+        }
+        return L.divIcon({
+            html: `<div style="width:26px;height:26px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;">🐾</div>`,
+            iconSize: [26, 26],
+            iconAnchor: [13, 13],
+            className: 'collar-marker-icon'
+        });
+    },
+
     // Abgeschlossene Tracks (Snapshots) pro snapshotId
     _completedTracks: {},
 
@@ -122,21 +143,7 @@ window.CollarTracking = {
         if (track.marker && mapData.trackingLayer.hasLayer(track.marker)) {
             track.marker.setLatLng([lat, lng]);
         } else {
-            const size = track._oobActive ? 36 : 20;
-            const half = size / 2;
-            const oobRing = track._oobActive
-                ? `<circle cx="${half}" cy="${half}" r="${half - 2}" fill="none" stroke="#FF0000" stroke-width="2" opacity="0.6" class="collar-oob-ring"/>`
-                : '';
-            const icon = L.divIcon({
-                html: `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-                    ${oobRing}
-                    <circle cx="${half}" cy="${half}" r="8" fill="${track.color}" stroke="white" stroke-width="2"/>
-                    <circle cx="${half}" cy="${half}" r="3" fill="white"/>
-                </svg>`,
-                iconSize: [size, size],
-                iconAnchor: [half, half],
-                className: track._oobActive ? 'collar-marker-icon collar-oob-active' : 'collar-marker-icon'
-            });
+            const icon = this._createCollarIcon(track.color, track._oobActive);
             track.marker = L.marker([lat, lng], { icon: icon })
                 .bindPopup(`<strong>${track.dogLabel || collarId}</strong><br><small>Halsband: ${collarId}</small><br><small>UTM: ${latLngToUtm(lat, lng)}</small><br><small>${new Date(timestamp).toLocaleTimeString('de-DE')}</small>`);
             track.marker.addTo(mapData.trackingLayer);
@@ -192,15 +199,7 @@ window.CollarTracking = {
             // Marker an letzter Position
             const lastPos = positions[positions.length - 1];
             const lastLoc = locations[locations.length - 1];
-            const icon = L.divIcon({
-                html: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-                    <circle cx="10" cy="10" r="8" fill="${track.color}" stroke="white" stroke-width="2"/>
-                    <circle cx="10" cy="10" r="3" fill="white"/>
-                </svg>`,
-                iconSize: [20, 20],
-                iconAnchor: [10, 10],
-                className: 'collar-marker-icon'
-            });
+            const icon = this._createCollarIcon(track.color, false);
             track.marker = L.marker(lastPos, { icon: icon })
                 .bindPopup(`<strong>${track.dogLabel || collarId}</strong><br><small>Halsband: ${collarId}</small><br><small>UTM: ${latLngToUtm(lastPos[0], lastPos[1])}</small><br><small>${new Date(lastLoc.timestamp).toLocaleTimeString('de-DE')}</small>`);
             track.marker.addTo(mapData.trackingLayer);
@@ -216,16 +215,7 @@ window.CollarTracking = {
         if (!track || !track.marker) return;
 
         // Marker-Icon durch pulsierende Variante ersetzen
-        const icon = L.divIcon({
-            html: `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36" class="collar-oob-pulse-svg">
-                <circle cx="18" cy="18" r="16" fill="none" stroke="#FF0000" stroke-width="2" opacity="0.6" class="collar-oob-ring"/>
-                <circle cx="18" cy="18" r="8" fill="${track.color}" stroke="white" stroke-width="2"/>
-                <circle cx="18" cy="18" r="3" fill="white"/>
-            </svg>`,
-            iconSize: [36, 36],
-            iconAnchor: [18, 18],
-            className: 'collar-marker-icon collar-oob-active'
-        });
+        const icon = this._createCollarIcon(track.color, true);
         track.marker.setIcon(icon);
         track._oobActive = true;
 
@@ -246,15 +236,7 @@ window.CollarTracking = {
             track._oobTimeout = null;
         }
 
-        const icon = L.divIcon({
-            html: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-                <circle cx="10" cy="10" r="8" fill="${track.color}" stroke="white" stroke-width="2"/>
-                <circle cx="10" cy="10" r="3" fill="white"/>
-            </svg>`,
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-            className: 'collar-marker-icon'
-        });
+        const icon = this._createCollarIcon(track.color, false);
         track.marker.setIcon(icon);
         track._oobActive = false;
     },
@@ -302,15 +284,7 @@ window.CollarTracking = {
 
         // Marker-Icon mit neuer Farbe ersetzen
         if (track.marker && mapData.trackingLayer.hasLayer(track.marker)) {
-            const icon = L.divIcon({
-                html: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-                    <circle cx="10" cy="10" r="8" fill="${newColor}" stroke="white" stroke-width="2"/>
-                    <circle cx="10" cy="10" r="3" fill="white"/>
-                </svg>`,
-                iconSize: [20, 20],
-                iconAnchor: [10, 10],
-                className: 'collar-marker-icon'
-            });
+            const icon = this._createCollarIcon(newColor, track._oobActive);
             track.marker.setIcon(icon);
         }
     },

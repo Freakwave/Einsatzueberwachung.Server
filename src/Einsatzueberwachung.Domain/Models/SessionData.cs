@@ -89,6 +89,16 @@ namespace Einsatzueberwachung.Domain.Models
         public string CollarMarkerIcon { get; set; }
         public string HumanMarkerIcon { get; set; }
 
+        /// <summary>Gibt den konfigurierten Collar-Marker-Icon-Typ zurück (nie null/leer).</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string CollarMarkerIconOrDefault =>
+            string.IsNullOrWhiteSpace(CollarMarkerIcon) ? "paw" : CollarMarkerIcon;
+
+        /// <summary>Gibt den konfigurierten Human-Marker-Icon-Typ zurück (nie null/leer).</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string HumanMarkerIconOrDefault =>
+            string.IsNullOrWhiteSpace(HumanMarkerIcon) ? "phone" : HumanMarkerIcon;
+
         // Warnzentrum-Regelkonfiguration (keyed by WarningEntry.Source)
         public Dictionary<string, WarningRuleConfig> WarningRules { get; set; } = new();
 

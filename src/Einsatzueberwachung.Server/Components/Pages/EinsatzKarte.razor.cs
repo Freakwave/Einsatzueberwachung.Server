@@ -135,8 +135,8 @@ public partial class EinsatzKarte
         _mapCenterLat = settings.MapDefaultLat;
         _mapCenterLng = settings.MapDefaultLng;
         _mapZoom = settings.MapDefaultZoom;
-        _collarMarkerIcon = string.IsNullOrWhiteSpace(settings.CollarMarkerIcon) ? "paw" : settings.CollarMarkerIcon;
-        _humanMarkerIcon = string.IsNullOrWhiteSpace(settings.HumanMarkerIcon) ? "phone" : settings.HumanMarkerIcon;
+        _collarMarkerIcon = settings.CollarMarkerIconOrDefault;
+        _humanMarkerIcon = settings.HumanMarkerIconOrDefault;
 
         // Wenn Einsatzort-Adresse vorhanden, versuche zu geocoden
         if (!string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.MapAddress))

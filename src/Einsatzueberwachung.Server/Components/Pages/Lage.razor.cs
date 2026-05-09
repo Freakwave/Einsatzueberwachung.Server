@@ -50,8 +50,8 @@ public partial class Lage : IAsyncDisposable
         _mapCenterLat = settings.MapDefaultLat;
         _mapCenterLng = settings.MapDefaultLng;
         _mapZoom = settings.MapDefaultZoom;
-        _collarMarkerIcon = string.IsNullOrWhiteSpace(settings.CollarMarkerIcon) ? "paw" : settings.CollarMarkerIcon;
-        _humanMarkerIcon = string.IsNullOrWhiteSpace(settings.HumanMarkerIcon) ? "phone" : settings.HumanMarkerIcon;
+        _collarMarkerIcon = settings.CollarMarkerIconOrDefault;
+        _humanMarkerIcon = settings.HumanMarkerIconOrDefault;
 
         if (einsatz.ElwPosition.HasValue)
         {

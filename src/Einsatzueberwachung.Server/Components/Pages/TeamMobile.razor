@@ -216,8 +216,8 @@ else
             var mapSettings = await SettingsService.GetAppSettingsAsync();
             await JS.InvokeVoidAsync("teamMobileMap.setOptions", new
             {
-                collarIcon = string.IsNullOrWhiteSpace(mapSettings.CollarMarkerIcon) ? "paw" : mapSettings.CollarMarkerIcon,
-                humanIcon  = string.IsNullOrWhiteSpace(mapSettings.HumanMarkerIcon)  ? "phone" : mapSettings.HumanMarkerIcon
+                collarIcon = mapSettings.CollarMarkerIconOrDefault,
+                humanIcon  = mapSettings.HumanMarkerIconOrDefault
             });
         }
         catch (Exception ex)

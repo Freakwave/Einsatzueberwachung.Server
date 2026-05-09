@@ -41,7 +41,7 @@ window.PhoneTracking = (function () {
         Object.keys(_tracks).forEach(k => delete _tracks[k]);
     }
 
-    function _createIcon(color) {
+    function _createHumanIcon(color) {
         return L.divIcon({
             className: '',
             html: `<div style="width:34px;height:34px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;line-height:1;">${_getHumanContent()}</div>`,
@@ -80,7 +80,7 @@ window.PhoneTracking = (function () {
             _markers[teamId].setLatLng([lat, lng]);
             _markers[teamId].setPopupContent(popupContent);
         } else {
-            const icon = _createIcon(color);
+            const icon = _createHumanIcon(color);
             const marker = L.marker([lat, lng], { icon })
                 .bindPopup(popupContent);
             marker.addTo(mapData.phoneLayer);

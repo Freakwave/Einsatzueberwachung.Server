@@ -5,6 +5,8 @@ window.teamMobileMap = (function () {
     let trackLine = null;
     let userMarker = null;
     let userTrackLine = null;
+    // Abgeschlossene Track-Episoden früherer Suchläufe (historisch, persistent auf dem Server)
+    let historicalTracks = [];
 
     // Konfigurierbare Marker-Symbole
     let _collarIcon = 'paw';
@@ -132,10 +134,26 @@ window.teamMobileMap = (function () {
     }
 
     /**
-     * Stellt einen bestehenden eigenen GPS-Track aus dem Server-Verlauf wieder her.
-     * Wird nach einem Seitenneuladen aufgerufen, damit der Weg nicht verloren geht.
-     * @param {{lat: number, lng: number}[]} points
+     * Zeichnet einen abgeschlossenen Track einer früheren Suchepisode auf der Karte.
+     * Wird beim Seitenaufbau für alle gespeicherten CompletedSearch-Episoden aufgerufen.
+     * @param {{lat: number, lng: number}[]} points - Track-Punkte
+     * @param {string} color - Farbe der Polylinie
+     * @param {boolean} isHumanTrack - true = Mensch-Laufweg (gestrichelt), false = Halsband-Track (durchgezogen)
      */
+    function addCompletedTrack(points, color, isHumanTrack) {
+        if (!map || !points || points.length < 2) return;
+        const polyline = L.polyline(
+            points.map(p => [p.lat, p.lng]),
+            {
+                color: color || '#888888',
+                weight: 3,
+                opacity: 0.55,
+                dashArray: isHumanTrack ? '4 9' : null
+            }
+        ).addTo(map);
+        historicalTracks.push(polyline);
+    }
+
     function loadUserTrack(points) {
         if (!map || !points || points.length < 2) return;
         if (userTrackLine) { map.removeLayer(userTrackLine); userTrackLine = null; }
@@ -157,6 +175,7 @@ window.teamMobileMap = (function () {
         trackLine = null;
         userMarker = null;
         userTrackLine = null;
+        historicalTracks = [];
     }
 
     let watchId = null;
@@ -176,7 +195,12 @@ window.teamMobileMap = (function () {
                     dotNetRef.invokeMethodAsync('OnUserLocation', lat, lng).catch(() => {});
                 }
             },
-            err => { console.warn('Geolocation error', err); },
+            err => {
+                console.warn('Geolocation error', err);
+                if (dotNetRef) {
+                    dotNetRef.invokeMethodAsync('OnUserLocationError', err.code).catch(() => {});
+                }
+            },
             { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
         );
         return true;
@@ -209,7 +233,8 @@ window.teamMobileMap = (function () {
 
     return {
         init, renderSearchArea, setDogPosition, setTrack, appendTrackPoint,
-        setUserPosition, appendUserTrackPoint, loadUserTrack, centerOnDog, destroy,
+        setUserPosition, appendUserTrackPoint, loadUserTrack, addCompletedTrack,
+        centerOnDog, destroy,
         startWatchingUser, stopWatchingUser, getAreaCentroid, postLocation, setOptions
     };
 })();

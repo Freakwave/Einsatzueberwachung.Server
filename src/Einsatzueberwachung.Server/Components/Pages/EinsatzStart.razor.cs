@@ -2,8 +2,10 @@ using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
 using Einsatzueberwachung.Domain.Models.Divera;
 using Einsatzueberwachung.Domain.Models.Enums;
+using Einsatzueberwachung.Server.Services;
 using Einsatzueberwachung.Server.Training;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 
 namespace Einsatzueberwachung.Server.Components.Pages;
@@ -15,6 +17,7 @@ public partial class EinsatzStart
     [Inject] private ISettingsService SettingsService { get; set; } = default!;
     [Inject] private IDiveraService DiveraService { get; set; } = default!;
     [Inject] private ITrainingExerciseService TrainingExerciseService { get; set; } = default!;
+    [Inject] private BrowserPreferencesService BrowserPrefs { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
@@ -118,6 +121,7 @@ public partial class EinsatzStart
             return;
         }
 
+        await BrowserPrefs.LoadAsync();
         await RefreshClientNowAsync();
 
         if (_clientNow.HasValue)
@@ -366,5 +370,25 @@ public partial class EinsatzStart
     {
         await TrainingExerciseService.ClearStartPresetAsync(CancellationToken.None);
         _trainerStartPreset = null;
+    }
+
+    // ── Stepper-Tastatursteuerung ────────────────────────────────────────
+
+    private void OnStepperKeyDown(KeyboardEventArgs e)
+    {
+        var sc = BrowserPrefs.Preferences.Shortcuts;
+        if (MatchesShortcut(e, sc.StepperUp))
+            _model.AnzahlTeams = Math.Min(50, _model.AnzahlTeams + 1);
+        else if (MatchesShortcut(e, sc.StepperDown))
+            _model.AnzahlTeams = Math.Max(1, _model.AnzahlTeams - 1);
+    }
+
+    private static bool MatchesShortcut(KeyboardEventArgs e, string shortcut)
+    {
+        var p = shortcut.ToLower().Split('+');
+        return e.Key.ToLower() == p[^1]
+            && e.CtrlKey  == p.Contains("ctrl")
+            && e.ShiftKey == p.Contains("shift")
+            && e.AltKey   == p.Contains("alt");
     }
 }

@@ -22,5 +22,22 @@ namespace Einsatzueberwachung.Domain.Models
         public int SecondWarningFrequency { get; set; } = 1200;
         public bool RepeatSecondWarning { get; set; } = true;
         public int RepeatWarningIntervalSeconds { get; set; } = 30;
+
+        // --- Tastenkürzel ---
+        public KeyboardShortcutPreferences Shortcuts { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Konfigurierbare Tastenkürzel — pro Browser in localStorage gespeichert.
+    /// Fehlende Keys werden bei der Deserialisierung automatisch auf Defaults gesetzt.
+    /// </summary>
+    public class KeyboardShortcutPreferences
+    {
+        public string NavHome      { get; set; } = "ctrl+h";
+        public string NavKarte     { get; set; } = "ctrl+m";
+        public string NavMonitor   { get; set; } = "ctrl+n";
+        public string NavStart     { get; set; } = "ctrl+t";
+        public string StepperUp    { get; set; } = "arrowup";
+        public string StepperDown  { get; set; } = "arrowdown";
     }
 }

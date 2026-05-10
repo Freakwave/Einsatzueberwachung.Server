@@ -20,6 +20,7 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
 
     private bool _isDarkMode;
     private bool _sidebarCollapsed;
+    private bool _hilfeOpen;
     private DotNetObjectReference<MainLayout>? _dotNetRef;
     private bool _showCriticalWarningPopup;
     private string _criticalWarningTitle = string.Empty;
@@ -96,6 +97,15 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
 
         await BrowserPrefs.LoadAsync();
         _isDarkMode = BrowserPrefs.Preferences.IsDarkMode;
+
+        var sc = BrowserPrefs.Preferences.Shortcuts;
+        await JS.InvokeVoidAsync("keyboardShortcuts.configure", new {
+            navHome    = sc.NavHome,
+            navKarte   = sc.NavKarte,
+            navMonitor = sc.NavMonitor,
+            navStart   = sc.NavStart
+        });
+
         _sidebarCollapsed = await JS.InvokeAsync<bool>("layoutTools.getSidebarCollapsed");
         _dotNetRef = DotNetObjectReference.Create(this);
 
@@ -228,6 +238,10 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         catch (TaskCanceledException)
         {
             // Ignore cancellation during shutdown/disconnect.
+        }
+        catch (Exception)
+        {
+            // Prevent unhandled exception crash in async void event handler.
         }
     }
 

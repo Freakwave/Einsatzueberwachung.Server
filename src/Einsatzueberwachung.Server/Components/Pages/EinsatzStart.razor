@@ -91,7 +91,9 @@
 
                     @if (_trainerStartPreset is not null)
                     {
-                        <button type="button" class="es-trainer-chip" @onclick="ToggleTrainerDetails" title="Trainer-Lage geladen">
+                        <button type="button" class="es-trainer-chip" @onclick="ToggleTrainerDetails"
+                                title="Trainer-Lage geladen"
+                                aria-expanded="@_trainerDetailsOpen">
                             <i class="bi bi-mortarboard-fill"></i>
                             <span>Trainer-Lage</span>
                             <i class="bi @(_trainerDetailsOpen ? "bi-chevron-up" : "bi-chevron-down")"></i>
@@ -150,15 +152,19 @@
 
                     <div class="es-field">
                         <label class="es-label">Anzahl Teams</label>
-                        <div class="es-stepper">
+                        <div class="es-stepper" @onkeydown="OnStepperKeyDown">
                             <button type="button" class="es-stepper-btn"
                                     @onclick="() => _model.AnzahlTeams = Math.Max(1, _model.AnzahlTeams - 1)"
+                                    disabled="@(_model.AnzahlTeams <= 1)"
                                     aria-label="Weniger">−</button>
                             <input class="es-stepper-input"
                                    type="number" min="1" max="50"
-                                   @bind="_model.AnzahlTeams" />
+                                   value="@_model.AnzahlTeams"
+                                   @onchange="e => _model.AnzahlTeams = Math.Clamp(
+                                       int.TryParse(e.Value?.ToString(), out var v) ? v : 1, 1, 50)" />
                             <button type="button" class="es-stepper-btn"
                                     @onclick="() => _model.AnzahlTeams = Math.Min(50, _model.AnzahlTeams + 1)"
+                                    disabled="@(_model.AnzahlTeams >= 50)"
                                     aria-label="Mehr">+</button>
                         </div>
                     </div>

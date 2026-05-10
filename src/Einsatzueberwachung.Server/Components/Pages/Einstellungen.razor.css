@@ -719,3 +719,19 @@
         grid-template-columns: max-content 1fr;
     }
 }
+
+/* ---------- Tastenkürzel-Recorder ---------------------------------- */
+
+::deep .ks-recorder-input {
+    font-family: monospace;
+    min-width: 120px;
+    max-width: 180px;
+    cursor: pointer;
+    text-align: center;
+}
+
+::deep .ks-recorder-input.is-recording {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+    background-color: var(--bs-primary-bg-subtle, #cfe2ff);
+}

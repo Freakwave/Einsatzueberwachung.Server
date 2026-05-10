@@ -48,6 +48,10 @@ public partial class Einstellungen
     private bool _pdfLogoStatusIsError;
     private string _audioTestStatus = string.Empty;
     private bool _audioTestError;
+
+    // --- Tastenkürzel ---
+    private string? _recordingField;
+    private KeyboardShortcutPreferences _shortcuts = new();
     private UpdateRuntimeStatus _updateStatus = new();
     private string _quickNoteTemplatesText = string.Empty;
     private List<string> _quickNoteList = new();
@@ -68,6 +72,7 @@ public partial class Einstellungen
         Staffel,
         Einsatzbetrieb,
         Erscheinungsbild,
+        Tastenkuerzel,
         Integration,
         System,
         Wartung
@@ -166,6 +171,9 @@ public partial class Einstellungen
         if (!firstRender) return;
         // BrowserPrefs aus localStorage laden (vom MainLayout ggf. bereits geladen)
         await BrowserPrefs.LoadAsync();
+        _shortcuts = System.Text.Json.JsonSerializer.Deserialize<KeyboardShortcutPreferences>(
+            System.Text.Json.JsonSerializer.Serialize(BrowserPrefs.Preferences.Shortcuts))
+            ?? new KeyboardShortcutPreferences();
         StateHasChanged();
     }
 
@@ -851,5 +859,89 @@ public partial class Einstellungen
     {
         _audioTestStatus = message;
         _audioTestError = isError;
+    }
+
+    // ── Tastenkürzel ─────────────────────────────────────────────────────
+
+    private void StartRecording(string field) => _recordingField = field;
+    private void StopRecording() => _recordingField = null;
+
+    private async Task RecordKey(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e, string field)
+    {
+        if (e.Key is "Tab" or "Escape") { _recordingField = null; return; }
+        var parts = new List<string>();
+        if (e.CtrlKey)  parts.Add("ctrl");
+        if (e.ShiftKey) parts.Add("shift");
+        if (e.AltKey)   parts.Add("alt");
+        parts.Add(e.Key.ToLower());
+        SetShortcut(field, string.Join("+", parts));
+        _recordingField = null;
+        await SaveShortcutsAsync();
+    }
+
+    private void SetShortcut(string field, string value)
+    {
+        switch (field)
+        {
+            case "NavHome":     _shortcuts.NavHome     = value; break;
+            case "NavKarte":    _shortcuts.NavKarte    = value; break;
+            case "NavMonitor":  _shortcuts.NavMonitor  = value; break;
+            case "NavStart":    _shortcuts.NavStart    = value; break;
+            case "StepperUp":   _shortcuts.StepperUp   = value; break;
+            case "StepperDown": _shortcuts.StepperDown = value; break;
+        }
+    }
+
+    private void ResetShortcut(string field) => SetShortcut(field, field switch
+    {
+        "NavHome"     => "ctrl+h",
+        "NavKarte"    => "ctrl+m",
+        "NavMonitor"  => "ctrl+n",
+        "NavStart"    => "ctrl+t",
+        "StepperUp"   => "arrowup",
+        "StepperDown" => "arrowdown",
+        _ => string.Empty
+    });
+
+    private void ResetAllShortcuts()
+    {
+        _shortcuts = new KeyboardShortcutPreferences();
+        _ = SaveShortcutsAsync();
+    }
+
+    private async Task SaveShortcutsAsync()
+    {
+        BrowserPrefs.Update(p => p.Shortcuts = _shortcuts);
+        await BrowserPrefs.SaveAsync();
+        await JS.InvokeVoidAsync("keyboardShortcuts.configure", new
+        {
+            navHome    = _shortcuts.NavHome,
+            navKarte   = _shortcuts.NavKarte,
+            navMonitor = _shortcuts.NavMonitor,
+            navStart   = _shortcuts.NavStart
+        });
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static string FormatShortcut(string shortcut)
+    {
+        if (string.IsNullOrWhiteSpace(shortcut)) return "–";
+        return string.Join("+", shortcut.Split('+').Select(p => p switch
+        {
+            "ctrl"       => "Ctrl",
+            "shift"      => "Shift",
+            "alt"        => "Alt",
+            "arrowup"    => "↑",
+            "arrowdown"  => "↓",
+            "arrowleft"  => "←",
+            "arrowright" => "→",
+            "escape"     => "Esc",
+            "enter"      => "↵",
+            "space"      => "Leertaste",
+            "backspace"  => "⌫",
+            "delete"     => "Entf",
+            "tab"        => "Tab",
+            var k        => k.Length == 1 ? k.ToUpper() : k
+        }));
     }
 }

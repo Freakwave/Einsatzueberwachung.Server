@@ -51,6 +51,12 @@
             </button>
 
             <button type="button"
+                    class="cfg-tab @(_activeTab == SettingsTab.Tastenkuerzel ? "is-active" : "")"
+                    @onclick="() => SetActiveTab(SettingsTab.Tastenkuerzel)">
+                <span class="cfg-tab-label"><i class="bi bi-keyboard me-2"></i>Tastenkürzel</span>
+            </button>
+
+            <button type="button"
                     class="cfg-tab @(_activeTab == SettingsTab.Integration ? "is-active" : "")"
                     @onclick="() => SetActiveTab(SettingsTab.Integration)">
                 <span class="cfg-tab-label"><i class="bi bi-broadcast-pin me-2"></i>Integration</span>
@@ -435,6 +441,164 @@
                             <div class="cfg-help">Z.B. Dunkel ab 20:00, Hell ab 06:00 (über Mitternacht möglich).</div>
                         </div>
                     }
+                </div>
+            }
+
+            else if (_activeTab == SettingsTab.Tastenkuerzel)
+            {
+                <h2 class="cfg-pane-title"><i class="bi bi-keyboard me-2"></i>Tastenkürzel</h2>
+                <p class="cfg-pane-subtitle">Konfigurierbare Tastaturbefehle für Navigation und Steuerung.</p>
+
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header">Navigation</h3>
+
+                    <div class="cfg-row">
+                        <div class="cfg-label">
+                            <span>Startseite</span>
+                            <small class="cfg-hint">Navigiert zur Startseite</small>
+                        </div>
+                        <div class="cfg-value d-flex align-items-center gap-2">
+                            <input type="text"
+                                   class="form-control form-control-sm ks-recorder-input @(_recordingField == "NavHome" ? "is-recording" : "")"
+                                   readonly
+                                   value="@(_recordingField == "NavHome" ? "" : FormatShortcut(_shortcuts.NavHome))"
+                                   placeholder="@(_recordingField == "NavHome" ? "Taste drücken…" : "")"
+                                   @onfocus='() => StartRecording("NavHome")'
+                                   @onblur="StopRecording"
+                                   @onkeydown='e => RecordKey(e, "NavHome")'
+                                   @onkeydown:preventDefault="true" />
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    title="Auf Standard zurücksetzen"
+                                    @onclick='() => { ResetShortcut("NavHome"); _ = SaveShortcutsAsync(); }'>
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="cfg-row">
+                        <div class="cfg-label">
+                            <span>Lagekarte</span>
+                            <small class="cfg-hint">Navigiert zur Einsatzkarte</small>
+                        </div>
+                        <div class="cfg-value d-flex align-items-center gap-2">
+                            <input type="text"
+                                   class="form-control form-control-sm ks-recorder-input @(_recordingField == "NavKarte" ? "is-recording" : "")"
+                                   readonly
+                                   value="@(_recordingField == "NavKarte" ? "" : FormatShortcut(_shortcuts.NavKarte))"
+                                   placeholder="@(_recordingField == "NavKarte" ? "Taste drücken…" : "")"
+                                   @onfocus='() => StartRecording("NavKarte")'
+                                   @onblur="StopRecording"
+                                   @onkeydown='e => RecordKey(e, "NavKarte")'
+                                   @onkeydown:preventDefault="true" />
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    title="Auf Standard zurücksetzen"
+                                    @onclick='() => { ResetShortcut("NavKarte"); _ = SaveShortcutsAsync(); }'>
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="cfg-row">
+                        <div class="cfg-label">
+                            <span>Einsatz-Monitor</span>
+                            <small class="cfg-hint">Navigiert zum Einsatz-Monitor</small>
+                        </div>
+                        <div class="cfg-value d-flex align-items-center gap-2">
+                            <input type="text"
+                                   class="form-control form-control-sm ks-recorder-input @(_recordingField == "NavMonitor" ? "is-recording" : "")"
+                                   readonly
+                                   value="@(_recordingField == "NavMonitor" ? "" : FormatShortcut(_shortcuts.NavMonitor))"
+                                   placeholder="@(_recordingField == "NavMonitor" ? "Taste drücken…" : "")"
+                                   @onfocus='() => StartRecording("NavMonitor")'
+                                   @onblur="StopRecording"
+                                   @onkeydown='e => RecordKey(e, "NavMonitor")'
+                                   @onkeydown:preventDefault="true" />
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    title="Auf Standard zurücksetzen"
+                                    @onclick='() => { ResetShortcut("NavMonitor"); _ = SaveShortcutsAsync(); }'>
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="cfg-row">
+                        <div class="cfg-label">
+                            <span>Einsatz starten</span>
+                            <small class="cfg-hint">Navigiert zur Seite "Neuer Einsatz"</small>
+                        </div>
+                        <div class="cfg-value d-flex align-items-center gap-2">
+                            <input type="text"
+                                   class="form-control form-control-sm ks-recorder-input @(_recordingField == "NavStart" ? "is-recording" : "")"
+                                   readonly
+                                   value="@(_recordingField == "NavStart" ? "" : FormatShortcut(_shortcuts.NavStart))"
+                                   placeholder="@(_recordingField == "NavStart" ? "Taste drücken…" : "")"
+                                   @onfocus='() => StartRecording("NavStart")'
+                                   @onblur="StopRecording"
+                                   @onkeydown='e => RecordKey(e, "NavStart")'
+                                   @onkeydown:preventDefault="true" />
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    title="Auf Standard zurücksetzen"
+                                    @onclick='() => { ResetShortcut("NavStart"); _ = SaveShortcutsAsync(); }'>
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header">Stepper (Anzahl Teams +/−)</h3>
+
+                    <div class="cfg-row">
+                        <div class="cfg-label">
+                            <span>Teams erhöhen</span>
+                            <small class="cfg-hint">+1 Team im Stepper auf "Neuer Einsatz"</small>
+                        </div>
+                        <div class="cfg-value d-flex align-items-center gap-2">
+                            <input type="text"
+                                   class="form-control form-control-sm ks-recorder-input @(_recordingField == "StepperUp" ? "is-recording" : "")"
+                                   readonly
+                                   value="@(_recordingField == "StepperUp" ? "" : FormatShortcut(_shortcuts.StepperUp))"
+                                   placeholder="@(_recordingField == "StepperUp" ? "Taste drücken…" : "")"
+                                   @onfocus='() => StartRecording("StepperUp")'
+                                   @onblur="StopRecording"
+                                   @onkeydown='e => RecordKey(e, "StepperUp")'
+                                   @onkeydown:preventDefault="true" />
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    title="Auf Standard zurücksetzen"
+                                    @onclick='() => { ResetShortcut("StepperUp"); _ = SaveShortcutsAsync(); }'>
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="cfg-row">
+                        <div class="cfg-label">
+                            <span>Teams verringern</span>
+                            <small class="cfg-hint">−1 Team im Stepper auf "Neuer Einsatz"</small>
+                        </div>
+                        <div class="cfg-value d-flex align-items-center gap-2">
+                            <input type="text"
+                                   class="form-control form-control-sm ks-recorder-input @(_recordingField == "StepperDown" ? "is-recording" : "")"
+                                   readonly
+                                   value="@(_recordingField == "StepperDown" ? "" : FormatShortcut(_shortcuts.StepperDown))"
+                                   placeholder="@(_recordingField == "StepperDown" ? "Taste drücken…" : "")"
+                                   @onfocus='() => StartRecording("StepperDown")'
+                                   @onblur="StopRecording"
+                                   @onkeydown='e => RecordKey(e, "StepperDown")'
+                                   @onkeydown:preventDefault="true" />
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    title="Auf Standard zurücksetzen"
+                                    @onclick='() => { ResetShortcut("StepperDown"); _ = SaveShortcutsAsync(); }'>
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ResetAllShortcuts">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Alle zurücksetzen
+                    </button>
                 </div>
             }
 

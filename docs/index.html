@@ -489,6 +489,87 @@
       transform: translateY(0);
     }
 
+    /* ── VERSIONSHISTORIE ── */
+    .changelog-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+    .changelog-entry {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.5rem 2rem;
+      position: relative;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .changelog-entry:hover {
+      border-color: rgba(249,115,22,0.4);
+      background: var(--bg-card-hover);
+    }
+    .changelog-entry::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 1.25rem; bottom: 1.25rem;
+      width: 3px;
+      background: var(--accent);
+      border-radius: 0 3px 3px 0;
+      opacity: 0.6;
+    }
+    .changelog-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.6rem;
+    }
+    .changelog-version {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-dim);
+      border: 1px solid rgba(249,115,22,0.3);
+      padding: 0.15rem 0.65rem;
+      border-radius: 100px;
+    }
+    .changelog-date {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .changelog-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--text-primary);
+      flex: 1;
+      min-width: 200px;
+    }
+    .changelog-body {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-top: 0.5rem;
+    }
+    .changelog-body ul {
+      padding-left: 1.25rem;
+      margin: 0;
+    }
+    .changelog-body li { margin-bottom: 0.25rem; }
+    .changelog-body h4 {
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      margin: 0.75rem 0 0.35rem;
+    }
+    .changelog-empty {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      padding: 2rem;
+    }
+
     /* ── RESPONSIVE NAV ── */
     @media (max-width: 640px) {
       .nav-links { display: none; }
@@ -508,6 +589,7 @@
     <li><a href="#tech">Tech-Stack</a></li>
     <li><a href="#architektur">Architektur</a></li>
     <li><a href="#deployment">Deployment</a></li>
+    <li><a href="#versionshistorie">Versionshistorie</a></li>
     <li><a href="https://github.com/Elemirus1996/Einsatzueberwachung.Server" class="nav-cta">GitHub</a></li>
   </ul>
 </nav>
@@ -704,6 +786,22 @@
         <p>Nicht öffentlich erreichbar — nur über WireGuard / OpenVPN Netzwerk zugänglich.</p>
       </div>
 
+    </div>
+  </div>
+</section>
+
+<!-- VERSIONSHISTORIE -->
+<section id="versionshistorie">
+  <div class="container">
+    <div class="section-header reveal">
+      <span class="section-label">Versionshistorie</span>
+      <h2>Was ist neu?</h2>
+      <p>Aktuelle Releases und Änderungen auf einen Blick.</p>
+    </div>
+    <div class="changelog-list reveal">
+<!-- CHANGELOG_START -->
+<div class="changelog-empty">Wird automatisch bei jedem Release befüllt.</div>
+<!-- CHANGELOG_END -->
     </div>
   </div>
 </section>

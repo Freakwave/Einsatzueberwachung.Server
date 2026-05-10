@@ -107,10 +107,27 @@ else
             </div>
         }
 
-        <footer style="background:#fff;padding:6px 12px;border-top:1px solid #dee2e6;font-size:0.75rem;display:flex;gap:12px;flex-wrap:wrap;">
+        <footer style="background:#fff;border-top:1px solid #dee2e6;padding:6px 12px;font-size:0.75rem;display:flex;gap:12px;flex-wrap:wrap;">
             <div>
                 <i class="bi bi-broadcast @(string.IsNullOrWhiteSpace(_team.CollarId) ? "text-muted" : "text-success")"></i>
                 @(string.IsNullOrWhiteSpace(_team.CollarId) ? "kein GPS" : (_lastUpdate.HasValue ? $"GPS: {(_now - _lastUpdate.Value).TotalSeconds:0}s" : "warte auf GPS"))
+            </div>
+            <div>
+                @if (_phoneGpsActive)
+                {
+                    <i class="bi bi-phone-fill text-primary"></i>
+                    <span>Handy-GPS aktiv</span>
+                }
+                else if (_phoneGpsErrorCode.HasValue)
+                {
+                    <i class="bi bi-phone text-danger"></i>
+                    <span>GPS @GetGpsErrorText(_phoneGpsErrorCode.Value)</span>
+                }
+                else
+                {
+                    <i class="bi bi-phone text-muted"></i>
+                    <span>GPS-Verbindung…</span>
+                }
             </div>
             <div>
                 <i class="bi bi-bounding-box @(_hasArea ? "text-primary" : "text-muted")"></i>
@@ -164,6 +181,8 @@ else
     private PersistingComponentStateSubscription _persistSubscription;
     private bool _mapInitDone;
     private DotNetObjectReference<TeamMobile>? _selfRef;
+    private bool _phoneGpsActive;
+    private int? _phoneGpsErrorCode;
 
     protected override async Task OnInitializedAsync()
     {
@@ -246,34 +265,38 @@ else
             _areaCentroidLng = lng;
         }
 
-        if (!string.IsNullOrWhiteSpace(_team.CollarId))
+        // Abgeschlossene Track-Episoden früherer Suchläufe laden (überlebt Server-Neustart via SQLite)
+        // Halsband-Track (Hund) und Mensch-Laufweg (Telefon-GPS) der vergangenen Sessions
+        var completedSearches = EinsatzService.CurrentEinsatz.CompletedSearches?
+            .Where(cs => cs.TeamId == _team.TeamId)
+            .ToList() ?? new();
+        foreach (var cs in completedSearches)
         {
-            var history = CollarTrackingService.GetLocationHistory(_team.CollarId);
-            if (history.Count > 0)
+            foreach (var track in cs.Tracks)
             {
-                var pts = history.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
-                try
-                {
-                    await JS.InvokeVoidAsync("teamMobileMap.setTrack", pts);
-                    var last = history[^1];
-                    await JS.InvokeVoidAsync("teamMobileMap.setDogPosition", last.Latitude, last.Longitude, _team.DogName);
-                    _lastUpdate = last.Timestamp;
-                }
-                catch { /* tolerant */ }
+                if (track.Points.Count < 2) continue;
+                var pts = track.Points.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
+                var isHuman = track.TrackType == Einsatzueberwachung.Domain.Models.Enums.TrackType.HumanTrack;
+                try { await JS.InvokeVoidAsync("teamMobileMap.addCompletedTrack", pts, track.Color, isHuman); } catch { /* tolerant */ }
             }
         }
 
-        // Geolocation starten
+        // _lastUpdate für Footer-Anzeige ("GPS: Xs") aus der letzten bekannten Halsband-Position initialisieren.
+        // Die eigentliche Track-Darstellung übernimmt reloadCurrentTracks() per HTTP-Fetch, damit auch
+        // große Track-Verläufe zuverlässig geladen werden (kein Blazor-Interop-Größenlimit).
+        if (!string.IsNullOrWhiteSpace(_team.CollarId))
+        {
+            var latestLocation = CollarTrackingService.GetLatestLocation(_team.CollarId);
+            if (latestLocation != null)
+                _lastUpdate = latestLocation.Timestamp;
+        }
+
+        // Track-Verlauf per direktem HTTP-Fetch des JS laden (robuster als Blazor-Interop bei großen Daten).
+        // Lädt Halsband-Track, Hund-Marker und Telefon-GPS-Track aus /api/team-mobile/state.
+        try { await JS.InvokeVoidAsync("teamMobileMap.reloadCurrentTracks"); } catch { /* tolerant */ }
+
         _selfRef = DotNetObjectReference.Create(this);
         try { await JS.InvokeVoidAsync("teamMobileMap.startWatchingUser", _selfRef); } catch { /* ignore */ }
-
-        // Bestehenden Telefon-Track aus Server-Verlauf wiederherstellen (überlebt Seiten-Reconnect)
-        var phoneHistory = EinsatzService.GetPhoneTrackHistory(_team.TeamId);
-        if (phoneHistory.Count >= 2)
-        {
-            var phonePts = phoneHistory.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
-            try { await JS.InvokeVoidAsync("teamMobileMap.loadUserTrack", phonePts); } catch { /* tolerant */ }
-        }
 
         // Direkt an Domain-Events andocken
         _collarHandler = OnCollarLocation;
@@ -297,14 +320,33 @@ else
     [JSInvokable]
     public Task OnUserLocation(double lat, double lng)
     {
+        _phoneGpsActive = true;
+        _phoneGpsErrorCode = null;
         if (_areaCentroidLat.HasValue && _areaCentroidLng.HasValue)
         {
             _distanceToAreaKm = HaversineKm(lat, lng, _areaCentroidLat.Value, _areaCentroidLng.Value);
-            _ = InvokeAsync(StateHasChanged);
         }
+        _ = InvokeAsync(StateHasChanged);
         _ = JS.InvokeVoidAsync("teamMobileMap.postLocation", lat, lng).AsTask();
         return Task.CompletedTask;
     }
+
+    [JSInvokable]
+    public Task OnUserLocationError(int code)
+    {
+        _phoneGpsActive = false;
+        _phoneGpsErrorCode = code;
+        _ = InvokeAsync(StateHasChanged);
+        return Task.CompletedTask;
+    }
+
+    private static string GetGpsErrorText(int code) => code switch
+    {
+        1 => "verweigert",
+        2 => "nicht verfügbar",
+        3 => "Zeitüberschreitung",
+        _ => $"Fehler ({code})"
+    };
 
     private static double HaversineKm(double lat1, double lng1, double lat2, double lng2)
     {

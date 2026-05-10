@@ -1,0 +1,721 @@
+/* ========================================================================
+   Einstellungen — "Aktenregister"-Layout.
+   Zentrales Konzept: vertikales Register links, Pane rechts, Sticky-Save oben.
+   Tokens aus app.css (--ui-*, --primary-color, --danger-color, --warning-color,
+   --success-color). KEINE neuen Tokens.
+   ======================================================================== */
+
+::deep .cfg-page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 56px); /* abzüglich Mission-Topbar */
+    background: var(--ui-bg);
+    color: var(--ui-text);
+}
+
+/* ---------- Sticky Header ------------------------------------------ */
+
+::deep .cfg-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.7rem 1.25rem;
+    background: var(--ui-surface);
+    border-bottom: 1px solid var(--ui-border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+::deep .cfg-header-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--ui-text);
+    letter-spacing: -0.01em;
+}
+
+::deep .cfg-header-title i {
+    color: var(--ui-muted);
+    font-size: 1.25rem;
+}
+
+::deep .cfg-save-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--primary-color) 60%, transparent);
+}
+
+::deep .cfg-save-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px color-mix(in srgb, var(--primary-color) 30%, transparent);
+}
+
+::deep .cfg-save-btn i {
+    font-size: 1rem;
+}
+
+/* ---------- Body Layout -------------------------------------------- */
+
+::deep .cfg-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 0;
+}
+
+/* ---------- Aktenregister (links) ---------------------------------- */
+
+::deep .cfg-register {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.85rem 0.6rem 0.85rem 0.85rem;
+    border-right: 1px solid var(--ui-border);
+    overflow-y: auto;
+}
+
+::deep .cfg-tab {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.55rem 0.7rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--ui-text);
+    font-size: 0.92rem;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    text-decoration: none;
+    width: 100%;
+}
+
+::deep .cfg-tab:hover {
+    background: color-mix(in srgb, var(--ui-text) 5%, transparent);
+}
+
+::deep .cfg-tab:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 1px;
+}
+
+::deep .cfg-tab.is-active {
+    background: color-mix(in srgb, var(--primary-color) 12%, var(--ui-surface));
+    border-color: color-mix(in srgb, var(--primary-color) 30%, var(--ui-border));
+    color: var(--primary-color);
+    font-weight: 600;
+    position: relative;
+}
+
+::deep .cfg-tab.is-active::before {
+    content: "";
+    position: absolute;
+    left: -0.85rem;
+    top: 0.4rem;
+    bottom: 0.4rem;
+    width: 3px;
+    background: var(--primary-color);
+    border-radius: 0 2px 2px 0;
+}
+
+::deep .cfg-tab-label {
+    display: inline-flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+
+::deep .cfg-tab-label i {
+    font-size: 1rem;
+}
+
+::deep .cfg-tab-badge {
+    flex-shrink: 0;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+::deep .cfg-tab-badge.ok {
+    background: color-mix(in srgb, var(--success-color) 16%, transparent);
+    color: var(--success-color);
+}
+
+::deep .cfg-tab-badge.warning {
+    background: color-mix(in srgb, var(--warning-color) 18%, transparent);
+    color: var(--warning-color);
+}
+
+::deep .cfg-tab-badge.danger {
+    background: color-mix(in srgb, var(--danger-color) 18%, transparent);
+    color: var(--danger-color);
+}
+
+::deep .cfg-tab-badge.muted {
+    background: color-mix(in srgb, var(--ui-text) 7%, transparent);
+    color: var(--ui-muted);
+}
+
+::deep .cfg-tab-link .cfg-tab-arrow {
+    color: var(--ui-muted);
+    font-size: 0.9rem;
+}
+
+::deep .cfg-tab-link {
+    margin-top: 0.5rem;
+    border-top: 1px dashed var(--ui-border);
+    border-radius: 0;
+    padding-top: 0.85rem;
+}
+
+/* ---------- Pane (rechts) ------------------------------------------ */
+
+::deep .cfg-pane {
+    overflow-y: auto;
+    padding: 1rem 1.5rem 1.5rem;
+}
+
+::deep .cfg-pane-title {
+    margin: 0 0 0.2rem;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--ui-text);
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+}
+
+::deep .cfg-pane-title i {
+    color: var(--ui-muted);
+    font-size: 1.25rem;
+}
+
+::deep .cfg-pane-subtitle {
+    margin: 0 0 1.2rem;
+    color: var(--ui-muted);
+    font-size: 0.9rem;
+}
+
+/* ---------- Sections ------------------------------------------------ */
+
+::deep .cfg-section {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: 10px;
+    padding: 0.95rem 1.1rem;
+    margin-bottom: 0.95rem;
+}
+
+::deep .cfg-section:last-child {
+    margin-bottom: 0;
+}
+
+::deep .cfg-sub-header {
+    margin: 0 0 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ui-muted);
+    display: inline-flex;
+    align-items: center;
+}
+
+::deep .cfg-sub-header i {
+    font-size: 0.88rem;
+    color: var(--ui-muted);
+}
+
+::deep .cfg-section-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.7rem;
+}
+
+::deep .cfg-section-title-row .cfg-sub-header {
+    margin-bottom: 0;
+}
+
+/* ---------- Field Grid --------------------------------------------- */
+
+::deep .cfg-grid {
+    display: grid;
+    gap: 0.7rem 0.8rem;
+}
+
+::deep .cfg-grid-1 { grid-template-columns: 1fr; }
+::deep .cfg-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+::deep .cfg-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+::deep .cfg-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+::deep .cfg-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    color: var(--ui-muted);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0;
+}
+
+::deep .cfg-help {
+    font-size: 0.78rem;
+    color: var(--ui-muted);
+    line-height: 1.35;
+}
+
+::deep .cfg-input {
+    width: 100%;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.92rem;
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    color: var(--ui-text);
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+    font-family: inherit;
+}
+
+::deep .cfg-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 18%, transparent);
+}
+
+::deep .cfg-textarea {
+    resize: vertical;
+    min-height: 100px;
+    line-height: 1.4;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+}
+
+::deep .cfg-input-with-action {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+}
+
+::deep .cfg-input-with-action .cfg-input {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+::deep .cfg-input-with-action .cfg-icon-btn {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left-width: 0;
+}
+
+/* ---------- Toggle (checkbox-as-switch) ---------------------------- */
+
+::deep .cfg-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--ui-text);
+}
+
+::deep .cfg-toggle input[type=checkbox] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+
+/* ---------- Pill Toggle (Theme Hell/Dunkel) ------------------------ */
+
+::deep .cfg-pill-toggle {
+    display: flex;
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--ui-surface);
+}
+
+::deep .cfg-pill {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.88rem;
+    color: var(--ui-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    transition: all 0.12s ease;
+}
+
+::deep .cfg-pill:hover {
+    background: color-mix(in srgb, var(--ui-text) 5%, transparent);
+}
+
+::deep .cfg-pill.is-active {
+    background: var(--primary-color);
+    color: #fff;
+    font-weight: 600;
+}
+
+::deep .cfg-pill + .cfg-pill {
+    border-left: 1px solid var(--ui-border);
+}
+
+/* ---------- Range Slider ------------------------------------------- */
+
+::deep .cfg-range {
+    width: 100%;
+    accent-color: var(--primary-color);
+    height: 28px;
+}
+
+/* ---------- Buttons ------------------------------------------------- */
+
+::deep .cfg-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    text-decoration: none;
+    border: 1px solid var(--ui-border);
+    background: var(--ui-surface);
+    color: var(--ui-text);
+    font-family: inherit;
+}
+
+::deep .cfg-btn:hover {
+    border-color: var(--ui-muted);
+    background: color-mix(in srgb, var(--ui-text) 4%, var(--ui-surface));
+}
+
+::deep .cfg-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+::deep .cfg-btn-ghost {
+    /* default look matches above */
+}
+
+::deep .cfg-btn-ghost-danger {
+    color: var(--danger-color);
+    border-color: color-mix(in srgb, var(--danger-color) 30%, var(--ui-border));
+}
+
+::deep .cfg-btn-ghost-danger:hover {
+    background: color-mix(in srgb, var(--danger-color) 8%, var(--ui-surface));
+    border-color: var(--danger-color);
+}
+
+::deep .cfg-btn-primary {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+    font-weight: 600;
+}
+
+::deep .cfg-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px color-mix(in srgb, var(--primary-color) 25%, transparent);
+}
+
+::deep .cfg-btn-add {
+    border-style: dashed;
+    color: var(--ui-muted);
+}
+
+::deep .cfg-btn-add:hover {
+    border-style: solid;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+::deep .cfg-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    background: var(--ui-surface);
+    color: var(--ui-muted);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+
+::deep .cfg-icon-btn:hover {
+    color: var(--ui-text);
+    border-color: var(--ui-muted);
+}
+
+::deep .cfg-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+::deep .cfg-actions-wrap {
+    flex-wrap: wrap;
+}
+
+/* ---------- Inline Status (Toast-Lite) ----------------------------- */
+
+::deep .cfg-inline-status {
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.84rem;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+::deep .cfg-inline-status.is-ok {
+    background: color-mix(in srgb, var(--success-color) 12%, transparent);
+    border-color: color-mix(in srgb, var(--success-color) 30%, transparent);
+    color: var(--success-color);
+}
+
+::deep .cfg-inline-status.is-error {
+    background: color-mix(in srgb, var(--danger-color) 12%, transparent);
+    border-color: color-mix(in srgb, var(--danger-color) 35%, transparent);
+    color: var(--danger-color);
+}
+
+::deep .cfg-inline-badge {
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+::deep .cfg-inline-badge.ok {
+    background: color-mix(in srgb, var(--success-color) 14%, transparent);
+    color: var(--success-color);
+}
+
+::deep .cfg-inline-badge.warning {
+    background: color-mix(in srgb, var(--warning-color) 18%, transparent);
+    color: var(--warning-color);
+}
+
+::deep .cfg-inline-badge.danger {
+    background: color-mix(in srgb, var(--danger-color) 16%, transparent);
+    color: var(--danger-color);
+}
+
+::deep .cfg-inline-badge.muted {
+    background: color-mix(in srgb, var(--ui-text) 7%, transparent);
+    color: var(--ui-muted);
+}
+
+/* ---------- Logo Cards --------------------------------------------- */
+
+::deep .cfg-logo-card {
+    background: var(--ui-tile-bg, var(--ui-surface));
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+::deep .cfg-logo-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+::deep .cfg-logo-path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    color: var(--ui-muted);
+    background: color-mix(in srgb, var(--ui-text) 4%, transparent);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    word-break: break-all;
+}
+
+::deep .cfg-logo-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* ---------- Quick-Notes List --------------------------------------- */
+
+::deep .cfg-quicknotes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+::deep .cfg-quicknote-row {
+    display: flex;
+    gap: 0.4rem;
+}
+
+::deep .cfg-quicknote-row .cfg-input {
+    flex: 1;
+}
+
+::deep .cfg-btn-add {
+    align-self: flex-start;
+}
+
+/* ---------- System Info Grid (definition list) --------------------- */
+
+::deep .cfg-info-grid {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.4rem 1rem;
+    margin: 0;
+}
+
+::deep .cfg-info-grid dt {
+    color: var(--ui-muted);
+    font-size: 0.84rem;
+    font-weight: 500;
+}
+
+::deep .cfg-info-grid dd {
+    margin: 0;
+    color: var(--ui-text);
+    font-size: 0.9rem;
+}
+
+::deep .cfg-info-grid-compact {
+    grid-template-columns: max-content 1fr max-content 1fr;
+    gap: 0.3rem 1rem;
+}
+
+::deep .cfg-path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.78rem;
+    background: color-mix(in srgb, var(--ui-text) 4%, transparent);
+    padding: 0.2rem 0.45rem;
+    border-radius: 4px;
+    color: var(--ui-text);
+    word-break: break-all;
+}
+
+/* ---------- Steps Ordered List ------------------------------------- */
+
+::deep .cfg-steps {
+    margin: 0.5rem 0 0;
+    padding-left: 1.2rem;
+    color: var(--ui-text);
+    font-size: 0.88rem;
+    line-height: 1.55;
+}
+
+::deep .cfg-steps code {
+    font-size: 0.82rem;
+    background: color-mix(in srgb, var(--ui-text) 5%, transparent);
+    padding: 0.05rem 0.3rem;
+    border-radius: 3px;
+}
+
+/* ---------- Toast (saved confirmation) ------------------------------ */
+
+::deep .cfg-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: var(--ui-surface);
+    border: 1px solid color-mix(in srgb, var(--success-color) 35%, var(--ui-border));
+    border-left: 3px solid var(--success-color);
+    border-radius: 6px;
+    padding: 0.6rem 0.95rem;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    color: var(--success-color);
+    font-weight: 500;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    z-index: 1050;
+    animation: cfg-toast-in 0.18s ease;
+}
+
+@keyframes cfg-toast-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Responsive (Tablet hochkant) --------------------------- */
+
+@media (max-width: 980px) {
+    ::deep .cfg-page {
+        height: auto;
+    }
+    ::deep .cfg-body {
+        grid-template-columns: 1fr;
+    }
+    ::deep .cfg-register {
+        flex-direction: row;
+        flex-wrap: wrap;
+        border-right: none;
+        border-bottom: 1px solid var(--ui-border);
+        padding: 0.6rem;
+    }
+    ::deep .cfg-tab {
+        flex: 1 1 auto;
+        min-width: 140px;
+    }
+    ::deep .cfg-tab.is-active::before {
+        display: none;
+    }
+    ::deep .cfg-tab-link {
+        margin-top: 0;
+        border-top: none;
+        padding-top: 0.55rem;
+    }
+    ::deep .cfg-grid-2,
+    ::deep .cfg-grid-3 {
+        grid-template-columns: 1fr;
+    }
+    ::deep .cfg-info-grid-compact {
+        grid-template-columns: max-content 1fr;
+    }
+}

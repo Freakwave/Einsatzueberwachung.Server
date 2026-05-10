@@ -51,5 +51,14 @@ namespace Einsatzueberwachung.Domain.Models.Enums
 
         public static bool AllowsMultipleVermisste(this EinsatzSzenarioType szenario) =>
             szenario == EinsatzSzenarioType.Flaeche || szenario == EinsatzSzenarioType.Truemmer;
+
+        public static string GetIconClass(this EinsatzSzenarioType szenario) => szenario switch
+        {
+            EinsatzSzenarioType.Mantrailer => "bi-signpost-split",
+            EinsatzSzenarioType.Flaeche => "bi-bounding-box",
+            EinsatzSzenarioType.Truemmer => "bi-bricks",
+            EinsatzSzenarioType.Sonstige => "bi-three-dots",
+            _ => "bi-question-circle"
+        };
     }
 }

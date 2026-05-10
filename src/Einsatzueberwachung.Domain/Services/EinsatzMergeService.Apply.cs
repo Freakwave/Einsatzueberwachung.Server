@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Einsatzueberwachung.Domain.Models;
 using Einsatzueberwachung.Domain.Models.Enums;
 using Einsatzueberwachung.Domain.Models.Merge;
@@ -201,8 +202,7 @@ namespace Einsatzueberwachung.Domain.Services
             foreach (var noteItem in session.NoteItems.Where(n => !n.IsAlreadyPresent && n.ShouldImport))
             {
                 var note = noteItem.Note;
-                _einsatzService.CurrentEinsatz.GlobalNotesEntries.Add(note);
-                _einsatzService.GlobalNotes.Add(note);
+                await _einsatzService.ImportGlobalNoteAsync(note);
                 historyEntry.AddedNoteIds.Add(note.Id);
             }
 
@@ -252,14 +252,21 @@ namespace Einsatzueberwachung.Domain.Services
             }
 
             // Vermisste übernehmen — wenn Id schon existiert, überspringen (kein Diff-Merge).
+            // Deep-Clone, damit spätere Bearbeitungen nicht ins Import-Packet zurückwirken.
             var localVermisstenIds = new HashSet<Guid>(
                 (einsatz.Vermisste ?? new()).Select(v => v.Id));
             foreach (var vermisst in session.Packet.Vermisste ?? new())
             {
                 if (localVermisstenIds.Contains(vermisst.Id)) continue;
-                await _einsatzService.UpsertVermisstenAsync(vermisst);
+                await _einsatzService.UpsertVermisstenAsync(DeepCloneVermisst(vermisst));
                 historyEntry.AddedVermisstenIds.Add(vermisst.Id.ToString());
             }
+        }
+
+        private static VermisstenInfo DeepCloneVermisst(VermisstenInfo source)
+        {
+            var json = JsonSerializer.Serialize(source);
+            return JsonSerializer.Deserialize<VermisstenInfo>(json)!;
         }
 
         private async Task ApplyToArchivedEinsatzAsync(
@@ -330,7 +337,7 @@ namespace Einsatzueberwachung.Domain.Services
             foreach (var vermisst in session.Packet.Vermisste ?? new())
             {
                 if (localArchivedVermisstenIds.Contains(vermisst.Id)) continue;
-                archived.Vermisste.Add(vermisst);
+                archived.Vermisste.Add(DeepCloneVermisst(vermisst));
                 historyEntry.AddedVermisstenIds.Add(vermisst.Id.ToString());
             }
 

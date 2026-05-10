@@ -1,0 +1,681 @@
+/* ========================================================================
+   EinsatzStart — "Lagezettel" Layout, optimiert für 1366×768 ohne Scrollen.
+   Tokens: --ui-bg, --ui-surface, --ui-tile-bg, --ui-border, --ui-text,
+           --ui-muted, --primary-color, --danger-color (aus app.css).
+   ======================================================================== */
+
+::deep .es-page {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 0.85rem 1.25rem 0.5rem;
+    max-width: 1320px;
+    margin: 0 auto;
+}
+
+::deep .es-headline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+::deep .es-headline-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--ui-text);
+    letter-spacing: -0.01em;
+}
+
+::deep .es-headline-title i {
+    color: var(--danger-color);
+    font-size: 1.4rem;
+}
+
+::deep .es-back {
+    color: var(--ui-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 0.35rem 0.7rem;
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    transition: all 0.12s ease;
+}
+::deep .es-back:hover {
+    color: var(--ui-text);
+    border-color: var(--ui-text);
+    background: var(--ui-surface);
+}
+
+::deep .es-active-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 0.85rem 1rem;
+    background: color-mix(in srgb, var(--warning-color) 12%, var(--ui-surface));
+    border: 1px solid color-mix(in srgb, var(--warning-color) 35%, var(--ui-border));
+    border-left: 4px solid var(--warning-color);
+    border-radius: 8px;
+}
+::deep .es-active-warning > i {
+    font-size: 1.4rem;
+    color: var(--warning-color);
+    margin-top: 0.15rem;
+}
+
+::deep .es-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+/* ---------- Section Header ----------------------------------------- */
+
+::deep .es-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ui-muted);
+}
+::deep .es-section-header i {
+    font-size: 0.95rem;
+    color: var(--ui-muted);
+}
+::deep .es-section-header > span:nth-of-type(1) {
+    font-size: 0.85rem;
+    color: var(--ui-text);
+}
+
+::deep .es-required {
+    margin-left: 0.4rem;
+    padding: 0.05rem 0.4rem;
+    background: color-mix(in srgb, var(--danger-color) 16%, transparent);
+    color: var(--danger-color);
+    border-radius: 3px;
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+}
+
+::deep .es-section-meta {
+    margin-left: auto;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    font-size: 0.78rem;
+    color: var(--ui-muted);
+    font-style: italic;
+}
+
+/* ---------- Szenario Hero ------------------------------------------ */
+
+::deep .es-szenario-hero {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: 10px;
+    padding: 0.75rem 0.95rem;
+}
+
+::deep .es-szenario-hero.is-missing {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger-color) 18%, transparent);
+}
+
+::deep .es-tile-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+}
+
+::deep .es-tile {
+    --tile-accent: var(--ui-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    padding: 0.7rem 0.85rem;
+    background: var(--ui-tile-bg, var(--ui-surface));
+    border: 1px solid var(--ui-border);
+    border-top: 3px solid transparent;
+    border-radius: 8px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.14s ease;
+    position: relative;
+    min-height: 86px;
+    color: var(--ui-text);
+}
+
+::deep .es-tile > i {
+    font-size: 1.45rem;
+    color: var(--tile-accent);
+}
+
+::deep .es-tile-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: -0.01em;
+}
+
+::deep .es-tile-desc {
+    font-size: 0.74rem;
+    color: var(--ui-muted);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+::deep .es-tile:hover {
+    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--tile-accent) 6%, var(--ui-tile-bg, var(--ui-surface)));
+    border-color: color-mix(in srgb, var(--tile-accent) 35%, var(--ui-border));
+}
+
+::deep .es-tile.is-selected {
+    border-top-color: var(--tile-accent);
+    border-color: color-mix(in srgb, var(--tile-accent) 50%, var(--ui-border));
+    background: color-mix(in srgb, var(--tile-accent) 9%, var(--ui-surface));
+}
+
+::deep .es-tile.is-selected::after {
+    content: "";
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--tile-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tile-accent) 25%, transparent);
+}
+
+::deep .es-tile:focus-visible {
+    outline: 2px solid var(--tile-accent);
+    outline-offset: 2px;
+}
+
+/* ---------- Einsatzort Hero ---------------------------------------- */
+
+::deep .es-einsatzort {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: 10px;
+    padding: 0.7rem 0.95rem 0.85rem;
+}
+
+::deep .es-input-hero {
+    font-size: 1.05rem;
+    padding: 0.55rem 0.85rem;
+    font-weight: 500;
+}
+
+/* ---------- Main Grid ---------------------------------------------- */
+
+::deep .es-main-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 0.85rem;
+    align-items: stretch;
+}
+
+::deep .es-block {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: 10px;
+    padding: 0.75rem 0.95rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+}
+
+::deep .es-block-fuehrung {
+    gap: 0.55rem;
+}
+
+/* ---------- Generic Field ------------------------------------------ */
+
+::deep .es-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+::deep .es-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    color: var(--ui-muted);
+    text-transform: uppercase;
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+::deep .es-required-mark {
+    color: var(--danger-color);
+    font-weight: 700;
+}
+
+::deep .es-sync-icon {
+    font-size: 0.85rem;
+    color: var(--primary-color);
+    cursor: help;
+}
+
+::deep .es-input {
+    width: 100%;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.92rem;
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    color: var(--ui-text);
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+    font-family: inherit;
+}
+
+::deep .es-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 18%, transparent);
+}
+
+::deep .es-input.is-invalid {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger-color) 18%, transparent);
+}
+
+::deep .es-textarea {
+    resize: vertical;
+    min-height: 56px;
+    line-height: 1.35;
+}
+
+/* ---------- Lage Grid Rows ----------------------------------------- */
+
+::deep .es-grid-row {
+    display: grid;
+    gap: 0.55rem;
+    margin-bottom: 0.55rem;
+}
+
+::deep .es-grid-row:last-child {
+    margin-bottom: 0;
+}
+
+::deep .es-grid-1 { grid-template-columns: 1fr; }
+::deep .es-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+::deep .es-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* ---------- Pill Toggle (Typ E/Ü) ---------------------------------- */
+
+::deep .es-pill-toggle {
+    display: flex;
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--ui-surface);
+    height: 36px;
+}
+
+::deep .es-pill {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 0 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ui-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    transition: all 0.12s ease;
+}
+
+::deep .es-pill:hover {
+    background: color-mix(in srgb, var(--ui-text) 5%, transparent);
+}
+
+::deep .es-pill.is-active {
+    background: var(--primary-color);
+    color: #fff;
+    font-weight: 600;
+}
+
+::deep .es-pill.is-active.is-active-danger {
+    background: var(--danger-color);
+}
+
+::deep .es-pill + .es-pill {
+    border-left: 1px solid var(--ui-border);
+}
+
+/* ---------- Stepper (Anzahl Teams) --------------------------------- */
+
+::deep .es-stepper {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--ui-surface);
+    height: 36px;
+}
+
+::deep .es-stepper-btn {
+    width: 32px;
+    background: transparent;
+    border: none;
+    color: var(--ui-text);
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+::deep .es-stepper-btn:hover {
+    background: color-mix(in srgb, var(--ui-text) 8%, transparent);
+}
+
+::deep .es-stepper-input {
+    flex: 1;
+    border: none;
+    border-left: 1px solid var(--ui-border);
+    border-right: 1px solid var(--ui-border);
+    text-align: center;
+    background: transparent;
+    color: var(--ui-text);
+    font-size: 0.95rem;
+    font-weight: 600;
+    -moz-appearance: textfield;
+}
+::deep .es-stepper-input::-webkit-outer-spin-button,
+::deep .es-stepper-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* ---------- Trainer Chip ------------------------------------------- */
+
+::deep .es-trainer-chip {
+    margin-left: auto;
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary-color) 30%, var(--ui-border));
+    color: var(--primary-color);
+    border-radius: 999px;
+    padding: 0.18rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    text-transform: none;
+    letter-spacing: 0;
+}
+::deep .es-trainer-chip:hover {
+    background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+}
+
+::deep .es-trainer-details {
+    background: color-mix(in srgb, var(--primary-color) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary-color) 22%, var(--ui-border));
+    border-radius: 6px;
+    padding: 0.5rem 0.7rem;
+    margin-bottom: 0.55rem;
+}
+
+/* ---------- Führung-Block ------------------------------------------ */
+
+::deep .es-input-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+}
+
+::deep .es-input-group .es-input-select {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+::deep .es-input-group .es-input-text {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left-width: 0;
+}
+::deep .es-input-group .es-input:focus {
+    z-index: 1;
+}
+
+::deep .es-staffel {
+    margin-top: 0.1rem;
+}
+
+/* ---------- CTA ---------------------------------------------------- */
+
+::deep .es-cta {
+    margin-top: auto;
+    padding-top: 0.7rem;
+    border-top: 1px dashed var(--ui-border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+::deep .es-cta-error {
+    background: color-mix(in srgb, var(--danger-color) 14%, transparent);
+    color: var(--danger-color);
+    border: 1px solid color-mix(in srgb, var(--danger-color) 40%, transparent);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.82rem;
+}
+
+::deep .es-start-btn {
+    background: var(--danger-color);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.12s ease;
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--danger-color) 60%, transparent);
+}
+::deep .es-start-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--danger-color) 35%, transparent);
+}
+::deep .es-start-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+::deep .es-start-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+::deep .es-start-btn i {
+    font-size: 1.15rem;
+}
+
+::deep .es-cancel-link {
+    text-align: center;
+    color: var(--ui-muted);
+    font-size: 0.8rem;
+    text-decoration: none;
+    padding: 0.25rem;
+}
+::deep .es-cancel-link:hover {
+    color: var(--ui-text);
+    text-decoration: underline;
+}
+
+::deep .es-success-toast {
+    background: color-mix(in srgb, var(--success-color) 12%, transparent);
+    color: var(--success-color);
+    border: 1px solid color-mix(in srgb, var(--success-color) 35%, transparent);
+    border-radius: 8px;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* ---------- Divera Footer Strip ------------------------------------ */
+
+::deep .es-divera-strip {
+    position: sticky;
+    bottom: 0;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.95rem;
+    background: color-mix(in srgb, var(--danger-color) 14%, var(--ui-surface));
+    border: 1px solid color-mix(in srgb, var(--danger-color) 35%, var(--ui-border));
+    border-radius: 8px;
+    color: var(--ui-text);
+    cursor: pointer;
+    transition: all 0.14s ease;
+    width: 100%;
+    text-align: left;
+}
+::deep .es-divera-strip:hover {
+    background: color-mix(in srgb, var(--danger-color) 20%, var(--ui-surface));
+    transform: translateY(-1px);
+}
+::deep .es-divera-strip > i:first-child {
+    font-size: 1.1rem;
+    color: var(--danger-color);
+}
+::deep .es-divera-strip-hint {
+    color: var(--ui-muted);
+    font-size: 0.85rem;
+    margin-left: 0.3rem;
+}
+::deep .es-divera-strip-arrow {
+    margin-left: auto;
+    color: var(--ui-muted);
+}
+
+/* ---------- Drawer (Side-Sheet) ------------------------------------ */
+
+::deep .es-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.32);
+    z-index: 1040;
+    animation: es-fade-in 0.16s ease;
+}
+
+::deep .es-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 440px;
+    max-width: 90vw;
+    background: var(--ui-surface);
+    border-left: 1px solid var(--ui-border);
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
+    z-index: 1041;
+    display: flex;
+    flex-direction: column;
+    animation: es-slide-in 0.18s ease;
+}
+
+::deep .es-drawer-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--ui-border);
+}
+::deep .es-drawer-header > i:first-child {
+    color: var(--danger-color);
+    font-size: 1.1rem;
+}
+::deep .es-drawer-close {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: var(--ui-muted);
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+::deep .es-drawer-close:hover {
+    color: var(--ui-text);
+    background: color-mix(in srgb, var(--ui-text) 8%, transparent);
+}
+
+::deep .es-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.85rem 1rem;
+}
+
+::deep .es-drawer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+::deep .es-drawer-item {
+    width: 100%;
+    text-align: left;
+    background: var(--ui-tile-bg, var(--ui-surface));
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    color: var(--ui-text);
+}
+::deep .es-drawer-item:hover {
+    background: color-mix(in srgb, var(--primary-color) 6%, var(--ui-tile-bg, var(--ui-surface)));
+    border-color: color-mix(in srgb, var(--primary-color) 30%, var(--ui-border));
+}
+
+::deep .es-drawer-footer {
+    padding: 0.65rem 1rem;
+    border-top: 1px solid var(--ui-border);
+}
+
+@keyframes es-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes es-slide-in {
+    from { transform: translateX(40px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* ---------- Responsive: Tablet hochkant + kleine Laptops ----------- */
+
+@media (max-width: 980px) {
+    ::deep .es-main-grid {
+        grid-template-columns: 1fr;
+    }
+    ::deep .es-tile-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    ::deep .es-grid-3 {
+        grid-template-columns: 1fr 1fr;
+    }
+}

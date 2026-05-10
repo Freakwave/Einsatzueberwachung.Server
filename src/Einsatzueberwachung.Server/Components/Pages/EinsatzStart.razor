@@ -7,310 +7,369 @@
 
 <PageTitle>Einsatz anlegen</PageTitle>
 
-<div class="container py-4 start-page" style="max-width:1150px;">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4 page-headline-row">
-        <div>
-            <h1 class="mb-1"><i class="bi bi-alarm me-2"></i>Neuen Einsatz starten</h1>
-            <p class="text-muted mb-0">Bitte alle wichtigen Einsatzinformationen eingeben.</p>
-        </div>
-        <a class="btn btn-outline-secondary" href="/">
-            <i class="bi bi-arrow-left me-1"></i>Zurueck
-        </a>
-    </div>
+<div class="es-page">
 
     @if (_einsatzBereitsAktiv)
     {
-        <div class="alert alert-warning d-flex align-items-start gap-3 mb-4" role="alert">
-            <i class="bi bi-exclamation-triangle-fill fs-4 mt-1"></i>
-            <div>
-                <h5 class="alert-heading mb-1">Einsatz bereits aktiv</h5>
-                <p class="mb-2">Es läuft bereits ein Einsatz. Bitte beende den aktuellen Einsatz, bevor du einen neuen anlegen kannst.</p>
+        <div class="es-active-warning">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <div class="flex-grow-1">
+                <h5 class="mb-1">Einsatz bereits aktiv</h5>
+                <p class="mb-2 small">Es läuft bereits ein Einsatz. Bitte beende den aktuellen Einsatz, bevor du einen neuen anlegen kannst.</p>
                 <a class="btn btn-warning btn-sm" href="/einsatz-monitor">
                     <i class="bi bi-speedometer2 me-1"></i>Zum aktiven Einsatz
                 </a>
             </div>
+            <a class="btn btn-outline-secondary btn-sm" href="/"><i class="bi bi-arrow-left me-1"></i>Zurück</a>
         </div>
     }
     else
     {
-    @if (_trainerStartPreset is not null)
-    {
-        <div class="alert alert-primary d-flex align-items-start gap-3 mb-4" role="alert" style="border-left: 4px solid var(--bs-primary);">
-            <i class="bi bi-mortarboard-fill fs-4 mt-1"></i>
-            <div class="flex-grow-1">
-                <h5 class="alert-heading mb-1">Trainer-Lage vorbefuellt</h5>
-                <p class="mb-2 small">
-                    <strong>@_trainerStartPreset.ExerciseName</strong> · @_trainerStartPreset.ScenarioCategory<br />
-                    @_trainerStartPreset.BriefingText
-                </p>
-                <div class="d-flex flex-wrap gap-2">
-                    <button class="btn btn-sm btn-outline-primary" type="button" @onclick="ApplyTrainerPreset">
-                        <i class="bi bi-arrow-repeat me-1"></i>Vorfuellung erneut anwenden
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" @onclick="ClearTrainerPresetAsync">
-                        <i class="bi bi-x-circle me-1"></i>Vorfuellung entfernen
-                    </button>
-                </div>
-            </div>
+    <div class="es-headline">
+        <div class="es-headline-title">
+            <i class="bi bi-alarm"></i>
+            <span>Neuen Einsatz starten</span>
         </div>
-    }
+        <a class="es-back" href="/"><i class="bi bi-arrow-left me-1"></i>Zurück</a>
+    </div>
 
-    @* Divera-Alarm-Hinweis — wird oberhalb des Formulars angezeigt wenn Alarm(e) vorliegen *@
-    @if (DiveraService.IsConfigured && _diveraAlarms.Any())
-    {
-        <div class="alert alert-danger d-flex align-items-start gap-3 mb-4 shadow-sm" role="alert" style="border-left: 4px solid var(--bs-danger);">
-            <i class="bi bi-broadcast-pin fs-3 flex-shrink-0 mt-1"></i>
-            <div class="flex-grow-1">
-                <h5 class="alert-heading mb-1">@_diveraAlarms.Count Divera-Alarm@(_diveraAlarms.Count > 1 ? "e" : "") — bitte Felder unten ausfüllen</h5>
-                @foreach (var alarm in _diveraAlarms.Take(2))
-                {
-                    <div class="small mb-1">
-                        <strong>@alarm.Title</strong>
-                        @if (!string.IsNullOrWhiteSpace(alarm.Address))
-                        {
-                            <span class="ms-2"><i class="bi bi-geo-alt me-1"></i>@alarm.Address</span>
-                        }
-                        <span class="ms-2 text-danger-emphasis"><i class="bi bi-clock me-1"></i>@alarm.DateFormatted</span>
-                    </div>
-                }
-                <p class="mb-0 mt-1 small">
-                    <i class="bi bi-arrow-down-circle me-1"></i>Alarm unten anklicken um das Formular automatisch zu befüllen.
-                </p>
-            </div>
-        </div>
-    }
-
-    <EditForm Model="_model" OnValidSubmit="StartAsync" class="row g-3">
+    <EditForm Model="_model" OnValidSubmit="StartAsync" class="es-form">
         <DataAnnotationsValidator />
 
-        <div class="col-12 col-lg-7">
-            <div class="card h-100 start-section-card">
-                <div class="card-header fw-semibold">
-                    <i class="bi bi-info-circle me-2"></i>Einsatzinformationen
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold">Typ</label>
-                            <InputSelect class="form-select" @bind-Value="_model.IstEinsatz">
-                                <option value="true">Einsatz</option>
-                                <option value="false">Uebung</option>
-                            </InputSelect>
-                        </div>
-
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold">Szenario <span class="text-danger">*</span></label>
-                            <InputSelect class="@(_szenarioMissing ? "form-select is-invalid" : "form-select")" @bind-Value="_model.Szenario">
-                                <option value="@EinsatzSzenarioType.Unbestimmt">- bitte wählen -</option>
-                                <option value="@EinsatzSzenarioType.Mantrailer">@EinsatzSzenarioType.Mantrailer.GetDisplayName()</option>
-                                <option value="@EinsatzSzenarioType.Flaeche">@EinsatzSzenarioType.Flaeche.GetDisplayName()</option>
-                                <option value="@EinsatzSzenarioType.Truemmer">@EinsatzSzenarioType.Truemmer.GetDisplayName()</option>
-                                <option value="@EinsatzSzenarioType.Sonstige">@EinsatzSzenarioType.Sonstige.GetDisplayName()</option>
-                            </InputSelect>
-                            @if (_model.Szenario != EinsatzSzenarioType.Unbestimmt)
-                            {
-                                <div class="form-text">@_model.Szenario.GetDescription()</div>
-                            }
-                        </div>
-
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold">Timer-Start (Alarmierung)</label>
-                            <input class="form-control"
-                                   type="time"
-                                   step="60"
-                                   value="@_alarmStartTime"
-                                   @onchange="e => _alarmStartTime = e.Value?.ToString() ?? string.Empty" />
-                            <div class="form-text">Datum wird automatisch gesetzt.</div>
-                        </div>
-
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold">Einsatznummer</label>
-                            <InputText class="form-control" @bind-Value="_model.EinsatzNummer" placeholder="optional" />
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold">Einsatzort <span class="text-danger">*</span></label>
-                            <InputText class="form-control" @bind-Value="_model.Einsatzort" placeholder="Strasse, Ort oder Koordinate" />
-                            <ValidationMessage For="() => _model.Einsatzort" />
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold">Stichwort</label>
-                            <InputText class="form-control" @bind-Value="_model.Stichwort" placeholder="z.B. Vermisstensuche, Personensuche" />
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold">Karten-Adresse</label>
-                            <InputText class="form-control" @bind-Value="_model.MapAddress" placeholder="fuer Leaflet-Suche (optional)" />
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold">Alarmiert durch (Melder)</label>
-                            <InputText class="form-control" @bind-Value="_model.Alarmiert" placeholder="z.B. Polizei, Leitstelle, Angeh&ouml;rige" />
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold">Staffel-Name</label>
-                            <InputText class="form-control" @bind-Value="_model.StaffelName" placeholder="z.B. RHS Musterstadt" />
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold">Anzahl Teams (geplant)</label>
-                            <InputNumber class="form-control" @bind-Value="_model.AnzahlTeams" min="1" max="50" />
-                        </div>
-
-                        <div class="col-12">
-                            <label class="form-label fw-semibold">Bemerkungen</label>
-                            <InputTextArea class="form-control" @bind-Value="_model.ExportPfad" rows="2" placeholder="Lagebeschreibung, Anfahrt, sonstige Hinweise..." />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="col-12 col-lg-5">
-            <div class="card start-section-card mb-3">
-                <div class="card-header fw-semibold">
-                    <i class="bi bi-people me-2"></i>Fuehrungspersonal
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Einsatzleiter</label>
-                        <div class="input-group">
-                            <select class="form-select" @onchange="e => SetEinsatzleiter(e.Value?.ToString())">
-                                <option value="">- aus Stammdaten waehlen -</option>
-                                @foreach (var p in EinsatzleiterOptions)
-                                {
-                                    <option value="@p.Id">@p.FullName</option>
-                                }
-                            </select>
-                            <InputText class="form-control" @bind-Value="_model.Einsatzleiter" placeholder="oder Freitext" />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="form-label fw-semibold">Fuehrungsassistent</label>
-                        <div class="input-group">
-                            <select class="form-select" @onchange="e => SetFuehrungsassistent(e.Value?.ToString())">
-                                <option value="">- aus Stammdaten waehlen -</option>
-                                @foreach (var p in FuehrungsassistentOptions)
-                                {
-                                    <option value="@p.Id">@p.FullName</option>
-                                }
-                            </select>
-                            <InputText class="form-control" @bind-Value="_model.Fuehrungsassistent" placeholder="oder Freitext" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card start-section-card">
-                <div class="card-header fw-semibold">
-                    <i class="bi bi-play-circle me-2"></i>Aktionen
-                </div>
-                <div class="card-body d-grid gap-2">
-                    <button class="btn btn-primary" type="submit" disabled="@_busy">
-                        @if (_busy) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                        <i class="bi bi-play-fill me-1"></i>Einsatz starten
+        <!-- 1) SZENARIO HERO -->
+        <section class="es-szenario-hero @(_szenarioMissing ? "is-missing" : "")"
+                 role="radiogroup"
+                 aria-label="Einsatz-Szenario wählen">
+            <header class="es-section-header">
+                <i class="bi bi-diagram-3"></i>
+                <span>Szenario</span>
+                <span class="es-required">Pflicht</span>
+                @if (_model.Szenario != EinsatzSzenarioType.Unbestimmt)
+                {
+                    <span class="es-section-meta">@_model.Szenario.GetDescription()</span>
+                }
+            </header>
+            <div class="es-tile-grid">
+                @foreach (var sz in new[] { EinsatzSzenarioType.Mantrailer, EinsatzSzenarioType.Flaeche, EinsatzSzenarioType.Truemmer, EinsatzSzenarioType.Sonstige })
+                {
+                    var selected = _model.Szenario == sz;
+                    <button type="button"
+                            class="es-tile @(selected ? "is-selected" : "")"
+                            role="radio"
+                            aria-checked="@selected.ToString().ToLowerInvariant()"
+                            style="--tile-accent:@sz.GetColorHex();"
+                            @onclick="() => SelectSzenario(sz)">
+                        <i class="bi @sz.GetIconClass()"></i>
+                        <span class="es-tile-name">@sz.GetDisplayName()</span>
+                        <span class="es-tile-desc">@sz.GetDescription()</span>
                     </button>
-                    <a class="btn btn-outline-secondary" href="/">Abbrechen</a>
-                </div>
+                }
             </div>
+        </section>
+
+        <!-- 2) EINSATZORT HERO -->
+        <section class="es-einsatzort">
+            <label class="es-label" for="es-einsatzort-input">
+                Einsatzort <span class="es-required-mark">*</span>
+            </label>
+            <input id="es-einsatzort-input"
+                   type="text"
+                   class="es-input es-input-hero @(_einsatzortMissing ? "is-invalid" : "")"
+                   value="@_model.Einsatzort"
+                   placeholder="Straße, Ort oder Koordinate — wird auch als Karten-Adresse übernommen"
+                   @oninput="OnEinsatzortInput" />
+        </section>
+
+        <!-- 3) HAUPT-GRID: Lagedaten | Führung -->
+        <div class="es-main-grid">
+
+            <!-- LAGEDATEN -->
+            <section class="es-block es-block-lage">
+                <header class="es-section-header">
+                    <i class="bi bi-clipboard-data"></i>
+                    <span>Lagedaten</span>
+
+                    @if (_trainerStartPreset is not null)
+                    {
+                        <button type="button" class="es-trainer-chip" @onclick="ToggleTrainerDetails" title="Trainer-Lage geladen">
+                            <i class="bi bi-mortarboard-fill"></i>
+                            <span>Trainer-Lage</span>
+                            <i class="bi @(_trainerDetailsOpen ? "bi-chevron-up" : "bi-chevron-down")"></i>
+                        </button>
+                    }
+                </header>
+
+                @if (_trainerStartPreset is not null && _trainerDetailsOpen)
+                {
+                    <div class="es-trainer-details">
+                        <div class="small">
+                            <strong>@_trainerStartPreset.ExerciseName</strong> · @_trainerStartPreset.ScenarioCategory
+                        </div>
+                        <div class="small text-muted mt-1">@_trainerStartPreset.BriefingText</div>
+                        <div class="d-flex gap-2 mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="ApplyTrainerPreset">
+                                <i class="bi bi-arrow-repeat me-1"></i>Erneut anwenden
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ClearTrainerPresetAsync">
+                                <i class="bi bi-x-circle me-1"></i>Entfernen
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <div class="es-grid-row es-grid-3">
+                    <div class="es-field">
+                        <label class="es-label">Typ</label>
+                        <div class="es-pill-toggle" role="radiogroup" aria-label="Einsatztyp">
+                            <button type="button"
+                                    class="es-pill @(_model.IstEinsatz ? "is-active is-active-danger" : "")"
+                                    role="radio"
+                                    aria-checked="@_model.IstEinsatz.ToString().ToLowerInvariant()"
+                                    @onclick="() => _model.IstEinsatz = true">
+                                <i class="bi bi-exclamation-triangle"></i> Einsatz
+                            </button>
+                            <button type="button"
+                                    class="es-pill @(!_model.IstEinsatz ? "is-active" : "")"
+                                    role="radio"
+                                    aria-checked="@((!_model.IstEinsatz).ToString().ToLowerInvariant())"
+                                    @onclick="() => _model.IstEinsatz = false">
+                                <i class="bi bi-mortarboard"></i> Übung
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="es-field">
+                        <label class="es-label" for="es-alarm-input">Alarmiert um</label>
+                        <input id="es-alarm-input"
+                               class="es-input"
+                               type="time"
+                               step="60"
+                               value="@_alarmStartTime"
+                               @onchange="e => _alarmStartTime = e.Value?.ToString() ?? string.Empty" />
+                    </div>
+
+                    <div class="es-field">
+                        <label class="es-label">Anzahl Teams</label>
+                        <div class="es-stepper">
+                            <button type="button" class="es-stepper-btn"
+                                    @onclick="() => _model.AnzahlTeams = Math.Max(1, _model.AnzahlTeams - 1)"
+                                    aria-label="Weniger">−</button>
+                            <input class="es-stepper-input"
+                                   type="number" min="1" max="50"
+                                   @bind="_model.AnzahlTeams" />
+                            <button type="button" class="es-stepper-btn"
+                                    @onclick="() => _model.AnzahlTeams = Math.Min(50, _model.AnzahlTeams + 1)"
+                                    aria-label="Mehr">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="es-grid-row es-grid-2">
+                    <div class="es-field">
+                        <label class="es-label">Stichwort</label>
+                        <InputText class="es-input" @bind-Value="_model.Stichwort" placeholder="z.B. Vermisstensuche" />
+                    </div>
+                    <div class="es-field">
+                        <label class="es-label">Einsatznummer</label>
+                        <InputText class="es-input" @bind-Value="_model.EinsatzNummer" placeholder="optional" />
+                    </div>
+                </div>
+
+                <div class="es-grid-row es-grid-2">
+                    <div class="es-field">
+                        <label class="es-label">
+                            Karten-Adresse
+                            @if (!_mapAddressUserDirty)
+                            {
+                                <i class="bi bi-link-45deg es-sync-icon"
+                                   title="Wird automatisch aus Einsatzort übernommen — beim Tippen losgelöst"></i>
+                            }
+                        </label>
+                        <input type="text"
+                               class="es-input"
+                               value="@_model.MapAddress"
+                               placeholder="für Leaflet-Suche (optional)"
+                               @oninput="OnMapAddressInput" />
+                    </div>
+                    <div class="es-field">
+                        <label class="es-label">Alarmiert durch (Melder)</label>
+                        <InputText class="es-input" @bind-Value="_model.Alarmiert" placeholder="Polizei, Leitstelle, …" />
+                    </div>
+                </div>
+
+                <div class="es-grid-row es-grid-1">
+                    <div class="es-field">
+                        <label class="es-label">Bemerkungen</label>
+                        <InputTextArea class="es-input es-textarea"
+                                       @bind-Value="_model.ExportPfad"
+                                       rows="2"
+                                       placeholder="Lagebeschreibung, Anfahrt, sonstige Hinweise…" />
+                    </div>
+                </div>
+            </section>
+
+            <!-- FÜHRUNG + START -->
+            <aside class="es-block es-block-fuehrung">
+                <header class="es-section-header">
+                    <i class="bi bi-people"></i>
+                    <span>Führung</span>
+                </header>
+
+                <div class="es-field">
+                    <label class="es-label">Einsatzleiter</label>
+                    <div class="es-input-group">
+                        <select class="es-input es-input-select" @onchange="e => SetEinsatzleiter(e.Value?.ToString())">
+                            <option value="">— aus Stammdaten —</option>
+                            @foreach (var p in EinsatzleiterOptions)
+                            {
+                                <option value="@p.Id">@p.FullName</option>
+                            }
+                        </select>
+                        <InputText class="es-input es-input-text" @bind-Value="_model.Einsatzleiter" placeholder="oder Freitext" />
+                    </div>
+                </div>
+
+                <div class="es-field">
+                    <label class="es-label">Führungsassistent</label>
+                    <div class="es-input-group">
+                        <select class="es-input es-input-select" @onchange="e => SetFuehrungsassistent(e.Value?.ToString())">
+                            <option value="">— aus Stammdaten —</option>
+                            @foreach (var p in FuehrungsassistentOptions)
+                            {
+                                <option value="@p.Id">@p.FullName</option>
+                            }
+                        </select>
+                        <InputText class="es-input es-input-text" @bind-Value="_model.Fuehrungsassistent" placeholder="oder Freitext" />
+                    </div>
+                </div>
+
+                <div class="es-field es-staffel">
+                    <label class="es-label">Staffel</label>
+                    <InputText class="es-input es-input-staffel" @bind-Value="_model.StaffelName" placeholder="Staffel-Name" />
+                </div>
+
+                <div class="es-cta">
+                    @if (!string.IsNullOrWhiteSpace(_status) && _error)
+                    {
+                        <div class="es-cta-error" role="alert">
+                            <i class="bi bi-exclamation-circle"></i> @_status
+                        </div>
+                    }
+                    <button class="es-start-btn" type="submit" disabled="@_busy">
+                        @if (_busy)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-play-fill"></i>
+                        }
+                        Einsatz starten
+                    </button>
+                    <a class="es-cancel-link" href="/">Abbrechen</a>
+                </div>
+            </aside>
         </div>
+
+        @if (!string.IsNullOrWhiteSpace(_status) && !_error)
+        {
+            <div class="es-success-toast" role="status">
+                <i class="bi bi-check-circle me-1"></i>@_status
+            </div>
+        }
 
     </EditForm>
 
-    @if (DiveraService.IsConfigured)
+    <!-- DIVERA FOOTER-STRIP -->
+    @if (DiveraService.IsConfigured && _diveraAlarms.Any() && !_diveraDrawerOpen)
     {
-        <div class="col-12 mt-3">
-            <div class="card start-section-card">
-                <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-broadcast-pin me-2"></i>Aus Divera 24/7 importieren</span>
-                    @if (_diveraAlarms.Any())
-                    {
-                        <span class="badge bg-danger">@_diveraAlarms.Count aktiv</span>
-                    }
-                </div>
-                <div class="card-body">
-                    @if (_diveraLoading)
-                    {
-                        <div class="text-center py-3">
-                            <span class="spinner-border spinner-border-sm me-2"></span>Lade Divera-Alarme...
-                        </div>
-                    }
-                    else if (_diveraAlarms.Any())
-                    {
-                        <p class="text-muted small mb-2">Alarm anklicken, um die Felder automatisch zu befüllen:</p>
-                        <div class="list-group">
-                            @foreach (var alarm in _diveraAlarms)
-                            {
-                                <button class="list-group-item list-group-item-action"
-                                        type="button"
-                                        @onclick="() => ImportFromDivera(alarm)">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex align-items-center gap-2 mb-1">
-                                                @if (alarm.Priority)
-                                                {
-                                                    <span class="badge bg-danger"><i class="bi bi-exclamation-circle"></i> PRIO</span>
-                                                }
-                                                <strong>@alarm.Title</strong>
-                                            </div>
-                                            @if (!string.IsNullOrWhiteSpace(alarm.Text))
-                                            {
-                                                <div class="small mb-1">@alarm.Text</div>
-                                            }
-                                            <div class="d-flex flex-wrap gap-2 small text-muted">
-                                                @if (!string.IsNullOrWhiteSpace(alarm.Address))
-                                                {
-                                                    <span><i class="bi bi-geo-alt me-1"></i>@alarm.Address</span>
-                                                }
-                                                <span><i class="bi bi-clock me-1"></i>@alarm.DateFormatted</span>
-                                                @if (alarm.Lat.HasValue && alarm.Lng.HasValue)
-                                                {
-                                                    <span class="text-success"><i class="bi bi-crosshair me-1"></i>GPS vorhanden</span>
-                                                }
-                                            </div>
-                                        </div>
-                                        <div class="text-end ms-3 flex-shrink-0">
-                                            <span class="badge bg-secondary d-block mb-1">@alarm.CountKomme geantwortet</span>
-                                            @if (alarm.Count30Min > 0)
-                                            {
-                                                <span class="badge bg-success d-block mb-1">@alarm.Count30Min 30 Min</span>
-                                            }
-                                            @if (alarm.Count1Std > 0)
-                                            {
-                                                <span class="badge bg-warning text-dark d-block mb-1">@alarm.Count1Std 1 Std</span>
-                                            }
-                                            @if (alarm.CountNichtEinsatzbereit > 0)
-                                            {
-                                                <span class="badge bg-danger d-block">@alarm.CountNichtEinsatzbereit nicht einsatzbereit</span>
-                                            }
-                                        </div>
-                                    </div>
-                                </button>
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <p class="text-muted mb-2"><i class="bi bi-check-circle me-1"></i>Keine aktiven Alarme in Divera.</p>
-                    }
-                    <button class="btn btn-outline-primary btn-sm mt-2" @onclick="LoadDiveraAlarmsAsync" disabled="@_diveraLoading">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Alarme aktualisieren
-                    </button>
-                </div>
+        <button type="button" class="es-divera-strip" @onclick="ToggleDiveraDrawer">
+            <i class="bi bi-broadcast-pin"></i>
+            <strong>@_diveraAlarms.Count Divera-Alarm@(_diveraAlarms.Count > 1 ? "e" : "")</strong>
+            <span class="es-divera-strip-hint">verfügbar — anklicken zum Übernehmen</span>
+            <i class="bi bi-chevron-up es-divera-strip-arrow"></i>
+        </button>
+    }
+
+    <!-- DIVERA SIDE-SHEET -->
+    @if (_diveraDrawerOpen)
+    {
+        <div class="es-drawer-backdrop" @onclick="ToggleDiveraDrawer"></div>
+        <aside class="es-drawer" aria-label="Divera-Alarme">
+            <header class="es-drawer-header">
+                <i class="bi bi-broadcast-pin"></i>
+                <strong>Divera 24/7 — aktive Alarme</strong>
+                <button type="button" class="es-drawer-close" @onclick="ToggleDiveraDrawer" aria-label="Schließen">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </header>
+            <div class="es-drawer-body">
+                @if (_diveraLoading)
+                {
+                    <div class="text-center py-3">
+                        <span class="spinner-border spinner-border-sm me-2"></span>Lade Alarme…
+                    </div>
+                }
+                else if (_diveraAlarms.Any())
+                {
+                    <p class="text-muted small mb-2">Alarm anklicken, um die Felder automatisch zu befüllen:</p>
+                    <div class="es-drawer-list">
+                        @foreach (var alarm in _diveraAlarms)
+                        {
+                            <button class="es-drawer-item" type="button" @onclick="() => ImportFromDivera(alarm)">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    @if (alarm.Priority)
+                                    {
+                                        <span class="badge bg-danger"><i class="bi bi-exclamation-circle"></i> PRIO</span>
+                                    }
+                                    <strong>@alarm.Title</strong>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(alarm.Text))
+                                {
+                                    <div class="small mb-1 text-muted">@alarm.Text</div>
+                                }
+                                <div class="d-flex flex-wrap gap-2 small text-muted">
+                                    @if (!string.IsNullOrWhiteSpace(alarm.Address))
+                                    {
+                                        <span><i class="bi bi-geo-alt me-1"></i>@alarm.Address</span>
+                                    }
+                                    <span><i class="bi bi-clock me-1"></i>@alarm.DateFormatted</span>
+                                    @if (alarm.Lat.HasValue && alarm.Lng.HasValue)
+                                    {
+                                        <span class="text-success"><i class="bi bi-crosshair me-1"></i>GPS</span>
+                                    }
+                                </div>
+                                <div class="d-flex flex-wrap gap-1 mt-2">
+                                    <span class="badge bg-secondary">@alarm.CountKomme geantwortet</span>
+                                    @if (alarm.Count30Min > 0)
+                                    {
+                                        <span class="badge bg-success">@alarm.Count30Min · 30 Min</span>
+                                    }
+                                    @if (alarm.Count1Std > 0)
+                                    {
+                                        <span class="badge bg-warning text-dark">@alarm.Count1Std · 1 Std</span>
+                                    }
+                                    @if (alarm.CountNichtEinsatzbereit > 0)
+                                    {
+                                        <span class="badge bg-danger">@alarm.CountNichtEinsatzbereit · n.e.</span>
+                                    }
+                                </div>
+                            </button>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted mb-2"><i class="bi bi-check-circle me-1"></i>Keine aktiven Alarme.</p>
+                }
             </div>
-        </div>
+            <footer class="es-drawer-footer">
+                <button class="btn btn-outline-primary btn-sm" @onclick="LoadDiveraAlarmsAsync" disabled="@_diveraLoading">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Aktualisieren
+                </button>
+            </footer>
+        </aside>
     }
 
-    @if (!string.IsNullOrWhiteSpace(_status))
-    {
-        <div class="alert @(_error ? "alert-danger" : "alert-success") mt-3" role="alert">
-            @_status
-        </div>
-    }
-    } @* end else *@
+    } @* end else (not _einsatzBereitsAktiv) *@
 </div>
-

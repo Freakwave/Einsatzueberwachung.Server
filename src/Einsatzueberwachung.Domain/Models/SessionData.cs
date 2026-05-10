@@ -100,6 +100,9 @@ namespace Einsatzueberwachung.Domain.Models
         /// <summary>Poll-Intervall wenn ein Alarm aktiv ist (Standard: 60 = 1 Minute)</summary>
         public int DiveraPollIntervalActiveSeconds { get; set; }
 
+        /// <summary>Zeitpunkt des letzten Daten-Backups (ZIP-Download). Null = noch nie.</summary>
+        public DateTime? LastBackupAt { get; set; }
+
         public AppSettings()
         {
             Theme = "Light";

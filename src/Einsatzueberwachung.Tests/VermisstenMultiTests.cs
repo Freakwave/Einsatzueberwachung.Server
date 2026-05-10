@@ -42,11 +42,23 @@ public class VermisstenMultiTests
     public async Task Upsert_addsSecondPerson_inFlaecheScenario()
     {
         var svc = new EinsatzService();
+        await svc.UpdateSzenarioAsync(EinsatzSzenarioType.Flaeche);
         await svc.UpsertVermisstenAsync(new VermisstenInfo { Vorname = "P1" });
         await svc.UpsertVermisstenAsync(new VermisstenInfo { Vorname = "P2" });
 
         Assert.Equal(2, svc.CurrentEinsatz.Vermisste.Count);
         Assert.Equal(new[] { "P1", "P2" }, svc.CurrentEinsatz.Vermisste.Select(v => v.Vorname));
+    }
+
+    [Fact]
+    public async Task Upsert_secondPerson_inMantrailerScenario_throws()
+    {
+        var svc = new EinsatzService();
+        await svc.UpdateSzenarioAsync(EinsatzSzenarioType.Mantrailer);
+        await svc.UpsertVermisstenAsync(new VermisstenInfo { Vorname = "P1" });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            svc.UpsertVermisstenAsync(new VermisstenInfo { Vorname = "P2" }));
     }
 
     [Fact]

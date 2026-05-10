@@ -23,6 +23,7 @@ namespace Einsatzueberwachung.Domain.Services
             }
 
             _globalNotes.Add(note);
+            _currentEinsatz.GlobalNotesEntries.Add(note);
             NoteAdded?.Invoke(note);
             return Task.CompletedTask;
         }
@@ -37,6 +38,14 @@ namespace Einsatzueberwachung.Domain.Services
                 .OrderByDescending(n => n.Timestamp)
                 .ToList();
             return Task.FromResult(filtered);
+        }
+
+        public Task ImportGlobalNoteAsync(GlobalNotesEntry note)
+        {
+            _globalNotes.Add(note);
+            _currentEinsatz.GlobalNotesEntries.Add(note);
+            NoteAdded?.Invoke(note);
+            return Task.CompletedTask;
         }
 
         public Task RemoveGlobalNoteAsync(string noteId)
@@ -186,8 +195,18 @@ namespace Einsatzueberwachung.Domain.Services
             if (info.Id == Guid.Empty)
                 info.Id = Guid.NewGuid();
 
-            info.ZuletztAktualisiert = _timeService?.Now ?? DateTime.Now;
             _currentEinsatz.Vermisste ??= new List<VermisstenInfo>();
+
+            var isUpdate = _currentEinsatz.Vermisste.Any(v => v.Id == info.Id);
+            if (!isUpdate
+                && _currentEinsatz.Vermisste.Count > 0
+                && !_currentEinsatz.Szenario.AllowsMultipleVermisste())
+            {
+                throw new InvalidOperationException(
+                    $"Im Szenario '{_currentEinsatz.Szenario.GetDisplayName()}' ist nur eine vermisste Person zulässig.");
+            }
+
+            info.ZuletztAktualisiert = _timeService?.Now ?? DateTime.Now;
 
             // Beim ersten Anlegen ohne Checkliste das Default-Template für das aktuelle Szenario anhängen.
             if (info.Checkliste is null

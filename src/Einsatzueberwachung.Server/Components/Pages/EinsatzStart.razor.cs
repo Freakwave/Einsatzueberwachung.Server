@@ -40,6 +40,10 @@ public partial class EinsatzStart
     private bool _busy;
     private bool _einsatzBereitsAktiv;
     private bool _szenarioMissing;
+    private bool _einsatzortMissing;
+    private bool _mapAddressUserDirty;
+    private bool _diveraDrawerOpen;
+    private bool _trainerDetailsOpen;
     private TrainingStartPreset? _trainerStartPreset;
 
     private List<DiveraAlarm> _diveraAlarms = new();
@@ -139,6 +143,42 @@ public partial class EinsatzStart
         }
     }
 
+    private void SelectSzenario(EinsatzSzenarioType szenario)
+    {
+        _model.Szenario = szenario;
+        if (_szenarioMissing && szenario != EinsatzSzenarioType.Unbestimmt)
+            _szenarioMissing = false;
+    }
+
+    private void OnEinsatzortInput(ChangeEventArgs e)
+    {
+        var newValue = e.Value?.ToString() ?? string.Empty;
+        _model.Einsatzort = newValue;
+
+        if (_einsatzortMissing && !string.IsNullOrWhiteSpace(newValue))
+            _einsatzortMissing = false;
+
+        // Auto-Sync nach Karten-Adresse, solange der User dort nicht selbst editiert hat.
+        if (!_mapAddressUserDirty)
+            _model.MapAddress = newValue;
+
+        // Wenn beide Felder leer werden, gilt der User-Edit als zurückgenommen.
+        if (string.IsNullOrWhiteSpace(newValue) && string.IsNullOrWhiteSpace(_model.MapAddress))
+            _mapAddressUserDirty = false;
+    }
+
+    private void OnMapAddressInput(ChangeEventArgs e)
+    {
+        var newValue = e.Value?.ToString() ?? string.Empty;
+        _model.MapAddress = newValue;
+        _mapAddressUserDirty = true;
+
+        // Wenn der User die Karten-Adresse aktiv leert UND der Einsatzort auch leer ist,
+        // hebt sich der Dirty-Status wieder auf.
+        if (string.IsNullOrWhiteSpace(newValue) && string.IsNullOrWhiteSpace(_model.Einsatzort))
+            _mapAddressUserDirty = false;
+    }
+
     private void SetEinsatzleiter(string? id)
     {
         if (string.IsNullOrWhiteSpace(id)) return;
@@ -159,10 +199,12 @@ public partial class EinsatzStart
 
         if (string.IsNullOrWhiteSpace(_model.Einsatzort))
         {
+            _einsatzortMissing = true;
             _status = "Bitte Einsatzort ausfüllen.";
             _error = true;
             return;
         }
+        _einsatzortMissing = false;
 
         if (_model.Szenario == EinsatzSzenarioType.Unbestimmt)
         {
@@ -260,11 +302,14 @@ public partial class EinsatzStart
                 System.Globalization.CultureInfo.InvariantCulture,
                 "{0:F6},{1:F6}", alarm.Lat.Value, alarm.Lng.Value);
             _model.ElwPosition = (alarm.Lat.Value, alarm.Lng.Value);
+            // GPS-Koordinaten sollen nicht durch späteren Auto-Sync vom Einsatzort überschrieben werden.
+            _mapAddressUserDirty = true;
         }
         else
         {
             _model.MapAddress = alarm.Address;
         }
+        _diveraDrawerOpen = false;
 
         _model.Stichwort = alarm.Title;
         _model.Alarmiert = alarm.Caller;
@@ -293,6 +338,10 @@ public partial class EinsatzStart
 
         StateHasChanged();
     }
+
+    private void ToggleDiveraDrawer() => _diveraDrawerOpen = !_diveraDrawerOpen;
+
+    private void ToggleTrainerDetails() => _trainerDetailsOpen = !_trainerDetailsOpen;
 
     private void ApplyTrainerPreset()
     {

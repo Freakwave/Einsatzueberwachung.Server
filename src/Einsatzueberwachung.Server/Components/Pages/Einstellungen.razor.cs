@@ -58,6 +58,68 @@ public partial class Einstellungen
     private string _diveraTestStatus = string.Empty;
     private bool _diveraTestError;
 
+    // Aktenregister-State
+    [SupplyParameterFromQuery(Name = "tab")] private string? TabFromQuery { get; set; }
+    private SettingsTab _activeTab = SettingsTab.Staffel;
+    private bool _showSavedToast;
+
+    private enum SettingsTab
+    {
+        Staffel,
+        Einsatzbetrieb,
+        Erscheinungsbild,
+        Integration,
+        System,
+        Wartung
+    }
+
+    // ── Status-Badge-Helpers ───────────────────────────────────────────
+
+    private bool StaffelComplete =>
+        !string.IsNullOrWhiteSpace(_staffelSettings.StaffelName)
+        && !string.IsNullOrWhiteSpace(_staffelSettings.StaffelAdresse)
+        && !string.IsNullOrWhiteSpace(_staffelSettings.StaffelTelefon)
+        && !string.IsNullOrWhiteSpace(_staffelSettings.StaffelEmail);
+
+    private int IntegrationActiveCount =>
+        (_appSettings.DiveraEnabled && !string.IsNullOrWhiteSpace(_appSettings.DiveraAccessKey) ? 1 : 0)
+        + 1; // GPS-Livetracking immer "verfügbar" (Download-Link), zählt als 1
+
+    private bool UpdateAvailable => _updateStatus.UpdateAvailable;
+
+    private int? BackupAgeDays
+    {
+        get
+        {
+            if (_appSettings.LastBackupAt is null) return null;
+            return (int)Math.Floor((TimeService.Now - _appSettings.LastBackupAt.Value).TotalDays);
+        }
+    }
+
+    private string BackupAgeLabel
+    {
+        get
+        {
+            var d = BackupAgeDays;
+            if (d is null) return "nie";
+            if (d == 0) return "heute";
+            if (d == 1) return "gestern";
+            return $"vor {d}T";
+        }
+    }
+
+    private string BackupAgeSeverity
+    {
+        get
+        {
+            var d = BackupAgeDays;
+            if (d is null) return "danger";
+            if (d <= 7) return "ok";
+            if (d <= 30) return "warning";
+            return "danger";
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _staffelSettings = await SettingsService.GetStaffelSettingsAsync();
@@ -70,6 +132,33 @@ public partial class Einstellungen
         _reportDirectory = AppPathResolver.GetReportDirectory();
         _mobileUrl = new Uri(new Uri(Navigation.BaseUri), "mobile/").ToString();
         _updateStatus = UpdateService.GetStatusSnapshot();
+
+        ApplyTabFromQuery();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ApplyTabFromQuery();
+    }
+
+    private void ApplyTabFromQuery()
+    {
+        if (string.IsNullOrWhiteSpace(TabFromQuery)) return;
+        if (Enum.TryParse<SettingsTab>(TabFromQuery, ignoreCase: true, out var parsed))
+            _activeTab = parsed;
+    }
+
+    private void SetActiveTab(SettingsTab tab)
+    {
+        _activeTab = tab;
+        var url = Navigation.GetUriWithQueryParameter("tab", tab.ToString().ToLowerInvariant());
+        Navigation.NavigateTo(url, forceLoad: false, replace: true);
+    }
+
+    private async Task MarkBackupCreatedAsync()
+    {
+        _appSettings.LastBackupAt = TimeService.Now;
+        await SettingsService.SaveAppSettingsAsync(_appSettings);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -187,8 +276,17 @@ public partial class Einstellungen
         }
 
         _status = "Einstellungen gespeichert.";
+        _showSavedToast = true;
         SetLogoStatus(string.Empty, false);
         SetPdfLogoStatus(string.Empty, false);
+        _ = HideToastAfterDelayAsync();
+    }
+
+    private async Task HideToastAfterDelayAsync()
+    {
+        await Task.Delay(2400);
+        _showSavedToast = false;
+        await InvokeAsync(StateHasChanged);
     }
 
     private void OpenTrainerDashboardAsync()

@@ -68,6 +68,13 @@ namespace Einsatzueberwachung.Domain.Interfaces
         Task AssignTeamToSearchAreaAsync(string areaId, string teamId);
 
         /// <summary>
+        /// Übernimmt einen bestehenden Notiz-Eintrag unverändert (Id/Timestamp/Source bleiben),
+        /// pflegt beide internen Listen und feuert das <see cref="NoteAdded"/>-Event.
+        /// Verwendung: Merge-Import.
+        /// </summary>
+        Task ImportGlobalNoteAsync(GlobalNotesEntry note);
+
+        /// <summary>
         /// Entfernt eine Notiz anhand ihrer ID (für administrative Revert-Operationen).
         /// </summary>
         Task RemoveGlobalNoteAsync(string noteId);

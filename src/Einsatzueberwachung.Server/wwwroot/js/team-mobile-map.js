@@ -17,22 +17,22 @@ window.teamMobileMap = (function () {
         if (opts && opts.humanIcon)  _humanIcon  = opts.humanIcon;
     }
 
-    function _getCollarContent() {
+    function _getCollarIconClass() {
         switch (_collarIcon) {
-            case 'dog':  return '🐕';
-            case 'bone': return '🦴';
-            case 'dot':  return '<span style="width:10px;height:10px;background:#fff;border-radius:50%;display:block;"></span>';
-            default:     return '🐾';
+            case 'dog':  return 'bi-geo-alt-fill';
+            case 'bone': return 'bi-tag-fill';
+            case 'dot':  return 'bi-circle-fill';
+            default:     return 'bi-paw-fill'; // paw
         }
     }
 
-    function _getHumanContent() {
+    function _getHumanIconClass() {
         switch (_humanIcon) {
-            case 'person':         return '<i class="bi bi-person-fill"></i>';
-            case 'person_walking': return '<i class="bi bi-person-walking"></i>';
-            case 'radio':          return '<i class="bi bi-broadcast"></i>';
-            case 'dot':            return '<span style="width:10px;height:10px;background:#fff;border-radius:50%;display:block;"></span>';
-            default:               return '<i class="bi bi-phone-fill"></i>';
+            case 'person':         return 'bi-person-fill';
+            case 'person_walking': return 'bi-person-walking';
+            case 'radio':          return 'bi-broadcast';
+            case 'dot':            return 'bi-circle-fill';
+            default:               return 'bi-phone-fill';
         }
     }
 
@@ -72,9 +72,9 @@ window.teamMobileMap = (function () {
         if (!dogMarker) {
             const icon = L.divIcon({
                 className: 'team-mobile-dog-marker',
-                html: `<div style="background:#dc3545;border:2px solid #fff;border-radius:50%;width:30px;height:30px;box-shadow:0 0 4px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;line-height:1;">${_getCollarContent()}</div>`,
-                iconSize: [30, 30],
-                iconAnchor: [15, 15]
+                html: `<i class="bi ${_getCollarIconClass()}" style="font-size:26px;color:#dc3545;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;"></i>`,
+                iconSize: [26, 26],
+                iconAnchor: [13, 13]
             });
             dogMarker = L.marker(pos, { icon }).addTo(map);
             if (dogName) dogMarker.bindTooltip(dogName, { permanent: false });
@@ -109,9 +109,9 @@ window.teamMobileMap = (function () {
         if (!userMarker) {
             const icon = L.divIcon({
                 className: 'team-mobile-user-marker',
-                html: `<div style="background:#0d6efd;border:2px solid #fff;border-radius:50%;width:28px;height:28px;box-shadow:0 0 4px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;line-height:1;">${_getHumanContent()}</div>`,
-                iconSize: [28, 28],
-                iconAnchor: [14, 14]
+                html: `<i class="bi ${_getHumanIconClass()}" style="font-size:24px;color:#0d6efd;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;"></i>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
             });
             userMarker = L.marker(pos, { icon }).addTo(map);
         } else {
@@ -242,6 +242,7 @@ window.teamMobileMap = (function () {
             if (ref) ref.invokeMethodAsync('OnUserLocationError', 2).catch(() => {});
             return;
         }
+        // ref lokal halten, damit Callbacks nicht vom globalen dotNetRef abhängen
         dotNetRef = ref;
         // Bestehenden Watch stoppen, damit ein neuer Dialog ausgelöst werden kann
         if (watchId !== null) {
@@ -254,16 +255,16 @@ window.teamMobileMap = (function () {
                 const lng = pos.coords.longitude;
                 setUserPosition(lat, lng);
                 appendUserTrackPoint(lat, lng);
-                if (dotNetRef) {
-                    dotNetRef.invokeMethodAsync('OnUserLocation', lat, lng).catch(() => {});
+                if (ref) {
+                    ref.invokeMethodAsync('OnUserLocation', lat, lng).catch(() => {});
                 }
                 // Kontinuierliches Tracking neu starten
-                startWatchingUser(dotNetRef);
+                startWatchingUser(ref);
             },
             err => {
                 console.warn('Geolocation permission request failed', err);
-                if (dotNetRef) {
-                    dotNetRef.invokeMethodAsync('OnUserLocationError', err.code).catch(() => {});
+                if (ref) {
+                    ref.invokeMethodAsync('OnUserLocationError', err.code).catch(() => {});
                 }
             },
             { enableHighAccuracy: true, timeout: 15000 }

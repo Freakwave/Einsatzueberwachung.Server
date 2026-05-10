@@ -411,7 +411,12 @@ else
             _selfRef ??= DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("teamMobileMap.requestGeolocationPermission", _selfRef);
         }
-        catch { /* tolerant — _requestingGps wird in OnUserLocation/OnUserLocationError zurückgesetzt */ }
+        catch
+        {
+            // JS-Aufruf fehlgeschlagen — Zustand zurücksetzen damit die UI nicht eingefroren bleibt
+            _requestingGps = false;
+            StateHasChanged();
+        }
     }
 
     private static double HaversineKm(double lat1, double lng1, double lat2, double lng2)

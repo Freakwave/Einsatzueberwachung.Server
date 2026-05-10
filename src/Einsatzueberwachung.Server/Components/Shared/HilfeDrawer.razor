@@ -1,0 +1,74 @@
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@if (IsOpen)
+{
+    <div class="offcanvas-backdrop fade show" @onclick="OnClose"></div>
+}
+
+<div class="offcanvas offcanvas-end hilfe-drawer @(IsOpen ? "show" : "")" tabindex="-1" id="hilfeDrawer" aria-labelledby="hilfeDrawerLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="hilfeDrawerLabel">
+            <i class="bi bi-question-circle me-2"></i>Hilfe
+        </h5>
+        <button type="button" class="btn-close" @onclick="OnClose" aria-label="Schließen"></button>
+    </div>
+    <div class="offcanvas-body" id="hilfeDrawerBody">
+        @foreach (var (route, entry) in HilfeContent.Eintraege)
+        {
+            var anchorId = "hilfe-" + route.TrimStart('/').Replace("/", "-");
+            if (string.IsNullOrEmpty(anchorId) || anchorId == "hilfe-")
+                anchorId = "hilfe-home";
+
+            <div class="hilfe-section" id="@anchorId">
+                <h6 class="hilfe-section-title">@entry.Titel</h6>
+                <p class="hilfe-section-desc">@entry.Beschreibung</p>
+                @if (entry.Klickpfade.Length > 0)
+                {
+                    <div class="hilfe-klickpfade">
+                        <span class="hilfe-klickpfade-label">Klickpfad</span>
+                        <ol class="hilfe-klickpfade-list">
+                            @foreach (var pfad in entry.Klickpfade)
+                            {
+                                <li>@pfad</li>
+                            }
+                        </ol>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen)
+        {
+            await ScrollToCurrentPageAsync();
+        }
+    }
+
+    private async Task ScrollToCurrentPageAsync()
+    {
+        var path = new Uri(Nav.Uri).AbsolutePath.TrimEnd('/');
+        if (string.IsNullOrEmpty(path))
+            path = "/";
+
+        var anchorId = path == "/"
+            ? "hilfe-home"
+            : "hilfe-" + path.TrimStart('/').Replace("/", "-");
+
+        try
+        {
+            await JS.InvokeVoidAsync("hilfeDrawer.scrollToSection", anchorId);
+        }
+        catch
+        {
+            // Ignore JS errors during navigation/disconnect.
+        }
+    }
+}

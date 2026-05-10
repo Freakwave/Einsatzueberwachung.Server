@@ -64,6 +64,13 @@
                         @onclick="ToggleFullscreenAsync">
                     <i class="bi bi-arrows-fullscreen"></i>
                 </button>
+
+                <button class="btn btn-sm btn-outline-secondary"
+                        type="button"
+                        title="Hilfe anzeigen"
+                        @onclick="() => _hilfeOpen = true">
+                    <i class="bi bi-question-circle"></i>
+                </button>
             </div>
         </div>
 
@@ -133,3 +140,5 @@
 </div>
 
 <WarnToast />
+
+<HilfeDrawer IsOpen="_hilfeOpen" OnClose="() => _hilfeOpen = false" />

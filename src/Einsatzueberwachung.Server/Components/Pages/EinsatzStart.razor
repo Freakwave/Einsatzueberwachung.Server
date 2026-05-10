@@ -161,7 +161,8 @@
                                    type="number" min="1" max="50"
                                    value="@_model.AnzahlTeams"
                                    @onchange="e => _model.AnzahlTeams = Math.Clamp(
-                                       int.TryParse(e.Value?.ToString(), out var v) ? v : 1, 1, 50)" />
+                                       int.TryParse(e.Value?.ToString(), out var v) ? v : 1, 1, 50)"
+                                   @onkeydown:preventDefault="true" />
                             <button type="button" class="es-stepper-btn"
                                     @onclick="() => _model.AnzahlTeams = Math.Min(50, _model.AnzahlTeams + 1)"
                                     disabled="@(_model.AnzahlTeams >= 50)"

@@ -892,16 +892,20 @@ public partial class Einstellungen
         }
     }
 
-    private void ResetShortcut(string field) => SetShortcut(field, field switch
+    private void ResetShortcut(string field)
     {
-        "NavHome"     => "ctrl+h",
-        "NavKarte"    => "ctrl+m",
-        "NavMonitor"  => "ctrl+n",
-        "NavStart"    => "ctrl+t",
-        "StepperUp"   => "arrowup",
-        "StepperDown" => "arrowdown",
-        _ => string.Empty
-    });
+        var defaults = new KeyboardShortcutPreferences();
+        SetShortcut(field, field switch
+        {
+            "NavHome"     => defaults.NavHome,
+            "NavKarte"    => defaults.NavKarte,
+            "NavMonitor"  => defaults.NavMonitor,
+            "NavStart"    => defaults.NavStart,
+            "StepperUp"   => defaults.StepperUp,
+            "StepperDown" => defaults.StepperDown,
+            _ => string.Empty
+        });
+    }
 
     private void ResetAllShortcuts()
     {

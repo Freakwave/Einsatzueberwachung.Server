@@ -466,7 +466,7 @@
                                    @onfocus='() => StartRecording("NavHome")'
                                    @onblur="StopRecording"
                                    @onkeydown='e => RecordKey(e, "NavHome")'
-                                   @onkeydown:preventDefault="true" />
+                                   @onkeydown:stopPropagation="true" />
                             <button type="button" class="btn btn-sm btn-outline-secondary"
                                     title="Auf Standard zurücksetzen"
                                     @onclick='() => { ResetShortcut("NavHome"); _ = SaveShortcutsAsync(); }'>
@@ -489,7 +489,7 @@
                                    @onfocus='() => StartRecording("NavKarte")'
                                    @onblur="StopRecording"
                                    @onkeydown='e => RecordKey(e, "NavKarte")'
-                                   @onkeydown:preventDefault="true" />
+                                   @onkeydown:stopPropagation="true" />
                             <button type="button" class="btn btn-sm btn-outline-secondary"
                                     title="Auf Standard zurücksetzen"
                                     @onclick='() => { ResetShortcut("NavKarte"); _ = SaveShortcutsAsync(); }'>
@@ -512,7 +512,7 @@
                                    @onfocus='() => StartRecording("NavMonitor")'
                                    @onblur="StopRecording"
                                    @onkeydown='e => RecordKey(e, "NavMonitor")'
-                                   @onkeydown:preventDefault="true" />
+                                   @onkeydown:stopPropagation="true" />
                             <button type="button" class="btn btn-sm btn-outline-secondary"
                                     title="Auf Standard zurücksetzen"
                                     @onclick='() => { ResetShortcut("NavMonitor"); _ = SaveShortcutsAsync(); }'>
@@ -535,7 +535,7 @@
                                    @onfocus='() => StartRecording("NavStart")'
                                    @onblur="StopRecording"
                                    @onkeydown='e => RecordKey(e, "NavStart")'
-                                   @onkeydown:preventDefault="true" />
+                                   @onkeydown:stopPropagation="true" />
                             <button type="button" class="btn btn-sm btn-outline-secondary"
                                     title="Auf Standard zurücksetzen"
                                     @onclick='() => { ResetShortcut("NavStart"); _ = SaveShortcutsAsync(); }'>
@@ -562,7 +562,7 @@
                                    @onfocus='() => StartRecording("StepperUp")'
                                    @onblur="StopRecording"
                                    @onkeydown='e => RecordKey(e, "StepperUp")'
-                                   @onkeydown:preventDefault="true" />
+                                   @onkeydown:stopPropagation="true" />
                             <button type="button" class="btn btn-sm btn-outline-secondary"
                                     title="Auf Standard zurücksetzen"
                                     @onclick='() => { ResetShortcut("StepperUp"); _ = SaveShortcutsAsync(); }'>
@@ -585,7 +585,7 @@
                                    @onfocus='() => StartRecording("StepperDown")'
                                    @onblur="StopRecording"
                                    @onkeydown='e => RecordKey(e, "StepperDown")'
-                                   @onkeydown:preventDefault="true" />
+                                   @onkeydown:stopPropagation="true" />
                             <button type="button" class="btn btn-sm btn-outline-secondary"
                                     title="Auf Standard zurücksetzen"
                                     @onclick='() => { ResetShortcut("StepperDown"); _ = SaveShortcutsAsync(); }'>

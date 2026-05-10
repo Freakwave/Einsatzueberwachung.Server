@@ -84,6 +84,7 @@ public partial class Stammdaten
         _personal = await MasterDataService.GetPersonalListAsync();
         _dogs = await MasterDataService.GetDogListAsync();
         _drones = await MasterDataService.GetDroneListAsync();
+        await RefreshChecklistTemplatesAsync();
 
         _personalCount = _personal.Count;
         _dogCount = _dogs.Count;

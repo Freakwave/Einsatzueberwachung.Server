@@ -22,6 +22,14 @@ namespace Einsatzueberwachung.Domain.Interfaces
         event Action<GlobalNotesEntry>? NoteAdded;
         event Action<Team, bool>? TeamWarningTriggered;
         event Action? VermisstenInfoChanged;
+        event Action<VermisstenInfo>? VermisstenAdded;
+        event Action<VermisstenInfo>? VermisstenUpdated;
+        event Action<Guid>? VermisstenRemoved;
+        event Action? SzenarioChanged;
+        event Action<TruemmerKarte>? TruemmerKarteAdded;
+        event Action<Guid>? TruemmerKarteRemoved;
+        event Action<TruemmerArea>? TruemmerAreaUpserted;
+        event Action<Guid>? TruemmerAreaRemoved;
         event Action? ElNotizAdded;
         event Action<string, string, TeamPhoneLocation>? TeamPhoneLocationChanged;
         event Action<Team>? DogPauseStarted;
@@ -108,6 +116,14 @@ namespace Einsatzueberwachung.Domain.Interfaces
         event Action<CompletedSearch>? CompletedSearchUpdated;
 
         Task UpdateVermisstenInfoAsync(VermisstenInfo info);
+        Task UpsertVermisstenAsync(VermisstenInfo info);
+        Task RemoveVermisstenAsync(Guid id);
+        Task UpdateSzenarioAsync(Models.Enums.EinsatzSzenarioType szenario);
+
+        Task AddTruemmerKarteAsync(TruemmerKarte karte);
+        Task RemoveTruemmerKarteAsync(Guid id);
+        Task UpsertTruemmerAreaAsync(TruemmerArea area);
+        Task RemoveTruemmerAreaAsync(Guid id);
         Task AddElNotizAsync(string text, string prefix = "");
         Task DeleteElNotizAsync(string notizId);
 

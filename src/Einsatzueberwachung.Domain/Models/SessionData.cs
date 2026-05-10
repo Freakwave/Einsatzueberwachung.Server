@@ -10,6 +10,7 @@ namespace Einsatzueberwachung.Domain.Models
         public List<PersonalEntry> PersonalList { get; set; }
         public List<DogEntry> DogList { get; set; }
         public List<DroneEntry> DroneList { get; set; }
+        public List<ChecklistTemplate> ChecklistTemplates { get; set; }
         public StaffelSettings StaffelSettings { get; set; }
         public AppSettings AppSettings { get; set; }
 
@@ -18,6 +19,7 @@ namespace Einsatzueberwachung.Domain.Models
             PersonalList = new List<PersonalEntry>();
             DogList = new List<DogEntry>();
             DroneList = new List<DroneEntry>();
+            ChecklistTemplates = new List<ChecklistTemplate>();
             StaffelSettings = new StaffelSettings();
             AppSettings = new AppSettings();
         }

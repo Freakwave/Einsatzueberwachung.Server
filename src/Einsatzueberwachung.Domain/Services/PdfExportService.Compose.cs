@@ -24,6 +24,8 @@ namespace Einsatzueberwachung.Domain.Services
 
                     AddTableRow(table, "Einsatznummer:", einsatzData.EinsatzNummer);
                     AddTableRow(table, "Einsatztyp:", einsatzData.EinsatzTyp);
+                    if (einsatzData.Szenario != EinsatzSzenarioType.Unbestimmt)
+                        AddTableRow(table, "Szenario:", einsatzData.Szenario.GetDisplayName());
                     AddTableRow(table, "Datum:", einsatzData.EinsatzDatum.ToString("dd.MM.yyyy HH:mm"));
 
                     if (einsatzData.AlarmierungsZeit.HasValue)
@@ -120,6 +122,104 @@ namespace Einsatzueberwachung.Domain.Services
                             c.Background(bg).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
                     }
                 });
+            });
+        }
+
+        private void ComposeVermisste(IContainer container, List<VermisstenInfo> vermisste)
+        {
+            container.Column(column =>
+            {
+                var title = vermisste.Count == 1 ? "Vermisste Person" : $"Vermisste Personen ({vermisste.Count})";
+                column.Item().Element(c => ComposeSectionHeader(c, title));
+
+                for (var i = 0; i < vermisste.Count; i++)
+                {
+                    var v = vermisste[i];
+                    var idx = i + 1;
+                    var personLabel = vermisste.Count > 1
+                        ? $"Person {idx}: {(string.IsNullOrWhiteSpace(v.VollerName) || v.VollerName == "Unbekannt" ? "ohne Name" : v.VollerName)}"
+                        : v.VollerName;
+
+                    column.Item().PaddingTop(idx == 1 ? 10 : 14)
+                        .Background("#F4F6F9").Padding(6)
+                        .Text(personLabel).Bold().FontSize(11).FontColor("#2C3E50");
+
+                    column.Item().PaddingTop(4).Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.ConstantColumn(150);
+                            columns.RelativeColumn();
+                        });
+
+                        if (!string.IsNullOrWhiteSpace(v.Alter))
+                            AddTableRow(table, "Alter:", v.Alter);
+                        if (!string.IsNullOrWhiteSpace(v.Geburtsdatum))
+                            AddTableRow(table, "Geburtsdatum:", v.Geburtsdatum);
+                        if (!string.IsNullOrWhiteSpace(v.Kleidung))
+                            AddTableRow(table, "Kleidung:", v.Kleidung);
+                        if (!string.IsNullOrWhiteSpace(v.Besonderheiten))
+                            AddTableRow(table, "Besonderheiten:", v.Besonderheiten);
+                        if (!string.IsNullOrWhiteSpace(v.ZuletztGesehenOrt))
+                            AddTableRow(table, "Zuletzt gesehen:", v.ZuletztGesehenOrt);
+                        if (!string.IsNullOrWhiteSpace(v.ZuletztGesehenZeit))
+                            AddTableRow(table, "Uhrzeit:", v.ZuletztGesehenZeit);
+                        if (!string.IsNullOrWhiteSpace(v.ZuletztGesehenVon))
+                            AddTableRow(table, "Gesehen von:", v.ZuletztGesehenVon);
+                        if (v.Orientierung != OrientierungsStatus.Unbekannt)
+                            AddTableRow(table, "Orientierung:", v.Orientierung.ToString());
+                        if (v.Mobilitaet != MobilitaetsStatus.Unbekannt)
+                            AddTableRow(table, "Mobilität:", v.Mobilitaet.ToString());
+                        if (v.Suizidrisiko == RisikoStatus.Ja)
+                            AddTableRow(table, "Suizidrisiko:", "Ja");
+                        if (v.Bewaffnet == RisikoStatus.Ja)
+                            AddTableRow(table, "Bewaffnet:", "Ja");
+                        if (!string.IsNullOrWhiteSpace(v.Vorerkrankungen))
+                            AddTableRow(table, "Vorerkrankungen:", v.Vorerkrankungen);
+                        if (!string.IsNullOrWhiteSpace(v.Medikamente))
+                            AddTableRow(table, "Medikamente:", v.Medikamente);
+                        if (!string.IsNullOrWhiteSpace(v.PolizeiKontaktName))
+                        {
+                            var polizei = v.PolizeiKontaktName;
+                            if (!string.IsNullOrWhiteSpace(v.PolizeiTelefon))
+                                polizei += $" · {v.PolizeiTelefon}";
+                            if (!string.IsNullOrWhiteSpace(v.PolizeiDienstnummer))
+                                polizei += $" (Dienstnr. {v.PolizeiDienstnummer})";
+                            AddTableRow(table, "Polizei-Kontakt:", polizei);
+                        }
+                        if (!string.IsNullOrWhiteSpace(v.BosEinheit))
+                            AddTableRow(table, "BOS-Einheit:", v.BosEinheit);
+                    });
+
+                    if (v.Checkliste is not null && v.Checkliste.Items.Count > 0)
+                    {
+                        column.Item().PaddingTop(6).Text("Checkliste").SemiBold().FontSize(10).FontColor("#2C3E50");
+                        column.Item().PaddingTop(2).Table(checkTable =>
+                        {
+                            checkTable.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(3);
+                                columns.RelativeColumn(2);
+                            });
+
+                            foreach (var item in v.Checkliste.Items)
+                            {
+                                v.Checkliste.Values.TryGetValue(item.Id.ToString(), out var raw);
+                                string display;
+                                if (item.Type == ChecklistItemType.Bool)
+                                {
+                                    display = string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase) ? "✓ ja" : "—";
+                                }
+                                else
+                                {
+                                    display = string.IsNullOrWhiteSpace(raw) ? "—" : raw!;
+                                }
+
+                                AddTableRow(checkTable, item.Label + ":", display);
+                            }
+                        });
+                    }
+                }
             });
         }
 
@@ -436,6 +536,8 @@ namespace Einsatzueberwachung.Domain.Services
 
                     AddTableRow(table, "Einsatznummer:", einsatz.EinsatzNummer);
                     AddTableRow(table, "Einsatztyp:", einsatz.EinsatzTyp);
+                    if (einsatz.Szenario != EinsatzSzenarioType.Unbestimmt)
+                        AddTableRow(table, "Szenario:", einsatz.Szenario.GetDisplayName());
                     AddTableRow(table, "Datum:", einsatz.EinsatzDatum.ToString("dd.MM.yyyy"));
 
                     if (einsatz.AlarmierungsZeit.HasValue)

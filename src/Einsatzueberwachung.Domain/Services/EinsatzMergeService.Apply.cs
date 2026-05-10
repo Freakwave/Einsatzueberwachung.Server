@@ -114,6 +114,12 @@ namespace Einsatzueberwachung.Domain.Services
                 var trackSet = new HashSet<string>(entry.AddedTrackSnapshotIds);
                 einsatzData.TrackSnapshots.RemoveAll(t => trackSet.Contains(t.Id));
 
+                foreach (var idStr in entry.AddedVermisstenIds)
+                {
+                    if (Guid.TryParse(idStr, out var vid))
+                        await _einsatzService.RemoveVermisstenAsync(vid);
+                }
+
                 foreach (var id in entry.CreatedPersonalIds)
                     await _masterDataService.DeletePersonalAsync(id);
                 foreach (var id in entry.CreatedDogIds)
@@ -146,6 +152,15 @@ namespace Einsatzueberwachung.Domain.Services
                 archived.GlobalNotesEntries.RemoveAll(n => noteSet.Contains(n.Id));
                 archived.SearchAreas.RemoveAll(a => areaSet.Contains(a.Id));
                 archived.TrackSnapshots.RemoveAll(t => trackSet.Contains(t.Id));
+
+                if (archived.Vermisste is not null)
+                {
+                    var vermisstenSet = new HashSet<Guid>(
+                        entry.AddedVermisstenIds
+                            .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty)
+                            .Where(g => g != Guid.Empty));
+                    archived.Vermisste.RemoveAll(v => vermisstenSet.Contains(v.Id));
+                }
 
                 foreach (var id in entry.CreatedPersonalIds)
                     await _masterDataService.DeletePersonalAsync(id);
@@ -235,6 +250,16 @@ namespace Einsatzueberwachung.Domain.Services
                 einsatz.TrackSnapshots.Add(track);
                 historyEntry.AddedTrackSnapshotIds.Add(track.Id);
             }
+
+            // Vermisste übernehmen — wenn Id schon existiert, überspringen (kein Diff-Merge).
+            var localVermisstenIds = new HashSet<Guid>(
+                (einsatz.Vermisste ?? new()).Select(v => v.Id));
+            foreach (var vermisst in session.Packet.Vermisste ?? new())
+            {
+                if (localVermisstenIds.Contains(vermisst.Id)) continue;
+                await _einsatzService.UpsertVermisstenAsync(vermisst);
+                historyEntry.AddedVermisstenIds.Add(vermisst.Id.ToString());
+            }
         }
 
         private async Task ApplyToArchivedEinsatzAsync(
@@ -298,6 +323,15 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 archived.TrackSnapshots.Add(track);
                 historyEntry.AddedTrackSnapshotIds.Add(track.Id);
+            }
+
+            archived.Vermisste ??= new();
+            var localArchivedVermisstenIds = new HashSet<Guid>(archived.Vermisste.Select(v => v.Id));
+            foreach (var vermisst in session.Packet.Vermisste ?? new())
+            {
+                if (localArchivedVermisstenIds.Contains(vermisst.Id)) continue;
+                archived.Vermisste.Add(vermisst);
+                historyEntry.AddedVermisstenIds.Add(vermisst.Id.ToString());
             }
 
             archived.LastMergedAt = Now;

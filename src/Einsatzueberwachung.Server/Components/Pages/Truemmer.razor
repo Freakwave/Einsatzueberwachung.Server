@@ -1,0 +1,138 @@
+@page "/truemmer"
+@rendermode InteractiveServer
+@implements IDisposable
+
+<PageTitle>Trümmer-Lagekarte</PageTitle>
+
+<div class="container-fluid py-3 truemmer-page">
+    @if (EinsatzService.CurrentEinsatz.Szenario != EinsatzSzenarioType.Truemmer)
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Diese Seite ist nur im <strong>Trümmer-Szenario</strong> verfügbar. Aktuelles Szenario:
+            <strong>@EinsatzService.CurrentEinsatz.Szenario.GetDisplayName()</strong>.
+        </div>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <div>
+                <h1 class="mb-0"><i class="bi bi-bricks me-2"></i>Trümmer-Lagekarte</h1>
+                <p class="text-muted mb-0 small">Drohnenfoto vom Trümmerfeld hochladen und Suchgebiete einzeichnen — pixel-basiert, ohne GPS.</p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <label class="btn btn-primary mb-0">
+                    <i class="bi bi-upload me-1"></i>Bild hochladen
+                    <InputFile OnChange="HandleUploadAsync" accept="image/jpeg,image/png,image/webp" hidden disabled="@_isUploading" />
+                </label>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_status))
+        {
+            <div class="alert @(_isError ? "alert-danger" : "alert-success") py-2">@_status</div>
+        }
+
+        @if (_karten.Count == 0)
+        {
+            <div class="alert alert-secondary mb-0">
+                Noch kein Bild hochgeladen. Bitte ein Drohnenfoto vom Trümmerfeld auswählen.
+            </div>
+        }
+        else
+        {
+            <div class="row g-3">
+                <div class="col-12 col-lg-3">
+                    <div class="card mb-3">
+                        <div class="card-header fw-semibold">
+                            <i class="bi bi-images me-1"></i>Karten (@_karten.Count)
+                        </div>
+                        <div class="list-group list-group-flush">
+                            @foreach (var k in _karten)
+                            {
+                                var isActive = _selectedKarteId == k.Id;
+                                <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center @(isActive ? "active" : "")"
+                                        type="button"
+                                        @onclick="() => SelectKarteAsync(k.Id)">
+                                    <span>
+                                        <strong>@(string.IsNullOrWhiteSpace(k.Title) ? "Karte" : k.Title)</strong><br />
+                                        <small class="@(isActive ? "" : "text-muted")">@k.ImageWidthPx × @k.ImageHeightPx px · @k.UploadedAt.ToString("dd.MM. HH:mm")</small>
+                                    </span>
+                                    <button class="btn btn-sm btn-outline-danger ms-2" type="button"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => DeleteKarteAsync(k.Id)" title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    @if (_selectedKarteId.HasValue)
+                    {
+                        <div class="card">
+                            <div class="card-header fw-semibold">
+                                <i class="bi bi-bounding-box me-1"></i>Suchgebiete (@SelectedAreas.Count)
+                            </div>
+                            <div class="card-body">
+                                <button class="btn btn-sm btn-outline-primary w-100 mb-2" type="button"
+                                        @onclick="StartDrawAsync" disabled="@_isDrawing">
+                                    <i class="bi bi-pencil me-1"></i>
+                                    @(_isDrawing ? "Klicke ins Bild — Doppelklick zum Schließen" : "Neues Suchgebiet zeichnen")
+                                </button>
+                                @if (_isDrawing)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary w-100 mb-2" type="button" @onclick="CancelDrawAsync">
+                                        Abbrechen
+                                    </button>
+                                }
+
+                                @if (SelectedAreas.Count == 0)
+                                {
+                                    <p class="text-muted small mb-0">Noch keine Suchgebiete eingezeichnet.</p>
+                                }
+                                else
+                                {
+                                    <ul class="list-group list-group-flush">
+                                        @foreach (var a in SelectedAreas)
+                                        {
+                                            <li class="list-group-item px-0">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div class="flex-grow-1">
+                                                        <input class="form-control form-control-sm mb-1"
+                                                               value="@a.Name"
+                                                               @onchange="e => UpdateAreaName(a, e.Value?.ToString())" />
+                                                        <select class="form-select form-select-sm mb-1"
+                                                                value="@(a.AssignedTeamId ?? string.Empty)"
+                                                                @onchange="e => UpdateAreaTeam(a, e.Value?.ToString())">
+                                                            <option value="">- kein Team -</option>
+                                                            @foreach (var team in EinsatzService.Teams.OrderBy(t => t.TeamName))
+                                                            {
+                                                                <option value="@team.TeamId">@team.TeamName</option>
+                                                            }
+                                                        </select>
+                                                        <input type="color" class="form-control form-control-color form-control-sm"
+                                                               value="@a.Color"
+                                                               @onchange="e => UpdateAreaColor(a, e.Value?.ToString())" />
+                                                    </div>
+                                                    <button class="btn btn-sm btn-outline-danger ms-2" type="button"
+                                                            @onclick="() => DeleteAreaAsync(a.Id)" title="Löschen">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="col-12 col-lg-9">
+                    <div id="truemmer-map-host" class="truemmer-map-host"></div>
+                </div>
+            </div>
+        }
+    }
+</div>

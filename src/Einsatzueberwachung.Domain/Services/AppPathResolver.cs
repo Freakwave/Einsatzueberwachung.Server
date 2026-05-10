@@ -34,6 +34,11 @@ namespace Einsatzueberwachung.Domain.Services
             return EnsureDirectory(basePath);
         }
 
+        public static string GetTruemmerDirectory()
+        {
+            return EnsureDirectory(Path.Combine(GetDataDirectory(), "truemmer"));
+        }
+
         private static string EnsureDirectory(string path)
         {
             Directory.CreateDirectory(path);

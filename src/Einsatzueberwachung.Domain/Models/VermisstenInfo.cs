@@ -8,6 +8,9 @@ namespace Einsatzueberwachung.Domain.Models
 
     public class VermisstenInfo
     {
+        // Stabile ID für Multi-Vermissten-Liste (für UI-Keys, SignalR-Diffs).
+        public Guid Id { get; set; } = Guid.NewGuid();
+
         // Person
         public string Vorname { get; set; } = string.Empty;
         public string Nachname { get; set; } = string.Empty;
@@ -47,6 +50,9 @@ namespace Einsatzueberwachung.Domain.Models
         public string BosAufgabenteilung { get; set; } = string.Empty;
         public bool BosAbschnittAbgestimmt { get; set; }
         public bool BosRessourcenBesprochen { get; set; }
+
+        // Szenarioabhängige Checkliste (z.B. Gebäudeteil bei Trümmer, Geruchsstück bei Mantrailer)
+        public ChecklistInstance? Checkliste { get; set; }
 
         // Zeitstempel der letzten Änderung
         public DateTime? ZuletztAktualisiert { get; set; }

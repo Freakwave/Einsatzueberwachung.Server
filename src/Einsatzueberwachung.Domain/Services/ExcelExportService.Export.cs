@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using Einsatzueberwachung.Domain.Models;
+using Einsatzueberwachung.Domain.Models.Enums;
 
 namespace Einsatzueberwachung.Domain.Services
 {
@@ -124,6 +125,7 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 ("Einsatznummer", einsatz.EinsatzNummer),
                 ("Typ", einsatz.IstEinsatz ? "Einsatz" : "Übung"),
+                ("Szenario", einsatz.Szenario.GetDisplayName()),
                 ("Einsatzort", einsatz.Einsatzort),
                 ("Alarmiert", einsatz.Alarmiert),
                 ("Einsatzleiter", einsatz.Einsatzleiter),
@@ -140,6 +142,92 @@ namespace Einsatzueberwachung.Domain.Services
                 r++;
             }
             wsInfo.Columns().AdjustToContents();
+
+            // Vermisste Personen
+            if (einsatz.Vermisste is { Count: > 0 })
+            {
+                var wsVermisst = workbook.Worksheets.Add("Vermisste");
+                string[] vHeaders =
+                {
+                    "Nr", "Vorname", "Nachname", "Alter", "Geburtsdatum",
+                    "Kleidung", "Besonderheiten",
+                    "Zuletzt gesehen (Ort)", "Uhrzeit", "Gesehen von",
+                    "Orientierung", "Mobilität", "Suizidrisiko", "Bewaffnet",
+                    "Vorerkrankungen", "Medikamente",
+                    "Polizei (Name)", "Dienstnr.", "Telefon",
+                    "BOS-Einheit", "Zugführer", "Funkrufname"
+                };
+                for (int i = 0; i < vHeaders.Length; i++)
+                    wsVermisst.Cell(1, i + 1).Value = vHeaders[i];
+                var vHeaderRange = wsVermisst.Range(1, 1, 1, vHeaders.Length);
+                vHeaderRange.Style.Font.Bold = true;
+                vHeaderRange.Style.Fill.BackgroundColor = XLColor.LightSalmon;
+
+                int vr = 2;
+                int vIdx = 1;
+                foreach (var v in einsatz.Vermisste)
+                {
+                    wsVermisst.Cell(vr, 1).Value = vIdx++;
+                    wsVermisst.Cell(vr, 2).Value = v.Vorname;
+                    wsVermisst.Cell(vr, 3).Value = v.Nachname;
+                    wsVermisst.Cell(vr, 4).Value = v.Alter;
+                    wsVermisst.Cell(vr, 5).Value = v.Geburtsdatum;
+                    wsVermisst.Cell(vr, 6).Value = v.Kleidung;
+                    wsVermisst.Cell(vr, 7).Value = v.Besonderheiten;
+                    wsVermisst.Cell(vr, 8).Value = v.ZuletztGesehenOrt;
+                    wsVermisst.Cell(vr, 9).Value = v.ZuletztGesehenZeit;
+                    wsVermisst.Cell(vr, 10).Value = v.ZuletztGesehenVon;
+                    wsVermisst.Cell(vr, 11).Value = v.Orientierung.ToString();
+                    wsVermisst.Cell(vr, 12).Value = v.Mobilitaet.ToString();
+                    wsVermisst.Cell(vr, 13).Value = v.Suizidrisiko.ToString();
+                    wsVermisst.Cell(vr, 14).Value = v.Bewaffnet.ToString();
+                    wsVermisst.Cell(vr, 15).Value = v.Vorerkrankungen;
+                    wsVermisst.Cell(vr, 16).Value = v.Medikamente;
+                    wsVermisst.Cell(vr, 17).Value = v.PolizeiKontaktName;
+                    wsVermisst.Cell(vr, 18).Value = v.PolizeiDienstnummer;
+                    wsVermisst.Cell(vr, 19).Value = v.PolizeiTelefon;
+                    wsVermisst.Cell(vr, 20).Value = v.BosEinheit;
+                    wsVermisst.Cell(vr, 21).Value = v.BosZugfuehrer;
+                    wsVermisst.Cell(vr, 22).Value = v.BosFunkrufname;
+                    vr++;
+                }
+                wsVermisst.Columns().AdjustToContents();
+
+                // Checklisten als separater Sheet, falls mindestens eine Person eine hat
+                if (einsatz.Vermisste.Any(v => v.Checkliste is { Items.Count: > 0 }))
+                {
+                    var wsCheck = workbook.Worksheets.Add("Checklisten");
+                    string[] cHeaders = { "Person", "Szenario", "Item", "Pflicht", "Antwort" };
+                    for (int i = 0; i < cHeaders.Length; i++)
+                        wsCheck.Cell(1, i + 1).Value = cHeaders[i];
+                    var cHeaderRange = wsCheck.Range(1, 1, 1, cHeaders.Length);
+                    cHeaderRange.Style.Font.Bold = true;
+                    cHeaderRange.Style.Fill.BackgroundColor = XLColor.LightCyan;
+
+                    int cr = 2;
+                    foreach (var v in einsatz.Vermisste)
+                    {
+                        if (v.Checkliste is null) continue;
+                        var name = string.IsNullOrWhiteSpace(v.VollerName) || v.VollerName == "Unbekannt"
+                            ? "(ohne Name)" : v.VollerName;
+                        foreach (var item in v.Checkliste.Items)
+                        {
+                            v.Checkliste.Values.TryGetValue(item.Id.ToString(), out var raw);
+                            var answer = item.Type == ChecklistItemType.Bool
+                                ? (string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase) ? "ja" : "—")
+                                : (string.IsNullOrWhiteSpace(raw) ? "—" : raw!);
+
+                            wsCheck.Cell(cr, 1).Value = name;
+                            wsCheck.Cell(cr, 2).Value = v.Checkliste.Szenario.GetDisplayName();
+                            wsCheck.Cell(cr, 3).Value = item.Label;
+                            wsCheck.Cell(cr, 4).Value = item.Required ? "ja" : "";
+                            wsCheck.Cell(cr, 5).Value = answer;
+                            cr++;
+                        }
+                    }
+                    wsCheck.Columns().AdjustToContents();
+                }
+            }
 
             var wsTeams = workbook.Worksheets.Add("Teams");
             string[] teamHeaders = ["Team", "Typ", "Hund", "Hundeführer", "Helfer", "Suchgebiet", "Laufzeit", "Status", "Notizen"];

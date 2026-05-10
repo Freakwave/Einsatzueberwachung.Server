@@ -13,7 +13,7 @@ using Einsatzueberwachung.Domain.Models;
 
 namespace Einsatzueberwachung.Domain.Services
 {
-    public class MasterDataService : IMasterDataService
+    public partial class MasterDataService : IMasterDataService
     {
         private readonly string _dataPath;
         private SessionData? _sessionData;
@@ -31,7 +31,7 @@ namespace Einsatzueberwachung.Domain.Services
                 return _sessionData;
 
             var filePath = Path.Combine(_dataPath, "SessionData.json");
-            
+
             if (File.Exists(filePath))
             {
                 try
@@ -48,6 +48,12 @@ namespace Einsatzueberwachung.Domain.Services
             {
                 _sessionData = new SessionData();
             }
+
+            // Defensive: ältere SessionData-Dateien (vor Multi-Vermissten/Checklisten-Migration)
+            // hatten ChecklistTemplates noch nicht — Liste bei Bedarf initialisieren und Defaults seeden.
+            _sessionData.ChecklistTemplates ??= new System.Collections.Generic.List<ChecklistTemplate>();
+            if (SeedMissingDefaultChecklistTemplates(_sessionData))
+                await WriteToDiskAsync(_sessionData);
 
             return _sessionData;
         }

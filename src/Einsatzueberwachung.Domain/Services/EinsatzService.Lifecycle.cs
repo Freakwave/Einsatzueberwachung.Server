@@ -32,6 +32,7 @@ namespace Einsatzueberwachung.Domain.Services
         public Task UpdateEinsatzAsync(EinsatzData einsatzData)
         {
             _currentEinsatz.IstEinsatz = einsatzData.IstEinsatz;
+            _currentEinsatz.Szenario = einsatzData.Szenario;
             _currentEinsatz.EinsatzNummer = einsatzData.EinsatzNummer;
             _currentEinsatz.Einsatzort = einsatzData.Einsatzort;
             _currentEinsatz.MapAddress = einsatzData.MapAddress;

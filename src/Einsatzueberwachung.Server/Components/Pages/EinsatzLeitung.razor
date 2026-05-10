@@ -19,6 +19,33 @@
                 {
                     <span class="el-badge-stichwort">@_e.Stichwort</span>
                 }
+                <div class="el-szenario-dropdown">
+                    <button class="el-badge-szenario"
+                            type="button"
+                            style="background: @_e.Szenario.GetColorHex();"
+                            title="Szenario wechseln"
+                            @onclick="() => _szenarioMenuOpen = !_szenarioMenuOpen">
+                        <i class="bi bi-diagram-3 me-1"></i>@_e.Szenario.GetDisplayName()
+                        <i class="bi bi-caret-down-fill ms-1" style="font-size: 9px;"></i>
+                    </button>
+                    @if (_szenarioMenuOpen)
+                    {
+                        <div class="el-szenario-menu-backdrop" @onclick="() => _szenarioMenuOpen = false"></div>
+                        <ul class="el-szenario-menu">
+                            @foreach (var sz in new[] { EinsatzSzenarioType.Mantrailer, EinsatzSzenarioType.Flaeche, EinsatzSzenarioType.Truemmer, EinsatzSzenarioType.Sonstige })
+                            {
+                                <li>
+                                    <button class="el-szenario-item @(_e.Szenario == sz ? "active" : "")"
+                                            type="button"
+                                            @onclick="() => SetSzenarioAsync(sz)">
+                                        <span class="szenario-color-dot" style="background:@sz.GetColorHex();"></span>
+                                        <span>@sz.GetDisplayName()</span>
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
             </div>
             @if (_e.AlarmierungsZeit.HasValue)
             {
@@ -335,6 +362,64 @@
                             <div class="el-alert @(_saveIsError ? "el-alert-danger" : "el-alert-success")">@_saveMessage</div>
                         }
 
+                        @{ var vermisste = EinsatzService.CurrentEinsatz.Vermisste ?? new(); }
+                        <div class="el-vermissten-bar">
+                            <div class="el-vermissten-tabs">
+                                @if (vermisste.Count == 0)
+                                {
+                                    <span class="el-vermissten-tab el-vermissten-tab-active">
+                                        <i class="bi bi-person-plus"></i>
+                                        Neue Person
+                                    </span>
+                                }
+                                else
+                                {
+                                    @for (var i = 0; i < vermisste.Count; i++)
+                                    {
+                                        var person = vermisste[i];
+                                        var idx = i + 1;
+                                        var isActive = person.Id == _vi.Id;
+                                        <button class="el-vermissten-tab @(isActive ? "el-vermissten-tab-active" : "")"
+                                                type="button"
+                                                @onclick="() => SelectVermisstenAsync(person.Id)">
+                                            <span class="el-vermissten-tab-num">@idx</span>
+                                            <span class="el-vermissten-tab-name">@(string.IsNullOrWhiteSpace(person.VollerName) || person.VollerName == "Unbekannt" ? $"Person {idx}" : person.VollerName)</span>
+                                        </button>
+                                    }
+                                    @if (!vermisste.Any(p => p.Id == _vi.Id))
+                                    {
+                                        <button class="el-vermissten-tab el-vermissten-tab-active" type="button">
+                                            <i class="bi bi-person-plus"></i>
+                                            Neu
+                                        </button>
+                                    }
+                                }
+                            </div>
+                            <div class="el-vermissten-actions">
+                                @if (MehrereVermisstErlaubt)
+                                {
+                                    <button class="el-btn el-btn-ghost" type="button" @onclick="AddVermisstenAsync" title="Weitere vermisste Person hinzufügen">
+                                        <i class="bi bi-person-plus"></i> Weitere Person
+                                    </button>
+                                }
+                                else if (vermisste.Count == 0)
+                                {
+                                    <span class="el-vermissten-hint">
+                                        <i class="bi bi-info-circle"></i>
+                                        Mantrailer: 1 Person
+                                    </span>
+                                }
+                                @if (vermisste.Any(p => p.Id == _vi.Id))
+                                {
+                                    <button class="el-btn el-btn-ghost el-btn-danger" type="button"
+                                            @onclick="RemoveCurrentVermisstenAsync"
+                                            title="Diese Person entfernen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+
                         @* PERSON *@
                         <details class="el-section" open>
                             <summary class="el-section-summary">
@@ -527,6 +612,67 @@
                                 </label>
                             </div>
                         </details>
+
+                        @* SZENARIO-CHECKLISTE *@
+                        @if (_vi.Checkliste is not null && _vi.Checkliste.Items.Count > 0)
+                        {
+                            <details class="el-section" open>
+                                <summary class="el-section-summary">
+                                    <i class="bi bi-list-check el-section-icon"></i>
+                                    <span class="el-section-title">Checkliste · @_vi.Checkliste.Szenario.GetDisplayName()</span>
+                                    <span class="el-section-progress @SectionProgressClass(ChecklistProgress)">@ChecklistProgress.filled / @ChecklistProgress.total</span>
+                                    <i class="bi bi-chevron-right el-section-chevron"></i>
+                                </summary>
+                                <div class="el-field-grid">
+                                    @foreach (var item in _vi.Checkliste.Items)
+                                    {
+                                        var itemId = item.Id;
+                                        @if (item.Type == ChecklistItemType.Bool)
+                                        {
+                                            <label class="el-check-item el-field-full">
+                                                <input type="checkbox"
+                                                       checked="@ChecklistGetBool(itemId)"
+                                                       @onchange="e => ChecklistSetBool(itemId, e.Value is true)" />
+                                                <span>
+                                                    @item.Label
+                                                    @if (item.Required) { <span class="text-danger">*</span> }
+                                                </span>
+                                            </label>
+                                        }
+                                        else if (item.Type == ChecklistItemType.Choice)
+                                        {
+                                            <div class="el-field el-field-full">
+                                                <label>
+                                                    @item.Label
+                                                    @if (item.Required) { <span class="text-danger">*</span> }
+                                                </label>
+                                                <select class="el-input"
+                                                        value="@ChecklistGetText(itemId)"
+                                                        @onchange="e => ChecklistSetText(itemId, e.Value?.ToString())">
+                                                    <option value="">- bitte wählen -</option>
+                                                    @foreach (var choice in item.Choices)
+                                                    {
+                                                        <option value="@choice">@choice</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="el-field el-field-full">
+                                                <label>
+                                                    @item.Label
+                                                    @if (item.Required) { <span class="text-danger">*</span> }
+                                                </label>
+                                                <input class="el-input"
+                                                       value="@ChecklistGetText(itemId)"
+                                                       @onchange="e => ChecklistSetText(itemId, e.Value?.ToString())" />
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </details>
+                        }
 
                         <div class="el-save-row">
                             <button class="el-btn el-btn-primary" @onclick="SaveVermisstenAsync">

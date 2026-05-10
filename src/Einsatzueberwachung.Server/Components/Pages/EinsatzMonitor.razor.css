@@ -1,0 +1,84 @@
+.panel-picker-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 1050;
+    min-width: 200px;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .15);
+}
+
+.panel-picker-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1049;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+}
+
+/* Caret icon inside szenario badge */
+.monitor-caret-icon {
+    font-size: 9px;
+}
+
+/* Wrapper div around the panel picker button */
+.monitor-panel-picker-wrapper {
+    position: relative;
+}
+
+/* Scrollable notes list container */
+.notes-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+/* Source/team select in note reply row */
+.monitor-source-select {
+    max-width: 12rem;
+}
+
+/* Small timestamp text (vermissten details) */
+.monitor-timestamp-small {
+    font-size: .7rem;
+}
+
+/* QR code image in Team-Mobile modal */
+.monitor-qr-image {
+    max-width: 320px;
+    width: 100%;
+    height: auto;
+}
+
+/* Modal size variants */
+.modal-modern--sm {
+    max-width: 460px;
+}
+
+.modal-modern--480 {
+    max-width: 480px;
+}
+
+.modal-modern--md {
+    max-width: 520px;
+}
+
+.modal-modern--640 {
+    max-width: 640px;
+}
+
+.modal-modern--lg {
+    max-width: 700px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Warning variant for modal-modern-header */
+.modal-modern-header--warning {
+    background: var(--bs-warning);
+    color: #212529;
+}

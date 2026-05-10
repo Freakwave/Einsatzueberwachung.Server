@@ -22,7 +22,7 @@
                         title="Szenario wechseln (auf Anweisung der EL)"
                         @onclick="() => _szenarioMenuOpen = !_szenarioMenuOpen">
                     <i class="bi bi-diagram-3 me-1"></i>@EinsatzService.CurrentEinsatz.Szenario.GetDisplayName()
-                    <i class="bi bi-caret-down-fill ms-1" style="font-size: 9px;"></i>
+                    <i class="bi bi-caret-down-fill ms-1 monitor-caret-icon"></i>
                 </button>
                 @if (_szenarioMenuOpen)
                 {
@@ -51,16 +51,14 @@
             }
         </div>
         <div class="monitor-dash-actions">
-            <div style="position:relative;">
+            <div class="monitor-panel-picker-wrapper">
                 <button class="btn btn-outline-secondary btn-sm" type="button"
                         @onclick="() => _showPanelPicker = !_showPanelPicker">
                     <i class="bi bi-layout-three-columns me-1"></i>Panels
                 </button>
                 @if (_showPanelPicker)
                 {
-                    <div style="position:absolute;top:100%;right:0;z-index:1050;min-width:200px;
-                                background:var(--bs-body-bg);border:1px solid var(--bs-border-color);
-                                border-radius:0.375rem;padding:0.5rem;box-shadow:0 4px 16px rgba(0,0,0,.15);">
+                    <div class="panel-picker-dropdown">
                         @foreach (var panel in _currentLayout)
                         {
                             <button class="btn btn-sm w-100 text-start d-flex align-items-center gap-2 mb-1"
@@ -72,7 +70,7 @@
                         }
                     </div>
                     <button type="button"
-                            style="position:fixed;inset:0;z-index:1049;border:0;margin:0;padding:0;background:transparent;"
+                            class="panel-picker-backdrop"
                             @onclick="() => _showPanelPicker = false"
                             aria-label="Panel-Menü schließen"></button>
                 }
@@ -372,7 +370,7 @@
                                         </div>
                                     }
 
-                                    <div class="notes-list" style="max-height: 500px; overflow-y: auto;">
+                                    <div class="notes-list">
                                         @if (EinsatzService.GlobalNotes.Count == 0)
                                         {
                                             <p class="text-muted mb-0">Noch keine Eintraege.</p>
@@ -419,7 +417,7 @@
                                                     }
 
                                                     <div class="d-flex gap-2 mb-2">
-                                                        <select class="form-select form-select-sm" style="max-width: 12rem;"
+                                                        <select class="form-select form-select-sm monitor-source-select"
                                                                 value="@GetReplySourceId(note.Id)"
                                                                 @onchange="e => SetReplySourceId(note.Id, e.Value?.ToString())">
                                                             <option value="einsatzleitung">Einsatzleitung</option>
@@ -678,7 +676,7 @@
                                                     @if (_vi.ZuletztAktualisiert.HasValue)
                                                     {
                                                         <div class="col-12">
-                                                            <div class="text-muted" style="font-size:.7rem;">Stand: @_vi.ZuletztAktualisiert.Value.ToString("dd.MM. HH:mm")</div>
+                                                            <div class="text-muted monitor-timestamp-small">Stand: @_vi.ZuletztAktualisiert.Value.ToString("dd.MM. HH:mm")</div>
                                                         </div>
                                                     }
                                                 </div>
@@ -703,7 +701,7 @@
             : null;
         <div class="modal-overlay">
             <button type="button" class="modal-overlay-dismiss" @onclick="CollarSelectCancel" aria-label="Dialog schließen"></button>
-            <div class="modal-modern" style="max-width:460px" @onclick:stopPropagation="true">
+            <div class="modal-modern modal-modern--sm" @onclick:stopPropagation="true">
                 <div class="modal-modern-header">
                     <h4 class="mb-0"><i class="bi bi-broadcast me-2"></i>GPS-Halsband zuweisen</h4>
                     <button class="btn btn-sm btn-outline-secondary" @onclick="CollarSelectCancel">×</button>
@@ -877,8 +875,8 @@
     {
         <div class="modal-overlay">
             <button type="button" class="modal-overlay-dismiss" @onclick="ClosePauseResetModal" aria-label="Dialog schließen"></button>
-            <div class="modal-modern" style="max-width:480px" @onclick:stopPropagation="true">
-                <div class="modal-modern-header" style="background:var(--bs-warning);color:#212529;">
+            <div class="modal-modern modal-modern--480" @onclick:stopPropagation="true">
+                <div class="modal-modern-header modal-modern-header--warning">
                     <h4 class="mb-0"><i class="bi bi-pause-circle-fill me-2"></i>Pflichtpause nicht abgeschlossen</h4>
                     <button class="btn btn-sm btn-outline-dark" @onclick="ClosePauseResetModal">X</button>
                 </div>
@@ -935,7 +933,7 @@
 {
     <div class="modal-overlay">
         <button type="button" class="modal-overlay-dismiss" @onclick="CloseEditEinsatzModal" aria-label="Dialog schließen"></button>
-        <div class="modal-modern" style="max-width:640px" @onclick:stopPropagation="true">
+        <div class="modal-modern modal-modern--640" @onclick:stopPropagation="true">
             <div class="modal-modern-header">
                 <h3><i class="bi bi-pencil-square me-2"></i>Einsatz bearbeiten</h3>
                 <button class="btn btn-sm btn-outline-secondary" @onclick="CloseEditEinsatzModal">Schliessen</button>
@@ -1026,7 +1024,7 @@
 {
     <div class="modal-overlay">
         <button type="button" class="modal-overlay-dismiss" @onclick="CloseVermisstenModal" aria-label="Dialog schließen"></button>
-        <div class="modal-modern" style="max-width:700px;max-height:90vh;overflow-y:auto;" @onclick:stopPropagation="true">
+        <div class="modal-modern modal-modern--lg" @onclick:stopPropagation="true">
             <div class="modal-modern-header">
                 <h3><i class="bi bi-person-exclamation me-2"></i>Vermissteninfo</h3>
                 <button class="btn btn-sm btn-outline-secondary" @onclick="CloseVermisstenModal">Schliessen</button>
@@ -1405,7 +1403,7 @@
 {
     <div class="modal-overlay">
         <button type="button" class="modal-overlay-dismiss" @onclick="CloseTeamMessageModal" aria-label="Dialog schließen"></button>
-        <div class="modal-modern" style="max-width:520px;" @onclick:stopPropagation="true">
+        <div class="modal-modern modal-modern--md" @onclick:stopPropagation="true">
             <div class="modal-modern-header bg-warning text-dark">
                 <h3 class="mb-0"><i class="bi bi-megaphone me-1"></i>Nachricht an Team</h3>
                 <button class="btn btn-sm btn-outline-dark" @onclick="CloseTeamMessageModal">X</button>
@@ -1451,7 +1449,7 @@
 {
     <div class="modal-overlay">
         <button type="button" class="modal-overlay-dismiss" @onclick="CloseTeamMobileModal" aria-label="Dialog schließen"></button>
-        <div class="modal-modern" style="max-width:520px;" @onclick:stopPropagation="true">
+        <div class="modal-modern modal-modern--md" @onclick:stopPropagation="true">
             <div class="modal-modern-header bg-success text-white">
                 <h3 class="mb-0"><i class="bi bi-qr-code me-1"></i>Team-Mobile Anmelde-Code</h3>
                 <button class="btn btn-sm btn-outline-light" @onclick="CloseTeamMobileModal">X</button>
@@ -1468,7 +1466,7 @@
                     <p class="text-muted small mb-2">
                         Teams scannen diesen QR-Code mit dem Smartphone, um sich auf <strong>/team/login</strong> anzumelden.
                     </p>
-                    <img src="@_teamMobileQrDataUrl" alt="QR-Code" style="max-width:320px;width:100%;height:auto;" />
+                    <img src="@_teamMobileQrDataUrl" alt="QR-Code" class="monitor-qr-image" />
                     <div class="mt-3">
                         <input type="text" class="form-control text-center" readonly value="@_teamMobileFullUrl" onclick="this.select()" />
                     </div>

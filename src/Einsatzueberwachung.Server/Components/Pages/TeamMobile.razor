@@ -87,6 +87,42 @@ else
             </div>
         }
 
+        @if (_mapInitDone && !_phoneGpsActive && !_einsatzEnded)
+        {
+            <div class="d-flex align-items-center gap-2 px-3 py-2 @GetGpsBannerCssClass()"
+                 style="border-bottom:1px solid var(--bs-border-color);font-size:0.82rem;">
+                @if (_requestingGps)
+                {
+                    <span class="spinner-border spinner-border-sm text-secondary" aria-hidden="true"></span>
+                    <span class="flex-grow-1">GPS wird angefragt…</span>
+                }
+                else if (_phoneGpsErrorCode == 1)
+                {
+                    <i class="bi bi-shield-exclamation text-warning flex-shrink-0"></i>
+                    <span class="flex-grow-1">GPS-Berechtigung fehlt – bitte im Browser aktivieren, dann erneut versuchen.</span>
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" @onclick="RequestGpsPermissionAsync">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Erneut
+                    </button>
+                }
+                else if (_phoneGpsErrorCode.HasValue)
+                {
+                    <i class="bi bi-geo-alt-slash text-danger flex-shrink-0"></i>
+                    <span class="flex-grow-1">Handy-GPS: @GetGpsErrorText(_phoneGpsErrorCode.Value)</span>
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" @onclick="RequestGpsPermissionAsync">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Erneut
+                    </button>
+                }
+                else
+                {
+                    <i class="bi bi-phone text-muted flex-shrink-0"></i>
+                    <span class="flex-grow-1">Warte auf Handy-GPS…</span>
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" @onclick="RequestGpsPermissionAsync">
+                        <i class="bi bi-geo-alt me-1"></i>GPS anfordern
+                    </button>
+                }
+            </div>
+        }
+
         <div id="team-mobile-map" style="flex:1;width:100%;min-height:300px;background:#e9ecef;"></div>
 
         @if (!_einsatzEnded)
@@ -113,7 +149,12 @@ else
                 @(string.IsNullOrWhiteSpace(_team.CollarId) ? "kein GPS" : (_lastUpdate.HasValue ? $"GPS: {(_now - _lastUpdate.Value).TotalSeconds:0}s" : "warte auf GPS"))
             </div>
             <div>
-                @if (_phoneGpsActive)
+                @if (_requestingGps)
+                {
+                    <span class="spinner-border spinner-border-sm text-secondary" style="width:0.8rem;height:0.8rem;" aria-hidden="true"></span>
+                    <span>GPS wird angefragt…</span>
+                }
+                else if (_phoneGpsActive)
                 {
                     <i class="bi bi-phone-fill text-primary"></i>
                     <span>Handy-GPS aktiv</span>
@@ -183,6 +224,7 @@ else
     private DotNetObjectReference<TeamMobile>? _selfRef;
     private bool _phoneGpsActive;
     private int? _phoneGpsErrorCode;
+    private bool _requestingGps;
 
     protected override async Task OnInitializedAsync()
     {
@@ -322,6 +364,7 @@ else
     {
         _phoneGpsActive = true;
         _phoneGpsErrorCode = null;
+        _requestingGps = false;
         if (_areaCentroidLat.HasValue && _areaCentroidLng.HasValue)
         {
             _distanceToAreaKm = HaversineKm(lat, lng, _areaCentroidLat.Value, _areaCentroidLng.Value);
@@ -336,8 +379,16 @@ else
     {
         _phoneGpsActive = false;
         _phoneGpsErrorCode = code;
+        _requestingGps = false;
         _ = InvokeAsync(StateHasChanged);
         return Task.CompletedTask;
+    }
+
+    private string GetGpsBannerCssClass()
+    {
+        if (_phoneGpsErrorCode == 1) return "bg-warning-subtle";
+        if (_phoneGpsErrorCode.HasValue) return "bg-danger-subtle";
+        return "bg-light";
     }
 
     private static string GetGpsErrorText(int code) => code switch
@@ -347,6 +398,21 @@ else
         3 => "Zeitüberschreitung",
         _ => $"Fehler ({code})"
     };
+
+    private async Task RequestGpsPermissionAsync()
+    {
+        if (_requestingGps) return;
+        _requestingGps = true;
+        _phoneGpsActive = false;
+        _phoneGpsErrorCode = null;
+        StateHasChanged();
+        try
+        {
+            _selfRef ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("teamMobileMap.requestGeolocationPermission", _selfRef);
+        }
+        catch { /* tolerant — _requestingGps wird in OnUserLocation/OnUserLocationError zurückgesetzt */ }
+    }
 
     private static double HaversineKm(double lat1, double lng1, double lat2, double lng2)
     {

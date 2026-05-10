@@ -232,6 +232,44 @@ window.teamMobileMap = (function () {
         return true;
     }
 
+    /**
+     * Fordert explizit die GPS-Berechtigung an, indem zuerst getCurrentPosition() aufgerufen wird
+     * (löst den Browser-Berechtigungs-Dialog aus) und startet danach watchPosition() neu.
+     * Wird vom Nutzer über den "Erneut versuchen"-Button ausgelöst.
+     */
+    function requestGeolocationPermission(ref) {
+        if (!('geolocation' in navigator)) {
+            if (ref) ref.invokeMethodAsync('OnUserLocationError', 2).catch(() => {});
+            return;
+        }
+        dotNetRef = ref;
+        // Bestehenden Watch stoppen, damit ein neuer Dialog ausgelöst werden kann
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                setUserPosition(lat, lng);
+                appendUserTrackPoint(lat, lng);
+                if (dotNetRef) {
+                    dotNetRef.invokeMethodAsync('OnUserLocation', lat, lng).catch(() => {});
+                }
+                // Kontinuierliches Tracking neu starten
+                startWatchingUser(dotNetRef);
+            },
+            err => {
+                console.warn('Geolocation permission request failed', err);
+                if (dotNetRef) {
+                    dotNetRef.invokeMethodAsync('OnUserLocationError', err.code).catch(() => {});
+                }
+            },
+            { enableHighAccuracy: true, timeout: 15000 }
+        );
+    }
+
     function stopWatchingUser() {
         if (watchId !== null) {
             navigator.geolocation.clearWatch(watchId);
@@ -262,6 +300,7 @@ window.teamMobileMap = (function () {
         setUserPosition, appendUserTrackPoint, loadUserTrack, addCompletedTrack,
         reloadCurrentTracks,
         centerOnDog, destroy,
-        startWatchingUser, stopWatchingUser, getAreaCentroid, postLocation, setOptions
+        startWatchingUser, stopWatchingUser, requestGeolocationPermission,
+        getAreaCentroid, postLocation, setOptions
     };
 })();

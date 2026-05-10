@@ -91,7 +91,7 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
         }
         else
         {
-            CloseSuggestions();
+            await CloseSuggestionsAsync();
         }
 
         if (_jsInitialized)
@@ -109,18 +109,16 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
     private async Task CloseAfterDelayAsync()
     {
         await Task.Delay(200);
-        await InvokeAsync(() =>
+        await InvokeAsync(async () =>
         {
             if (_showDropdown)
-                CloseSuggestions();
+                await CloseSuggestionsAsync();
         });
     }
 
     private async Task SelectSuggestionAsync(MentionSuggestion suggestion)
     {
-        var typePrefix = GetTypeLabel(suggestion.Type); // "Team" | "Person" | "Hund"
-        // Embed the entity ID after a "|" separator so rendered badges can navigate to the entity.
-        var mentionText = $"@[{typePrefix}:{suggestion.DisplayName}|{suggestion.Id}]";
+        var mentionText = BuildMentionToken(suggestion);
         var endOfQuery = _atPosition + 1 + _mentionQuery.Length;
 
         var beforeAt = _atPosition > 0 ? Value[.._atPosition] : string.Empty;
@@ -132,16 +130,29 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
         await ValueChanged.InvokeAsync(newValue);
         if (_jsInitialized)
             await JS.InvokeVoidAsync("mentionTextarea.setValueAndCaret", _textareaRef, newValue, newCaret);
-        CloseSuggestions();
+        await CloseSuggestionsAsync();
     }
 
-    private void CloseSuggestions()
+    private async Task CloseSuggestionsAsync()
     {
         _showDropdown = false;
         _filteredSuggestions.Clear();
         _selectedIndex = 0;
         _atPosition = -1;
         _mentionQuery = string.Empty;
+
+        if (_jsInitialized)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("mentionTextarea.setDropdownOpen", _textareaRef, false);
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit closed while shutting down.
+            }
+        }
+
         StateHasChanged();
     }
 
@@ -175,8 +186,7 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
     [JSInvokable]
     public Task EscapeAsync()
     {
-        CloseSuggestions();
-        return Task.CompletedTask;
+        return CloseSuggestionsAsync();
     }
 
     // ── Private helpers ─────────────────────────────────────────────────────
@@ -246,6 +256,48 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
         _        => null
     };
 
+    private static string EscapeMentionDisplayName(string displayName)
+    {
+        if (string.IsNullOrEmpty(displayName))
+            return string.Empty;
+
+        return displayName
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("|", "\\|", StringComparison.Ordinal)
+            .Replace("]", "\\]", StringComparison.Ordinal);
+    }
+
+    private static string UnescapeMentionDisplayName(string displayName)
+    {
+        if (string.IsNullOrEmpty(displayName))
+            return string.Empty;
+
+        var sb = new System.Text.StringBuilder(displayName.Length);
+        for (var i = 0; i < displayName.Length; i++)
+        {
+            if (displayName[i] == '\\' && i + 1 < displayName.Length)
+            {
+                sb.Append(displayName[i + 1]);
+                i++;
+            }
+            else
+            {
+                sb.Append(displayName[i]);
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private static string BuildMentionToken(MentionSuggestion suggestion)
+    {
+        var typePrefix = GetTypeLabel(suggestion.Type); // "Team" | "Person" | "Hund"
+        var escapedDisplayName = EscapeMentionDisplayName(suggestion.DisplayName);
+
+        // Embed the entity ID after a "|" separator so rendered badges can navigate to the entity.
+        return $"@[{typePrefix}:{escapedDisplayName}|{suggestion.Id}]";
+    }
+
     // ── Rendering helpers (used by note display) ────────────────────────────
 
     /// <summary>
@@ -273,7 +325,8 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
             // Group 2 = display name
             // Group 3 = optional entity ID (after the "|" separator)
             var typeStr   = match.Groups[1].Success ? match.Groups[1].Value : null;
-            var name      = encoder.Encode(match.Groups[2].Value);
+            var decodedName = UnescapeMentionDisplayName(match.Groups[2].Value);
+            var name      = encoder.Encode(decodedName);
             var entityId  = match.Groups[3].Success ? match.Groups[3].Value : null;
 
             // Reuse GetSuggestionIcon / GetTypeCssModifier to keep icon and CSS in sync
@@ -331,7 +384,7 @@ public partial class MentionTextarea : ComponentBase, IAsyncDisposable
     /// Group 2 — display name (no <c>|</c> or <c>]</c>).<br/>
     /// Group 3 — optional entity ID (after <c>|</c>, no <c>]</c>).
     /// </summary>
-    [System.Text.RegularExpressions.GeneratedRegex(@"@\[(?:([A-Za-z]+):)?([^\]\s|][^\]|]*)(?:\|([^\]]+))?\]")]
+    [System.Text.RegularExpressions.GeneratedRegex(@"@\[(?:([A-Za-z]+):)?((?:\\.|[^\]|])+)(?:\|([^\]]+))?\]")]
     private static partial System.Text.RegularExpressions.Regex MentionPattern();
 
     public async ValueTask DisposeAsync()

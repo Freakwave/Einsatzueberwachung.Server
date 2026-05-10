@@ -59,6 +59,8 @@
                 <div class="col-md-6">
                     <div class="card h-100 import-mode-card border-primary"
                          role="button"
+                         tabindex="0"
+                         @onkeydown='e => { if (e.Key == "Enter" || e.Key == " ") SelectImportMode("merge"); }'
                          @onclick='() => SelectImportMode("merge")'>
                         <div class="card-body text-center py-5">
                             <i class="bi bi-diagram-2 display-4 text-primary mb-3 d-block"></i>
@@ -76,6 +78,8 @@
                 <div class="col-md-6">
                     <div class="card h-100 import-mode-card border-success"
                          role="button"
+                         tabindex="0"
+                         @onkeydown='e => { if (e.Key == "Enter" || e.Key == " ") SelectImportMode("new-einsatz"); }'
                          @onclick='() => SelectImportMode("new-einsatz")'>
                         <div class="card-body text-center py-5">
                             <i class="bi bi-folder-plus display-4 text-success mb-3 d-block"></i>

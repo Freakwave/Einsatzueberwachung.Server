@@ -370,7 +370,8 @@
 
     @if (_showCreatePersonalModal)
     {
-        <div class="modal-overlay" @onclick="CloseCreatePersonalModal">
+        <div class="modal-overlay">
+            <button type="button" class="modal-overlay-dismiss" @onclick="CloseCreatePersonalModal" aria-label="Dialog schließen"></button>
             <div class="modal-modern" @onclick:stopPropagation="true">
                 <div class="modal-modern-header">
                     <h3>Personal anlegen</h3>
@@ -423,7 +424,8 @@
 
     @if (_showCreateDogModal)
     {
-        <div class="modal-overlay" @onclick="CloseCreateDogModal">
+        <div class="modal-overlay">
+            <button type="button" class="modal-overlay-dismiss" @onclick="CloseCreateDogModal" aria-label="Dialog schließen"></button>
             <div class="modal-modern" @onclick:stopPropagation="true">
                 <div class="modal-modern-header">
                     <h3>Hund anlegen</h3>
@@ -485,7 +487,8 @@
 
     @if (_showCreateDroneModal)
     {
-        <div class="modal-overlay" @onclick="CloseCreateDroneModal">
+        <div class="modal-overlay">
+            <button type="button" class="modal-overlay-dismiss" @onclick="CloseCreateDroneModal" aria-label="Dialog schließen"></button>
             <div class="modal-modern" @onclick:stopPropagation="true">
                 <div class="modal-modern-header">
                     <h3>Drohne anlegen</h3>

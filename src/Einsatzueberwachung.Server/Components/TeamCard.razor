@@ -90,11 +90,12 @@
         <div class="tc-ctx">
             @if (!string.IsNullOrWhiteSpace(Team.SearchAreaName))
             {
-                <span class="tc-ctx-chip tc-ctx-chip--link"
+                <button type="button"
+                      class="tc-ctx-chip tc-ctx-chip--link tc-ctx-chip--action"
                       title="Auf Karte anzeigen"
                       @onclick="NavigateToSearchArea">
                     <i class="bi bi-geo-alt"></i>@Team.SearchAreaName
-                </span>
+                </button>
             }
             @if (!string.IsNullOrWhiteSpace(Team.Notes))
             {
@@ -104,9 +105,10 @@
             }
             @if (!string.IsNullOrWhiteSpace(Team.CollarId))
             {
-                <span class="tc-ctx-chip tc-ctx-chip--gps tc-ctx-chip--link"
-                      title="GPS-Halsband auf Karte verfolgen"
-                      @onclick="NavigateToCollar">
+                <button type="button"
+                    class="tc-ctx-chip tc-ctx-chip--gps tc-ctx-chip--link tc-ctx-chip--action"
+                    title="GPS-Halsband auf Karte verfolgen"
+                    @onclick="NavigateToCollar">
                     <i class="bi bi-broadcast-pin"></i>
                     @if (LastCollarLocation is not null)
                     {
@@ -121,7 +123,7 @@
                     {
                         <span class="tc-ctx-muted">kein Signal</span>
                     }
-                </span>
+                </button>
             }
         </div>
     }

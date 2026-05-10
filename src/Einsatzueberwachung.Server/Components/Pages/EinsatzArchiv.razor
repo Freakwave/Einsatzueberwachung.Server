@@ -290,7 +290,7 @@
                                     <div class="flex-grow-1" style="min-width:0;">
                                         <div class="fw-semibold text-truncate">@snap.TeamName</div>
                                         <div class="small text-muted text-truncate">
-                                            @(snap.CollarName ?? snap.CollarId)
+                                            @snap.DisplayLabel
                                             @if (!string.IsNullOrEmpty(snap.SearchAreaName))
                                             {
                                                 <text> · @snap.SearchAreaName</text>
@@ -350,7 +350,7 @@
 @* Track-Detail-Popup *@
 @if (_archiveTrackPopup != null)
 {
-    <div class="modal-backdrop show" style="z-index: 2000;" @onclick='() => _archiveTrackPopup = null'></div>
+    <button type="button" class="modal-backdrop modal-backdrop-action show" style="z-index: 2000;" @onclick='() => _archiveTrackPopup = null' aria-label="Dialog schließen"></button>
     <div class="modal show d-block" style="z-index: 2001;" tabindex="-1">
         <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
             <div class="modal-content">
@@ -365,7 +365,7 @@
                     <table class="table table-sm table-borderless mb-2">
                         <tbody>
                             <tr><td class="text-muted">Team</td><td><strong>@_archiveTrackPopup.TeamName</strong></td></tr>
-                            <tr><td class="text-muted">Halsband</td><td>@(_archiveTrackPopup.CollarName ?? _archiveTrackPopup.CollarId)</td></tr>
+                            <tr><td class="text-muted">Bezeichnung</td><td>@_archiveTrackPopup.DisplayLabel</td></tr>
                             <tr><td class="text-muted">Suchgebiet</td><td>@(string.IsNullOrEmpty(_archiveTrackPopup.SearchAreaName) ? "–" : _archiveTrackPopup.SearchAreaName)</td></tr>
                             <tr><td class="text-muted">Beginn</td><td>@(_archiveTrackPopup.Points.FirstOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
                             <tr><td class="text-muted">Ende</td><td>@(_archiveTrackPopup.Points.LastOrDefault()?.Timestamp.ToLocalTime().ToString("HH:mm:ss") ?? "–")</td></tr>
@@ -410,7 +410,8 @@
 
     @if (_deleteCandidate is not null)
     {
-        <div class="modal-overlay" @onclick="CancelDelete">
+        <div class="modal-overlay">
+            <button type="button" class="modal-overlay-dismiss" @onclick="CancelDelete" aria-label="Dialog schließen"></button>
             <div class="modal-modern" @onclick:stopPropagation="true">
                 <div class="modal-modern-header">
                     <h3 class="mb-0">Archiv-Eintrag loeschen</h3>

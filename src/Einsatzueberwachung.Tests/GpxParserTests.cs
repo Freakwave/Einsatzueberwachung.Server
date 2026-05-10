@@ -144,6 +144,28 @@ public class GpxParserTests
         Assert.Equal(10.0, pts[0].Latitude, precision: 5);
     }
 
+    [Fact]
+    public void Parse_MixedTimestampPoints_PreservesOriginalFileOrder()
+    {
+        const string gpx = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
+              <trk><trkseg>
+                <trkpt lat="48.1" lon="11.5"><time>2024-06-01T10:01:00Z</time></trkpt>
+                <trkpt lat="48.2" lon="11.6"></trkpt>
+                <trkpt lat="48.3" lon="11.7"><time>2024-06-01T10:00:00Z</time></trkpt>
+              </trkseg></trk>
+            </gpx>
+            """;
+
+        var pts = GpxParser.Parse(gpx);
+
+        Assert.Equal(3, pts.Count);
+        Assert.Equal(48.1, pts[0].Latitude, precision: 5);
+        Assert.Equal(48.2, pts[1].Latitude, precision: 5);
+        Assert.Equal(48.3, pts[2].Latitude, precision: 5);
+    }
+
     // --- Fehlerfall ---
 
     [Fact]

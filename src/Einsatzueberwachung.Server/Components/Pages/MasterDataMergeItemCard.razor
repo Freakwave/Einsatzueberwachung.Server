@@ -30,6 +30,9 @@
                                  Item.SelectedLocalId == candidate.LocalId;
 
                 <div class="candidate-option border rounded p-2 mb-1 @(isSelected ? "selected" : "")"
+                     role="button"
+                     tabindex="0"
+                     @onkeydown='e => { if (e.Key == "Enter" || e.Key == " ") SelectLinkToExisting(candidate.LocalId); }'
                      @onclick="() => SelectLinkToExisting(candidate.LocalId)">
                     <div class="d-flex align-items-center gap-2">
                         <input type="radio"
@@ -71,6 +74,9 @@
                 var isCreateNew = Item.Decision == MergeDecision.CreateNew;
             }
             <div class="candidate-option border rounded p-2 mb-1 @(isCreateNew ? "selected" : "")"
+                  role="button"
+                  tabindex="0"
+                @onkeydown='e => { if (e.Key == "Enter" || e.Key == " ") SelectCreateNew(); }'
                  @onclick="SelectCreateNew">
                 <div class="d-flex align-items-center gap-2">
                     <input type="radio" class="form-check-input mt-0 flex-shrink-0"
@@ -86,6 +92,9 @@
                 var isSkip = Item.Decision == MergeDecision.Skip;
             }
             <div class="candidate-option border rounded p-2 mb-1 @(isSkip ? "selected border-secondary" : "")"
+                  role="button"
+                  tabindex="0"
+                @onkeydown='e => { if (e.Key == "Enter" || e.Key == " ") SelectSkip(); }'
                  @onclick="SelectSkip">
                 <div class="d-flex align-items-center gap-2">
                     <input type="radio" class="form-check-input mt-0 flex-shrink-0"

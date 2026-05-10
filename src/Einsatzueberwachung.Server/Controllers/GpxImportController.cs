@@ -107,9 +107,8 @@ public class GpxImportController : ControllerBase
         if (string.IsNullOrWhiteSpace(completedSearchId) && (searchStart == null || searchEnd == null))
             return BadRequest(new ErrorResponse("Ohne completedSearchId sind searchStart und searchEnd erforderlich."));
 
-        var parsedTrackType = string.Equals(trackType, "human", StringComparison.OrdinalIgnoreCase)
-            ? TrackType.HumanTrack
-            : TrackType.CollarTrack;
+        if (!TryParseTrackType(trackType, out var parsedTrackType))
+            return BadRequest(new ErrorResponse($"Unbekannter trackType '{trackType}'. Erlaubt sind 'collar', 'human', 'CollarTrack' oder 'HumanTrack'."));
 
         try
         {
@@ -130,7 +129,6 @@ public class GpxImportController : ControllerBase
             {
                 TeamId = team.TeamId,
                 TeamName = team.TeamName,
-                SearchAreaName = team.SearchAreaName ?? string.Empty,
                 CollarId = parsedTrackType == TrackType.CollarTrack ? (team.CollarId ?? string.Empty) : string.Empty,
                 CollarName = parsedTrackType == TrackType.CollarTrack ? (team.CollarName ?? string.Empty) : string.Empty,
                 Color = resolvedColor,
@@ -194,4 +192,29 @@ public class GpxImportController : ControllerBase
         List<GpxPointDto> Points);
 
     public sealed record GpxPointDto(double Latitude, double Longitude, DateTime Timestamp);
+
+    private static bool TryParseTrackType(string? rawTrackType, out TrackType trackType)
+    {
+        trackType = TrackType.CollarTrack;
+
+        var value = rawTrackType?.Trim();
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
+
+        if (string.Equals(value, "human", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, nameof(TrackType.HumanTrack), StringComparison.OrdinalIgnoreCase))
+        {
+            trackType = TrackType.HumanTrack;
+            return true;
+        }
+
+        if (string.Equals(value, "collar", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, nameof(TrackType.CollarTrack), StringComparison.OrdinalIgnoreCase))
+        {
+            trackType = TrackType.CollarTrack;
+            return true;
+        }
+
+        return false;
+    }
 }

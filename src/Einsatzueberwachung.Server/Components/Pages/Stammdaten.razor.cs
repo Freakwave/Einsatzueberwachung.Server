@@ -41,11 +41,20 @@ public partial class Stammdaten
     private bool _showCreatePersonalModal;
     private bool _showCreateDogModal;
     private bool _showCreateDroneModal;
+    private string? _pendingHighlightScrollId;
+    private string? _lastScrolledHighlightId;
 
     protected override void OnParametersSet()
     {
         if (!string.IsNullOrWhiteSpace(InitialTab))
             _activeTab = InitialTab;
+
+        if (!string.IsNullOrWhiteSpace(HighlightId)
+            && IsValidEntityId(HighlightId)
+            && !string.Equals(HighlightId, _lastScrolledHighlightId, StringComparison.Ordinal))
+        {
+            _pendingHighlightScrollId = HighlightId;
+        }
     }
 
     protected override async Task OnInitializedAsync()
@@ -55,8 +64,12 @@ public partial class Stammdaten
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !string.IsNullOrWhiteSpace(HighlightId) && IsValidEntityId(HighlightId))
-            await JS.InvokeVoidAsync("layoutTools.scrollToElement", $"entry-{HighlightId}");
+        if (!string.IsNullOrWhiteSpace(_pendingHighlightScrollId))
+        {
+            await JS.InvokeVoidAsync("layoutTools.scrollToElement", $"entry-{_pendingHighlightScrollId}");
+            _lastScrolledHighlightId = _pendingHighlightScrollId;
+            _pendingHighlightScrollId = null;
+        }
     }
 
     /// <summary>

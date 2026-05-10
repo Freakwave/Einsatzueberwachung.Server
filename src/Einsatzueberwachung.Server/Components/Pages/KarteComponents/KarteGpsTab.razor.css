@@ -17,6 +17,15 @@
     font-size: 0.8rem;
     cursor: pointer;
     transition: background-color 0.15s ease, transform 0.15s ease;
+    width: 100%;
+    border: 0;
+    margin: 0;
+    text-align: left;
+    font-family: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .collar-head-row {
@@ -36,6 +45,11 @@
 
 .collar-item:active {
     transform: translateY(1px);
+}
+
+.collar-item:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
 }
 
 .collar-name {
@@ -109,6 +123,11 @@
 
 .snapshot-summary:hover {
     background: var(--bs-secondary-bg, #e9ecef);
+}
+
+.snapshot-summary:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
 }
 
 .snapshot-expanded-header {

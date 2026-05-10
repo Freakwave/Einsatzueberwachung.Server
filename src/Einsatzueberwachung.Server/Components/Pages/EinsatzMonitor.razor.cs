@@ -6,7 +6,6 @@ using Einsatzueberwachung.Server.Components;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
-using System.Globalization;
 
 namespace Einsatzueberwachung.Server.Components.Pages;
 
@@ -113,10 +112,22 @@ public partial class EinsatzMonitor
     // Screensaver (kein aktiver Einsatz)
     private System.Threading.Timer? _screensaverClockTimer;
     private DateTime _screensaverNow;
+    private string? _pendingTeamScrollId;
+    private string? _lastScrolledTeamId;
 
     private bool HasActiveEinsatz =>
         !string.IsNullOrWhiteSpace(EinsatzService.CurrentEinsatz.Einsatzort)
         && EinsatzService.CurrentEinsatz.EinsatzEnde is null;
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(ScrollToTeamId)
+            && IsValidEntityId(ScrollToTeamId)
+            && !string.Equals(ScrollToTeamId, _lastScrolledTeamId, StringComparison.Ordinal))
+        {
+            _pendingTeamScrollId = ScrollToTeamId;
+        }
+    }
 
     private static readonly string[] _screensaverTips =
     [
@@ -177,9 +188,14 @@ public partial class EinsatzMonitor
         if (firstRender)
         {
             await RefreshEinsatzdauerFromHeaderTimeAsync();
-            if (!string.IsNullOrWhiteSpace(ScrollToTeamId) && IsValidEntityId(ScrollToTeamId))
-                await JS.InvokeVoidAsync("layoutTools.scrollToElement", $"team-{ScrollToTeamId}");
             await InvokeAsync(StateHasChanged);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_pendingTeamScrollId))
+        {
+            await JS.InvokeVoidAsync("layoutTools.scrollToElement", $"team-{_pendingTeamScrollId}");
+            _lastScrolledTeamId = _pendingTeamScrollId;
+            _pendingTeamScrollId = null;
         }
     }
 
@@ -341,14 +357,35 @@ public partial class EinsatzMonitor
                 : string.Empty;
 
             // When two or more dogs share the same name, disambiguate:
-            // prefer handler name; fall back to numeric suffix when no handler is set.
+            // prefer handler name, but add a numeric suffix when that still would not be unique.
             var displayName = dog.Name;
             var group = dogNameGroups[dog.Name];
             if (group.Count > 1)
             {
-                displayName = !string.IsNullOrWhiteSpace(handlerName)
-                    ? $"{dog.Name} / {handlerName}"
-                    : $"{dog.Name} ({group.IndexOf(dog) + 1})";
+                if (!string.IsNullOrWhiteSpace(handlerName))
+                {
+                    var sameHandlerGroup = group
+                        .Where(d =>
+                        {
+                            var primaryHandlerName = d.HundefuehrerIds.Count > 0
+                                ? _personalList.FirstOrDefault(p => p.Id == d.HundefuehrerIds[0])?.FullName ?? string.Empty
+                                : string.Empty;
+                            return string.Equals(primaryHandlerName, handlerName, StringComparison.Ordinal);
+                        })
+                        .ToList();
+
+                    displayName = sameHandlerGroup.Count > 1
+                        ? $"{dog.Name} / {handlerName} ({sameHandlerGroup.IndexOf(dog) + 1})"
+                        : $"{dog.Name} / {handlerName}";
+                }
+                else
+                {
+                    var dogsWithoutHandler = group
+                        .Where(d => d.HundefuehrerIds.Count == 0)
+                        .ToList();
+
+                    displayName = $"{dog.Name} ({dogsWithoutHandler.IndexOf(dog) + 1})";
+                }
             }
 
             // Subtitle: breed + handler (handler only when not already embedded in displayName)
@@ -645,43 +682,6 @@ public partial class EinsatzMonitor
         Critical
     }
 
-    private sealed class TeamProgressInfo
-    {
-        public string Label { get; init; } = string.Empty;
-        public string Detail { get; init; } = string.Empty;
-        public string BadgeClass { get; init; } = "bg-secondary";
-    }
-
-    private sealed class TeamTrackingInfo
-    {
-        public string Label { get; init; } = string.Empty;
-        public string Detail { get; init; } = string.Empty;
-        public string BadgeClass { get; init; } = "bg-secondary";
-    }
-
-    private sealed class TeamPositionInfo
-    {
-        public double Latitude { get; init; }
-        public double Longitude { get; init; }
-        public DateTime Timestamp { get; init; }
-        public string Source { get; init; } = string.Empty;
-    }
-
-    private sealed class TeamMemberDetail
-    {
-        public string Name { get; init; } = string.Empty;
-        public string Role { get; init; } = string.Empty;
-        public string Qualification { get; init; } = string.Empty;
-    }
-
-    private sealed class TeamMapActivityDetail
-    {
-        public string Label { get; init; } = string.Empty;
-        public string Description { get; init; } = string.Empty;
-        public DateTime Timestamp { get; init; }
-        public string Coordinates { get; init; } = string.Empty;
-    }
-
     private void SetTeamStatusFilter(TeamStatusFilter filter)
     {
         _teamStatusFilter = filter;
@@ -754,234 +754,6 @@ public partial class EinsatzMonitor
         return EinsatzService.CurrentEinsatz.SearchAreas.FirstOrDefault(area => area.Id == team.SearchAreaId);
     }
 
-    private TeamProgressInfo GetSearchProgress(Team team, SearchArea? searchArea)
-    {
-        if (searchArea?.IsCompleted == true)
-        {
-            return new TeamProgressInfo
-            {
-                Label = "Abgeschlossen",
-                Detail = "Suchauftrag als abgeschlossen markiert.",
-                BadgeClass = "bg-success"
-            };
-        }
-
-        if (team.IsSecondWarning)
-        {
-            return new TeamProgressInfo
-            {
-                Label = "Kritisch",
-                Detail = "Zeitkritischer Einsatzstatus erreicht.",
-                BadgeClass = "bg-danger"
-            };
-        }
-
-        if (team.IsPausing)
-        {
-            return new TeamProgressInfo
-            {
-                Label = "Pause",
-                Detail = team.IsPauseComplete ? "Pflichtpause abgeschlossen." : $"Noch {team.RemainingPauseMinutes} Min. Pflichtpause.",
-                BadgeClass = team.IsPauseComplete ? "bg-success" : "bg-warning text-dark"
-            };
-        }
-
-        if (team.IsRunning)
-        {
-            return new TeamProgressInfo
-            {
-                Label = "In Suche",
-                Detail = searchArea is null
-                    ? "Team arbeitet ohne Bereichszuordnung."
-                    : $"Aktiv im Suchbereich {searchArea.Name}.",
-                BadgeClass = "bg-primary"
-            };
-        }
-
-        return new TeamProgressInfo
-        {
-            Label = "Bereit",
-            Detail = "Team in Bereitschaft fuer neuen Suchauftrag.",
-            BadgeClass = "bg-secondary"
-        };
-    }
-
-    private TeamTrackingInfo GetTrackingInfo(Team team)
-    {
-        if (string.IsNullOrWhiteSpace(team.CollarId))
-        {
-            return new TeamTrackingInfo
-            {
-                Label = "Kein Halsband",
-                Detail = "Dem Team ist kein GPS-Halsband zugewiesen.",
-                BadgeClass = "bg-secondary"
-            };
-        }
-
-        var collar = CollarTrackingService.Collars.FirstOrDefault(entry => entry.Id == team.CollarId);
-        var points = CollarTrackingService.GetLocationHistory(team.CollarId);
-
-        if (collar?.IsAssigned == true && points.Count > 0)
-        {
-            return new TeamTrackingInfo
-            {
-                Label = "Live",
-                Detail = $"{collar.CollarName} mit {points.Count} Trackpunkt(en).",
-                BadgeClass = "bg-success"
-            };
-        }
-
-        if (collar?.IsAssigned == true)
-        {
-            return new TeamTrackingInfo
-            {
-                Label = "Zugewiesen",
-                Detail = $"{collar.CollarName} ist verbunden, aber es liegen noch keine Positionsdaten vor.",
-                BadgeClass = "bg-info"
-            };
-        }
-
-        return new TeamTrackingInfo
-        {
-            Label = "Getrennt",
-            Detail = "Halsband ist aktuell nicht aktiv zugeordnet.",
-            BadgeClass = "bg-warning text-dark"
-        };
-    }
-
-    private TeamPositionInfo? GetLatestTeamPosition(Team team)
-    {
-        if (!string.IsNullOrWhiteSpace(team.CollarId))
-        {
-            var lastTrackPoint = CollarTrackingService.GetLocationHistory(team.CollarId)
-                .OrderByDescending(point => point.Timestamp)
-                .FirstOrDefault();
-
-            if (lastTrackPoint is not null)
-            {
-                return new TeamPositionInfo
-                {
-                    Latitude = lastTrackPoint.Latitude,
-                    Longitude = lastTrackPoint.Longitude,
-                    Timestamp = lastTrackPoint.Timestamp,
-                    Source = "GPS-Halsband"
-                };
-            }
-        }
-
-        if (EinsatzService.PhoneLocations.TryGetValue(team.TeamId, out var phoneLocation))
-        {
-            return new TeamPositionInfo
-            {
-                Latitude = phoneLocation.Latitude,
-                Longitude = phoneLocation.Longitude,
-                Timestamp = phoneLocation.Timestamp,
-                Source = "Team-Mobile"
-            };
-        }
-
-        return null;
-    }
-
-    private List<TeamMemberDetail> GetTeamMemberDetails(Team team)
-    {
-        var members = new List<TeamMemberDetail>();
-
-        if (!string.IsNullOrWhiteSpace(team.HundefuehrerId))
-        {
-            var lead = _personalList.FirstOrDefault(person => person.Id == team.HundefuehrerId);
-            members.Add(new TeamMemberDetail
-            {
-                Name = lead?.FullName ?? team.HundefuehrerName,
-                Role = team.IsDroneTeam ? "Pilot" : team.IsSupportTeam ? "Leitung" : "Hundefuehrer",
-                Qualification = lead?.SkillsShortDisplay ?? "-"
-            });
-        }
-
-        for (var index = 0; index < team.HelferIds.Count; index++)
-        {
-            var helperId = team.HelferIds[index];
-            var helper = _personalList.FirstOrDefault(person => person.Id == helperId);
-            var helperName = helper?.FullName;
-            if (string.IsNullOrWhiteSpace(helperName) && index < team.HelferNames.Count)
-            {
-                helperName = team.HelferNames[index];
-            }
-
-            if (string.IsNullOrWhiteSpace(helperName))
-            {
-                continue;
-            }
-
-            members.Add(new TeamMemberDetail
-            {
-                Name = helperName,
-                Role = $"Helfer {index + 1}",
-                Qualification = helper?.SkillsShortDisplay ?? "-"
-            });
-        }
-
-        if (!string.IsNullOrWhiteSpace(team.DogName))
-        {
-            members.Add(new TeamMemberDetail
-            {
-                Name = team.DogName,
-                Role = "Hund",
-                Qualification = team.DogSpecialization == DogSpecialization.None
-                    ? "Ohne Spezialisierung"
-                    : team.DogSpecialization.GetDisplayName()
-            });
-        }
-
-        if (team.IsDroneTeam && !string.IsNullOrWhiteSpace(team.DroneType))
-        {
-            members.Add(new TeamMemberDetail
-            {
-                Name = team.DroneType,
-                Role = "Drohne",
-                Qualification = "Luftaufklaerung"
-            });
-        }
-
-        return members;
-    }
-
-    private List<TeamMapActivityDetail> GetRecentMapActivities(Team team, SearchArea? searchArea, int take)
-    {
-        var teamName = team.TeamName;
-        var areaName = searchArea?.Name ?? string.Empty;
-
-        var filteredMarkers = EinsatzService.CurrentEinsatz.MapMarkers
-            .Where(marker =>
-                (!string.IsNullOrWhiteSpace(marker.Label)
-                 && marker.Label.Contains(teamName, StringComparison.OrdinalIgnoreCase))
-                || (!string.IsNullOrWhiteSpace(marker.Description)
-                    && marker.Description.Contains(teamName, StringComparison.OrdinalIgnoreCase))
-                || (!string.IsNullOrWhiteSpace(areaName)
-                    && marker.Description.Contains(areaName, StringComparison.OrdinalIgnoreCase)))
-            .OrderByDescending(marker => marker.CreatedAt)
-            .ToList();
-
-        if (filteredMarkers.Count == 0)
-        {
-            filteredMarkers = EinsatzService.CurrentEinsatz.MapMarkers
-                .OrderByDescending(marker => marker.CreatedAt)
-                .Take(take)
-                .ToList();
-        }
-
-        return filteredMarkers
-            .Take(take)
-            .Select(marker => new TeamMapActivityDetail
-            {
-                Label = string.IsNullOrWhiteSpace(marker.Label) ? "Marker" : marker.Label,
-                Description = string.IsNullOrWhiteSpace(marker.Description) ? "Ohne Beschreibung" : marker.Description,
-                Timestamp = marker.CreatedAt,
-                Coordinates = marker.FormattedLatLng
-            })
-            .ToList();
-    }
-
     private List<TeamTrackSnapshot> GetCompletedSearches(Team team, int take)
     {
         return EinsatzService.CurrentEinsatz.TrackSnapshots
@@ -1000,61 +772,6 @@ public partial class EinsatzMonitor
         }
 
         return "/einsatz-karte";
-    }
-
-    private static string BuildAreaPreviewPolygonPoints(SearchArea? area)
-    {
-        if (area?.Coordinates is null || area.Coordinates.Count < 3)
-        {
-            return string.Empty;
-        }
-
-        var bounds = GetAreaBounds(area);
-        var latRange = Math.Max(bounds.MaxLatitude - bounds.MinLatitude, 0.00001);
-        var lngRange = Math.Max(bounds.MaxLongitude - bounds.MinLongitude, 0.00001);
-
-        return string.Join(" ", area.Coordinates.Select(point =>
-        {
-            var x = 8 + ((point.Longitude - bounds.MinLongitude) / lngRange * 84);
-            var y = 92 - ((point.Latitude - bounds.MinLatitude) / latRange * 84);
-            return $"{x.ToString("0.##", CultureInfo.InvariantCulture)},{y.ToString("0.##", CultureInfo.InvariantCulture)}";
-        }));
-    }
-
-    private static (double X, double Y)? BuildAreaPreviewPositionPoint(SearchArea? area, TeamPositionInfo? position)
-    {
-        if (area?.Coordinates is null || area.Coordinates.Count < 3 || position is null)
-        {
-            return null;
-        }
-
-        var bounds = GetAreaBounds(area);
-        var latRange = Math.Max(bounds.MaxLatitude - bounds.MinLatitude, 0.00001);
-        var lngRange = Math.Max(bounds.MaxLongitude - bounds.MinLongitude, 0.00001);
-
-        var x = 8 + ((position.Longitude - bounds.MinLongitude) / lngRange * 84);
-        var y = 92 - ((position.Latitude - bounds.MinLatitude) / latRange * 84);
-
-        return (Math.Clamp(x, 4, 96), Math.Clamp(y, 4, 96));
-    }
-
-    private static (double MinLatitude, double MaxLatitude, double MinLongitude, double MaxLongitude) GetAreaBounds(SearchArea area)
-    {
-        var minLat = area.Coordinates.Min(coord => coord.Latitude);
-        var maxLat = area.Coordinates.Max(coord => coord.Latitude);
-        var minLng = area.Coordinates.Min(coord => coord.Longitude);
-        var maxLng = area.Coordinates.Max(coord => coord.Longitude);
-        return (minLat, maxLat, minLng, maxLng);
-    }
-
-    private static string ToInvariant(double value)
-    {
-        return value.ToString("0.##", CultureInfo.InvariantCulture);
-    }
-
-    private static string FormatCoordinate(double value)
-    {
-        return value.ToString("F6", CultureInfo.InvariantCulture);
     }
 
     private static string GetTeamColor(Team team)

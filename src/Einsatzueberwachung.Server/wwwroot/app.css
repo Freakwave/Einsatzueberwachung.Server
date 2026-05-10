@@ -1359,6 +1359,21 @@ a.list-group-item {
     cursor: pointer;
     transition: filter 0.12s ease, background 0.12s ease;
 }
+
+.tc-ctx-chip--action {
+    font-family: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    text-align: left;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.tc-ctx-chip--action:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 1px;
+}
+
 .tc-ctx-chip--link:hover {
     filter: brightness(1.08);
     background: rgba(0, 0, 0, 0.06);
@@ -1818,6 +1833,19 @@ a.list-group-item {
 
 .modal-backdrop {
     background-color: rgba(0, 0, 0, 0.6);
+}
+
+.modal-backdrop-action {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.modal-backdrop-action:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
 }
 
 .modal-dialog {
@@ -2418,6 +2446,26 @@ a.list-group-item {
     animation: fadeIn 0.2s ease;
 }
 
+.modal-overlay-dismiss {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.modal-overlay-dismiss:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
+}
+
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -2438,6 +2486,12 @@ a.list-group-item {
     max-height: 90vh;
     overflow: hidden;
     animation: slideUp 0.3s ease;
+}
+
+.modal-modern,
+.global-warning-popup {
+    position: relative;
+    z-index: 1;
 }
 
 @keyframes slideUp {
@@ -3508,6 +3562,26 @@ main,
     align-items: center;
     justify-content: center;
     padding: 1rem;
+}
+
+.global-warning-overlay-dismiss {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.global-warning-overlay-dismiss:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
 }
 
 .global-warning-popup {

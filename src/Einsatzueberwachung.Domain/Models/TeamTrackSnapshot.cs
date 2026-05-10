@@ -93,6 +93,20 @@ namespace Einsatzueberwachung.Domain.Models
             }
         }
 
+        public string DisplayLabel
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(CollarName))
+                    return CollarName;
+
+                if (!string.IsNullOrWhiteSpace(CollarId))
+                    return CollarId;
+
+                return TrackType == TrackType.HumanTrack ? "Mensch-Laufweg" : "Unbenannter Track";
+            }
+        }
+
         private static double HaversineDistance(double lat1, double lon1, double lat2, double lon2)
         {
             const double R = 6371000; // Erdradius in Metern

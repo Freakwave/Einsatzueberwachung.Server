@@ -53,6 +53,8 @@ namespace Einsatzueberwachung.Domain.Services
             if (!canAdd)
                 throw new InvalidOperationException($"Diese Suche enthält bereits einen Track vom Typ '{snapshot.TrackType}'.");
 
+            NormalizeSnapshotForCompletedSearch(search, snapshot);
+
             search.Tracks.Add(snapshot);
 
             // Flat-List für Rückwärtskompatibilität mitpflegen
@@ -62,6 +64,31 @@ namespace Einsatzueberwachung.Domain.Services
             TrackSnapshotAdded?.Invoke(snapshot);
             CompletedSearchUpdated?.Invoke(search);
             return Task.CompletedTask;
+        }
+
+        private void NormalizeSnapshotForCompletedSearch(CompletedSearch search, TeamTrackSnapshot snapshot)
+        {
+            snapshot.TeamId = search.TeamId;
+            snapshot.TeamName = search.TeamName;
+            snapshot.SearchAreaName = search.SearchAreaName ?? string.Empty;
+            snapshot.SearchAreaCoordinates = new List<(double Latitude, double Longitude)>();
+            snapshot.SearchAreaColor = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(search.SearchAreaId))
+                return;
+
+            var searchArea = _currentEinsatz.SearchAreas?.FirstOrDefault(area => area.Id == search.SearchAreaId);
+            if (searchArea == null)
+                return;
+
+            snapshot.SearchAreaName = !string.IsNullOrWhiteSpace(search.SearchAreaName)
+                ? search.SearchAreaName!
+                : searchArea.Name;
+
+            if (searchArea.Coordinates is { Count: >= 3 })
+                snapshot.SearchAreaCoordinates = new List<(double Latitude, double Longitude)>(searchArea.Coordinates);
+
+            snapshot.SearchAreaColor = searchArea.Color ?? string.Empty;
         }
 
         /// <summary>

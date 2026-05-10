@@ -93,9 +93,11 @@ public partial class EinsatzKarte
     private string? _expandedSnapshotId;
     private bool _mapInitialized;
     private bool _collarFocusApplyRunning;
-    private string? _lastAppliedFocusUri;
+    private string? _pendingFocusCollarId;
+    private string? _lastAppliedFocusCollarId;
     private bool _areaFocusApplyRunning;
-    private string? _lastAppliedAreaFocusUri;
+    private string? _pendingFocusAreaId;
+    private string? _lastAppliedFocusAreaId;
 
     // Koordinaten-Marker
     private List<MapMarker> _mapMarkers = new();
@@ -144,6 +146,21 @@ public partial class EinsatzKarte
             var elw = EinsatzService.CurrentEinsatz.ElwPosition.Value;
             _mapCenterLat = elw.Latitude;
             _mapCenterLng = elw.Longitude;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(_focusCollarId)
+            && !string.Equals(_focusCollarId, _lastAppliedFocusCollarId, StringComparison.Ordinal))
+        {
+            _pendingFocusCollarId = _focusCollarId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_focusAreaId)
+            && !string.Equals(_focusAreaId, _lastAppliedFocusAreaId, StringComparison.Ordinal))
+        {
+            _pendingFocusAreaId = _focusAreaId;
         }
     }
 
@@ -227,7 +244,7 @@ public partial class EinsatzKarte
                         _completedTrackVisibility[snap.Id] = true;
                         await JSRuntime.InvokeVoidAsync("CollarTracking.addCompletedTrack",
                             "einsatzMap", snap.Id, snap.Points, snap.Color,
-                            snap.TeamName, snap.CollarName ?? snap.CollarId, snap.TrackType.ToString());
+                            snap.TeamName, snap.DisplayLabel, snap.TrackType.ToString());
                     }
                     StateHasChanged();
                 }
@@ -815,7 +832,7 @@ public partial class EinsatzKarte
                     {
                         await JSRuntime.InvokeVoidAsync("CollarTracking.addCompletedTrack",
                             "einsatzMap", snap.Id, snap.Points, snap.Color,
-                            snap.TeamName, snap.CollarName ?? snap.CollarId, snap.TrackType.ToString());
+                            snap.TeamName, snap.DisplayLabel, snap.TrackType.ToString());
                     }
                 }
             }
@@ -892,16 +909,12 @@ public partial class EinsatzKarte
 
     private async Task ApplyCollarFocusFromQueryAsync()
     {
-        if (!_mapInitialized || _collarFocusApplyRunning || string.IsNullOrWhiteSpace(_focusCollarId))
+        if (!_mapInitialized || _collarFocusApplyRunning || string.IsNullOrWhiteSpace(_pendingFocusCollarId))
         {
             return;
         }
 
-        var focusUri = Navigation.Uri;
-        if (string.Equals(_lastAppliedFocusUri, focusUri, StringComparison.Ordinal))
-        {
-            return;
-        }
+        var focusCollarId = _pendingFocusCollarId;
 
         _collarFocusApplyRunning = true;
         await SetSidebarTabAsync("gps");
@@ -912,10 +925,11 @@ public partial class EinsatzKarte
             {
                 await Task.Delay(120 + (attempt * 80));
 
-                var focused = await JSRuntime.InvokeAsync<bool>("CollarTracking.zoomToCollar", "einsatzMap", _focusCollarId);
+                var focused = await JSRuntime.InvokeAsync<bool>("CollarTracking.zoomToCollar", "einsatzMap", focusCollarId);
                 if (focused)
                 {
-                    _lastAppliedFocusUri = focusUri;
+                    _lastAppliedFocusCollarId = focusCollarId;
+                    _pendingFocusCollarId = null;
                     return;
                 }
             }
@@ -928,22 +942,21 @@ public partial class EinsatzKarte
 
     private async Task ApplyAreaFocusFromQueryAsync()
     {
-        if (!_mapInitialized || _areaFocusApplyRunning || string.IsNullOrWhiteSpace(_focusAreaId))
+        if (!_mapInitialized || _areaFocusApplyRunning || string.IsNullOrWhiteSpace(_pendingFocusAreaId))
             return;
 
-        var focusUri = Navigation.Uri;
-        if (string.Equals(_lastAppliedAreaFocusUri, focusUri, StringComparison.Ordinal))
-            return;
+        var focusAreaId = _pendingFocusAreaId;
 
         _areaFocusApplyRunning = true;
         try
         {
-            var area = _searchAreas.FirstOrDefault(a => a.Id == _focusAreaId);
+            var area = _searchAreas.FirstOrDefault(a => a.Id == focusAreaId);
             if (area != null)
             {
                 await SetSidebarTabAsync("areas");
                 await ZoomToArea(area);
-                _lastAppliedAreaFocusUri = focusUri;
+                _lastAppliedFocusAreaId = focusAreaId;
+                _pendingFocusAreaId = null;
             }
         }
         finally
@@ -1041,7 +1054,7 @@ public partial class EinsatzKarte
                 {
                     await JSRuntime.InvokeVoidAsync("CollarTracking.addCompletedTrack",
                         "einsatzMap", snapshot.Id, snapshot.Points, snapshot.Color,
-                        snapshot.TeamName, snapshot.CollarName ?? snapshot.CollarId, snapshot.TrackType.ToString());
+                        snapshot.TeamName, snapshot.DisplayLabel, snapshot.TrackType.ToString());
                 }
                 StateHasChanged();
             }

@@ -802,6 +802,46 @@
 <!-- CHANGELOG_START -->
 <div class="changelog-entry">
   <div class="changelog-header">
+    <span class="changelog-version">v1.8.2</span>
+    <span class="changelog-date">10.05.2026</span>
+    <span class="changelog-name">Release 1.8.2: Konfigurierbares Tastenkürzel-System + UI-Fixes</span>
+  </div>
+  <div class="changelog-body"><h4>Was ist neu in 1.8.2</h4>
+<h4>Konfigurierbares Tastenkürzel-System</h4>
+<ul>
+<li>Neuer Tab <strong>„Tastenkürzel"</strong> in den Einstellungen: alle Navigationskürzel (Ctrl+H/M/N/T) und Stepper-Tasten (ArrowUp/Down) sind jetzt frei konfigurierbar</li>
+<li>Key-Recorder-UI: Feld anklicken → Taste drücken → sofort gespeichert</li>
+<li>Reset-Buttons pro Shortcut + „Alle zurücksetzen"</li>
+<li>Konfiguration wird pro Browser in localStorage gespeichert</li>
+</ul>
+<h4>HilfeDrawer – Kontextsensitive In-App-Hilfe</h4>
+<ul>
+<li><strong>?-Button</strong> im Topbar öffnet ein Slide-in Offcanvas mit Hilfetexten</li>
+<li>Scrollt automatisch zur aktuellen Seite</li>
+<li>Alle Seiten mit Beschreibung und Klickpfaden dokumentiert</li>
+</ul>
+<h4>Stepper-Verbesserungen (EinsatzStart)</h4>
+<ul>
+<li>Anzahl Teams per Tastatur bedienbar (ArrowUp/Down oder konfigurierte Taste)</li>
+<li>Direkteingabe wird auf 1–50 geclampt</li>
+<li>+/- Buttons sind visuell deaktiviert an den Grenzen (1 / 50)</li>
+</ul>
+<h4>Accessibility</h4>
+<ul>
+<li><code>aria-expanded</code> auf Trainer-Chip-Button in EinsatzStart ergänzt</li>
+</ul>
+<h4>Bug-Fixes / Stabilität</h4>
+<ul>
+<li><code>async void OnLocationChanged</code> mit generellem Exception-Catch abgesichert</li>
+</ul>
+<h4>Code-Qualität</h4>
+<ul>
+<li>11 weitere Inline-Styles in EinsatzMonitor zu CSS-Klassen ausgelagert</li>
+<li>Hilfetexte (HilfeContent.cs): alle ASCII-Umlaut-Ersetzungen durch echte Umlaute ersetzt</li>
+</ul></div>
+</div>
+<div class="changelog-entry">
+  <div class="changelog-header">
     <span class="changelog-version">v1.8.1</span>
     <span class="changelog-date">10.05.2026</span>
     <span class="changelog-name">v1.8.1</span>
@@ -920,31 +960,6 @@
     <span class="changelog-name">v1.7.3</span>
   </div>
   <div class="changelog-body"><p><strong>Full Changelog</strong>: https://github.com/Elemirus1996/Einsatzueberwachung.Server/compare/v1.7.2...v1.7.3</p></div>
-</div>
-<div class="changelog-entry">
-  <div class="changelog-header">
-    <span class="changelog-version">v1.7.2</span>
-    <span class="changelog-date">02.05.2026</span>
-    <span class="changelog-name">Release 1.7.2</span>
-  </div>
-  <div class="changelog-body"><h4>Hotfix — 502 Bad Gateway beim Drucken (auch mit Streets)</h4>
-<h4>Ursache</h4>
-<p>Die VPN-Nginx-Config (<code>deploy/nginx/einsatzueberwachung.conf</code>) hatte kein <code>proxy_read_timeout</code> gesetzt → Default ist <strong>60 Sekunden</strong>. Bei laengerer PDF-Generierung (Karte + Suchgebiete + ELW) reicht das schlicht nicht. Auch bei Streets-Karten kann die Antwortzeit ueber 60s steigen, wenn der Server unter Last ist.</p>
-<h4>Fix</h4>
-<ul>
-<li><code>/downloads/</code>-Endpoints bekommen <code>proxy_read_timeout 5m</code>, <code>proxy_send_timeout 5m</code>, <code>proxy_connect_timeout 30s</code>, <code>proxy_buffering off</code> (kein Memory-Pufferung grosser PDFs/ZIPs).</li>
-<li>Hauptanwendung bekommt <code>proxy_read_timeout 2m</code> (statt 60s default).</li>
-<li>SignalR-Hubs unveraendert auf <code>1h</code>.</li>
-</ul>
-<h4>⚠️ WICHTIG: Nginx-Config muss manuell auf dem Server aktualisiert werden</h4>
-<p>Der In-App-Updater rollt nur die .NET-Binaries aus, <strong>nicht</strong> die Nginx-Config. SSH auf den Server und:</p>
-<p><code>`</code>bash</p>
-<p>cd /opt/einsatzueberwachung</p>
-<p>git pull   # oder das aktuelle deploy/nginx/einsatzueberwachung.conf von GitHub holen</p>
-<p>sudo cp deploy/nginx/einsatzueberwachung.conf /etc/nginx/sites-enabled/</p>
-<p>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</p>
-<p><code>`</code></p>
-<p>Ohne diesen Schritt bleibt das 502-Verhalten bestehen, auch wenn die App geupdatet ist. Die Render-Limits aus 1.7.1 (25s Map-Cap + globaler Lock) sind weiterhin aktiv und schuetzen den Server vor Stapeln/Hangs.</p></div>
 </div>
 <!-- CHANGELOG_END -->
     </div>

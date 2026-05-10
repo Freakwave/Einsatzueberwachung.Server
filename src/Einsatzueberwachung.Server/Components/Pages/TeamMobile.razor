@@ -281,32 +281,22 @@ else
             }
         }
 
+        // _lastUpdate für Footer-Anzeige ("GPS: Xs") aus der letzten bekannten Halsband-Position initialisieren.
+        // Die eigentliche Track-Darstellung übernimmt reloadCurrentTracks() per HTTP-Fetch, damit auch
+        // große Track-Verläufe zuverlässig geladen werden (kein Blazor-Interop-Größenlimit).
         if (!string.IsNullOrWhiteSpace(_team.CollarId))
         {
-            var history = CollarTrackingService.GetLocationHistory(_team.CollarId);
-            if (history.Count > 0)
-            {
-                var pts = history.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
-                try
-                {
-                    await JS.InvokeVoidAsync("teamMobileMap.setTrack", pts);
-                    var last = history[^1];
-                    await JS.InvokeVoidAsync("teamMobileMap.setDogPosition", last.Latitude, last.Longitude, _team.DogName);
-                    _lastUpdate = last.Timestamp;
-                }
-                catch { /* tolerant */ }
-            }
+            var latestLocation = CollarTrackingService.GetLatestLocation(_team.CollarId);
+            if (latestLocation != null)
+                _lastUpdate = latestLocation.Timestamp;
         }
+
+        // Track-Verlauf per direktem HTTP-Fetch des JS laden (robuster als Blazor-Interop bei großen Daten).
+        // Lädt Halsband-Track, Hund-Marker und Telefon-GPS-Track aus /api/team-mobile/state.
+        try { await JS.InvokeVoidAsync("teamMobileMap.reloadCurrentTracks"); } catch { /* tolerant */ }
+
         _selfRef = DotNetObjectReference.Create(this);
         try { await JS.InvokeVoidAsync("teamMobileMap.startWatchingUser", _selfRef); } catch { /* ignore */ }
-
-        // Bestehenden Telefon-Track aus Server-Verlauf wiederherstellen (überlebt Seiten-Reconnect)
-        var phoneHistory = EinsatzService.GetPhoneTrackHistory(_team.TeamId);
-        if (phoneHistory.Count >= 2)
-        {
-            var phonePts = phoneHistory.Select(p => new { lat = p.Latitude, lng = p.Longitude }).ToArray();
-            try { await JS.InvokeVoidAsync("teamMobileMap.loadUserTrack", phonePts); } catch { /* tolerant */ }
-        }
 
         // Direkt an Domain-Events andocken
         _collarHandler = OnCollarLocation;

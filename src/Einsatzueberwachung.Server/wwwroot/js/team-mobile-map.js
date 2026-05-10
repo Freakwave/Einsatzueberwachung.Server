@@ -163,19 +163,45 @@ window.teamMobileMap = (function () {
         ).addTo(map);
     }
 
+    /**
+     * Lädt den aktuellen Halsband-Track und Telefon-GPS-Track direkt vom Server-API (/api/team-mobile/state).
+     * Dieser Ansatz umgeht mögliche Größen- oder Timing-Probleme beim Blazor-Interop und stellt sicher,
+     * dass der vollständige Track-Verlauf nach jedem Seiten-Reload sichtbar ist.
+     */
+    function reloadCurrentTracks() {
+        fetch('/api/team-mobile/state', { credentials: 'same-origin' })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data) return;
+                // Halsband-Track des Hundes
+                if (data.track && data.track.length >= 2) {
+                    setTrack(data.track);
+                }
+                if (data.lastLocation) {
+                    setDogPosition(data.lastLocation.lat, data.lastLocation.lng, data.team?.dogName || '');
+                }
+                // Eigener Telefon-GPS-Track (Mensch)
+                if (data.phoneTrack && data.phoneTrack.length >= 2) {
+                    loadUserTrack(data.phoneTrack);
+                }
+            })
+            .catch(() => {});
+    }
+
     function centerOnDog() {
         if (map && dogMarker) map.panTo(dogMarker.getLatLng());
     }
 
     function destroy() {
         stopWatchingUser();
+        historicalTracks.forEach(t => { try { if (map) map.removeLayer(t); } catch (e) { /* ignore */ } });
+        historicalTracks = [];
         if (map) { map.remove(); map = null; }
         polygonLayer = null;
         dogMarker = null;
         trackLine = null;
         userMarker = null;
         userTrackLine = null;
-        historicalTracks = [];
     }
 
     let watchId = null;
@@ -234,6 +260,7 @@ window.teamMobileMap = (function () {
     return {
         init, renderSearchArea, setDogPosition, setTrack, appendTrackPoint,
         setUserPosition, appendUserTrackPoint, loadUserTrack, addCompletedTrack,
+        reloadCurrentTracks,
         centerOnDog, destroy,
         startWatchingUser, stopWatchingUser, getAreaCentroid, postLocation, setOptions
     };

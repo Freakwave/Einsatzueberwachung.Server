@@ -188,6 +188,8 @@ public sealed class TeamMobileController : ControllerBase
             lastLocation = trackPoints.Count > 0 ? trackPoints[^1] : null;
         }
 
+        var phoneTrack = _einsatzService.GetPhoneTrackHistory(teamId);
+
         return Ok(new
         {
             einsatzActive,
@@ -219,6 +221,9 @@ public sealed class TeamMobileController : ControllerBase
             },
             track = trackPoints
                 .Select(p => new { lat = p.Latitude, lng = p.Longitude, timestamp = p.Timestamp })
+                .ToList(),
+            phoneTrack = phoneTrack
+                .Select(p => new { lat = p.Latitude, lng = p.Longitude })
                 .ToList()
         });
     }

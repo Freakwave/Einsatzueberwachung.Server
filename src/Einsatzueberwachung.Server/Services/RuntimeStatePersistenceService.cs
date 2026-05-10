@@ -324,6 +324,6 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
     private void OnNoteDirty(Einsatzueberwachung.Domain.Models.GlobalNotesEntry _) => _isDirty = true;
     private void OnTrackDirty(Einsatzueberwachung.Domain.Models.TeamTrackSnapshot _) => _isDirty = true;
     private void OnCompletedSearchDirty(Einsatzueberwachung.Domain.Models.CompletedSearch _) => _isDirty = true;
-    private void OnCollarLocationDirty(string _, Einsatzueberwachung.Domain.Models.CollarLocation __) => _isDirty = true;
-    private void OnPhoneTrackPointDirty(string _, string __, Einsatzueberwachung.Domain.Models.TeamPhoneLocation ___) => _isDirty = true;
+    private void OnCollarLocationDirty(string collarId, Einsatzueberwachung.Domain.Models.CollarLocation location) => _isDirty = true;
+    private void OnPhoneTrackPointDirty(string teamId, string memberId, Einsatzueberwachung.Domain.Models.TeamPhoneLocation location) => _isDirty = true;
 }

@@ -99,6 +99,21 @@
                         </div>
 
                         <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Szenario <span class="text-danger">*</span></label>
+                            <InputSelect class="@(_szenarioMissing ? "form-select is-invalid" : "form-select")" @bind-Value="_model.Szenario">
+                                <option value="@EinsatzSzenarioType.Unbestimmt">- bitte wählen -</option>
+                                <option value="@EinsatzSzenarioType.Mantrailer">@EinsatzSzenarioType.Mantrailer.GetDisplayName()</option>
+                                <option value="@EinsatzSzenarioType.Flaeche">@EinsatzSzenarioType.Flaeche.GetDisplayName()</option>
+                                <option value="@EinsatzSzenarioType.Truemmer">@EinsatzSzenarioType.Truemmer.GetDisplayName()</option>
+                                <option value="@EinsatzSzenarioType.Sonstige">@EinsatzSzenarioType.Sonstige.GetDisplayName()</option>
+                            </InputSelect>
+                            @if (_model.Szenario != EinsatzSzenarioType.Unbestimmt)
+                            {
+                                <div class="form-text">@_model.Szenario.GetDescription()</div>
+                            }
+                        </div>
+
+                        <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold">Timer-Start (Alarmierung)</label>
                             <input class="form-control"
                                    type="time"
@@ -151,6 +166,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
 
         <div class="col-12 col-lg-5">

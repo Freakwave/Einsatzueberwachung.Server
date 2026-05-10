@@ -179,10 +179,64 @@ namespace Einsatzueberwachung.Domain.Services
         }
 
         public Task UpdateVermisstenInfoAsync(VermisstenInfo info)
+            => UpsertVermisstenAsync(info);
+
+        public async Task UpsertVermisstenAsync(VermisstenInfo info)
         {
+            if (info.Id == Guid.Empty)
+                info.Id = Guid.NewGuid();
+
             info.ZuletztAktualisiert = _timeService?.Now ?? DateTime.Now;
-            _currentEinsatz.VermisstenInfo = info;
+            _currentEinsatz.Vermisste ??= new List<VermisstenInfo>();
+
+            // Beim ersten Anlegen ohne Checkliste das Default-Template für das aktuelle Szenario anhängen.
+            if (info.Checkliste is null
+                && _masterDataService is not null
+                && _currentEinsatz.Szenario != EinsatzSzenarioType.Unbestimmt)
+            {
+                var template = await _masterDataService.GetDefaultChecklistTemplateAsync(_currentEinsatz.Szenario);
+                if (template is not null)
+                    info.Checkliste = ChecklistInstance.FromTemplate(template);
+            }
+
+            var idx = _currentEinsatz.Vermisste.FindIndex(v => v.Id == info.Id);
+            var added = idx < 0;
+            if (added)
+                _currentEinsatz.Vermisste.Add(info);
+            else
+                _currentEinsatz.Vermisste[idx] = info;
+
             VermisstenInfoChanged?.Invoke();
+            if (added)
+                VermisstenAdded?.Invoke(info);
+            else
+                VermisstenUpdated?.Invoke(info);
+            EinsatzChanged?.Invoke();
+        }
+
+        public Task RemoveVermisstenAsync(Guid id)
+        {
+            if (_currentEinsatz.Vermisste is null)
+                return Task.CompletedTask;
+
+            var entry = _currentEinsatz.Vermisste.FirstOrDefault(v => v.Id == id);
+            if (entry is null)
+                return Task.CompletedTask;
+
+            _currentEinsatz.Vermisste.Remove(entry);
+            VermisstenInfoChanged?.Invoke();
+            VermisstenRemoved?.Invoke(id);
+            EinsatzChanged?.Invoke();
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateSzenarioAsync(EinsatzSzenarioType szenario)
+        {
+            if (_currentEinsatz.Szenario == szenario)
+                return Task.CompletedTask;
+
+            _currentEinsatz.Szenario = szenario;
+            SzenarioChanged?.Invoke();
             EinsatzChanged?.Invoke();
             return Task.CompletedTask;
         }

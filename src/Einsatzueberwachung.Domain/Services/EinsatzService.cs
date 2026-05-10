@@ -26,6 +26,7 @@ namespace Einsatzueberwachung.Domain.Services
 
         private readonly ISettingsService? _settingsService;
         private readonly ITimeService? _timeService;
+        private readonly IMasterDataService? _masterDataService;
         private EinsatzData _currentEinsatz;
         private readonly List<Team> _teams;
         private readonly List<GlobalNotesEntry> _globalNotes;
@@ -45,14 +46,23 @@ namespace Einsatzueberwachung.Domain.Services
         public event Action<GlobalNotesEntry>? NoteAdded;
         public event Action<Team, bool>? TeamWarningTriggered;
         public event Action? VermisstenInfoChanged;
+        public event Action<VermisstenInfo>? VermisstenAdded;
+        public event Action<VermisstenInfo>? VermisstenUpdated;
+        public event Action<Guid>? VermisstenRemoved;
+        public event Action? SzenarioChanged;
+        public event Action<TruemmerKarte>? TruemmerKarteAdded;
+        public event Action<Guid>? TruemmerKarteRemoved;
+        public event Action<TruemmerArea>? TruemmerAreaUpserted;
+        public event Action<Guid>? TruemmerAreaRemoved;
         public event Action? ElNotizAdded;
         public event Action<string, string, TeamPhoneLocation>? TeamPhoneLocationChanged;
         public event Action<Team>? DogPauseStarted;
 
-        public EinsatzService(ISettingsService? settingsService = null, ITimeService? timeService = null)
+        public EinsatzService(ISettingsService? settingsService = null, ITimeService? timeService = null, IMasterDataService? masterDataService = null)
         {
             _settingsService = settingsService;
             _timeService = timeService;
+            _masterDataService = masterDataService;
             _currentEinsatz = new EinsatzData();
             _teams = new List<Team>();
             _globalNotes = new List<GlobalNotesEntry>();

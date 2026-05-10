@@ -14,6 +14,7 @@ public partial class EinsatzLeitung : IDisposable
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private IWeatherService Weather { get; set; } = default!;
     [Inject] private IRadioService Radio { get; set; } = default!;
+    [Inject] private IMasterDataService MasterDataService { get; set; } = default!;
 
     private string _activeTab = "uebersicht";
     private string _noteFilter = "alle";
@@ -63,6 +64,56 @@ public partial class EinsatzLeitung : IDisposable
     }
 
     private VermisstenInfo _vi = new();
+    private bool MehrereVermisstErlaubt =>
+        EinsatzService.CurrentEinsatz.Szenario.AllowsMultipleVermisste();
+
+    private async Task SelectVermisstenAsync(Guid id)
+    {
+        if (_vi.Id == id) return;
+        await FlushPendingAutoSaveAsync();
+        var entry = EinsatzService.CurrentEinsatz.Vermisste?.FirstOrDefault(v => v.Id == id);
+        if (entry is not null)
+        {
+            CloneViFrom(entry);
+            await EnsureChecklistAsync();
+        }
+    }
+
+    private async Task AddVermisstenAsync()
+    {
+        await FlushPendingAutoSaveAsync();
+        _vi = new VermisstenInfo { Id = Guid.NewGuid() };
+        await EinsatzService.UpsertVermisstenAsync(_vi);
+        _lastAutoSavedAt = DateTime.Now;
+    }
+
+    private async Task RemoveCurrentVermisstenAsync()
+    {
+        var idToRemove = _vi.Id;
+        _autoSaveCts?.Cancel();
+        _autoSavePending = false;
+        await EinsatzService.RemoveVermisstenAsync(idToRemove);
+        var remaining = EinsatzService.CurrentEinsatz.Vermisste;
+        if (remaining is { Count: > 0 })
+            CloneViFrom(remaining[0]);
+        else
+            _vi = new VermisstenInfo { Id = Guid.NewGuid() };
+    }
+
+    private async Task FlushPendingAutoSaveAsync()
+    {
+        _autoSaveCts?.Cancel();
+        _autoSaveCts?.Dispose();
+        _autoSaveCts = null;
+        if (!_autoSavePending) return;
+        _autoSavePending = false;
+        try
+        {
+            await EinsatzService.UpsertVermisstenAsync(_vi);
+            _lastAutoSavedAt = DateTime.Now;
+        }
+        catch { /* swallow */ }
+    }
     private string _saveMessage = string.Empty;
     private bool _saveIsError;
     private DateTime? _lastAutoSavedAt;
@@ -94,9 +145,13 @@ public partial class EinsatzLeitung : IDisposable
 
     protected override void OnInitialized()
     {
-        var existing = EinsatzService.CurrentEinsatz.VermisstenInfo;
-        if (existing is not null)
-            CloneViFrom(existing);
+        var list = EinsatzService.CurrentEinsatz.Vermisste;
+        if (list is { Count: > 0 })
+            CloneViFrom(list[0]);
+        else
+            _vi.Id = Guid.NewGuid();
+
+        _ = EnsureChecklistAsync();
 
         RebuildMentionSuggestions();
 
@@ -106,6 +161,7 @@ public partial class EinsatzLeitung : IDisposable
         EinsatzService.TeamRemoved += OnTeamChanged;
         EinsatzService.NoteAdded += OnNoteChanged;
         EinsatzService.VermisstenInfoChanged += OnVermisstenChanged;
+        EinsatzService.SzenarioChanged += OnStateChangedDirect;
         EinsatzService.ElNotizAdded += OnStateChangedDirect;
     }
 
@@ -132,7 +188,7 @@ public partial class EinsatzLeitung : IDisposable
     // ── Vermisst: manueller + Auto-Save ──────────────────────────
     private async Task SaveVermisstenAsync()
     {
-        await EinsatzService.UpdateVermisstenInfoAsync(_vi);
+        await EinsatzService.UpsertVermisstenAsync(_vi);
         _saveMessage = "Gespeichert.";
         _saveIsError = false;
         _lastAutoSavedAt = DateTime.Now;
@@ -149,13 +205,15 @@ public partial class EinsatzLeitung : IDisposable
         _autoSaveCts = new CancellationTokenSource();
         var token = _autoSaveCts.Token;
         _autoSavePending = true;
+        var snapshotId = _vi.Id;
         _ = Task.Run(async () =>
         {
             try
             {
                 await Task.Delay(1500, token);
                 if (token.IsCancellationRequested) return;
-                await EinsatzService.UpdateVermisstenInfoAsync(_vi);
+                if (_vi.Id != snapshotId) return; // anderer Vermisster aktiv
+                await EinsatzService.UpsertVermisstenAsync(_vi);
                 _lastAutoSavedAt = DateTime.Now;
                 _autoSavePending = false;
                 _saveIsError = false;
@@ -613,6 +671,7 @@ public partial class EinsatzLeitung : IDisposable
     {
         _vi = new VermisstenInfo
         {
+            Id = src.Id == Guid.Empty ? Guid.NewGuid() : src.Id,
             Vorname = src.Vorname,
             Nachname = src.Nachname,
             Alter = src.Alter,
@@ -641,8 +700,84 @@ public partial class EinsatzLeitung : IDisposable
             BosFunkrufname = src.BosFunkrufname,
             BosAufgabenteilung = src.BosAufgabenteilung,
             BosAbschnittAbgestimmt = src.BosAbschnittAbgestimmt,
-            BosRessourcenBesprochen = src.BosRessourcenBesprochen
+            BosRessourcenBesprochen = src.BosRessourcenBesprochen,
+            Checkliste = CloneChecklist(src.Checkliste)
         };
+    }
+
+    private static ChecklistInstance? CloneChecklist(ChecklistInstance? src)
+    {
+        if (src is null) return null;
+        return new ChecklistInstance
+        {
+            TemplateId = src.TemplateId,
+            TemplateName = src.TemplateName,
+            Szenario = src.Szenario,
+            Items = src.Items.Select(it => new ChecklistItemDefinition
+            {
+                Id = it.Id,
+                Label = it.Label,
+                Type = it.Type,
+                Choices = new List<string>(it.Choices),
+                Required = it.Required
+            }).ToList(),
+            Values = new Dictionary<string, string?>(src.Values)
+        };
+    }
+
+    // Checklist-Item Getter/Setter (Values im Dict sind Strings)
+    private bool ChecklistGetBool(Guid itemId)
+    {
+        if (_vi.Checkliste is null) return false;
+        return _vi.Checkliste.Values.TryGetValue(itemId.ToString(), out var v)
+               && string.Equals(v, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ChecklistSetBool(Guid itemId, bool value)
+    {
+        if (_vi.Checkliste is null) return;
+        _vi.Checkliste.Values[itemId.ToString()] = value ? "true" : "false";
+        ScheduleAutoSave();
+    }
+
+    private string ChecklistGetText(Guid itemId)
+    {
+        if (_vi.Checkliste is null) return string.Empty;
+        return _vi.Checkliste.Values.TryGetValue(itemId.ToString(), out var v) ? v ?? string.Empty : string.Empty;
+    }
+
+    private void ChecklistSetText(Guid itemId, string? value)
+    {
+        if (_vi.Checkliste is null) return;
+        _vi.Checkliste.Values[itemId.ToString()] = value ?? string.Empty;
+        ScheduleAutoSave();
+    }
+
+    private (int filled, int total) ChecklistProgress
+    {
+        get
+        {
+            if (_vi.Checkliste is null) return (0, 0);
+            var total = _vi.Checkliste.Items.Count;
+            var filled = _vi.Checkliste.Items.Count(it =>
+            {
+                var raw = _vi.Checkliste.Values.TryGetValue(it.Id.ToString(), out var v) ? v : null;
+                if (string.IsNullOrWhiteSpace(raw)) return false;
+                if (it.Type == ChecklistItemType.Bool) return string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase);
+                return true;
+            });
+            return (filled, total);
+        }
+    }
+
+    private async Task EnsureChecklistAsync()
+    {
+        if (_vi.Checkliste is not null) return;
+        var szenario = EinsatzService.CurrentEinsatz.Szenario;
+        if (szenario == EinsatzSzenarioType.Unbestimmt) return;
+        var template = await MasterDataService.GetDefaultChecklistTemplateAsync(szenario);
+        if (template is null) return;
+        _vi.Checkliste = ChecklistInstance.FromTemplate(template);
     }
 
     private void OnGeburtsdatumChanged(ChangeEventArgs e)
@@ -732,6 +867,26 @@ public partial class EinsatzLeitung : IDisposable
     private void OnStateChangedDirect()
         => InvokeAsync(StateHasChanged);
 
+    private bool _szenarioMenuOpen;
+
+    private async Task SetSzenarioAsync(EinsatzSzenarioType szenario)
+    {
+        _szenarioMenuOpen = false;
+
+        if (szenario == EinsatzSzenarioType.Mantrailer)
+        {
+            var current = EinsatzService.CurrentEinsatz.Vermisste?.Count ?? 0;
+            if (current > 1)
+            {
+                _saveMessage = $"Hinweis: Mantrailer-Szenario gewählt — es sind {current} Vermisste eingetragen. " +
+                               "Auf der Mantrailer-Seite wird nur die erste Person bearbeitbar angezeigt; die übrigen bleiben in den Daten erhalten.";
+                _saveIsError = false;
+            }
+        }
+
+        await EinsatzService.UpdateSzenarioAsync(szenario);
+    }
+
     private void OnVermisstenChanged()
     {
         if (_activeTab != "vermisst")
@@ -751,6 +906,7 @@ public partial class EinsatzLeitung : IDisposable
         EinsatzService.TeamRemoved -= OnTeamChanged;
         EinsatzService.NoteAdded -= OnNoteChanged;
         EinsatzService.VermisstenInfoChanged -= OnVermisstenChanged;
+        EinsatzService.SzenarioChanged -= OnStateChangedDirect;
         EinsatzService.ElNotizAdded -= OnStateChangedDirect;
         _autoSaveCts?.Cancel();
         _autoSaveCts?.Dispose();

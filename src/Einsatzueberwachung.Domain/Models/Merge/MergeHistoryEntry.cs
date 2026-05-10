@@ -43,6 +43,9 @@ namespace Einsatzueberwachung.Domain.Models.Merge
         /// <summary>IDs der hinzugefügten GPS-Track-Snapshots.</summary>
         public List<string> AddedTrackSnapshotIds { get; set; } = new();
 
+        /// <summary>IDs der hinzugefügten Vermissten-Einträge (Guid als String).</summary>
+        public List<string> AddedVermisstenIds { get; set; } = new();
+
         /// <summary>IDs neu erstellter Personal-Einträge in den Stammdaten (Decision = CreateNew).</summary>
         public List<string> CreatedPersonalIds { get; set; } = new();
 

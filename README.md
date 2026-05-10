@@ -2,7 +2,9 @@
 
 **Einsatzleitsystem für Suchhundestaffeln** — entwickelt für den VPN-internen Betrieb auf einem Linux-Server.
 
-Die Anwendung unterstützt Suchhundestaffeln bei der Koordination von Einsätzen: Teamverwaltung mit Timern, Live-GPS-Tracking von Suchhunden, Funksprüche, Notizen, Einsatzberichte als PDF und eine direkte Schnittstelle zu Divera 24/7.
+Die Anwendung unterstützt Suchhundestaffeln bei der Koordination von Einsätzen: Teamverwaltung mit Timern, Live-GPS-Tracking von Suchhunden, Drohnen-Livestream, GPX-Import, Funksprüche, Notizen, Einsatzberichte als PDF und eine direkte Schnittstelle zu Divera 24/7.
+
+Entwickelt von **Elemirus1996** und **Freakwave**. Lizenz: [MIT](LICENSE).
 
 ---
 
@@ -11,14 +13,21 @@ Die Anwendung unterstützt Suchhundestaffeln bei der Koordination von Einsätzen
 | Bereich | Beschreibung |
 |---|---|
 | 🗂️ **Einsatzsteuerung** | Einsatz starten/beenden, Teams anlegen, Suchgebiete auf der Karte definieren |
+| 🎯 **Einsatz-Szenarien** | Mantrailer / Flächensuche / Trümmer / Sonstige als Szenario am Einsatz; UI passt sich an (Multi-Vermisste, Trümmer-Karte) |
+| 🧑‍🤝‍🧑 **Mehrere Vermisste** | Bei Fläche/Trümmer-Szenario beliebig viele Vermisstenprofile pro Einsatz; Mantrailer auf eine Person beschränkt |
+| 📋 **Szenarioabhängige Checklisten** | Editierbare Default-Checklisten je Szenario in den Stammdaten, automatisch an jedes Vermisstenprofil angehängt |
+| 🧱 **Trümmer-Lagekarte** | Drohnenfoto vom Trümmerfeld hochladen und Suchgebiete pixel-basiert (ohne GPS) einzeichnen — eigene Seite, NavMenu-Eintrag erscheint nur im Trümmer-Szenario |
 | ⏱️ **Team-Timer** | Zeiterfassung pro Team mit farbcodierter Warnstufe (Grün → Orange → Rot → Blinken) |
+| 👥 **Teams-Detailansicht** | Detailkarte pro Team mit Status, zugewiesenen Hunden und Timer-Übersicht |
 | 📡 **GPS Live-Tracking** | Bis zu 20 Halsbänder gleichzeitig, Live-Laufwege auf der Karte, automatische Suchgebiet-Warnung |
+| 🚁 **Drohnen-Livestream** | Drohnen in Stammdaten verwalten und per Live-Stream-Link direkt in der Karte anzeigen |
+| 📥 **GPX-Import** | GPS-Tracks als GPX-Datei importieren (z. B. aus Garmin Basecamp) zur Dokumentation von Suchteams |
 | 📻 **Funksprüche** | Chronologische Funkspruch-Liste mit Antwort-Threads, Echtzeit-Sync via SignalR |
-| 📝 **Notizen** | Globale und teamspezifische Notizen mit Zeitstempel und Antwort-Threads |
+| 📝 **Notizen** | Globale und teamspezifische Notizen mit Zeitstempel, Antwort-Threads und @-Erwähnungen |
 | 🗺️ **Interaktive Karte** | Leaflet.js-Karte mit Suchgebieten, Polygonen, ELW-Position und GPS-Tracks |
 | 📄 **PDF-Bericht** | Einsatzbericht mit GPS-Track-Karten und Teamdaten als PDF-Download |
 | 🏛️ **Archiv** | Abgeschlossene Einsätze durchsuchen und als PDF exportieren |
-| 👥 **Stammdaten** | Personal, Hunde und Drohnen verwalten (inkl. Excel-Import/-Export) |
+| 👤 **Stammdaten** | Personal, Hunde und Drohnen verwalten (inkl. Excel-Import/-Export) |
 | 🔔 **Divera 24/7** | Alarme und Verfügbarkeitsstatus direkt in der Anwendung |
 | 🎓 **Trainer-Modul** | Passwortgeschützter Bereich für Übungsverwaltung und Szenario-Vorschläge |
 | 📱 **Mobile Ansicht** | Optimierte Ansicht für Smartphones (integriert, keine separate App) |
@@ -119,7 +128,7 @@ sudo bash deploy/setup.sh
 
 | Variable | Standard | Beschreibung |
 |---|---|---|
-| `EINSATZ_DATA_DIR` | `/opt/einsatzueberwachung/data` | Stammdaten, Einstellungen, Archiv |
+| `EINSATZ_DATA_DIR` | `/opt/einsatzueberwachung/data` | Stammdaten, Einstellungen, Archiv, Trümmer-Bilder unter `truemmer/{einsatzId}/` |
 | `EINSATZ_REPORTS_DIR` | `/opt/einsatzueberwachung/data/berichte` | Generierte PDF-Berichte |
 
 ---
@@ -132,6 +141,9 @@ Alle Endpunkte sind über `/api/` erreichbar. Im Development-Modus steht Swagger
 |---|---|
 | `POST /api/einsatz/start` | Neuen Einsatz starten |
 | `GET /api/einsatz` | Aktuellen Einsatzzustand abrufen |
+| `POST /api/truemmer/karten` | Trümmer-Lagekarte (Drohnenfoto) hochladen — Multipart, max 20 MB, JPG/PNG/WEBP |
+| `GET /api/truemmer/karten/{id}/image` | Trümmer-Bild ausliefern |
+| `DELETE /api/truemmer/karten/{id}` | Trümmer-Karte löschen |
 | `POST /api/collar/receive-location` | GPS-Halsband-Position empfangen (Webhook) |
 | `GET /api/radio` | Funksprüche abrufen |
 | `POST /api/radio` | Neuen Funkspruch erstellen |

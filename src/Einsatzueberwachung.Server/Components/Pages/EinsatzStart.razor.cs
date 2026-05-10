@@ -39,6 +39,7 @@ public partial class EinsatzStart
     private bool _error;
     private bool _busy;
     private bool _einsatzBereitsAktiv;
+    private bool _szenarioMissing;
     private TrainingStartPreset? _trainerStartPreset;
 
     private List<DiveraAlarm> _diveraAlarms = new();
@@ -162,6 +163,15 @@ public partial class EinsatzStart
             _error = true;
             return;
         }
+
+        if (_model.Szenario == EinsatzSzenarioType.Unbestimmt)
+        {
+            _szenarioMissing = true;
+            _status = "Bitte ein Szenario auswählen.";
+            _error = true;
+            return;
+        }
+        _szenarioMissing = false;
 
         if (!TryPrepareAlarmTime())
         {

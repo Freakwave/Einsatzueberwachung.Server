@@ -38,6 +38,7 @@
         <button class="btn @GetTabButtonClass("personal")" @onclick='() => SetActiveTab("personal")'>Personal</button>
         <button class="btn @GetTabButtonClass("dogs")" @onclick='() => SetActiveTab("dogs")'>Hunde</button>
         <button class="btn @GetTabButtonClass("drones")" @onclick='() => SetActiveTab("drones")'>Drohnen</button>
+        <button class="btn @GetTabButtonClass("checklists")" @onclick='() => SetActiveTab("checklists")'>Checklisten</button>
     </div>
 
     <div class="row g-4">
@@ -366,7 +367,180 @@
                 </div>
             </div>
         </div>
+
+        <div class="col-12 @GetTabPaneClass("checklists")">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h2 class="h4 mb-0">Checklisten</h2>
+                            <p class="text-muted small mb-0">Szenarioabhängige Checklisten für vermisste Personen.</p>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="OpenCreateChecklistTemplateModal">
+                            <i class="bi bi-plus-circle me-1"></i>Neu
+                        </button>
+                    </div>
+
+                    @if (_checklistTemplates.Count == 0)
+                    {
+                        <div class="alert alert-secondary mb-0">Keine Checklisten-Templates vorhanden.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Szenario</th>
+                                        <th>Items</th>
+                                        <th></th>
+                                        <th class="text-end"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var tmpl in _checklistTemplates.OrderBy(t => t.Szenario).ThenBy(t => t.Name))
+                                    {
+                                        <tr>
+                                            <td><strong>@tmpl.Name</strong></td>
+                                            <td>
+                                                <span class="badge" style="background-color:@tmpl.Szenario.GetColorHex(); color:#fff;">
+                                                    @tmpl.Szenario.GetDisplayName()
+                                                </span>
+                                            </td>
+                                            <td>@tmpl.Items.Count</td>
+                                            <td>
+                                                @if (tmpl.IsDefault)
+                                                {
+                                                    <span class="badge bg-secondary">Default</span>
+                                                }
+                                            </td>
+                                            <td class="text-end">
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" @onclick="() => EditChecklistTemplate(tmpl.Id)">Bearbeiten</button>
+                                                    <button class="btn btn-outline-danger" @onclick="() => DeleteChecklistTemplateAsync(tmpl.Id)">Löschen</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
     </div>
+
+    @if (_showChecklistTemplateModal)
+    {
+        <div class="modal-overlay" @onclick="CloseChecklistTemplateModal">
+            <div class="modal-modern" style="max-width:900px;" @onclick:stopPropagation="true">
+                <div class="modal-modern-header">
+                    <h3>@(_editingChecklistTemplateId is null ? "Checkliste anlegen" : "Checkliste bearbeiten")</h3>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="CloseChecklistTemplateModal">Schließen</button>
+                </div>
+                <div class="modal-modern-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Name</label>
+                            <InputText class="form-control" @bind-Value="_checklistTemplateDraft.Name" placeholder="z.B. Trümmer-Standard" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Szenario</label>
+                            <InputSelect class="form-select" @bind-Value="_checklistTemplateDraft.Szenario">
+                                <option value="@EinsatzSzenarioType.Mantrailer">@EinsatzSzenarioType.Mantrailer.GetDisplayName()</option>
+                                <option value="@EinsatzSzenarioType.Flaeche">@EinsatzSzenarioType.Flaeche.GetDisplayName()</option>
+                                <option value="@EinsatzSzenarioType.Truemmer">@EinsatzSzenarioType.Truemmer.GetDisplayName()</option>
+                                <option value="@EinsatzSzenarioType.Sonstige">@EinsatzSzenarioType.Sonstige.GetDisplayName()</option>
+                            </InputSelect>
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4">Items</h5>
+                    @if (_checklistTemplateDraft.Items.Count == 0)
+                    {
+                        <p class="text-muted small">Noch keine Items angelegt.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Label</th>
+                                        <th style="width:140px;">Typ</th>
+                                        <th>Auswahl (kommasepariert)</th>
+                                        <th style="width:90px;">Pflicht</th>
+                                        <th style="width:120px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < _checklistTemplateDraft.Items.Count; i++)
+                                    {
+                                        var idx = i;
+                                        var item = _checklistTemplateDraft.Items[idx];
+                                        <tr>
+                                            <td>
+                                                <input class="form-control form-control-sm" @bind="item.Label" placeholder="z.B. Gebäudeteil" />
+                                            </td>
+                                            <td>
+                                                <select class="form-select form-select-sm" @bind="item.Type">
+                                                    <option value="@ChecklistItemType.Bool">Häkchen</option>
+                                                    <option value="@ChecklistItemType.FreeText">Freitext</option>
+                                                    <option value="@ChecklistItemType.Choice">Auswahl</option>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                @if (item.Type == ChecklistItemType.Choice)
+                                                {
+                                                    <input class="form-control form-control-sm"
+                                                           value="@string.Join(", ", item.Choices)"
+                                                           @onchange="e => SetChoices(item, e.Value?.ToString())"
+                                                           placeholder="z.B. Wohnhaus, Hochhaus" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted small">—</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                <input type="checkbox" class="form-check-input" @bind="item.Required" />
+                                            </td>
+                                            <td class="text-end">
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-secondary" type="button" disabled="@(idx == 0)"
+                                                            @onclick="() => MoveChecklistItem(idx, -1)" title="Hoch">
+                                                        <i class="bi bi-arrow-up"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary" type="button" disabled="@(idx == _checklistTemplateDraft.Items.Count - 1)"
+                                                            @onclick="() => MoveChecklistItem(idx, 1)" title="Runter">
+                                                        <i class="bi bi-arrow-down"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" type="button" @onclick="() => RemoveChecklistItem(idx)" title="Entfernen">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    <button class="btn btn-sm btn-outline-secondary" type="button" @onclick="AddChecklistItem">
+                        <i class="bi bi-plus-circle me-1"></i>Item hinzufügen
+                    </button>
+                </div>
+                <div class="modal-modern-footer d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-secondary" @onclick="CloseChecklistTemplateModal">Abbrechen</button>
+                    <button class="btn btn-primary" @onclick="SaveChecklistTemplateAsync">
+                        @(_editingChecklistTemplateId is null ? "Anlegen" : "Speichern")
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 
     @if (_showCreatePersonalModal)
     {

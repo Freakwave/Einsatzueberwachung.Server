@@ -53,6 +53,8 @@ public partial class EinsatzMonitor
     private bool _einsatzInfoDetailsExpanded;
     private bool _wetterDetailsExpanded;
     private bool _vermisstenDetailsExpanded;
+    private Guid? _vermisstenPanelSelectedId;
+    private bool _isNoteFormExpanded;
 
     // Halsband-Auswahl beim Start (falls noch kein Halsband zugewiesen)
     private bool _showCollarSelectModal;
@@ -107,6 +109,13 @@ public partial class EinsatzMonitor
     // Dashboard-Layout
     private List<DashboardPanelConfig> _currentLayout = new();
     private bool _showPanelPicker;
+    private bool _szenarioMenuOpen;
+
+    private async Task SetSzenarioAsync(Domain.Models.Enums.EinsatzSzenarioType szenario)
+    {
+        _szenarioMenuOpen = false;
+        await EinsatzService.UpdateSzenarioAsync(szenario);
+    }
     private readonly HashSet<string> _expandedTeamIds = new();
     private TeamStatusFilter _teamStatusFilter = TeamStatusFilter.All;
 
@@ -1802,6 +1811,20 @@ public partial class EinsatzMonitor
             createdBy);
 
         _newNoteText = string.Empty;
+        _isNoteFormExpanded = false;
+    }
+
+    private async Task OpenNoteFormAsync()
+    {
+        _isNoteFormExpanded = true;
+        await InvokeAsync(StateHasChanged);
+        await JS.InvokeVoidAsync("eval", "setTimeout(()=>document.querySelector('#note-expander-form textarea')?.focus(),50)");
+    }
+
+    private void CloseNoteForm()
+    {
+        _isNoteFormExpanded = false;
+        _newNoteText = string.Empty;
     }
 
     private async Task AddQuickNoteAsync(string shortText)
@@ -1822,6 +1845,8 @@ public partial class EinsatzMonitor
             "Notiz",
             GlobalNotesEntryType.Manual,
             createdBy);
+
+        _isNoteFormExpanded = false;
     }
 
     private async Task AddReplyAsync(string noteId)
@@ -2069,12 +2094,24 @@ public partial class EinsatzMonitor
         _showEditEinsatzModal = false;
     }
 
+    private void OpenVermisstenModalNew()
+    {
+        _vForm = new Einsatzueberwachung.Domain.Models.VermisstenInfo { Id = Guid.NewGuid() };
+        _vermisstenMessage = string.Empty;
+        _showVermisstenModal = true;
+    }
+
     private void OpenVermisstenModal()
     {
-        var existing = EinsatzService.CurrentEinsatz.VermisstenInfo;
+        var list = EinsatzService.CurrentEinsatz.Vermisste ?? new();
+        var existing = _vermisstenPanelSelectedId.HasValue
+            ? list.FirstOrDefault(v => v.Id == _vermisstenPanelSelectedId.Value)
+            : list.FirstOrDefault();
+
         _vForm = existing is not null
             ? new Einsatzueberwachung.Domain.Models.VermisstenInfo
             {
+                Id = existing.Id,
                 Vorname = existing.Vorname,
                 Nachname = existing.Nachname,
                 Alter = existing.Alter,
@@ -2105,7 +2142,7 @@ public partial class EinsatzMonitor
                 BosAbschnittAbgestimmt = existing.BosAbschnittAbgestimmt,
                 BosRessourcenBesprochen = existing.BosRessourcenBesprochen
             }
-            : new Einsatzueberwachung.Domain.Models.VermisstenInfo();
+            : new Einsatzueberwachung.Domain.Models.VermisstenInfo { Id = Guid.NewGuid() };
 
         _vermisstenMessage = string.Empty;
         _showVermisstenModal = true;
@@ -2130,11 +2167,19 @@ public partial class EinsatzMonitor
 
     private async Task SaveVermisstenAsync()
     {
-        await EinsatzService.UpdateVermisstenInfoAsync(_vForm);
+        await EinsatzService.UpsertVermisstenAsync(_vForm);
+        _vermisstenPanelSelectedId = _vForm.Id;
         _vermisstenMessage = "Gespeichert.";
         _vermisstenIsError = false;
         await Task.Delay(1200);
         _showVermisstenModal = false;
+    }
+
+    private async Task DeleteCurrentVermisstenAsync()
+    {
+        if (!_vermisstenPanelSelectedId.HasValue) return;
+        await EinsatzService.RemoveVermisstenAsync(_vermisstenPanelSelectedId.Value);
+        _vermisstenPanelSelectedId = null;
     }
 
     private IEnumerable<(string Label, Func<bool> Getter, Action<bool> Setter)> GetPolizeiChecklist()

@@ -68,6 +68,12 @@ namespace Einsatzueberwachung.Domain.Services
                 CollectTrackSnapshots(packet, selectedTeams, teamIdSet, einsatz);
             }
 
+            // Vermisste werden immer mit-exportiert — sie gehören zur Einsatzlage und sind nicht teamspezifisch.
+            if (einsatz.Vermisste is { Count: > 0 })
+            {
+                packet.Vermisste.AddRange(einsatz.Vermisste);
+            }
+
             return packet;
         }
 
@@ -118,6 +124,11 @@ namespace Einsatzueberwachung.Domain.Services
                             packet.TrackSnapshots.Add(snap);
                     }
                 }
+            }
+
+            if (archived.Vermisste is { Count: > 0 })
+            {
+                packet.Vermisste.AddRange(archived.Vermisste);
             }
 
             return Task.FromResult(packet);

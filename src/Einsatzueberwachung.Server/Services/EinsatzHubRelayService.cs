@@ -24,6 +24,14 @@ public sealed class EinsatzHubRelayService : IHostedService
         _einsatzService.TeamRemoved += OnTeamRemoved;
         _einsatzService.TeamUpdated += OnTeamUpdated;
         _einsatzService.NoteAdded += OnNoteAdded;
+        _einsatzService.SzenarioChanged += OnSzenarioChanged;
+        _einsatzService.VermisstenAdded += OnVermisstenUpserted;
+        _einsatzService.VermisstenUpdated += OnVermisstenUpserted;
+        _einsatzService.VermisstenRemoved += OnVermisstenRemoved;
+        _einsatzService.TruemmerKarteAdded += OnTruemmerKarteAdded;
+        _einsatzService.TruemmerKarteRemoved += OnTruemmerKarteRemoved;
+        _einsatzService.TruemmerAreaUpserted += OnTruemmerAreaUpserted;
+        _einsatzService.TruemmerAreaRemoved += OnTruemmerAreaRemoved;
 
         return Task.CompletedTask;
     }
@@ -35,6 +43,14 @@ public sealed class EinsatzHubRelayService : IHostedService
         _einsatzService.TeamRemoved -= OnTeamRemoved;
         _einsatzService.TeamUpdated -= OnTeamUpdated;
         _einsatzService.NoteAdded -= OnNoteAdded;
+        _einsatzService.SzenarioChanged -= OnSzenarioChanged;
+        _einsatzService.VermisstenAdded -= OnVermisstenUpserted;
+        _einsatzService.VermisstenUpdated -= OnVermisstenUpserted;
+        _einsatzService.VermisstenRemoved -= OnVermisstenRemoved;
+        _einsatzService.TruemmerKarteAdded -= OnTruemmerKarteAdded;
+        _einsatzService.TruemmerKarteRemoved -= OnTruemmerKarteRemoved;
+        _einsatzService.TruemmerAreaUpserted -= OnTruemmerAreaUpserted;
+        _einsatzService.TruemmerAreaRemoved -= OnTruemmerAreaRemoved;
 
         return Task.CompletedTask;
     }
@@ -56,6 +72,33 @@ public sealed class EinsatzHubRelayService : IHostedService
     private void OnTeamUpdated(Team team) => _ = PublishAsync("team.updated", team);
 
     private void OnNoteAdded(GlobalNotesEntry note) => _ = PublishAsync("note.added", note);
+
+    private void OnSzenarioChanged()
+    {
+        _ = PublishAsync("szenario.changed", new
+        {
+            szenario = _einsatzService.CurrentEinsatz.Szenario.ToString(),
+            szenarioValue = (int)_einsatzService.CurrentEinsatz.Szenario
+        });
+    }
+
+    private void OnVermisstenUpserted(VermisstenInfo info)
+        => _ = PublishAsync("vermissten.upserted", info);
+
+    private void OnVermisstenRemoved(Guid id)
+        => _ = PublishAsync("vermissten.removed", new { id });
+
+    private void OnTruemmerKarteAdded(TruemmerKarte karte)
+        => _ = PublishAsync("truemmer.karte.added", karte);
+
+    private void OnTruemmerKarteRemoved(Guid id)
+        => _ = PublishAsync("truemmer.karte.removed", new { id });
+
+    private void OnTruemmerAreaUpserted(TruemmerArea area)
+        => _ = PublishAsync("truemmer.area.upserted", area);
+
+    private void OnTruemmerAreaRemoved(Guid id)
+        => _ = PublishAsync("truemmer.area.removed", new { id });
 
     private Task PublishAsync(string eventName, object payload)
     {

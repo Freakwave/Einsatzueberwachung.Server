@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Einsatzueberwachung.Domain.Models.Enums;
 using Einsatzueberwachung.Domain.Models.Merge;
 
 namespace Einsatzueberwachung.Domain.Models
@@ -29,6 +30,7 @@ namespace Einsatzueberwachung.Domain.Models
         public string Einsatzort { get; set; } = string.Empty;
         public string MapAddress { get; set; } = string.Empty;
         public bool IstEinsatz { get; set; } = true;
+        public EinsatzSzenarioType Szenario { get; set; } = EinsatzSzenarioType.Unbestimmt;
         public DateTime EinsatzDatum { get; set; }
         public string EinsatzNummer { get; set; } = string.Empty;
         public string StaffelName { get; set; } = string.Empty;
@@ -57,6 +59,9 @@ namespace Einsatzueberwachung.Domain.Models
         // === Notizen und Bereiche ===
         public List<GlobalNotesEntry> GlobalNotesEntries { get; set; } = new();
         public List<SearchArea> SearchAreas { get; set; } = new();
+
+        // === Vermisste Personen ===
+        public List<VermisstenInfo> Vermisste { get; set; } = new();
 
         // === Kartendaten ===
         public (double Latitude, double Longitude)? ElwPosition { get; set; }
@@ -106,6 +111,7 @@ namespace Einsatzueberwachung.Domain.Models
                 Einsatzort = data.Einsatzort,
                 MapAddress = data.MapAddress,
                 IstEinsatz = data.IstEinsatz,
+                Szenario = data.Szenario,
                 EinsatzDatum = data.EinsatzDatum,
                 EinsatzNummer = data.EinsatzNummer,
                 StaffelName = data.StaffelName,
@@ -120,6 +126,7 @@ namespace Einsatzueberwachung.Domain.Models
                 AnzahlTeams = data.Teams?.Count ?? 0,
                 GlobalNotesEntries = data.GlobalNotesEntries ?? new List<GlobalNotesEntry>(),
                 SearchAreas = data.SearchAreas ?? new List<SearchArea>(),
+                Vermisste = data.Vermisste?.ToList() ?? new List<VermisstenInfo>(),
                 ElwPosition = data.ElwPosition,
                 TrackSnapshots = data.TrackSnapshots?.ToList() ?? new(),
                 CompletedSearches = data.CompletedSearches?.ToList() ?? new()

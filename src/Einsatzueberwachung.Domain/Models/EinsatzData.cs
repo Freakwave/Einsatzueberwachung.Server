@@ -3,6 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Serialization;
+using Einsatzueberwachung.Domain.Models.Enums;
 using Einsatzueberwachung.Domain.Models.Merge;
 
 namespace Einsatzueberwachung.Domain.Models
@@ -17,6 +20,7 @@ namespace Einsatzueberwachung.Domain.Models
         public string MapAddress { get; set; }
         public string ExportPfad { get; set; }
         public bool IstEinsatz { get; set; }
+        public EinsatzSzenarioType Szenario { get; set; } = EinsatzSzenarioType.Unbestimmt;
         public int AnzahlTeams { get; set; }
         public DateTime EinsatzDatum { get; set; }
         public DateTime? EinsatzEnde { get; set; }
@@ -48,11 +52,32 @@ namespace Einsatzueberwachung.Domain.Models
         // Protokoll aller Import-Zusammenführungen für diesen Einsatz
         public List<MergeHistoryEntry> MergeHistory { get; set; }
 
-        // Vermissteninfo (für EL-Dashboard und Monitor-Panel)
-        public VermisstenInfo? VermisstenInfo { get; set; }
+        // Liste aller Vermissten (Mantrailer i.d.R. 1, Fläche/Trümmer auch mehrere).
+        public List<VermisstenInfo> Vermisste { get; set; } = new();
+
+        /// <summary>
+        /// Legacy-Property: Beim Deserialisieren alter Snapshots/Archive (vor Multi-Vermissten-Migration)
+        /// wird das Single-Objekt automatisch in <see cref="Vermisste"/> übernommen. Nicht mehr für neue Schreiboperationen verwenden.
+        /// </summary>
+        [JsonInclude]
+        public VermisstenInfo? VermisstenInfo
+        {
+            get => Vermisste?.FirstOrDefault();
+            set
+            {
+                if (value is null) return;
+                Vermisste ??= new List<VermisstenInfo>();
+                if (!Vermisste.Any(v => v.Id == value.Id))
+                    Vermisste.Add(value);
+            }
+        }
 
         // EL-interne Notizen (nur im EL-Dashboard sichtbar)
         public List<ElNotizEntry> ElNotizen { get; set; }
+
+        // Trümmer-Lagekarten (pixel-basiert, ohne GPS — nur bei Szenario.Truemmer relevant)
+        public List<TruemmerKarte> TruemmerKarten { get; set; } = new();
+        public List<TruemmerArea> TruemmerAreas { get; set; } = new();
         
         // Koordinaten fuer Wetter-Abfrage
         public double? ElwLatitude => ElwPosition?.Latitude;
@@ -68,6 +93,7 @@ namespace Einsatzueberwachung.Domain.Models
             MapAddress = string.Empty;
             ExportPfad = string.Empty;
             IstEinsatz = true;
+            Szenario = EinsatzSzenarioType.Unbestimmt;
             AnzahlTeams = 1;
             EinsatzDatum = DateTime.Now;
             EinsatzEnde = null;
@@ -86,8 +112,10 @@ namespace Einsatzueberwachung.Domain.Models
             TrackSnapshots = new List<TeamTrackSnapshot>();
             CompletedSearches = new List<CompletedSearch>();
             MergeHistory = new List<MergeHistoryEntry>();
-            VermisstenInfo = null;
+            Vermisste = new List<VermisstenInfo>();
             ElNotizen = new List<ElNotizEntry>();
+            TruemmerKarten = new List<TruemmerKarte>();
+            TruemmerAreas = new List<TruemmerArea>();
         }
 
         public string EinsatzTyp => IstEinsatz ? "Einsatz" : "Übung";

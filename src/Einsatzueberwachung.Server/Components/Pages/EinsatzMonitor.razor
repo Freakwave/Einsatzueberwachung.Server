@@ -15,6 +15,33 @@
             <span class="badge @(EinsatzService.CurrentEinsatz.IstEinsatz ? "bg-danger" : "bg-warning text-dark") me-2 fs-6">
                 @EinsatzService.CurrentEinsatz.EinsatzTyp
             </span>
+            <div class="monitor-szenario-wrap me-2">
+                <button class="badge fs-6 monitor-szenario-btn"
+                        type="button"
+                        style="background-color:@EinsatzService.CurrentEinsatz.Szenario.GetColorHex(); color:#fff; border:none;"
+                        title="Szenario wechseln (auf Anweisung der EL)"
+                        @onclick="() => _szenarioMenuOpen = !_szenarioMenuOpen">
+                    <i class="bi bi-diagram-3 me-1"></i>@EinsatzService.CurrentEinsatz.Szenario.GetDisplayName()
+                    <i class="bi bi-caret-down-fill ms-1" style="font-size: 9px;"></i>
+                </button>
+                @if (_szenarioMenuOpen)
+                {
+                    <div class="monitor-szenario-backdrop" @onclick="() => _szenarioMenuOpen = false"></div>
+                    <ul class="monitor-szenario-menu">
+                        @foreach (var sz in new[] { EinsatzSzenarioType.Mantrailer, EinsatzSzenarioType.Flaeche, EinsatzSzenarioType.Truemmer, EinsatzSzenarioType.Sonstige })
+                        {
+                            <li>
+                                <button class="monitor-szenario-item @(EinsatzService.CurrentEinsatz.Szenario == sz ? "active" : "")"
+                                        type="button"
+                                        @onclick="() => SetSzenarioAsync(sz)">
+                                    <span class="monitor-szenario-dot" style="background:@sz.GetColorHex();"></span>
+                                    <span>@sz.GetDisplayName()</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
             <strong>@EinsatzService.CurrentEinsatz.Einsatzort</strong>
             @if (_einsatzdauerFromHeader.HasValue)
             {
@@ -276,43 +303,58 @@
                                     break;
 
                                 case KnownPanels.Notizen:
-                                    <div class="note-input-section mb-3">
-                                        <div class="mb-2">
-                                            <label class="form-label fw-bold">Team/Quelle *</label>
-                                            <div class="note-source-chips">
-                                                @foreach (var team in EinsatzService.Teams.OrderBy(t => t.TeamName))
-                                                {
+                                    @if (!_isNoteFormExpanded)
+                                    {
+                                        <button class="btn btn-outline-primary w-100 mb-3 note-expander-trigger"
+                                                @onclick="OpenNoteFormAsync">
+                                            <i class="bi bi-pencil-fill me-2"></i>Notiz / Funk hinzufügen...
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <div id="note-expander-form" class="note-input-section mb-3">
+                                            <div class="mb-2">
+                                                <label class="form-label fw-bold">Team/Quelle *</label>
+                                                <div class="note-source-chips">
+                                                    @foreach (var team in EinsatzService.Teams.OrderBy(t => t.TeamName))
+                                                    {
+                                                        <button type="button"
+                                                                class="btn btn-sm note-source-chip @(_newNoteSourceId == team.TeamId ? "active" : "")"
+                                                                @onclick="() => _newNoteSourceId = team.TeamId">
+                                                            @team.TeamName
+                                                        </button>
+                                                    }
                                                     <button type="button"
-                                                            class="btn btn-sm note-source-chip @(_newNoteSourceId == team.TeamId ? "active" : "")"
-                                                            @onclick="() => _newNoteSourceId = team.TeamId">
-                                                        @team.TeamName
+                                                            class="btn btn-sm note-source-chip @(_newNoteSourceId == "einsatzleitung" ? "active" : "")"
+                                                            @onclick='() => _newNoteSourceId = "einsatzleitung"'>
+                                                        <i class="bi bi-shield-fill me-1"></i>EL
                                                     </button>
-                                                }
-                                                <button type="button"
-                                                        class="btn btn-sm note-source-chip @(_newNoteSourceId == "einsatzleitung" ? "active" : "")"
-                                                        @onclick='() => _newNoteSourceId = "einsatzleitung"'>
-                                                    <i class="bi bi-shield-fill me-1"></i>EL
+                                                </div>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label">Typ</label>
+                                                <select class="form-select" @bind="_newNoteType">
+                                                    <option value="Notiz">Notiz</option>
+                                                    <option value="Funk">Funk</option>
+                                                </select>
+                                            </div>
+                                            <MentionTextarea @bind-Value="_newNoteText"
+                                                             Mentions="@GetNoteMentions()"
+                                                             Rows="3"
+                                                             Placeholder="Neuer Funkspruch oder Notiz..."
+                                                             AdditionalClass="mb-2" />
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-primary flex-grow-1"
+                                                        @onclick="AddGlobalNoteAsync"
+                                                        disabled="@(string.IsNullOrWhiteSpace(_newNoteText) || string.IsNullOrWhiteSpace(_newNoteSourceId))">
+                                                    <i class="bi bi-send-fill"></i> Hinzufügen
+                                                </button>
+                                                <button class="btn btn-outline-secondary" @onclick="CloseNoteForm">
+                                                    Abbrechen
                                                 </button>
                                             </div>
                                         </div>
-                                        <div class="mb-2">
-                                            <label class="form-label">Typ</label>
-                                            <select class="form-select" @bind="_newNoteType">
-                                                <option value="Notiz">Notiz</option>
-                                                <option value="Funk">Funk</option>
-                                            </select>
-                                        </div>
-                                        <MentionTextarea @bind-Value="_newNoteText"
-                                                         Mentions="@GetNoteMentions()"
-                                                         Rows="3"
-                                                         Placeholder="Neuer Funkspruch oder Notiz..."
-                                                         AdditionalClass="mb-2" />
-                                        <button class="btn btn-primary w-100"
-                                                @onclick="AddGlobalNoteAsync"
-                                                disabled="@(string.IsNullOrWhiteSpace(_newNoteText) || string.IsNullOrWhiteSpace(_newNoteSourceId))">
-                                            <i class="bi bi-send-fill"></i> Hinzufügen
-                                        </button>
-                                    </div>
+                                    }
 
                                     @if (_quickNoteTemplates.Count > 0)
                                     {
@@ -515,7 +557,17 @@
                                     break;
 
                                 case KnownPanels.Vermissten:
-                                    @if (EinsatzService.CurrentEinsatz.VermisstenInfo is null)
+                                    {
+                                        var vermissteList = EinsatzService.CurrentEinsatz.Vermisste ?? new();
+                                        var allowMulti = EinsatzService.CurrentEinsatz.Szenario.AllowsMultipleVermisste();
+                                        VermisstenInfo? activeVi = null;
+                                        if (vermissteList.Count > 0)
+                                        {
+                                            activeVi = (_vermisstenPanelSelectedId.HasValue
+                                                ? vermissteList.FirstOrDefault(v => v.Id == _vermisstenPanelSelectedId.Value)
+                                                : null) ?? vermissteList[0];
+                                        }
+                                    @if (vermissteList.Count == 0)
                                     {
                                         <div class="text-center py-3">
                                             <p class="text-muted small mb-2"><i class="bi bi-person-exclamation me-1"></i>Noch keine Vermissteninfo erfasst.</p>
@@ -526,7 +578,31 @@
                                     }
                                     else
                                     {
-                                        var _vi = EinsatzService.CurrentEinsatz.VermisstenInfo!;
+                                        var _vi = activeVi!;
+                                        @if (vermissteList.Count > 1 || allowMulti)
+                                        {
+                                            <div class="vermissten-panel-tabs mb-2">
+                                                @for (var i = 0; i < vermissteList.Count; i++)
+                                                {
+                                                    var p = vermissteList[i];
+                                                    var idx = i + 1;
+                                                    var isActive = p.Id == _vi.Id;
+                                                    <button class="vermissten-panel-tab @(isActive ? "active" : "")"
+                                                            type="button"
+                                                            @onclick="() => _vermisstenPanelSelectedId = p.Id"
+                                                            title="@p.VollerName">
+                                                        <span>@idx</span>
+                                                    </button>
+                                                }
+                                                @if (allowMulti)
+                                                {
+                                                    <button class="vermissten-panel-tab vermissten-panel-tab-add" type="button"
+                                                            @onclick="OpenVermisstenModalNew" title="Weitere Person erfassen">
+                                                        <i class="bi bi-plus-lg"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        }
                                         <div class="vermissten-panel-view">
                                             <div class="row g-2 small">
                                                 <div class="col-6">
@@ -606,6 +682,7 @@
                                             }
                                         </div>
                                     }
+                    }
                     break;
                         }
                     </div>

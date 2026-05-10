@@ -70,6 +70,14 @@ internal sealed class FakeMasterDataService : IMasterDataService
 
     public Task<SessionData> LoadSessionDataAsync() => Task.FromResult(new SessionData());
     public Task SaveSessionDataAsync(SessionData sessionData) => Task.CompletedTask;
+
+    // Phase 3 — Checklisten-Templates (für diesen Test irrelevant, leer)
+    public Task<List<ChecklistTemplate>> GetChecklistTemplatesAsync() => Task.FromResult(new List<ChecklistTemplate>());
+    public Task<ChecklistTemplate?> GetChecklistTemplateAsync(Guid id) => Task.FromResult<ChecklistTemplate?>(null);
+    public Task<ChecklistTemplate?> GetDefaultChecklistTemplateAsync(EinsatzSzenarioType szenario) => Task.FromResult<ChecklistTemplate?>(null);
+    public Task AddChecklistTemplateAsync(ChecklistTemplate template) => Task.CompletedTask;
+    public Task UpdateChecklistTemplateAsync(ChecklistTemplate template) => Task.CompletedTask;
+    public Task DeleteChecklistTemplateAsync(Guid id) => Task.CompletedTask;
 }
 
 /// <summary>In-Memory-Stub für IArchivService – für Unit-Tests ohne Datei-I/O.</summary>

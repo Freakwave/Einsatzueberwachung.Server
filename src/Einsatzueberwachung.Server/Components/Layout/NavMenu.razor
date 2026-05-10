@@ -1,4 +1,6 @@
 ﻿@inject ISettingsService SettingsService
+@inject IEinsatzService EinsatzService
+@implements IDisposable
 
 <div class="top-row navbar navbar-dark @(IsCollapsed ? "nav-header-collapsed" : "")">
     <div class="container-fluid nav-brand-row">
@@ -53,6 +55,15 @@
                 <span class="nav-text">Karte</span>
             </NavLink>
         </div>
+        @if (EinsatzService.CurrentEinsatz.Szenario == EinsatzSzenarioType.Truemmer)
+        {
+            <div class="nav-item px-2">
+                <NavLink class="nav-link" href="/truemmer" title="Trümmer-Lagekarte">
+                    <span class="nav-icon"><i class="bi bi-bricks"></i></span>
+                    <span class="nav-text">Trümmer</span>
+                </NavLink>
+            </div>
+        }
         @* Bericht vorübergehend deaktiviert – wird in einer späteren Version fertiggestellt
         <div class="nav-item px-2">
             <NavLink class="nav-link" href="/einsatz-bericht" title="Bericht">
@@ -126,6 +137,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        EinsatzService.SzenarioChanged += OnSzenarioChanged;
+
         var settings = await SettingsService.GetStaffelSettingsAsync();
         if (string.IsNullOrWhiteSpace(settings.StaffelLogoPfad))
         {
@@ -133,6 +146,13 @@
         }
 
         _staffelLogoUrl = $"/downloads/staffel-logo?v={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+    }
+
+    private void OnSzenarioChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        EinsatzService.SzenarioChanged -= OnSzenarioChanged;
     }
 }
 

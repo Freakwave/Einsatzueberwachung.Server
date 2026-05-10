@@ -1,9 +1,11 @@
 ﻿// Service-Interface für Stammdaten-Verwaltung (Personal, Hunde, Drohnen)
 // Quelle: Abgeleitet von WPF Services/DataService.cs und ViewModels/MasterDataViewModel.cs
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Einsatzueberwachung.Domain.Models;
+using Einsatzueberwachung.Domain.Models.Enums;
 
 namespace Einsatzueberwachung.Domain.Interfaces
 {
@@ -29,5 +31,12 @@ namespace Einsatzueberwachung.Domain.Interfaces
 
         Task<SessionData> LoadSessionDataAsync();
         Task SaveSessionDataAsync(SessionData sessionData);
+
+        Task<List<ChecklistTemplate>> GetChecklistTemplatesAsync();
+        Task<ChecklistTemplate?> GetChecklistTemplateAsync(Guid id);
+        Task<ChecklistTemplate?> GetDefaultChecklistTemplateAsync(EinsatzSzenarioType szenario);
+        Task AddChecklistTemplateAsync(ChecklistTemplate template);
+        Task UpdateChecklistTemplateAsync(ChecklistTemplate template);
+        Task DeleteChecklistTemplateAsync(Guid id);
     }
 }

@@ -800,7 +800,152 @@
     </div>
     <div class="changelog-list reveal">
 <!-- CHANGELOG_START -->
-<div class="changelog-empty">Wird automatisch bei jedem Release befüllt.</div>
+<div class="changelog-entry">
+  <div class="changelog-header">
+    <span class="changelog-version">v1.8.1</span>
+    <span class="changelog-date">10.05.2026</span>
+    <span class="changelog-name">v1.8.1</span>
+  </div>
+  <div class="changelog-body"><p><strong>Full Changelog</strong>: https://github.com/Elemirus1996/Einsatzueberwachung.Server/compare/v1.2.5...v1.8.1</p></div>
+</div>
+<div class="changelog-entry">
+  <div class="changelog-header">
+    <span class="changelog-version">v1.8.0</span>
+    <span class="changelog-date">07.05.2026</span>
+    <span class="changelog-name">v1.8.0 - Drohnen-Livestream, GPX-Import, Teams-Detailansicht, Frontend-Design</span>
+  </div>
+  <div class="changelog-body"><h4>What's Changed</h4>
+<ul>
+<li>GPX import (Basecamp) by @Freakwave in https://github.com/Elemirus1996/Einsatzueberwachung.Server/pull/34</li>
+<li>Added frontend Desin skill by @Freakwave in https://github.com/Elemirus1996/Einsatzueberwachung.Server/pull/35</li>
+<li>Newteams card by @Freakwave in https://github.com/Elemirus1996/Einsatzueberwachung.Server/pull/36</li>
+</ul>
+<p><strong>Full Changelog</strong>: https://github.com/Elemirus1996/Einsatzueberwachung.Server/compare/v1.7.9...v1.8.0</p></div>
+</div>
+<div class="changelog-entry">
+  <div class="changelog-header">
+    <span class="changelog-version">v1.7.9</span>
+    <span class="changelog-date">04.05.2026</span>
+    <span class="changelog-name">v1.7.9</span>
+  </div>
+  <div class="changelog-body"><h4>What's Changed</h4>
+<ul>
+<li>Mention feature by @Freakwave in https://github.com/Elemirus1996/Einsatzueberwachung.Server/pull/31</li>
+</ul>
+<p><strong>Full Changelog</strong>: https://github.com/Elemirus1996/Einsatzueberwachung.Server/compare/v1.7.8...v1.7.9</p></div>
+</div>
+<div class="changelog-entry">
+  <div class="changelog-header">
+    <span class="changelog-version">v1.7.8</span>
+    <span class="changelog-date">03.05.2026</span>
+    <span class="changelog-name">Release 1.7.8</span>
+  </div>
+  <div class="changelog-body"><h4>Hotfix - CI-Build repariert</h4>
+<p>In 1.7.6 hatte ich einen CI-Step hinzugefuegt, der die <code>libSkiaSharp.so</code> aus dem NuGet-Cache ins Release-Asset kopiert. Der Cache lag auf dem GitHub-Actions-Runner aber an einem anderen Pfad als angenommen → Step bricht ab → <code>build-server</code>-Job rot → kein <code>linux-x64-server-1.7.x.zip</code> an v1.7.6 und v1.7.7 angehaengt.</p>
+<p>Fix: Lib wird jetzt deterministisch direkt von nuget.org geholt (mit Cache-Suche als schnellem Fallback). Damit ist das Release-Asset auch bei zukuenftigen Builds zuverlaessig komplett.</p>
+<p>Inhaltlich keine Aenderung gegenueber 1.7.7 — nur CI-Reparatur, damit der In-App-Updater die Version uberhaupt herunterladen kann. Sobald der Workflow gruen ist, kannst du regulaer updaten und der manuelle libSkiaSharp.so-Workaround wird automatisch ueberschrieben.</p></div>
+</div>
+<div class="changelog-entry">
+  <div class="changelog-header">
+    <span class="changelog-version">v1.7.7</span>
+    <span class="changelog-date">03.05.2026</span>
+    <span class="changelog-name">Release 1.7.7</span>
+  </div>
+  <div class="changelog-body"><h4>Hotfix</h4>
+<p><strong>Uhr auf der Home-Seite lief 2 Stunden zurueck.</strong></p>
+<h4>Ursache</h4>
+<p>Die Home-Seite las <code>DateTime.Now</code>. Auf einem VPS, dessen System-Timezone auf UTC steht, liefert das die UTC-Uhrzeit — also 2 h hinter CEST.</p>
+<h4>Fix</h4>
+<p>Die Uhr nutzt jetzt <code>ITimeService</code>, der die in den App-Einstellungen konfigurierte Zeitzone respektiert (default <code>Europe/Berlin</code>). Damit ist die Anzeige unabhaengig von der System-Timezone des Servers korrekt.</p>
+<p>Falls die Uhr bei dir auch nach dem Update noch falsch geht: Einstellungen → Zeitzone pruefen und auf <code>Europe/Berlin</code> setzen.</p></div>
+</div>
+<div class="changelog-entry">
+  <div class="changelog-header">
+    <span class="changelog-version">v1.7.6</span>
+    <span class="changelog-date">03.05.2026</span>
+    <span class="changelog-name">Release 1.7.6</span>
+  </div>
+  <div class="changelog-body"><h4>Hotfix - PDF-Karte rendert wieder zuverlaessig nach Update</h4>
+<h4>Ursache</h4>
+<p>Mit <code>dotnet publish --self-contained false -r linux-x64</code> kommt die native <code>libSkiaSharp.so</code> nicht zuverlaessig im Publish-Output an, obwohl <code>SkiaSharp.NativeAssets.Linux</code> korrekt im csproj referenziert ist. Folge: nach jedem Update fehlte die <code>.so</code> neben der <code>Einsatzueberwachung.Server.dll</code>, der Map-Renderer kippte mit <code>DllNotFoundException</code>. Mein 25 s-Timeout-Catch fing den Crash zwar ab (kein 502), das PDF kam aber ohne Karte raus.</p>
+<h4>Fix</h4>
+<p>CI-Workflow holt die <code>libSkiaSharp.so</code> jetzt explizit aus dem NuGet-Cache und legt sie neben die DLL ins Release-Asset. Damit ist sie nach jedem zukuenftigen Update automatisch dabei.</p>
+<h4>Falls du gerade einen Einsatz hast</h4>
+<p>Wenn du nicht warten willst bis der Workflow das neue Asset gebaut hat, kannst du die Lib auch manuell auf den Server kopieren:</p>
+<p><code>`</code>bash</p>
+<p>cd /tmp</p>
+<p>curl -sLo skia.nupkg https://www.nuget.org/api/v2/package/SkiaSharp.NativeAssets.Linux/3.116.1</p>
+<p>unzip -o skia.nupkg -d skia-pkg</p>
+<p>sudo cp skia-pkg/runtimes/linux-x64/native/libSkiaSharp.so /opt/einsatzueberwachung/server/</p>
+<p>sudo chown einsatz:einsatz /opt/einsatzueberwachung/server/libSkiaSharp.so</p>
+<p>sudo systemctl restart einsatzueberwachung-server.service</p>
+<p><code>`</code></p>
+<p>Nach diesem Workaround bleibt die Lib erhalten - das naechste Update via 1.7.6+ wird sie ohnehin mitliefern.</p></div>
+</div>
+<div class="changelog-entry">
+  <div class="changelog-header">
+    <span class="changelog-version">v1.7.5</span>
+    <span class="changelog-date">03.05.2026</span>
+    <span class="changelog-name">Release 1.7.5</span>
+  </div>
+  <div class="changelog-body"><h4>Änderungen in 1.7.5</h4>
+<h4>Neu</h4>
+<p>-<strong>Neuer Home Bildschirm</strong>: In der Mitte befindet sich das Staffel Logo mit Datum und Uhrzeit, sowie einem Button für Einsatz anlegen, Divera-Einsatz verfügbar oder Einsatz anzeigen. Links befindet sich ein Notizen Liste wo man eintragen kann wer Urlaub oder ähnliches hat. Rechts befinden sich Statistiken aus dem Archiv.</p>
+<p>-<strong>Bildschirmschoner Einsatz-Monitor</strong>: Wenn kein Einsatz anliegt wird nun das Logo der Staffel Datum und Uhrzeit, sowie ein Info-Ticker angezeigt.</p>
+<ul>
+<li><strong>Separates PDF-Logo</strong>: Unter Einstellungen kann jetzt ein eigenes Logo für den PDF-Export hinterlegt werden (unabhängig vom Staffel-Logo der UI)</li>
+<li><strong>Home-Logo responsiv</strong>: Das Staffel-Logo auf der Startseite skaliert jetzt besser mit der Monitorgröße</li>
+</ul>
+<h4>Fixes</h4>
+<ul>
+<li>PDF-Export hat bisher immer das UI-Logo verwendet statt des konfigurierten PDF-Logos</li>
+</ul></div>
+</div>
+<div class="changelog-entry">
+  <div class="changelog-header">
+    <span class="changelog-version">v1.7.4</span>
+    <span class="changelog-date">02.05.2026</span>
+    <span class="changelog-name">v1.7.4</span>
+  </div>
+  <div class="changelog-body"><h4>What's Changed</h4>
+<ul>
+<li>Warning system by @Freakwave in https://github.com/Elemirus1996/Einsatzueberwachung.Server/pull/29</li>
+</ul>
+<p><strong>Full Changelog</strong>: https://github.com/Elemirus1996/Einsatzueberwachung.Server/compare/v1.7.3...v1.7.4</p></div>
+</div>
+<div class="changelog-entry">
+  <div class="changelog-header">
+    <span class="changelog-version">v1.7.3</span>
+    <span class="changelog-date">02.05.2026</span>
+    <span class="changelog-name">v1.7.3</span>
+  </div>
+  <div class="changelog-body"><p><strong>Full Changelog</strong>: https://github.com/Elemirus1996/Einsatzueberwachung.Server/compare/v1.7.2...v1.7.3</p></div>
+</div>
+<div class="changelog-entry">
+  <div class="changelog-header">
+    <span class="changelog-version">v1.7.2</span>
+    <span class="changelog-date">02.05.2026</span>
+    <span class="changelog-name">Release 1.7.2</span>
+  </div>
+  <div class="changelog-body"><h4>Hotfix — 502 Bad Gateway beim Drucken (auch mit Streets)</h4>
+<h4>Ursache</h4>
+<p>Die VPN-Nginx-Config (<code>deploy/nginx/einsatzueberwachung.conf</code>) hatte kein <code>proxy_read_timeout</code> gesetzt → Default ist <strong>60 Sekunden</strong>. Bei laengerer PDF-Generierung (Karte + Suchgebiete + ELW) reicht das schlicht nicht. Auch bei Streets-Karten kann die Antwortzeit ueber 60s steigen, wenn der Server unter Last ist.</p>
+<h4>Fix</h4>
+<ul>
+<li><code>/downloads/</code>-Endpoints bekommen <code>proxy_read_timeout 5m</code>, <code>proxy_send_timeout 5m</code>, <code>proxy_connect_timeout 30s</code>, <code>proxy_buffering off</code> (kein Memory-Pufferung grosser PDFs/ZIPs).</li>
+<li>Hauptanwendung bekommt <code>proxy_read_timeout 2m</code> (statt 60s default).</li>
+<li>SignalR-Hubs unveraendert auf <code>1h</code>.</li>
+</ul>
+<h4>⚠️ WICHTIG: Nginx-Config muss manuell auf dem Server aktualisiert werden</h4>
+<p>Der In-App-Updater rollt nur die .NET-Binaries aus, <strong>nicht</strong> die Nginx-Config. SSH auf den Server und:</p>
+<p><code>`</code>bash</p>
+<p>cd /opt/einsatzueberwachung</p>
+<p>git pull   # oder das aktuelle deploy/nginx/einsatzueberwachung.conf von GitHub holen</p>
+<p>sudo cp deploy/nginx/einsatzueberwachung.conf /etc/nginx/sites-enabled/</p>
+<p>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</p>
+<p><code>`</code></p>
+<p>Ohne diesen Schritt bleibt das 502-Verhalten bestehen, auch wenn die App geupdatet ist. Die Render-Limits aus 1.7.1 (25s Map-Cap + globaler Lock) sind weiterhin aktiv und schuetzen den Server vor Stapeln/Hangs.</p></div>
+</div>
 <!-- CHANGELOG_END -->
     </div>
   </div>

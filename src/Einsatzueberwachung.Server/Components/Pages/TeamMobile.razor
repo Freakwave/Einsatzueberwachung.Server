@@ -418,8 +418,7 @@ else
         StateHasChanged();
         try
         {
-            _selfRef?.Dispose();
-            _selfRef = DotNetObjectReference.Create(this);
+            _selfRef ??= DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("teamMobileMap.requestGeolocationPermission", _selfRef);
         }
         catch

@@ -99,7 +99,7 @@ else
                 else if (_phoneGpsErrorCode == 4)
                 {
                     <i class="bi bi-lock-fill text-warning flex-shrink-0"></i>
-                    <span class="flex-grow-1">Handy-GPS funktioniert nur im sicheren Kontext (HTTPS oder localhost). Bitte URL/Reverse-Proxy prüfen.</span>
+                    <span class="flex-grow-1">Handy-GPS funktioniert nur mit HTTPS oder auf localhost. Bitte öffnen Sie die Seite über HTTPS und versuchen Sie es erneut.</span>
                     <button class="btn btn-sm btn-outline-secondary py-0 px-2" @onclick="RequestGpsPermissionAsync">
                         <i class="bi bi-arrow-clockwise me-1"></i>Erneut
                     </button>
@@ -107,7 +107,7 @@ else
                 else if (_phoneGpsErrorCode == 1)
                 {
                     <i class="bi bi-shield-exclamation text-warning flex-shrink-0"></i>
-                    <span class="flex-grow-1">GPS-Berechtigung fehlt für diese Seite. Im Browser für diese URL auf „Zulassen“ stellen und dann erneut versuchen.</span>
+                    <span class="flex-grow-1">GPS-Berechtigung fehlt. Bitte erlauben Sie den GPS-Zugriff in den Browser-Einstellungen und versuchen Sie es erneut.</span>
                     <button class="btn btn-sm btn-outline-secondary py-0 px-2" @onclick="RequestGpsPermissionAsync">
                         <i class="bi bi-arrow-clockwise me-1"></i>Erneut
                     </button>

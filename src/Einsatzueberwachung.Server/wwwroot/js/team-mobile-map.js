@@ -253,7 +253,6 @@ window.teamMobileMap = (function () {
     function requestGeolocationPermission(ref) {
         if (!canUseGeolocation(ref)) return;
         // ref lokal halten, damit Callbacks nicht vom globalen dotNetRef abhängen
-        dotNetRef = ref;
         // Bestehenden Watch stoppen, damit ein neuer Dialog ausgelöst werden kann
         stopWatchingUser();
         dotNetRef = ref;

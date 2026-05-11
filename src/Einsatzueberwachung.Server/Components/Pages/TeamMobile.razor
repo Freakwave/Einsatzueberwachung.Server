@@ -394,8 +394,7 @@ else
 
     private string GetGpsBannerCssClass()
     {
-        if (_phoneGpsErrorCode == 4) return "bg-warning-subtle";
-        if (_phoneGpsErrorCode == 1) return "bg-warning-subtle";
+        if (_phoneGpsErrorCode is 4 or 1) return "bg-warning-subtle";
         if (_phoneGpsErrorCode.HasValue) return "bg-danger-subtle";
         return "bg-light";
     }

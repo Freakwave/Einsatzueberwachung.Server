@@ -206,6 +206,8 @@ window.teamMobileMap = (function () {
 
     let watchId = null;
     let dotNetRef = null;
+    // Nicht-standardisierter Fehlercode für UI-Rückmeldung:
+    // GeolocationPositionError nutzt nur 1..3, wir ergänzen 4 = unsicherer Kontext (kein HTTPS/localhost).
     const GEO_ERROR_INSECURE_CONTEXT = 4;
 
     function canUseGeolocation(ref) {
@@ -245,6 +247,13 @@ window.teamMobileMap = (function () {
         return true;
     }
 
+    function clearWatch() {
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+    }
+
     /**
      * Fordert explizit die GPS-Berechtigung an, indem zuerst getCurrentPosition() aufgerufen wird
      * (löst den Browser-Berechtigungs-Dialog aus) und startet danach watchPosition() neu.
@@ -252,9 +261,8 @@ window.teamMobileMap = (function () {
      */
     function requestGeolocationPermission(ref) {
         if (!canUseGeolocation(ref)) return;
-        // ref lokal halten, damit Callbacks nicht vom globalen dotNetRef abhängen
         // Bestehenden Watch stoppen, damit ein neuer Dialog ausgelöst werden kann
-        stopWatchingUser();
+        clearWatch();
         dotNetRef = ref;
         navigator.geolocation.getCurrentPosition(
             pos => {
@@ -279,10 +287,7 @@ window.teamMobileMap = (function () {
     }
 
     function stopWatchingUser() {
-        if (watchId !== null) {
-            navigator.geolocation.clearWatch(watchId);
-            watchId = null;
-        }
+        clearWatch();
         dotNetRef = null;
     }
 

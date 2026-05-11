@@ -96,10 +96,18 @@ else
                     <span class="spinner-border spinner-border-sm text-secondary" aria-hidden="true"></span>
                     <span class="flex-grow-1">GPS wird angefragt…</span>
                 }
+                else if (_phoneGpsErrorCode == 4)
+                {
+                    <i class="bi bi-lock-fill text-warning flex-shrink-0"></i>
+                    <span class="flex-grow-1">Handy-GPS funktioniert nur im sicheren Kontext (HTTPS oder localhost). Bitte URL/Reverse-Proxy prüfen.</span>
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" @onclick="RequestGpsPermissionAsync">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Erneut
+                    </button>
+                }
                 else if (_phoneGpsErrorCode == 1)
                 {
                     <i class="bi bi-shield-exclamation text-warning flex-shrink-0"></i>
-                    <span class="flex-grow-1">GPS-Berechtigung fehlt – bitte im Browser aktivieren, dann erneut versuchen.</span>
+                    <span class="flex-grow-1">GPS-Berechtigung fehlt für diese Seite. Im Browser für diese URL auf „Zulassen“ stellen und dann erneut versuchen.</span>
                     <button class="btn btn-sm btn-outline-secondary py-0 px-2" @onclick="RequestGpsPermissionAsync">
                         <i class="bi bi-arrow-clockwise me-1"></i>Erneut
                     </button>
@@ -386,6 +394,7 @@ else
 
     private string GetGpsBannerCssClass()
     {
+        if (_phoneGpsErrorCode == 4) return "bg-warning-subtle";
         if (_phoneGpsErrorCode == 1) return "bg-warning-subtle";
         if (_phoneGpsErrorCode.HasValue) return "bg-danger-subtle";
         return "bg-light";
@@ -393,6 +402,7 @@ else
 
     private static string GetGpsErrorText(int code) => code switch
     {
+        4 => "nur mit HTTPS/localhost möglich",
         1 => "verweigert",
         2 => "nicht verfügbar",
         3 => "Zeitüberschreitung",
@@ -408,7 +418,8 @@ else
         StateHasChanged();
         try
         {
-            _selfRef ??= DotNetObjectReference.Create(this);
+            _selfRef?.Dispose();
+            _selfRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("teamMobileMap.requestGeolocationPermission", _selfRef);
         }
         catch

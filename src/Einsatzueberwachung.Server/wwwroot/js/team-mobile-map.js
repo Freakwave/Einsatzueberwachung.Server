@@ -206,9 +206,22 @@ window.teamMobileMap = (function () {
 
     let watchId = null;
     let dotNetRef = null;
+    const GEO_ERROR_INSECURE_CONTEXT = 4;
+
+    function canUseGeolocation(ref) {
+        if (!('geolocation' in navigator)) {
+            if (ref) ref.invokeMethodAsync('OnUserLocationError', 2).catch(() => {});
+            return false;
+        }
+        if (!window.isSecureContext) {
+            if (ref) ref.invokeMethodAsync('OnUserLocationError', GEO_ERROR_INSECURE_CONTEXT).catch(() => {});
+            return false;
+        }
+        return true;
+    }
 
     function startWatchingUser(ref) {
-        if (!('geolocation' in navigator)) return false;
+        if (!canUseGeolocation(ref)) return false;
         dotNetRef = ref;
         if (watchId !== null) return true;
         watchId = navigator.geolocation.watchPosition(
@@ -238,17 +251,12 @@ window.teamMobileMap = (function () {
      * Wird vom Nutzer über den "Erneut versuchen"-Button ausgelöst.
      */
     function requestGeolocationPermission(ref) {
-        if (!('geolocation' in navigator)) {
-            if (ref) ref.invokeMethodAsync('OnUserLocationError', 2).catch(() => {});
-            return;
-        }
+        if (!canUseGeolocation(ref)) return;
         // ref lokal halten, damit Callbacks nicht vom globalen dotNetRef abhängen
         dotNetRef = ref;
         // Bestehenden Watch stoppen, damit ein neuer Dialog ausgelöst werden kann
-        if (watchId !== null) {
-            navigator.geolocation.clearWatch(watchId);
-            watchId = null;
-        }
+        stopWatchingUser();
+        dotNetRef = ref;
         navigator.geolocation.getCurrentPosition(
             pos => {
                 const lat = pos.coords.latitude;

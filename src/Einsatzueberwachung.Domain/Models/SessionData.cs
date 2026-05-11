@@ -167,7 +167,7 @@ namespace Einsatzueberwachung.Domain.Models
 
             // Karten-Marker-Defaults
             CollarMarkerIcon = "paw";
-            HumanMarkerIcon = "phone";
+            HumanMarkerIcon = "person_walking";
 
             // Divera 24/7 Defaults
             DiveraEnabled = false;

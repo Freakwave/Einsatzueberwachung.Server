@@ -450,6 +450,31 @@
                         }
                     </div>
 
+                    <div class="cfg-grid cfg-grid-2 mt-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Farb-Theme</label>
+                            <select class="cfg-input"
+                                    value="@BrowserPrefs.Preferences.ThemePreset"
+                                    @onchange="SetThemePresetAsync">
+                                <option value="NRW">NRW (Primary #A72920, Secondary #404040)</option>
+                                <option value="Ruhr">Ruhr (Primary #005D9E, Secondary #FFED00)</option>
+                            </select>
+                            <span class="cfg-help">Basiert auf exakt zwei Grundfarben: Primary und Secondary.</span>
+                        </div>
+
+                        <div class="cfg-field">
+                            <label class="cfg-label">Visuelle Intensität</label>
+                            <select class="cfg-input"
+                                    value="@BrowserPrefs.Preferences.VisualIntensity"
+                                    @onchange="SetVisualIntensityAsync">
+                                <option value="Dezent">Dezent</option>
+                                <option value="Ausgewogen">Ausgewogen</option>
+                                <option value="Lebhaft">Lebhaft</option>
+                            </select>
+                            <span class="cfg-help">Steuert Flächen, Kontrast und Akzentstärke in der gesamten UI.</span>
+                        </div>
+                    </div>
+
                     @if (BrowserPrefs.Preferences.ThemeMode == "Scheduled")
                     {
                         <div class="cfg-grid cfg-grid-2 mt-2">
@@ -468,6 +493,25 @@
                             <div class="cfg-help">Z.B. Dunkel ab 20:00, Hell ab 06:00 (über Mitternacht möglich).</div>
                         </div>
                     }
+                </div>
+
+                <div class="cfg-section theme-preview-surface">
+                    <h3 class="cfg-sub-header"><i class="bi bi-bezier2 me-1"></i>Theme-Vorschau</h3>
+                    <p class="cfg-help mb-2">Beispiel-Elemente reagieren sofort auf Theme und Intensität.</p>
+
+                    <div class="theme-preview-grid">
+                        <button type="button" class="btn theme-accent-btn">
+                            <i class="bi bi-stars me-2"></i>Akzent-Button
+                        </button>
+
+                        <div class="theme-alert theme-alert-success" role="status">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <div>
+                                <strong>Statusmeldung</strong>
+                                <div class="theme-alert-text">Im Modus Dezent nur mit Akzent-Rand, in Lebhaft flächiger hervorgehoben.</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             }
 

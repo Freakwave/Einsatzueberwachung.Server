@@ -12,6 +12,8 @@ namespace Einsatzueberwachung.Domain.Models
         public bool IsDarkMode { get; set; } = false;
         public string DarkModeStartTime { get; set; } = "20:00"; // HH:mm
         public string DarkModeEndTime { get; set; } = "06:00";   // HH:mm
+        public string ThemePreset { get; set; } = ThemePresets.Nrw;
+        public string VisualIntensity { get; set; } = VisualIntensityLevels.Ausgewogen;
 
         // --- Sound ---
         public bool SoundAlertsEnabled { get; set; } = true;
@@ -25,6 +27,19 @@ namespace Einsatzueberwachung.Domain.Models
 
         // --- Tastenkürzel ---
         public KeyboardShortcutPreferences Shortcuts { get; set; } = new();
+    }
+
+    public static class ThemePresets
+    {
+        public const string Nrw = "NRW";
+        public const string Ruhr = "Ruhr";
+    }
+
+    public static class VisualIntensityLevels
+    {
+        public const string Dezent = "Dezent";
+        public const string Ausgewogen = "Ausgewogen";
+        public const string Lebhaft = "Lebhaft";
     }
 
     /// <summary>

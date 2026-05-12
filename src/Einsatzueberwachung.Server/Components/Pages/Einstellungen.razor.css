@@ -603,6 +603,26 @@
     align-self: flex-start;
 }
 
+/* ---------- Theme Preview ------------------------------------------ */
+
+::deep .theme-preview-surface {
+    background: color-mix(in srgb, var(--theme-primary) 6%, var(--ui-surface));
+    border-color: color-mix(in srgb, var(--theme-primary) 24%, var(--ui-border));
+}
+
+::deep .theme-preview-grid {
+    display: grid;
+    grid-template-columns: minmax(200px, 280px) 1fr;
+    gap: 0.9rem;
+    align-items: start;
+}
+
+@media (max-width: 980px) {
+    ::deep .theme-preview-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ---------- System Info Grid (definition list) --------------------- */
 
 ::deep .cfg-info-grid {

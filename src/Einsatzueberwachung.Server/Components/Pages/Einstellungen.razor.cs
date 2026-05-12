@@ -256,6 +256,8 @@ public partial class Einstellungen
 
         // --- Browser-lokale Einstellungen (Theme + Sound) ---
         var prefs = BrowserPrefs.Preferences;
+        prefs.ThemePreset = NormalizeThemePreset(prefs.ThemePreset);
+        prefs.VisualIntensity = NormalizeVisualIntensity(prefs.VisualIntensity);
 
         // Scheduled-Modus: Dark/Light sofort berechnen
         if (prefs.ThemeMode == "Scheduled")
@@ -275,12 +277,13 @@ public partial class Einstellungen
         // Theme im Browser sofort anwenden
         if (prefs.ThemeMode == "Auto")
         {
+            await ApplyThemeStateAsync(prefs.IsDarkMode);
             await JS.InvokeVoidAsync("themeSync.watchSystemTheme");
         }
         else
         {
             await JS.InvokeVoidAsync("themeSync.stopWatchingSystemTheme");
-            await JS.InvokeVoidAsync("themeSync.setTheme", prefs.IsDarkMode);
+            await ApplyThemeStateAsync(prefs.IsDarkMode);
         }
 
         _status = "Einstellungen gespeichert.";
@@ -371,7 +374,58 @@ public partial class Einstellungen
 
         BrowserPrefs.Update(p => p.IsDarkMode = darkMode);
         await BrowserPrefs.SaveAsync();
-        await JS.InvokeVoidAsync("themeSync.setTheme", darkMode);
+        await ApplyThemeStateAsync(darkMode);
+    }
+
+    private async Task SetThemePresetAsync(ChangeEventArgs e)
+    {
+        var selected = e.Value?.ToString();
+        BrowserPrefs.Update(p => p.ThemePreset = NormalizeThemePreset(selected));
+        await BrowserPrefs.SaveAsync();
+        await ApplyThemeStateAsync(BrowserPrefs.Preferences.IsDarkMode);
+    }
+
+    private async Task SetVisualIntensityAsync(ChangeEventArgs e)
+    {
+        var selected = e.Value?.ToString();
+        BrowserPrefs.Update(p => p.VisualIntensity = NormalizeVisualIntensity(selected));
+        await BrowserPrefs.SaveAsync();
+        await ApplyThemeStateAsync(BrowserPrefs.Preferences.IsDarkMode);
+    }
+
+    private async Task ApplyThemeStateAsync(bool isDark)
+    {
+        await JS.InvokeVoidAsync("themeSync.setThemeState", new
+        {
+            isDark,
+            preset = BrowserPrefs.Preferences.ThemePreset,
+            intensity = BrowserPrefs.Preferences.VisualIntensity
+        });
+    }
+
+    private static string NormalizeThemePreset(string? value)
+    {
+        if (string.Equals(value, ThemePresets.Ruhr, StringComparison.OrdinalIgnoreCase))
+        {
+            return ThemePresets.Ruhr;
+        }
+
+        return ThemePresets.Nrw;
+    }
+
+    private static string NormalizeVisualIntensity(string? value)
+    {
+        if (string.Equals(value, VisualIntensityLevels.Dezent, StringComparison.OrdinalIgnoreCase))
+        {
+            return VisualIntensityLevels.Dezent;
+        }
+
+        if (string.Equals(value, VisualIntensityLevels.Lebhaft, StringComparison.OrdinalIgnoreCase))
+        {
+            return VisualIntensityLevels.Lebhaft;
+        }
+
+        return VisualIntensityLevels.Ausgewogen;
     }
 
     private async Task ResetDataAsync()

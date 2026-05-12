@@ -54,6 +54,7 @@ public sealed class BrowserPreferencesService
             {
                 _prefs = JsonSerializer.Deserialize<BrowserPreferences>(json, JsonOpts)
                          ?? new BrowserPreferences();
+                NormalizeThemeValues();
                 return;
             }
 
@@ -99,6 +100,8 @@ public sealed class BrowserPreferencesService
                 IsDarkMode             = app.IsDarkMode,
                 DarkModeStartTime      = app.DarkModeStartTime.ToString(@"hh\:mm"),
                 DarkModeEndTime        = app.DarkModeEndTime.ToString(@"hh\:mm"),
+                ThemePreset            = ThemePresets.Nrw,
+                VisualIntensity        = VisualIntensityLevels.Ausgewogen,
                 SoundAlertsEnabled     = app.SoundAlertsEnabled,
                 SoundVolume            = app.SoundVolume > 0 ? app.SoundVolume : 70,
                 FirstWarningSound      = string.IsNullOrWhiteSpace(app.FirstWarningSound) ? "beep" : app.FirstWarningSound,
@@ -109,10 +112,50 @@ public sealed class BrowserPreferencesService
                 RepeatWarningIntervalSeconds = app.RepeatWarningIntervalSeconds > 0
                                              ? app.RepeatWarningIntervalSeconds : 30,
             };
+
+            NormalizeThemeValues();
         }
         catch
         {
             _prefs = new BrowserPreferences();
         }
+    }
+
+    private void NormalizeThemeValues()
+    {
+        _prefs.ThemePreset = NormalizePreset(_prefs.ThemePreset);
+        _prefs.VisualIntensity = NormalizeIntensity(_prefs.VisualIntensity);
+    }
+
+    private static string NormalizePreset(string? preset)
+    {
+        if (string.IsNullOrWhiteSpace(preset))
+        {
+            return ThemePresets.Nrw;
+        }
+
+        return preset.Equals(ThemePresets.Ruhr, StringComparison.OrdinalIgnoreCase)
+            ? ThemePresets.Ruhr
+            : ThemePresets.Nrw;
+    }
+
+    private static string NormalizeIntensity(string? intensity)
+    {
+        if (string.IsNullOrWhiteSpace(intensity))
+        {
+            return VisualIntensityLevels.Ausgewogen;
+        }
+
+        if (intensity.Equals(VisualIntensityLevels.Dezent, StringComparison.OrdinalIgnoreCase))
+        {
+            return VisualIntensityLevels.Dezent;
+        }
+
+        if (intensity.Equals(VisualIntensityLevels.Lebhaft, StringComparison.OrdinalIgnoreCase))
+        {
+            return VisualIntensityLevels.Lebhaft;
+        }
+
+        return VisualIntensityLevels.Ausgewogen;
     }
 }

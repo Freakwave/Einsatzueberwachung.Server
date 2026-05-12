@@ -18,7 +18,7 @@
             <div class="monitor-szenario-wrap me-2">
                 <button class="badge fs-6 monitor-szenario-btn"
                         type="button"
-                        style="background-color:@EinsatzService.CurrentEinsatz.Szenario.GetColorHex(); color:#fff; border:none;"
+                    style="--monitor-szenario-color:@EinsatzService.CurrentEinsatz.Szenario.GetColorHex();"
                         title="Szenario wechseln (auf Anweisung der EL)"
                         @onclick="() => _szenarioMenuOpen = !_szenarioMenuOpen">
                     <i class="bi bi-diagram-3 me-1"></i>@EinsatzService.CurrentEinsatz.Szenario.GetDisplayName()
@@ -75,16 +75,16 @@
                             aria-label="Panel-Menü schließen"></button>
                 }
             </div>
-            <a class="btn btn-info btn-sm" href="/einsatz-karte">
+            <a class="btn btn-sm monitor-action-btn monitor-action-btn--map" href="/einsatz-karte">
                 <i class="bi bi-map me-1"></i>Karte
             </a>
-            <button class="btn btn-outline-success btn-sm" type="button" @onclick="OpenTeamMobileModal" title="QR-Code fuer Team-Smartphones">
+            <button class="btn btn-sm monitor-action-btn monitor-action-btn--team-mobile monitor-action-btn--accent-solid monitor-action-btn--accent-success" type="button" @onclick="OpenTeamMobileModal" title="QR-Code fuer Team-Smartphones">
                 <i class="bi bi-qr-code me-1"></i>Team-Mobile
             </button>
-            <button class="btn btn-outline-warning btn-sm" type="button" @onclick="OpenTeamMessageModal" title="Nachricht an ein Team-Smartphone">
+            <button class="btn btn-sm monitor-action-btn monitor-action-btn--push" type="button" @onclick="OpenTeamMessageModal" title="Nachricht an ein Team-Smartphone">
                 <i class="bi bi-megaphone me-1"></i>Push
             </button>
-            <button class="btn btn-danger btn-sm" type="button" @onclick="OpenCloseMissionModal">
+            <button class="btn btn-sm monitor-action-btn monitor-action-btn--stop" type="button" @onclick="OpenCloseMissionModal">
                 <i class="bi bi-stop-circle me-1"></i>Beenden
             </button>
         </div>

@@ -109,7 +109,12 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         _sidebarCollapsed = await JS.InvokeAsync<bool>("layoutTools.getSidebarCollapsed");
         _dotNetRef = DotNetObjectReference.Create(this);
 
-        await JS.InvokeVoidAsync("themeSync.init", _dotNetRef, _isDarkMode);
+        await JS.InvokeVoidAsync(
+            "themeSync.init",
+            _dotNetRef,
+            _isDarkMode,
+            BrowserPrefs.Preferences.ThemePreset,
+            BrowserPrefs.Preferences.VisualIntensity);
 
         if (BrowserPrefs.Preferences.ThemeMode == "Auto")
         {
@@ -221,7 +226,12 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
     private async Task ApplyPersistedThemeAsync()
     {
         _isDarkMode = BrowserPrefs.Preferences.IsDarkMode;
-        await JS.InvokeVoidAsync("themeSync.setTheme", _isDarkMode);
+        await JS.InvokeVoidAsync("themeSync.setThemeState", new
+        {
+            isDark = _isDarkMode,
+            preset = BrowserPrefs.Preferences.ThemePreset,
+            intensity = BrowserPrefs.Preferences.VisualIntensity
+        });
     }
 
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
@@ -264,7 +274,12 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         _isDarkMode = !_isDarkMode;
         BrowserPrefs.Update(p => p.IsDarkMode = _isDarkMode);
         await BrowserPrefs.SaveAsync();
-        await JS.InvokeVoidAsync("themeSync.setTheme", _isDarkMode);
+        await JS.InvokeVoidAsync("themeSync.setThemeState", new
+        {
+            isDark = _isDarkMode,
+            preset = BrowserPrefs.Preferences.ThemePreset,
+            intensity = BrowserPrefs.Preferences.VisualIntensity
+        });
     }
 
     private async Task ToggleFullscreenAsync()

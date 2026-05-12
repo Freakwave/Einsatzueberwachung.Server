@@ -9,17 +9,86 @@
         (function () {
             const storageKey = "einsatz.theme";
             const legacyStorageKey = "theme";
+            const browserPrefsKey = "browser-prefs";
+            const themeMap = {
+                nrw: { primary: "#A72920", secondary: "#404040" },
+                ruhr: { primary: "#005D9E", secondary: "#FFED00" }
+            };
+
+            const parseDark = (value) => {
+                const normalizedValue = (value ?? "").toString().trim().toLowerCase();
+                return normalizedValue === "dark"
+                    || normalizedValue === "true"
+                    || normalizedValue === "1"
+                    || normalizedValue === "yes"
+                    || normalizedValue === "on";
+            };
+
+            const normalizePreset = (value) => {
+                const normalizedValue = (value ?? "").toString().trim().toLowerCase();
+                return normalizedValue === "ruhr" ? "ruhr" : "nrw";
+            };
+
+            const normalizeIntensity = (value) => {
+                const normalizedValue = (value ?? "").toString().trim().toLowerCase();
+                if (normalizedValue === "dezent") {
+                    return "dezent";
+                }
+
+                if (normalizedValue === "lebhaft") {
+                    return "lebhaft";
+                }
+
+                return "ausgewogen";
+            };
+
+            const setAttributeOnRoots = (name, value) => {
+                document.documentElement.setAttribute(name, value);
+                if (document.body) {
+                    document.body.setAttribute(name, value);
+                }
+            };
+
+            const setStyleOnRoots = (name, value) => {
+                document.documentElement.style.setProperty(name, value);
+                if (document.body) {
+                    document.body.style.setProperty(name, value);
+                }
+            };
+
+            let browserState = null;
+            const rawPrefs = localStorage.getItem(browserPrefsKey);
+            if (rawPrefs) {
+                try {
+                    const parsed = JSON.parse(rawPrefs);
+                    browserState = {
+                        isDark: Boolean(parsed?.isDarkMode ?? parsed?.IsDarkMode),
+                        preset: normalizePreset(parsed?.themePreset ?? parsed?.ThemePreset),
+                        intensity: normalizeIntensity(parsed?.visualIntensity ?? parsed?.VisualIntensity)
+                    };
+                } catch {
+                    browserState = null;
+                }
+            }
+
             const storedValue = localStorage.getItem(storageKey) ?? localStorage.getItem(legacyStorageKey);
-            const normalizedValue = (storedValue ?? "").toString().trim().toLowerCase();
-            const isDark = normalizedValue === "dark"
-                || normalizedValue === "true"
-                || normalizedValue === "1"
-                || normalizedValue === "yes"
-                || normalizedValue === "on";
+            const isDark = browserState ? browserState.isDark : parseDark(storedValue);
+            const preset = browserState ? browserState.preset : "nrw";
+            const intensity = browserState ? browserState.intensity : "ausgewogen";
             const normalized = isDark ? "dark" : "light";
-            document.documentElement.setAttribute("data-bs-theme", normalized);
-            if (document.body) {
-                document.body.setAttribute("data-bs-theme", normalized);
+            const palette = themeMap[preset] ?? themeMap.nrw;
+
+            setAttributeOnRoots("data-bs-theme", normalized);
+            setAttributeOnRoots("data-theme-preset", preset);
+            setAttributeOnRoots("data-intensity", intensity);
+
+            setStyleOnRoots("--theme-primary", palette.primary);
+            setStyleOnRoots("--theme-secondary", palette.secondary);
+            setStyleOnRoots("--primary-color", palette.primary);
+            setStyleOnRoots("--secondary-color", palette.secondary);
+
+            if (storedValue === null) {
+                localStorage.setItem(storageKey, normalized);
             }
         })();
     </script>

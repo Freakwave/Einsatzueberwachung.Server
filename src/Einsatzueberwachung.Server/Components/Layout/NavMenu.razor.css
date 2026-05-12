@@ -85,23 +85,24 @@
     width: 1.85rem;
     height: 1.85rem;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(238, 245, 255, 0.75);
     cursor: pointer;
     flex-shrink: 0;
-    transition: background 0.2s, box-shadow 0.2s;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
     padding: 0;
 }
 
 .btn-sidebar-toggle:hover {
-    background: rgba(255, 255, 255, 0.22);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    color: white;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: color-mix(in srgb, var(--theme-primary) 55%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 15%, transparent);
+    color: #eef5ff;
 }
 
 .btn-sidebar-toggle:focus-visible {
-    outline: 2px solid rgba(255,255,255,0.5);
+    outline: 2px solid color-mix(in srgb, var(--theme-primary) 58%, transparent);
     outline-offset: 2px;
 }
 
@@ -133,7 +134,7 @@
 }
 .top-row {
     min-height: 3.5rem;
-    background-color: rgba(0,0,0,0.4);
+    background-color: var(--ui-sidebar-bg);
 }
 
 .navbar-brand {
@@ -146,8 +147,8 @@
     border-radius: 0.35rem;
     object-fit: contain;
     margin-right: 0.6rem;
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.15);
+    background: color-mix(in srgb, var(--theme-primary) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--theme-primary) 34%, transparent);
     padding: 0.1rem;
 }
 
@@ -165,7 +166,7 @@
     }
 
     .nav-item ::deep .nav-link {
-        color: #d7d7d7;
+        color: color-mix(in srgb, var(--ui-nav-active-text) 82%, transparent);
         background: none;
         border: none;
         border-radius: 4px;
@@ -177,13 +178,17 @@
     }
 
 .nav-item ::deep a.active {
-    background-color: rgba(255,255,255,0.37);
-    color: white;
+    background-color: var(--ui-nav-active-bg);
+    color: var(--ui-nav-active-text);
 }
 
 .nav-item ::deep .nav-link:hover {
-    background-color: rgba(255,255,255,0.1);
-    color: white;
+    background-color: color-mix(in srgb, var(--theme-primary) 16%, transparent);
+    color: var(--ui-nav-active-text);
+}
+
+.nav-icon-accent {
+    color: color-mix(in srgb, var(--warning-color) 80%, var(--ui-nav-active-text) 20%);
 }
 
 .nav-scrollable {

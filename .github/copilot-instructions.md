@@ -56,6 +56,7 @@ src/
 │   ├── Controllers/                    ← REST-API Controller
 │   │   ├── EinsatzController           ← Einsatz-API
 │   │   ├── CollarWebhookController     ← GPS-Halsband Webhook-Empfang
+│   │   ├── TeamMobileController         ← Team-Mobile Login, State & Handy-GPS
 │   │   ├── RadioController             ← Funksprüche-API
 │   │   ├── ThreadsController           ← Antwort-Threads
 │   │   ├── DiveraController            ← Divera 24/7 Integration
@@ -132,7 +133,9 @@ deploy/
 13. **PopoutTeams.razor** — Popout-Fenster für Team-Übersicht
 14. **MobileDashboard.razor** — Mobiles Dashboard
 15. **MobileKarte.razor** — Mobile Kartenansicht
-16. **Error.razor** — Fehlerseite
+16. **TeamLogin.razor** — Team-Mobile Login (Token-gestützt)
+17. **TeamMobile.razor** — Team-Mobile Einsatzansicht mit Handy-GPS-Übertragung
+18. **Error.razor** — Fehlerseite
 
 ### REST-API Endpoints
 Alle REST-Endpoints sind über `/api/` erreichbar. Swagger-UI ist im Development-Modus unter `/swagger` verfügbar.
@@ -141,6 +144,7 @@ Alle REST-Endpoints sind über `/api/` erreichbar. Swagger-UI ist im Development
 |---|---|---|
 | `/api/einsatz` | `EinsatzController` | Einsatz starten/beenden, aktuelle Daten |
 | `/api/collar` | `CollarWebhookController` | GPS-Halsband-Positionen empfangen (Webhook) |
+| `/api/team-mobile` | `TeamMobileController` | Team-Mobile Login/Status und Handy-GPS-Positionsupdates |
 | `/api/radio` | `RadioController` | Funksprüche lesen/erstellen |
 | `/api/threads` | `ThreadsController` | Antwort-Threads auf Funksprüche |
 | `/api/divera` | `DiveraController` | Divera 24/7 Status & Alarme |
@@ -229,6 +233,7 @@ Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze 
 - **🌓 Dark Mode**: Persistente Einstellungen, Cross-Tab Sync via `theme-sync.js`
 - **🗺️ Interaktive Karten (Leaflet.js)**: Suchgebiete, Marker, Polygone, GPS-Halsband-Live-Tracking auf Karte
 - **📡 GPS-Halsband-Tracking**: Bis zu 20 Halsbänder gleichzeitig, Live-Position via Webhook-API, Bereichserkennung (im/außerhalb Suchgebiet), Relay via SignalR
+- **🚶 Mensch-Laufweg (Handy-GPS)**: Team-Mobile (`/team`) sendet Smartphone-Positionen; wird als `HumanTrack` in Suche/Karte/PDF geführt
 - **🐕 LiveTracking Desktop-App**: WPF-App liest USB-GPS-Gerät (Garmin Alpha) und sendet Positionen an Server-API; als ZIP-Download unter `/downloads/livetracking.zip`
 - **👥 Team-Management**: Teams anlegen/bearbeiten/löschen, Timer mit Farbcodierung (Grün→Orange→Rot), Blink-Animation, Pause-Funktion für Hunde
 - **📻 Funksprüche**: Chronologisch, mit Antwort-Threads, persistent in SQLite, Echtzeit-SignalR
@@ -242,6 +247,7 @@ Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze 
 - **📐 UTM-Koordinaten**: `UtmConverter` für UTM ↔ WGS84 Umrechnung
 - **🌤️ Wetter (DWD/BrightSky)**: Wetteranzeige für Einsatzort
 - **📊 Runtime-Persistenz**: Einsatzzustand überlebt Server-Neustarts (SQLite, alle 3 Sekunden gespeichert)
+- **💾 Persistierte Live-Tracks**: Halsband-History und Handy-GPS-History (`PhoneTrackHistory`) werden im Runtime-Snapshot mitgespeichert
 - **⌨️ Keyboard Shortcuts**: `keyboard-shortcuts.js`
 - **📥 Downloads**: PDF-Berichte, Excel-Stammdaten, JSON-Export, ZIP-Backup, LiveTracking-App
 

@@ -20,6 +20,7 @@ Entwickelt von **Elemirus1996** und **Freakwave**. Lizenz: [MIT](LICENSE).
 | ⏱️ **Team-Timer** | Zeiterfassung pro Team mit farbcodierter Warnstufe (Grün → Orange → Rot → Blinken) |
 | 👥 **Teams-Detailansicht** | Detailkarte pro Team mit Status, zugewiesenen Hunden und Timer-Übersicht |
 | 📡 **GPS Live-Tracking** | Bis zu 20 Halsbänder gleichzeitig, Live-Laufwege auf der Karte, automatische Suchgebiet-Warnung |
+| 🚶 **Mensch-Laufweg (Handy-GPS)** | Laufweg des Hundeführers via Team-Mobile (Smartphone-GPS) live erfassen und als `HumanTrack` zur Suche speichern |
 | 🚁 **Drohnen-Livestream** | Drohnen in Stammdaten verwalten und per Live-Stream-Link direkt in der Karte anzeigen |
 | 📥 **GPX-Import** | GPS-Tracks als GPX-Datei importieren (z. B. aus Garmin Basecamp) zur Dokumentation von Suchteams |
 | 📻 **Funksprüche** | Chronologische Funkspruch-Liste mit Antwort-Threads, Echtzeit-Sync via SignalR |
@@ -70,7 +71,7 @@ deploy/
 
 ## 📡 GPS Live-Tracking
 
-Das Live-Tracking erfordert die beiliegende Windows-App **Einsatzueberwachung.LiveTracking**:
+Für Halsband-Tracking wird die beiliegende Windows-App **Einsatzueberwachung.LiveTracking** verwendet:
 
 1. App über `/downloads/livetracking.zip` herunterladen, entpacken und auf dem Windows-Rechner mit angeschlossenem GPS-Empfänger (z. B. Garmin Alpha) starten.
 2. Server-URL eintragen (z. B. `http://10.0.0.1:5000`) und verbinden.
@@ -79,6 +80,16 @@ Das Live-Tracking erfordert die beiliegende Windows-App **Einsatzueberwachung.Li
 5. Team stoppen → GPS-Track wird als Snapshot gespeichert und steht im PDF-Bericht zur Verfügung.
 
 Verlässt ein Hund sein Suchgebiet: rot pulsierender Marker auf der Karte + Warnung im Tracking-Panel.
+
+### 🚶 Mensch-Laufweg per Handy-GPS (Team-Mobile)
+
+Zusätzlich kann der Laufweg des Menschen (Hundeführer) über die mobile Team-Ansicht aufgezeichnet werden:
+
+1. Team im Team-Login auswählen und `TeamMobile` (`/team`) öffnen.
+2. Standortfreigabe im Browser zulassen.
+3. Während das Team läuft, sendet das Handy Positionen an `/api/team-mobile/location`.
+4. Beim Team-Stopp wird der Verlauf als `HumanTrack` zur abgeschlossenen Suche gespeichert.
+5. Der Verlauf erscheint in Karte und PDF-Bericht zusammen mit dem Halsband-Track.
 
 Details: [`docs/GPS_TRACKING_WORKFLOW.md`](docs/GPS_TRACKING_WORKFLOW.md)
 
@@ -145,6 +156,8 @@ Alle Endpunkte sind über `/api/` erreichbar. Im Development-Modus steht Swagger
 | `GET /api/truemmer/karten/{id}/image` | Trümmer-Bild ausliefern |
 | `DELETE /api/truemmer/karten/{id}` | Trümmer-Karte löschen |
 | `POST /api/collar/receive-location` | GPS-Halsband-Position empfangen (Webhook) |
+| `GET /api/team-mobile/state` | Mobilen Team-Zustand inkl. Halsband- und Handy-Track abrufen (authentifiziert) |
+| `POST /api/team-mobile/location` | Handy-GPS-Position eines Team-Users speichern (authentifiziert) |
 | `GET /api/radio` | Funksprüche abrufen |
 | `POST /api/radio` | Neuen Funkspruch erstellen |
 | `GET /api/divera/status` | Divera 24/7 Status abrufen |

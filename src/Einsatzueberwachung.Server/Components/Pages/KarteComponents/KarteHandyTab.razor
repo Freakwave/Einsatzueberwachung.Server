@@ -1,0 +1,174 @@
+@* Handy-GPS-Tab-Panel der Karten-Sidebar *@
+@using Einsatzueberwachung.Domain.Models
+@implements IDisposable
+
+<div class="sidebar-content-header">
+    <span class="small fw-semibold text-muted"><i class="bi bi-phone me-1"></i>Handy-GPS</span>
+    <div class="d-flex align-items-center gap-1">
+        <button class="btn btn-xs @(PhoneLayerVisible ? "btn-info" : "btn-outline-secondary")"
+                title="@(PhoneLayerVisible ? "Handy-Layer ausblenden" : "Handy-Layer einblenden")"
+                @onclick="OnTogglePhoneLayer">
+            <i class="bi @(PhoneLayerVisible ? "bi-eye" : "bi-eye-slash")"></i>
+        </button>
+    </div>
+</div>
+
+<div class="sidebar-list gps-tab-content">
+    @{
+        var allTeamIds = PhoneLocations.Keys
+            .Union(PhoneTrackHistories.Keys)
+            .OrderBy(GetTeamName)
+            .ToList();
+    }
+
+    @if (allTeamIds.Any())
+    {
+        <div class="sidebar-section-header">
+            <span><i class="bi bi-broadcast-pin me-1"></i>Positionen</span>
+            <span class="badge bg-info">@allTeamIds.Count</span>
+        </div>
+
+        @foreach (var teamId in allTeamIds)
+        {
+            PhoneLocations.TryGetValue(teamId, out var loc);
+            PhoneTrackHistories.TryGetValue(teamId, out var history);
+            var teamName = GetTeamName(teamId);
+            var histCount = history?.Count ?? 0;
+            var histDist = history != null ? ComputeDistance(history) : 0.0;
+
+            <button type="button"
+                    class="collar-item"
+                    @onclick="() => OnZoomToTeam.InvokeAsync(teamId)"
+                    title="Zum Standort springen">
+                <div class="collar-head-row">
+                    <span class="collar-name">
+                        <i class="bi bi-person-fill" style="color: @GetTeamPhoneColor(teamId);"></i>
+                        @teamName
+                    </span>
+                    @if (loc?.Accuracy.HasValue == true)
+                    {
+                        <span class="collar-team text-muted" style="font-size:0.7rem;">&#177;@((int)loc.Accuracy!.Value) m</span>
+                    }
+                </div>
+                <div class="collar-status-line d-flex justify-content-between align-items-center">
+                    @if (loc != null)
+                    {
+                        <span class="collar-status-pill text-muted">Letztes Update: @FormatAge(loc.Timestamp)</span>
+                    }
+                    else
+                    {
+                        <span class="collar-status-pill text-muted">Keine Live-Position</span>
+                    }
+                    @if (histCount > 0)
+                    {
+                        <span class="collar-status-pill text-muted">@FormatDistance(histDist) &middot; @histCount Pkt.</span>
+                    }
+                </div>
+            </button>
+        }
+    }
+    else
+    {
+        <div class="text-center text-muted small py-3">
+            <i class="bi bi-phone me-1"></i>Keine Handy-GPS-Daten vorhanden.
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyDictionary<string, TeamPhoneLocation> PhoneLocations { get; set; } = new Dictionary<string, TeamPhoneLocation>();
+    [Parameter, EditorRequired] public List<Team> Teams { get; set; } = new();
+    [Parameter, EditorRequired] public IReadOnlyDictionary<string, IReadOnlyList<TeamPhoneLocation>> PhoneTrackHistories { get; set; } = new Dictionary<string, IReadOnlyList<TeamPhoneLocation>>();
+    [Parameter] public bool PhoneLayerVisible { get; set; }
+    [Parameter] public EventCallback<string> OnZoomToTeam { get; set; }
+    [Parameter] public EventCallback OnTogglePhoneLayer { get; set; }
+
+    private PeriodicTimer? _ageRefreshTimer;
+    private CancellationTokenSource? _timerCts;
+
+    protected override void OnParametersSet()
+    {
+        if (PhoneLocations.Count > 0 && _ageRefreshTimer == null)
+            StartAgeRefreshTimer();
+        else if (PhoneLocations.Count == 0)
+            StopAgeRefreshTimer();
+    }
+
+    private void StartAgeRefreshTimer()
+    {
+        _timerCts = new CancellationTokenSource();
+        _ageRefreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        var token = _timerCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (await _ageRefreshTimer.WaitForNextTickAsync(token))
+                    await InvokeAsync(StateHasChanged);
+            }
+            catch (OperationCanceledException) { }
+        }, token);
+    }
+
+    private void StopAgeRefreshTimer()
+    {
+        _timerCts?.Cancel();
+        _timerCts?.Dispose();
+        _ageRefreshTimer?.Dispose();
+        _ageRefreshTimer = null;
+        _timerCts = null;
+    }
+
+    public void Dispose() => StopAgeRefreshTimer();
+
+    private string GetTeamName(string teamId)
+    {
+        var team = Teams.FirstOrDefault(t => t.TeamId == teamId);
+        return team?.TeamName ?? teamId;
+    }
+
+    /// <summary>
+    /// Gibt die Marker-Farbe für ein Team zurück – muss mit phone-tracking.js _teamColor() übereinstimmen.
+    /// </summary>
+    private static string GetTeamPhoneColor(string teamId)
+    {
+        var colors = new[] { "#1976d2", "#d32f2f", "#388e3c", "#f57c00", "#7b1fa2",
+                             "#00838f", "#c2185b", "#5d4037", "#455a64", "#0288d1" };
+        int h = 0;
+        foreach (char c in teamId) h = (h * 31 + c) & 0xffff;
+        return colors[h % colors.Length];
+    }
+
+    private static string FormatAge(DateTime timestamp)
+    {
+        // Timestamp ist Server-Lokalzeit (GetServerNowLocal), daher DateTime.Now verwenden
+        var seconds = (int)(DateTime.Now - timestamp).TotalSeconds;
+        if (seconds < 5)  return "gerade eben";
+        if (seconds < 60) return $"vor {seconds}s";
+        var minutes = seconds / 60;
+        return minutes < 60 ? $"vor {minutes} min" : $"vor {minutes / 60} h";
+    }
+
+    private static double ComputeDistance(IReadOnlyList<TeamPhoneLocation> pts)
+    {
+        if (pts.Count < 2) return 0;
+        double total = 0;
+        for (int i = 1; i < pts.Count; i++)
+            total += Haversine(pts[i - 1].Latitude, pts[i - 1].Longitude, pts[i].Latitude, pts[i].Longitude);
+        return total;
+    }
+
+    private static string FormatDistance(double meters) =>
+        meters < 1000 ? $"{meters:N0} m" : $"{meters / 1000.0:N2} km";
+
+    private static double Haversine(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double R = 6371000;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLon = (lon2 - lon1) * Math.PI / 180;
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+    }
+}

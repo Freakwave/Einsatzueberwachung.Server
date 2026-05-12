@@ -180,5 +180,21 @@ window.PhoneTracking = (function () {
         Object.keys(_tracks).forEach(k => delete _tracks[k]);
     }
 
-    return { initialize, updateMarker, loadTrack, appendTrackPoint, clearTrack, toggleVisibility, removeMarker, clearAll, setOptions };
+    /**
+     * Zoomt die Karte auf den aktuellen Marker eines Teams und öffnet dessen Popup.
+     * @param {string} mapId
+     * @param {string} teamId
+     */
+    function zoomToTeam(mapId, teamId) {
+        const mapData = _getMapData(mapId);
+        if (!mapData) return;
+
+        const marker = _markers[teamId];
+        if (!marker) return;
+
+        mapData.map.setView(marker.getLatLng(), 16);
+        marker.openPopup();
+    }
+
+    return { initialize, updateMarker, loadTrack, appendTrackPoint, clearTrack, toggleVisibility, removeMarker, clearAll, setOptions, zoomToTeam };
 })();

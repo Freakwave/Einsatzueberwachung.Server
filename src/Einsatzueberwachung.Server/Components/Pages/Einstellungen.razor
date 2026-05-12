@@ -6,336 +6,292 @@
 
 <PageTitle>Einstellungen</PageTitle>
 
-<div class="container py-4 settings-page">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
-        <div>
-            <h1 class="mb-1"><i class="bi bi-gear-fill me-2"></i>Einstellungen</h1>
-            <p class="text-muted mb-0">Staffel-Daten und App-Konfiguration</p>
+<div class="cfg-page">
+
+    <!-- STICKY HEADER -->
+    <header class="cfg-header">
+        <div class="cfg-header-title">
+            <i class="bi bi-folder2-open"></i>
+            <span>Einstellungen</span>
         </div>
-    </div>
+        <button type="button" class="cfg-save-btn" @onclick="SaveAsync">
+            <i class="bi bi-floppy-fill"></i>
+            <span>Speichern</span>
+        </button>
+    </header>
 
-    <div class="card border-primary-subtle mb-4 trainer-access-card">
-        <div class="card-body">
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                <div>
-                    <h2 class="h5 mb-1"><i class="bi bi-shield-lock-fill me-2"></i>Trainerbereich</h2>
-                    <p class="text-muted mb-0">Zugang zum eigenstaendigen Trainer-Modul. Die Passwortabfrage erfolgt direkt auf der Trainer-Seite.</p>
-                </div>
-                <button type="button" class="btn btn-primary btn-lg" @onclick="OpenTrainerDashboardAsync">
-                    <i class="bi bi-mortarboard-fill me-1"></i>Trainerbereich oeffnen
-                </button>
-            </div>
-        </div>
-    </div>
+    <div class="cfg-body">
 
-    <div class="row g-4">
-        <div class="col-12 col-xl-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h2 class="h4 mb-0"><i class="bi bi-building me-2"></i>Staffel-Informationen</h2>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label">Staffel-Name</label>
-                        <InputText class="form-control" placeholder="z.B. RHS Speyer" @bind-Value="_staffelSettings.StaffelName" />
-                    </div>
+        <!-- AKTENREGISTER (links) -->
+        <nav class="cfg-register" aria-label="Einstellungen-Bereiche">
+            <button type="button"
+                    class="cfg-tab @(_activeTab == SettingsTab.Staffel ? "is-active" : "")"
+                    @onclick="() => SetActiveTab(SettingsTab.Staffel)">
+                <span class="cfg-tab-label"><i class="bi bi-building me-2"></i>Staffel</span>
+                @if (StaffelComplete)
+                {
+                    <span class="cfg-tab-badge ok"><i class="bi bi-check-lg"></i></span>
+                }
+                else
+                {
+                    <span class="cfg-tab-badge muted">unvollständig</span>
+                }
+            </button>
 
-                    <div class="mb-3">
-                        <label class="form-label">Adresse</label>
-                        <InputText class="form-control" placeholder="Straße, PLZ Ort" @bind-Value="_staffelSettings.StaffelAdresse" />
-                    </div>
+            <button type="button"
+                    class="cfg-tab @(_activeTab == SettingsTab.Einsatzbetrieb ? "is-active" : "")"
+                    @onclick="() => SetActiveTab(SettingsTab.Einsatzbetrieb)">
+                <span class="cfg-tab-label"><i class="bi bi-clipboard-data me-2"></i>Einsatzbetrieb</span>
+            </button>
 
-                    <div class="row g-3">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Telefon</label>
-                            <InputText class="form-control" placeholder="+49 123 456789" @bind-Value="_staffelSettings.StaffelTelefon" />
+            <button type="button"
+                    class="cfg-tab @(_activeTab == SettingsTab.Erscheinungsbild ? "is-active" : "")"
+                    @onclick="() => SetActiveTab(SettingsTab.Erscheinungsbild)">
+                <span class="cfg-tab-label"><i class="bi bi-palette me-2"></i>Erscheinungsbild</span>
+            </button>
+
+            <button type="button"
+                    class="cfg-tab @(_activeTab == SettingsTab.Tastenkuerzel ? "is-active" : "")"
+                    @onclick="() => SetActiveTab(SettingsTab.Tastenkuerzel)">
+                <span class="cfg-tab-label"><i class="bi bi-keyboard me-2"></i>Tastenkürzel</span>
+            </button>
+
+            <button type="button"
+                    class="cfg-tab @(_activeTab == SettingsTab.Integration ? "is-active" : "")"
+                    @onclick="() => SetActiveTab(SettingsTab.Integration)">
+                <span class="cfg-tab-label"><i class="bi bi-broadcast-pin me-2"></i>Integration</span>
+                <span class="cfg-tab-badge ok">@IntegrationActiveCount aktiv</span>
+            </button>
+
+            <button type="button"
+                    class="cfg-tab @(_activeTab == SettingsTab.System ? "is-active" : "")"
+                    @onclick="() => SetActiveTab(SettingsTab.System)">
+                <span class="cfg-tab-label"><i class="bi bi-cpu me-2"></i>System</span>
+                @if (UpdateAvailable)
+                {
+                    <span class="cfg-tab-badge warning"><i class="bi bi-arrow-up-circle"></i> Update</span>
+                }
+            </button>
+
+            <button type="button"
+                    class="cfg-tab @(_activeTab == SettingsTab.Wartung ? "is-active" : "")"
+                    @onclick="() => SetActiveTab(SettingsTab.Wartung)">
+                <span class="cfg-tab-label"><i class="bi bi-database-gear me-2"></i>Wartung</span>
+                <span class="cfg-tab-badge @BackupAgeSeverity">Backup @BackupAgeLabel</span>
+            </button>
+
+            <a class="cfg-tab cfg-tab-link" href="/trainer">
+                <span class="cfg-tab-label"><i class="bi bi-mortarboard-fill me-2"></i>Trainerbereich</span>
+                <i class="bi bi-arrow-right cfg-tab-arrow"></i>
+            </a>
+        </nav>
+
+        <!-- AKTIVER PANE (rechts) -->
+        <main class="cfg-pane">
+
+            @if (_activeTab == SettingsTab.Staffel)
+            {
+                <h2 class="cfg-pane-title"><i class="bi bi-building me-2"></i>Staffel</h2>
+                <p class="cfg-pane-subtitle">Stammdaten der Staffel und Logos für Berichte.</p>
+
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header">Kontaktdaten</h3>
+                    <div class="cfg-grid cfg-grid-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Staffel-Name</label>
+                            <InputText class="cfg-input" placeholder="z.B. RHS Speyer" @bind-Value="_staffelSettings.StaffelName" />
                         </div>
-
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">E-Mail</label>
-                            <InputText class="form-control" placeholder="kontakt@staffel.de" @bind-Value="_staffelSettings.StaffelEmail" />
+                        <div class="cfg-field">
+                            <label class="cfg-label">Adresse</label>
+                            <InputText class="cfg-input" placeholder="Straße, PLZ Ort" @bind-Value="_staffelSettings.StaffelAdresse" />
+                        </div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">Telefon</label>
+                            <InputText class="cfg-input" placeholder="+49 …" @bind-Value="_staffelSettings.StaffelTelefon" />
+                        </div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">E-Mail</label>
+                            <InputText class="cfg-input" placeholder="kontakt@staffel.de" @bind-Value="_staffelSettings.StaffelEmail" />
                         </div>
                     </div>
+                </div>
 
-                    <div class="mt-3">
-                        <label class="form-label">Logo-Pfad</label>
-                        <InputText class="form-control" placeholder="Pfad zum Logo" @bind-Value="_staffelSettings.StaffelLogoPfad" />
-                        <div class="form-text">Pfad zu einer Bilddatei für den PDF-Export</div>
-
-                        <div class="d-flex flex-wrap gap-2 mt-2 align-items-center">
-                            <InputFile OnChange="UploadStaffelLogoAsync" accept=".png,.jpg,.jpeg,.webp,.svg,image/*" />
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header">Logos</h3>
+                    <div class="cfg-grid cfg-grid-2">
+                        <div class="cfg-logo-card">
+                            <div class="cfg-logo-meta">
+                                <span class="cfg-label">Staffel-Logo</span>
+                                <span class="cfg-help">PDF + Anzeige im Header</span>
+                            </div>
                             @if (!string.IsNullOrWhiteSpace(_staffelSettings.StaffelLogoPfad))
                             {
-                                <button class="btn btn-sm btn-outline-danger" @onclick="ClearStaffelLogoAsync">
-                                    <i class="bi bi-trash me-1"></i>Logo entfernen
-                                </button>
+                                <code class="cfg-logo-path">@_staffelSettings.StaffelLogoPfad</code>
+                            }
+                            <div class="cfg-logo-actions">
+                                <InputFile OnChange="UploadStaffelLogoAsync" accept=".png,.jpg,.jpeg,.webp,.svg,image/*" />
+                                @if (!string.IsNullOrWhiteSpace(_staffelSettings.StaffelLogoPfad))
+                                {
+                                    <button class="cfg-btn cfg-btn-ghost-danger" @onclick="ClearStaffelLogoAsync" type="button">
+                                        <i class="bi bi-trash"></i> Entfernen
+                                    </button>
+                                }
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(_logoStatus))
+                            {
+                                <div class="cfg-inline-status @(_logoStatusIsError ? "is-error" : "is-ok")">@_logoStatus</div>
                             }
                         </div>
 
-                        @if (!string.IsNullOrWhiteSpace(_logoStatus))
-                        {
-                            <div class="alert @(_logoStatusIsError ? "alert-danger" : "alert-success") py-2 mt-2 mb-0">@_logoStatus</div>
-                        }
-                    </div>
-
-                    <div class="mt-3">
-                        <label class="form-label">PDF-Logo-Pfad</label>
-                        <InputText class="form-control" placeholder="Pfad zum PDF-Logo (optional)" @bind-Value="_staffelSettings.PdfLogoPfad" />
-                        <div class="form-text">Separates Logo für den PDF-Export (überschreibt das allgemeine Logo im Bericht)</div>
-
-                        <div class="d-flex flex-wrap gap-2 mt-2 align-items-center">
-                            <InputFile OnChange="UploadPdfLogoAsync" accept=".png,.jpg,.jpeg,.webp,image/*" />
+                        <div class="cfg-logo-card">
+                            <div class="cfg-logo-meta">
+                                <span class="cfg-label">PDF-Logo</span>
+                                <span class="cfg-help">überschreibt Staffel-Logo im Bericht</span>
+                            </div>
                             @if (!string.IsNullOrWhiteSpace(_staffelSettings.PdfLogoPfad))
                             {
-                                <button class="btn btn-sm btn-outline-danger" @onclick="ClearPdfLogoAsync">
-                                    <i class="bi bi-trash me-1"></i>PDF-Logo entfernen
-                                </button>
+                                <code class="cfg-logo-path">@_staffelSettings.PdfLogoPfad</code>
                             }
-                        </div>
-
-                        @if (!string.IsNullOrWhiteSpace(_pdfLogoStatus))
-                        {
-                            <div class="alert @(_pdfLogoStatusIsError ? "alert-danger" : "alert-success") py-2 mt-2 mb-0">@_pdfLogoStatus</div>
-                        }
-                    </div>
-
-                    <div class="mt-4">
-                        <button class="btn btn-success w-100" @onclick="SaveAsync">
-                            <i class="bi bi-floppy-fill me-1"></i>Speichern
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-xl-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h2 class="h4 mb-0"><i class="bi bi-palette-fill me-2"></i>Darstellung</h2>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label">Theme-Modus</label>
-                        <InputSelect class="form-select" @bind-Value="BrowserPrefs.Preferences.ThemeMode">
-                            <option value="Manual">Manuell (per Button umschalten)</option>
-                            <option value="Auto">Automatisch (Systemmodus)</option>
-                            <option value="Scheduled">Geplant (Zeitfenster)</option>
-                        </InputSelect>
-                        @if (BrowserPrefs.Preferences.ThemeMode == "Auto")
-                        {
-                            <div class="form-text"><i class="bi bi-info-circle me-1"></i>Das Theme folgt automatisch dem Betriebssystemmodus des Browsers.</div>
-                        }
-                    </div>
-
-                    @if (BrowserPrefs.Preferences.ThemeMode == "Scheduled")
-                    {
-                        <div class="mb-3">
-                            <label class="form-label"><i class="bi bi-clock me-1"></i>Zeitfenster für Dunkel-Modus</label>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label class="form-label small text-muted mb-1">Dunkel ab</label>
-                                    <input type="time" class="form-control"
-                                           value="@BrowserPrefs.Preferences.DarkModeStartTime"
-                                           @onchange="e => BrowserPrefs.Preferences.DarkModeStartTime = e.Value?.ToString() ?? BrowserPrefs.Preferences.DarkModeStartTime" />
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small text-muted mb-1">Hell ab</label>
-                                    <input type="time" class="form-control"
-                                           value="@BrowserPrefs.Preferences.DarkModeEndTime"
-                                           @onchange="e => BrowserPrefs.Preferences.DarkModeEndTime = e.Value?.ToString() ?? BrowserPrefs.Preferences.DarkModeEndTime" />
-                                </div>
-                            </div>
-                            <div class="form-text">Z.B. Dunkel ab 20:00, Hell ab 06:00 (über Mitternacht möglich).</div>
-                        </div>
-                    }
-
-                    @if (BrowserPrefs.Preferences.ThemeMode == "Manual")
-                    {
-                        <div class="mb-3">
-                            <label class="form-label">Design-Modus</label>
-                            <div class="settings-segmented">
-                                <button type="button"
-                                        class="btn @(BrowserPrefs.Preferences.IsDarkMode ? "btn-outline-light" : "btn-light")"
-                                        @onclick="() => SetDesignModeAsync(false)">
-                                    <i class="bi bi-brightness-high me-1"></i>Hell
-                                </button>
-                                <button type="button"
-                                        class="btn @(BrowserPrefs.Preferences.IsDarkMode ? "btn-secondary" : "btn-outline-secondary")"
-                                        @onclick="() => SetDesignModeAsync(true)">
-                                    <i class="bi bi-moon-stars me-1"></i>Dunkel
-                                </button>
-                            </div>
-                        </div>
-                    }
-
-                    <hr />
-
-                    <h3 class="h5 mb-3"><i class="bi bi-journal-text me-1"></i>Schnell-Notizen</h3>
-                    <div class="mb-3">
-                        <label class="form-label">Vorlagen</label>
-                        <div class="list-group mb-2">
-                            @for (int i = 0; i < _quickNoteList.Count; i++)
-                            {
-                                var idx = i;
-                                <div class="list-group-item d-flex align-items-center gap-2 py-1 px-2">
-                                    <input class="form-control form-control-sm" value="@_quickNoteList[idx]"
-                                           @onchange="e => _quickNoteList[idx] = e.Value?.ToString() ?? string.Empty" />
-                                    <button class="btn btn-sm btn-outline-danger flex-shrink-0" type="button"
-                                            @onclick="() => _quickNoteList.RemoveAt(idx)" title="Entfernen">
-                                        <i class="bi bi-trash"></i>
+                            <div class="cfg-logo-actions">
+                                <InputFile OnChange="UploadPdfLogoAsync" accept=".png,.jpg,.jpeg,.webp,image/*" />
+                                @if (!string.IsNullOrWhiteSpace(_staffelSettings.PdfLogoPfad))
+                                {
+                                    <button class="cfg-btn cfg-btn-ghost-danger" @onclick="ClearPdfLogoAsync" type="button">
+                                        <i class="bi bi-trash"></i> Entfernen
                                     </button>
-                                </div>
+                                }
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(_pdfLogoStatus))
+                            {
+                                <div class="cfg-inline-status @(_pdfLogoStatusIsError ? "is-error" : "is-ok")">@_pdfLogoStatus</div>
                             }
                         </div>
-                        <button class="btn btn-sm btn-outline-success" type="button"
-                                @onclick="() => _quickNoteList.Add(string.Empty)">
-                            <i class="bi bi-plus-circle me-1"></i>Vorlage hinzufügen
-                        </button>
-                        <div class="form-text">Diese Buttons erscheinen im Einsatzmonitor als Schnell-Notiz-Schaltflächen.</div>
                     </div>
+                </div>
+            }
 
-                    <hr />
+            else if (_activeTab == SettingsTab.Einsatzbetrieb)
+            {
+                <h2 class="cfg-pane-title"><i class="bi bi-clipboard-data me-2"></i>Einsatzbetrieb</h2>
+                <p class="cfg-pane-subtitle">Operative Defaults: Timer, Pausen, Karte, Akustik, Notizvorlagen.</p>
 
-                    <h3 class="h5 mb-3"><i class="bi bi-clock-history me-1"></i>Datum &amp; Uhrzeit</h3>
-                    <div class="mb-3">
-                        <label class="form-label">Server-Zeitzone</label>
-                        <InputSelect class="form-select" @bind-Value="_appSettings.TimeZoneId">
-                            <option value="Europe/Berlin">Europa/Berlin (Deutschland, Österreich)</option>
-                            <option value="Europe/Vienna">Europa/Wien (Österreich)</option>
-                            <option value="Europe/Zurich">Europa/Zürich (Schweiz)</option>
-                            <option value="Europe/Paris">Europa/Paris (Frankreich)</option>
-                            <option value="Europe/London">Europa/London (Vereinigtes Königreich)</option>
-                            <option value="Europe/Amsterdam">Europa/Amsterdam (Niederlande)</option>
-                            <option value="Europe/Brussels">Europa/Brüssel (Belgien)</option>
-                            <option value="Europe/Warsaw">Europa/Warschau (Polen)</option>
-                            <option value="Europe/Prague">Europa/Prag (Tschechien)</option>
-                            <option value="Europe/Budapest">Europa/Budapest (Ungarn)</option>
-                            <option value="UTC">UTC (Koordinierte Weltzeit)</option>
-                        </InputSelect>
-                        <div class="form-text">
-                            Bestimmt die Zeitzone für alle Zeitstempel (Notizen, Funksprüche, Team-Erstellung).
-                            Muss mit der Uhr im Header übereinstimmen. Aktuelle Serverzeit in gewählter Zeitzone:
-                            <strong>@_currentServerTime</strong>
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header"><i class="bi bi-alarm me-1"></i>Default-Warnungen</h3>
+                    <div class="cfg-grid cfg-grid-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">1. Warnung (Min)</label>
+                            <InputNumber class="cfg-input" @bind-Value="_appSettings.DefaultFirstWarningMinutes" />
+                            <span class="cfg-help">Standard 45</span>
+                        </div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">2. Warnung (Min)</label>
+                            <InputNumber class="cfg-input" @bind-Value="_appSettings.DefaultSecondWarningMinutes" />
+                            <span class="cfg-help">Standard 60</span>
                         </div>
                     </div>
+                </div>
 
-                    <hr />
-
-                    <h3 class="h5 mb-3"><i class="bi bi-alarm me-1"></i>Timer-Warnungen (Standard)</h3>
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label">Erste Warnung (Minuten)</label>
-                            <InputNumber class="form-control" @bind-Value="_appSettings.DefaultFirstWarningMinutes" />
-                            <div class="form-text">Standard: 45 Minuten</div>
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header"><i class="bi bi-hourglass-split me-1"></i>Hundepausen</h3>
+                    <div class="cfg-grid cfg-grid-3">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Schwelle (Min)</label>
+                            <InputNumber class="cfg-input" @bind-Value="_appSettings.PauseThresholdMinutes" />
+                            <span class="cfg-help">Std. 20</span>
                         </div>
-
-                        <div class="col-12">
-                            <label class="form-label">Zweite Warnung (Minuten)</label>
-                            <InputNumber class="form-control" @bind-Value="_appSettings.DefaultSecondWarningMinutes" />
-                            <div class="form-text">Standard: 60 Minuten</div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">Kurze Pause (Min)</label>
+                            <InputNumber class="cfg-input" @bind-Value="_appSettings.PauseMinutesShortRun" />
+                            <span class="cfg-help">Std. 60</span>
                         </div>
-                    </div>
-
-                    <hr />
-
-                    <h3 class="h5 mb-3"><i class="bi bi-map me-1"></i>Karten-Standardposition</h3>
-                    <div class="row g-3 mb-3">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Breitengrad (Lat)</label>
-                            <InputNumber class="form-control" @bind-Value="_appSettings.MapDefaultLat" />
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Längengrad (Lng)</label>
-                            <InputNumber class="form-control" @bind-Value="_appSettings.MapDefaultLng" />
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Zoom-Stufe</label>
-                            <InputNumber class="form-control" @bind-Value="_appSettings.MapDefaultZoom" />
-                            <div class="form-text">5–18, Standard: 13</div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">Lange Pause (Min)</label>
+                            <InputNumber class="cfg-input" @bind-Value="_appSettings.PauseMinutesLongRun" />
+                            <span class="cfg-help">Std. 180</span>
                         </div>
                     </div>
+                </div>
 
-                    <hr />
-
-                    <h3 class="h5 mb-3"><i class="bi bi-broadcast me-1"></i>GPS-Halsband-Monitoring</h3>
-                    <div class="row g-3 mb-3">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Kein Signal nach (Sek.)</label>
-                            <InputSelect class="form-select" @bind-Value="_appSettings.CollarNoSignalTimeoutSeconds">
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header"><i class="bi bi-broadcast me-1"></i>GPS-Halsband</h3>
+                    <div class="cfg-grid cfg-grid-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Kein-Signal-Timeout</label>
+                            <InputSelect class="cfg-input" @bind-Value="_appSettings.CollarNoSignalTimeoutSeconds">
                                 <option value="30">30 Sekunden</option>
                                 <option value="45">45 Sekunden</option>
                                 <option value="60">60 Sekunden</option>
                                 <option value="90">90 Sekunden</option>
                             </InputSelect>
-                            <div class="form-text">Gilt nur für zugewiesene Halsbänder, wenn die Team-Suche läuft.</div>
+                            <span class="cfg-help">Gilt bei aktiven Suchen mit zugewiesenem Halsband.</span>
                         </div>
                     </div>
+                </div>
 
-                    <hr />
-
-                    <h3 class="h5 mb-3"><i class="bi bi-pin-map-fill me-1"></i>Karten-Marker</h3>
-                    <div class="row g-3 mb-3">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Symbol: GPS-Halsband (Hund)</label>
-                            <InputSelect class="form-select" @bind-Value="_appSettings.CollarMarkerIcon">
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header"><i class="bi bi-pin-map-fill me-1"></i>Karten-Marker</h3>
+                    <div class="cfg-grid cfg-grid-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Symbol: GPS-Halsband (Hund)</label>
+                            <InputSelect class="cfg-input" @bind-Value="_appSettings.CollarMarkerIcon">
                                 <option value="paw">Pfote (Standard)</option>
                                 <option value="dog">Hund-Kopf</option>
                                 <option value="bone">Knochen</option>
                                 <option value="dot">Farbiger Punkt</option>
                             </InputSelect>
-                            <div class="form-text">Symbol für die aktuelle Position eines GPS-Halsbands auf der Karte. Änderungen werden nach dem nächsten Laden der Karten-Seite sichtbar.</div>
+                            <span class="cfg-help">Symbol für die aktuelle Position eines GPS-Halsbands auf der Karte.</span>
                         </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Symbol: Handy-GPS (Mensch)</label>
-                            <InputSelect class="form-select" @bind-Value="_appSettings.HumanMarkerIcon">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Symbol: Handy-GPS (Mensch)</label>
+                            <InputSelect class="cfg-input" @bind-Value="_appSettings.HumanMarkerIcon">
                                 <option value="person_walking">Person laufend (Standard)</option>
                                 <option value="person">Person (stehend)</option>
                                 <option value="phone">Handy</option>
                                 <option value="radio">Funk</option>
                                 <option value="dot">Farbiger Punkt</option>
                             </InputSelect>
-                            <div class="form-text">Symbol für die aktuelle Handy-GPS-Position eines Teams auf der Karte. Änderungen werden nach dem nächsten Laden der Karten-Seite sichtbar.</div>
+                            <span class="cfg-help">Symbol für die aktuelle Handy-GPS-Position eines Teams auf der Karte.</span>
                         </div>
                     </div>
+                </div>
 
-                    <hr />
-
-                    <h3 class="h5 mb-3"><i class="bi bi-hourglass-split me-1"></i>Hundepausen</h3>
-                    <div class="row g-3 mb-3">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Schwellwert (Min.)</label>
-                            <InputNumber class="form-control" @bind-Value="_appSettings.PauseThresholdMinutes" />
-                            <div class="form-text">Laufzeit bis zur kurzen Pause. Standard: 20</div>
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header"><i class="bi bi-map me-1"></i>Karten-Standard</h3>
+                    <div class="cfg-grid cfg-grid-3">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Breitengrad (Lat)</label>
+                            <InputNumber class="cfg-input" @bind-Value="_appSettings.MapDefaultLat" />
                         </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Kurze Pause (Min.)</label>
-                            <InputNumber class="form-control" @bind-Value="_appSettings.PauseMinutesShortRun" />
-                            <div class="form-text">Pausenpflicht bei kurzer Laufzeit. Standard: 60</div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">Längengrad (Lng)</label>
+                            <InputNumber class="cfg-input" @bind-Value="_appSettings.MapDefaultLng" />
                         </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Lange Pause (Min.)</label>
-                            <InputNumber class="form-control" @bind-Value="_appSettings.PauseMinutesLongRun" />
-                            <div class="form-text">Pausenpflicht bei langer Laufzeit. Standard: 180</div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">Zoom (5–18)</label>
+                            <InputNumber class="cfg-input" @bind-Value="_appSettings.MapDefaultZoom" />
                         </div>
                     </div>
+                </div>
 
-                    <hr />
-
-                    <h3 class="h5 mb-3"><i class="bi bi-volume-up me-1"></i>Sound-Warnungen</h3>
-                    <div class="form-check form-switch mb-2">
-                        <InputCheckbox class="form-check-input" id="soundAlerts" @bind-Value="BrowserPrefs.Preferences.SoundAlertsEnabled" />
-                        <label class="form-check-label" for="soundAlerts">Akustische Warnungen aktiviert</label>
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header"><i class="bi bi-volume-up me-1"></i>Akustik</h3>
+                    <div class="cfg-grid cfg-grid-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Akustische Warnungen</label>
+                            <label class="cfg-toggle">
+                                <InputCheckbox @bind-Value="BrowserPrefs.Preferences.SoundAlertsEnabled" />
+                                <span>aktiviert</span>
+                            </label>
+                        </div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">Lautstärke @BrowserPrefs.Preferences.SoundVolume %</label>
+                            <input class="cfg-range" type="range" min="0" max="100" @bind="BrowserPrefs.Preferences.SoundVolume" />
+                        </div>
                     </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Lautstärke: @BrowserPrefs.Preferences.SoundVolume%</label>
-                        <input class="form-range" type="range" min="0" max="100" @bind="BrowserPrefs.Preferences.SoundVolume" />
-                    </div>
-
-                    <div class="row g-3">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Erste Warnung - Sound</label>
-                            <InputSelect class="form-select" @bind-Value="BrowserPrefs.Preferences.FirstWarningSound">
+                    <div class="cfg-grid cfg-grid-2 mt-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">1. Warnung — Sound</label>
+                            <InputSelect class="cfg-input" @bind-Value="BrowserPrefs.Preferences.FirstWarningSound">
                                 <option value="beep">Signalton</option>
                                 <option value="bell">Glocke</option>
                                 <option value="alarm">Alarm</option>
@@ -351,17 +307,16 @@
                                 <option value="file_kritisch">Kritischer Alarm (Datei)</option>
                             </InputSelect>
                         </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Frequenz (Hz)</label>
-                            <InputNumber class="form-control" @bind-Value="BrowserPrefs.Preferences.FirstWarningFrequency" />
-                            <div class="form-text">Standard: 800 Hz</div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">Frequenz (Hz)</label>
+                            <InputNumber class="cfg-input" @bind-Value="BrowserPrefs.Preferences.FirstWarningFrequency" />
                         </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Kritische Warnung - Sound</label>
-                            <InputSelect class="form-select" @bind-Value="BrowserPrefs.Preferences.SecondWarningSound">
+                        <div class="cfg-field">
+                            <label class="cfg-label">2. (kritische) Warnung — Sound</label>
+                            <InputSelect class="cfg-input" @bind-Value="BrowserPrefs.Preferences.SecondWarningSound">
                                 <option value="beep">Signalton</option>
                                 <option value="bell">Glocke</option>
-                                <option value="alarm">Alarm (Standard)</option>
+                                <option value="alarm">Alarm</option>
                                 <option value="double">Doppelton</option>
                                 <option value="chime">Chime</option>
                                 <option value="pulse">Puls</option>
@@ -374,296 +329,584 @@
                                 <option value="file_kritisch">Kritischer Alarm (Datei)</option>
                             </InputSelect>
                         </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Frequenz (Hz)</label>
-                            <InputNumber class="form-control" @bind-Value="BrowserPrefs.Preferences.SecondWarningFrequency" />
-                            <div class="form-text">Standard: 1200 Hz</div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">Frequenz (Hz)</label>
+                            <InputNumber class="cfg-input" @bind-Value="BrowserPrefs.Preferences.SecondWarningFrequency" />
                         </div>
                     </div>
-
-                    <div class="form-check form-switch mt-3">
-                        <InputCheckbox class="form-check-input" id="repeatSecondWarning" @bind-Value="BrowserPrefs.Preferences.RepeatSecondWarning" />
-                        <label class="form-check-label" for="repeatSecondWarning">Kritische Warnung wiederholen</label>
-                    </div>
-
-                    <div class="mt-2">
-                        <label class="form-label">Wiederholungs-Intervall (Sekunden)</label>
-                        <InputNumber class="form-control" @bind-Value="BrowserPrefs.Preferences.RepeatWarningIntervalSeconds" />
-                        <div class="form-text">Standard: 30 Sekunden</div>
-                    </div>
-
-                    <div class="mt-3">
-                        <label class="form-label">Akustik-Test</label>
-                        <div class="d-flex flex-wrap gap-2">
-                            <button class="btn btn-outline-primary" type="button" @onclick="PlayFirstWarningTestAsync">
-                                Erste Warnung testen
-                            </button>
-                            <button class="btn btn-outline-danger" type="button" @onclick="PlayCriticalWarningTestAsync">
-                                Kritische Warnung testen
-                            </button>
-                            <button class="btn btn-outline-secondary" type="button" @onclick="StopWarningTestAsync">
-                                Test stoppen
-                            </button>
+                    <div class="cfg-grid cfg-grid-2 mt-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Kritische Warnung wiederholen</label>
+                            <label class="cfg-toggle">
+                                <InputCheckbox @bind-Value="BrowserPrefs.Preferences.RepeatSecondWarning" />
+                                <span>aktiviert</span>
+                            </label>
                         </div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">Wiederholungs-Intervall (Sek)</label>
+                            <InputNumber class="cfg-input" @bind-Value="BrowserPrefs.Preferences.RepeatWarningIntervalSeconds" />
+                        </div>
+                    </div>
+                    <div class="cfg-actions mt-2">
+                        <button type="button" class="cfg-btn cfg-btn-ghost" @onclick="PlayFirstWarningTestAsync">
+                            <i class="bi bi-play"></i> 1. Warnung testen
+                        </button>
+                        <button type="button" class="cfg-btn cfg-btn-ghost-danger" @onclick="PlayCriticalWarningTestAsync">
+                            <i class="bi bi-exclamation-triangle"></i> Kritisch testen
+                        </button>
+                        <button type="button" class="cfg-btn cfg-btn-ghost" @onclick="StopWarningTestAsync">
+                            <i class="bi bi-stop"></i> Stoppen
+                        </button>
                         @if (!string.IsNullOrWhiteSpace(_audioTestStatus))
                         {
-                            <div class="alert @(_audioTestError ? "alert-warning" : "alert-success") py-2 mt-2 mb-0">@_audioTestStatus</div>
+                            <span class="cfg-inline-status @(_audioTestError ? "is-error" : "is-ok")">@_audioTestStatus</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header"><i class="bi bi-journal-text me-1"></i>Schnell-Notizen (Vorlagen)</h3>
+                    <div class="cfg-quicknotes">
+                        @for (int i = 0; i < _quickNoteList.Count; i++)
+                        {
+                            var idx = i;
+                            <div class="cfg-quicknote-row">
+                                <input class="cfg-input" value="@_quickNoteList[idx]"
+                                       @onchange="e => _quickNoteList[idx] = e.Value?.ToString() ?? string.Empty" />
+                                <button type="button" class="cfg-icon-btn" @onclick="() => _quickNoteList.RemoveAt(idx)" title="Entfernen">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        }
+                        <button type="button" class="cfg-btn cfg-btn-ghost cfg-btn-add"
+                                @onclick="() => _quickNoteList.Add(string.Empty)">
+                            <i class="bi bi-plus-lg"></i> Vorlage hinzufügen
+                        </button>
+                    </div>
+                </div>
+
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header"><i class="bi bi-clock-history me-1"></i>Zeitzone</h3>
+                    <div class="cfg-grid cfg-grid-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Server-Zeitzone</label>
+                            <InputSelect class="cfg-input" @bind-Value="_appSettings.TimeZoneId">
+                                <option value="Europe/Berlin">Europa/Berlin (Deutschland, Österreich)</option>
+                                <option value="Europe/Vienna">Europa/Wien</option>
+                                <option value="Europe/Zurich">Europa/Zürich</option>
+                                <option value="Europe/Paris">Europa/Paris</option>
+                                <option value="Europe/London">Europa/London</option>
+                                <option value="Europe/Amsterdam">Europa/Amsterdam</option>
+                                <option value="Europe/Brussels">Europa/Brüssel</option>
+                                <option value="Europe/Warsaw">Europa/Warschau</option>
+                                <option value="Europe/Prague">Europa/Prag</option>
+                                <option value="Europe/Budapest">Europa/Budapest</option>
+                                <option value="UTC">UTC</option>
+                            </InputSelect>
+                            <span class="cfg-help">Aktuelle Server-Zeit: <strong>@_currentServerTime</strong></span>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            else if (_activeTab == SettingsTab.Erscheinungsbild)
+            {
+                <h2 class="cfg-pane-title"><i class="bi bi-palette me-2"></i>Erscheinungsbild</h2>
+                <p class="cfg-pane-subtitle">Theme-Modus und Zeitfenster für den Dunkel-Modus.</p>
+
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header">Theme</h3>
+                    <div class="cfg-grid cfg-grid-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Modus</label>
+                            <InputSelect class="cfg-input" @bind-Value="BrowserPrefs.Preferences.ThemeMode">
+                                <option value="Manual">Manuell (per Button umschalten)</option>
+                                <option value="Auto">Automatisch (Systemmodus)</option>
+                                <option value="Scheduled">Geplant (Zeitfenster)</option>
+                            </InputSelect>
+                            @if (BrowserPrefs.Preferences.ThemeMode == "Auto")
+                            {
+                                <span class="cfg-help"><i class="bi bi-info-circle me-1"></i>Folgt dem OS-Theme.</span>
+                            }
+                        </div>
+
+                        @if (BrowserPrefs.Preferences.ThemeMode == "Manual")
+                        {
+                            <div class="cfg-field">
+                                <label class="cfg-label">Aktuelles Theme</label>
+                                <div class="cfg-pill-toggle">
+                                    <button type="button"
+                                            class="cfg-pill @(!BrowserPrefs.Preferences.IsDarkMode ? "is-active" : "")"
+                                            @onclick="() => SetDesignModeAsync(false)">
+                                        <i class="bi bi-brightness-high"></i> Hell
+                                    </button>
+                                    <button type="button"
+                                            class="cfg-pill @(BrowserPrefs.Preferences.IsDarkMode ? "is-active" : "")"
+                                            @onclick="() => SetDesignModeAsync(true)">
+                                        <i class="bi bi-moon-stars"></i> Dunkel
+                                    </button>
+                                </div>
+                            </div>
                         }
                     </div>
 
-                    <hr />
-
-                    <h3 class="h5 mb-3"><i class="bi bi-arrow-repeat me-1"></i>Updates</h3>
-                    <div class="mb-2">
-                        <label class="form-label">Update-URL</label>
-                        <InputText class="form-control" placeholder="https://..." @bind-Value="_appSettings.UpdateUrl" />
-                    </div>
-
-                    <div class="mb-2">
-                        <label class="form-label">GitHub Token (optional)</label>
-                        <input type="password" class="form-control" placeholder="ghp_..." @bind="_appSettings.GitHubToken" />
-                        <div class="form-text">Nur noetig bei privaten Repositories. Umgebungsvariable hat Vorrang.</div>
-                    </div>
-
-                    <div class="form-check mb-3">
-                        <InputCheckbox class="form-check-input" id="autoUpdates" @bind-Value="_appSettings.AutoCheckUpdates" />
-                        <label class="form-check-label" for="autoUpdates">Automatisch nach Updates suchen</label>
-                    </div>
-
-                    <div class="card border-0 shadow-sm home-update-card mt-2">
-                        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <div class="fw-semibold">
-                                <i class="bi bi-cloud-arrow-down me-2 text-primary"></i>Server-Updates
+                    @if (BrowserPrefs.Preferences.ThemeMode == "Scheduled")
+                    {
+                        <div class="cfg-grid cfg-grid-2 mt-2">
+                            <div class="cfg-field">
+                                <label class="cfg-label">Dunkel ab</label>
+                                <input type="time" class="cfg-input"
+                                       value="@BrowserPrefs.Preferences.DarkModeStartTime"
+                                       @onchange="e => BrowserPrefs.Preferences.DarkModeStartTime = e.Value?.ToString() ?? BrowserPrefs.Preferences.DarkModeStartTime" />
                             </div>
-                            <span class="badge @( _updateStatus.UpdateAvailable ? "bg-warning text-dark" : "bg-success")">
-                                @(_updateStatus.UpdateAvailable ? "Update verfuegbar" : "Aktuell")
-                            </span>
+                            <div class="cfg-field">
+                                <label class="cfg-label">Hell ab</label>
+                                <input type="time" class="cfg-input"
+                                       value="@BrowserPrefs.Preferences.DarkModeEndTime"
+                                       @onchange="e => BrowserPrefs.Preferences.DarkModeEndTime = e.Value?.ToString() ?? BrowserPrefs.Preferences.DarkModeEndTime" />
+                            </div>
+                            <div class="cfg-help">Z.B. Dunkel ab 20:00, Hell ab 06:00 (über Mitternacht möglich).</div>
                         </div>
-                        <div class="card-body">
-                            <div class="row g-2 small mb-3">
-                                <div class="col-md-3"><span class="text-muted">Installiert:</span> @_updateStatus.CurrentVersion</div>
-                                <div class="col-md-3"><span class="text-muted">Neueste:</span> @DisplayLatestVersion()</div>
-                                <div class="col-md-3"><span class="text-muted">Letzter Check:</span> @DisplayDateTime(_updateStatus.LastCheckedAt)</div>
-                                <div class="col-md-3"><span class="text-muted">Letzte Installation:</span> @DisplayDateTime(_updateStatus.LastInstalledAt)</div>
-                            </div>
+                    }
+                </div>
+            }
 
-                            @if (!string.IsNullOrWhiteSpace(_updateStatus.LastError))
-                            {
-                                <div class="alert alert-danger py-2 mb-3">@_updateStatus.LastError</div>
-                            }
+            else if (_activeTab == SettingsTab.Tastenkuerzel)
+            {
+                <h2 class="cfg-pane-title"><i class="bi bi-keyboard me-2"></i>Tastenkürzel</h2>
+                <p class="cfg-pane-subtitle">Konfigurierbare Tastaturbefehle für Navigation und Steuerung.</p>
 
-                            <div class="d-flex flex-wrap gap-2 align-items-center">
-                                <button class="btn btn-outline-primary btn-sm" @onclick="CheckForUpdatesAsync" disabled="@(_updateStatus.IsChecking || _updateStatus.IsInstalling)">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>Jetzt pruefen
-                                </button>
-                                <button class="btn btn-primary btn-sm" @onclick="InstallUpdateAsync" disabled="@(!_updateStatus.UpdateAvailable || _updateStatus.IsChecking || _updateStatus.IsInstalling)">
-                                    <i class="bi bi-download me-1"></i>Update installieren
-                                </button>
-                                <span class="text-muted small">@_updateStatus.LastMessage</span>
-                            </div>
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header">Navigation</h3>
+
+                    <div class="cfg-row">
+                        <div class="cfg-label">
+                            <span>Startseite</span>
+                            <small class="cfg-hint">Navigiert zur Startseite</small>
+                        </div>
+                        <div class="cfg-value d-flex align-items-center gap-2">
+                            <input type="text"
+                                   class="form-control form-control-sm ks-recorder-input @(_recordingField == "NavHome" ? "is-recording" : "")"
+                                   readonly
+                                   value="@(_recordingField == "NavHome" ? "" : FormatShortcut(_shortcuts.NavHome))"
+                                   placeholder="@(_recordingField == "NavHome" ? "Taste drücken…" : "")"
+                                   @onfocus='() => StartRecording("NavHome")'
+                                   @onblur="StopRecording"
+                                   @onkeydown='e => RecordKey(e, "NavHome")'
+                                   @onkeydown:stopPropagation="true" />
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    title="Auf Standard zurücksetzen"
+                                    @onclick='() => { ResetShortcut("NavHome"); _ = SaveShortcutsAsync(); }'>
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
                         </div>
                     </div>
 
-                    <button class="btn btn-success w-100" @onclick="SaveAsync">
-                        <i class="bi bi-floppy-fill me-1"></i>Speichern
+                    <div class="cfg-row">
+                        <div class="cfg-label">
+                            <span>Lagekarte</span>
+                            <small class="cfg-hint">Navigiert zur Einsatzkarte</small>
+                        </div>
+                        <div class="cfg-value d-flex align-items-center gap-2">
+                            <input type="text"
+                                   class="form-control form-control-sm ks-recorder-input @(_recordingField == "NavKarte" ? "is-recording" : "")"
+                                   readonly
+                                   value="@(_recordingField == "NavKarte" ? "" : FormatShortcut(_shortcuts.NavKarte))"
+                                   placeholder="@(_recordingField == "NavKarte" ? "Taste drücken…" : "")"
+                                   @onfocus='() => StartRecording("NavKarte")'
+                                   @onblur="StopRecording"
+                                   @onkeydown='e => RecordKey(e, "NavKarte")'
+                                   @onkeydown:stopPropagation="true" />
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    title="Auf Standard zurücksetzen"
+                                    @onclick='() => { ResetShortcut("NavKarte"); _ = SaveShortcutsAsync(); }'>
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="cfg-row">
+                        <div class="cfg-label">
+                            <span>Einsatz-Monitor</span>
+                            <small class="cfg-hint">Navigiert zum Einsatz-Monitor</small>
+                        </div>
+                        <div class="cfg-value d-flex align-items-center gap-2">
+                            <input type="text"
+                                   class="form-control form-control-sm ks-recorder-input @(_recordingField == "NavMonitor" ? "is-recording" : "")"
+                                   readonly
+                                   value="@(_recordingField == "NavMonitor" ? "" : FormatShortcut(_shortcuts.NavMonitor))"
+                                   placeholder="@(_recordingField == "NavMonitor" ? "Taste drücken…" : "")"
+                                   @onfocus='() => StartRecording("NavMonitor")'
+                                   @onblur="StopRecording"
+                                   @onkeydown='e => RecordKey(e, "NavMonitor")'
+                                   @onkeydown:stopPropagation="true" />
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    title="Auf Standard zurücksetzen"
+                                    @onclick='() => { ResetShortcut("NavMonitor"); _ = SaveShortcutsAsync(); }'>
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="cfg-row">
+                        <div class="cfg-label">
+                            <span>Einsatz starten</span>
+                            <small class="cfg-hint">Navigiert zur Seite "Neuer Einsatz"</small>
+                        </div>
+                        <div class="cfg-value d-flex align-items-center gap-2">
+                            <input type="text"
+                                   class="form-control form-control-sm ks-recorder-input @(_recordingField == "NavStart" ? "is-recording" : "")"
+                                   readonly
+                                   value="@(_recordingField == "NavStart" ? "" : FormatShortcut(_shortcuts.NavStart))"
+                                   placeholder="@(_recordingField == "NavStart" ? "Taste drücken…" : "")"
+                                   @onfocus='() => StartRecording("NavStart")'
+                                   @onblur="StopRecording"
+                                   @onkeydown='e => RecordKey(e, "NavStart")'
+                                   @onkeydown:stopPropagation="true" />
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    title="Auf Standard zurücksetzen"
+                                    @onclick='() => { ResetShortcut("NavStart"); _ = SaveShortcutsAsync(); }'>
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header">Stepper (Anzahl Teams +/−)</h3>
+
+                    <div class="cfg-row">
+                        <div class="cfg-label">
+                            <span>Teams erhöhen</span>
+                            <small class="cfg-hint">+1 Team im Stepper auf "Neuer Einsatz"</small>
+                        </div>
+                        <div class="cfg-value d-flex align-items-center gap-2">
+                            <input type="text"
+                                   class="form-control form-control-sm ks-recorder-input @(_recordingField == "StepperUp" ? "is-recording" : "")"
+                                   readonly
+                                   value="@(_recordingField == "StepperUp" ? "" : FormatShortcut(_shortcuts.StepperUp))"
+                                   placeholder="@(_recordingField == "StepperUp" ? "Taste drücken…" : "")"
+                                   @onfocus='() => StartRecording("StepperUp")'
+                                   @onblur="StopRecording"
+                                   @onkeydown='e => RecordKey(e, "StepperUp")'
+                                   @onkeydown:stopPropagation="true" />
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    title="Auf Standard zurücksetzen"
+                                    @onclick='() => { ResetShortcut("StepperUp"); _ = SaveShortcutsAsync(); }'>
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="cfg-row">
+                        <div class="cfg-label">
+                            <span>Teams verringern</span>
+                            <small class="cfg-hint">−1 Team im Stepper auf "Neuer Einsatz"</small>
+                        </div>
+                        <div class="cfg-value d-flex align-items-center gap-2">
+                            <input type="text"
+                                   class="form-control form-control-sm ks-recorder-input @(_recordingField == "StepperDown" ? "is-recording" : "")"
+                                   readonly
+                                   value="@(_recordingField == "StepperDown" ? "" : FormatShortcut(_shortcuts.StepperDown))"
+                                   placeholder="@(_recordingField == "StepperDown" ? "Taste drücken…" : "")"
+                                   @onfocus='() => StartRecording("StepperDown")'
+                                   @onblur="StopRecording"
+                                   @onkeydown='e => RecordKey(e, "StepperDown")'
+                                   @onkeydown:stopPropagation="true" />
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    title="Auf Standard zurücksetzen"
+                                    @onclick='() => { ResetShortcut("StepperDown"); _ = SaveShortcutsAsync(); }'>
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ResetAllShortcuts">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Alle zurücksetzen
                     </button>
                 </div>
-            </div>
-        </div>
+            }
 
-        <div class="col-12 col-xl-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h2 class="h4 mb-0"><i class="bi bi-geo-alt-fill me-2"></i>GPS-Livetracking</h2>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info mb-3">
-                        <div class="fw-semibold mb-1">LiveTracking-Anwendung erforderlich</div>
-                        <div>
-                            Fuer das GPS-Livetracking muss die Anwendung
-                            <strong>Einsatzueberwachung.LiveTracking</strong>
-                            heruntergeladen und auf dem Windows-Rechner gestartet werden.
-                        </div>
+            else if (_activeTab == SettingsTab.Integration)
+            {
+                <h2 class="cfg-pane-title"><i class="bi bi-broadcast-pin me-2"></i>Integration</h2>
+                <p class="cfg-pane-subtitle">Externe Schnittstellen — Divera 24/7 und GPS-Livetracking.</p>
+
+                <div class="cfg-section">
+                    <div class="cfg-section-title-row">
+                        <h3 class="cfg-sub-header"><i class="bi bi-broadcast-pin me-1"></i>Divera 24/7</h3>
+                        @if (_appSettings.DiveraEnabled && !string.IsNullOrWhiteSpace(_appSettings.DiveraAccessKey))
+                        {
+                            <span class="cfg-inline-badge ok">aktiv</span>
+                        }
+                        else
+                        {
+                            <span class="cfg-inline-badge muted">inaktiv</span>
+                        }
                     </div>
-
-                    <p class="text-muted mb-2">
-                        Die Server-Anwendung empf&auml;ngt die GPS-Daten nicht direkt vom Halsband. Starte deshalb zuerst die Anwendung aus
-                        <code>src/Einsatzueberwachung.LiveTracking</code>
-                        auf dem entsprechenden Windows-Rechner.
-                    </p>
-
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        <a class="btn btn-outline-primary" href="@GetDownloadUrl("/downloads/livetracking.zip")">
-                            <i class="bi bi-download me-1"></i>LiveTracking herunterladen
-                        </a>
-                    </div>
-
-                    <ol class="mb-0 ps-3">
-                        <li>Einsatzueberwachung.LiveTracking herunterladen bzw. bereitstellen.</li>
-                        <li>ZIP entpacken und <code>Einsatzueberwachung.LiveTracking.exe</code> auf dem Windows-Rechner starten.</li>
-                        <li>Danach die Verbindung zur Einsatz&uuml;berwachung konfigurieren.</li>
-                    </ol>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-xl-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h2 class="h4 mb-0"><i class="bi bi-broadcast-pin me-2"></i>Divera 24/7</h2>
-                </div>
-                <div class="card-body">
-                    <div class="form-check form-switch mb-3">
-                        <InputCheckbox class="form-check-input" id="diveraEnabled" @bind-Value="_appSettings.DiveraEnabled" />
-                        <label class="form-check-label" for="diveraEnabled">Divera 24/7 Integration aktivieren</label>
+                    <div class="cfg-field">
+                        <label class="cfg-toggle">
+                            <InputCheckbox @bind-Value="_appSettings.DiveraEnabled" />
+                            <span>Integration aktivieren</span>
+                        </label>
                     </div>
 
                     @if (_appSettings.DiveraEnabled)
                     {
-                        <div class="mb-3">
-                            <label class="form-label">API Access-Key <span class="badge bg-secondary">Staffel / Einheit</span></label>
-                            <div class="input-group">
-                                <input type="@(_showDiveraKey ? "text" : "password")"
-                                       class="form-control"
-                                       placeholder="Divera API-Key eingeben"
-                                       @bind="_appSettings.DiveraAccessKey" />
-                                <button class="btn btn-outline-secondary" type="button"
-                                        @onclick="() => _showDiveraKey = !_showDiveraKey">
-                                    <i class="bi @(_showDiveraKey ? "bi-eye-slash" : "bi-eye")"></i>
-                                </button>
+                        <div class="cfg-grid cfg-grid-2 mt-2">
+                            <div class="cfg-field">
+                                <label class="cfg-label">API Access-Key</label>
+                                <div class="cfg-input-with-action">
+                                    <input type="@(_showDiveraKey ? "text" : "password")"
+                                           class="cfg-input"
+                                           placeholder="Divera API-Key"
+                                           @bind="_appSettings.DiveraAccessKey" />
+                                    <button type="button" class="cfg-icon-btn"
+                                            @onclick="() => _showDiveraKey = !_showDiveraKey"
+                                            title="Zeigen/Verbergen">
+                                        <i class="bi @(_showDiveraKey ? "bi-eye-slash" : "bi-eye")"></i>
+                                    </button>
+                                </div>
+                                <span class="cfg-help">Verwaltung → Schnittstellen → API-Access-Key</span>
                             </div>
-                            <div class="form-text">
-                                Den API-Key findest du in Divera unter Verwaltung &rarr; Schnittstellen &rarr; API-Access-Key.
-                                Wird f&uuml;r Alarmabfragen verwendet.
+                            <div class="cfg-field">
+                                <label class="cfg-label">API Base-URL</label>
+                                <InputText class="cfg-input" @bind-Value="_appSettings.DiveraBaseUrl" placeholder="https://app.divera247.com/api/v2" />
+                            </div>
+                            <div class="cfg-field">
+                                <label class="cfg-label">Poll Idle (Sek)</label>
+                                <InputNumber class="cfg-input" @bind-Value="_appSettings.DiveraPollIntervalIdleSeconds" />
+                                <span class="cfg-help">Standard 600 (= 10 Min)</span>
+                            </div>
+                            <div class="cfg-field">
+                                <label class="cfg-label">Poll bei Alarm (Sek)</label>
+                                <InputNumber class="cfg-input" @bind-Value="_appSettings.DiveraPollIntervalActiveSeconds" />
+                                <span class="cfg-help">Standard 60 (= 1 Min)</span>
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">API Base-URL</label>
-                            <InputText class="form-control" @bind-Value="_appSettings.DiveraBaseUrl" placeholder="https://app.divera247.com/api/v2" />
-                            <div class="form-text">Standard: https://app.divera247.com/api/v2 &mdash; nur &auml;ndern wenn abweichend.</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Poll-Intervall &mdash; kein Alarm aktiv (Sekunden)</label>
-                            <InputNumber class="form-control" @bind-Value="_appSettings.DiveraPollIntervalIdleSeconds" />
-                            <div class="form-text">Abfrageintervall wenn kein Alarm vorliegt. Standard: 600 (= 10 Minuten).</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Poll-Intervall &mdash; Alarm aktiv (Sekunden)</label>
-                            <InputNumber class="form-control" @bind-Value="_appSettings.DiveraPollIntervalActiveSeconds" />
-                            <div class="form-text">Abfrageintervall sobald ein Alarm anliegt. Standard: 60 (= 1 Minute).</div>
-                        </div>
-
-                        <div class="d-flex flex-wrap gap-2">
-                            <button class="btn btn-outline-primary" type="button" @onclick="TestDiveraConnectionAsync" disabled="@_diveraTestBusy">
-                                @if (_diveraTestBusy) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                                <i class="bi bi-plug me-1"></i>Verbindung testen
+                        <div class="cfg-actions mt-2">
+                            <button type="button" class="cfg-btn cfg-btn-ghost" @onclick="TestDiveraConnectionAsync" disabled="@_diveraTestBusy">
+                                @if (_diveraTestBusy)
+                                {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-plug"></i>
+                                }
+                                Verbindung testen
                             </button>
+                            @if (!string.IsNullOrWhiteSpace(_diveraTestStatus))
+                            {
+                                <span class="cfg-inline-status @(_diveraTestError ? "is-error" : "is-ok")">
+                                    <i class="bi @(_diveraTestError ? "bi-x-circle" : "bi-check-circle")"></i>
+                                    @_diveraTestStatus
+                                </span>
+                            }
                         </div>
+                    }
+                </div>
 
-                        @if (!string.IsNullOrWhiteSpace(_diveraTestStatus))
+                <div class="cfg-section">
+                    <div class="cfg-section-title-row">
+                        <h3 class="cfg-sub-header"><i class="bi bi-geo-alt me-1"></i>GPS-Livetracking (Windows-Tool)</h3>
+                        <span class="cfg-inline-badge muted">extern</span>
+                    </div>
+                    <p class="cfg-help">
+                        Der Server empfängt GPS-Daten nicht direkt vom Halsband. Starte die Anwendung
+                        <code>Einsatzueberwachung.LiveTracking</code> auf einem Windows-Rechner.
+                    </p>
+                    <div class="cfg-actions">
+                        <a class="cfg-btn cfg-btn-ghost" href="@GetDownloadUrl("/downloads/livetracking.zip")">
+                            <i class="bi bi-download"></i> Herunterladen
+                        </a>
+                    </div>
+                    <ol class="cfg-steps">
+                        <li>ZIP herunterladen und entpacken.</li>
+                        <li><code>Einsatzueberwachung.LiveTracking.exe</code> auf dem Windows-Rechner starten.</li>
+                        <li>Verbindung zur Einsatzüberwachung im Tool konfigurieren.</li>
+                    </ol>
+                </div>
+            }
+
+            else if (_activeTab == SettingsTab.System)
+            {
+                <h2 class="cfg-pane-title"><i class="bi bi-cpu me-2"></i>System</h2>
+                <p class="cfg-pane-subtitle">Versionsstand, Pfade und Update-Verwaltung.</p>
+
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header">Stand</h3>
+                    <dl class="cfg-info-grid">
+                        <dt>Version</dt><dd>@_appVersion</dd>
+                        <dt>Framework</dt><dd>.NET 9 / Blazor Server</dd>
+                        <dt>Datenpfad</dt><dd><code class="cfg-path">@_dataDirectory</code></dd>
+                        <dt>Berichte</dt><dd><code class="cfg-path">@_reportDirectory</code></dd>
+                        <dt>Mobile-URL</dt><dd><a href="@_mobileUrl" target="_blank">@_mobileUrl</a></dd>
+                    </dl>
+                </div>
+
+                <div class="cfg-section">
+                    <div class="cfg-section-title-row">
+                        <h3 class="cfg-sub-header"><i class="bi bi-arrow-repeat me-1"></i>Updates</h3>
+                        @if (_updateStatus.UpdateAvailable)
                         {
-                            <div class="alert @(_diveraTestError ? "alert-danger" : "alert-success") py-2 mt-2 mb-0">
-                                <i class="bi @(_diveraTestError ? "bi-x-circle" : "bi-check-circle") me-1"></i>@_diveraTestStatus
-                            </div>
+                            <span class="cfg-inline-badge warning">verfügbar</span>
                         }
-                    }
-                    else
-                    {
-                        <p class="text-muted">Aktiviere die Integration, um den API-Key einzugeben und Divera zu nutzen.</p>
-                    }
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-xl-6">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h2 class="h4 mb-0"><i class="bi bi-info-circle me-2"></i>System-Information</h2>
-                </div>
-                <div class="card-body">
-                    <div class="mb-2"><strong>Version:</strong> @_appVersion</div>
-                    <div class="mb-2"><strong>Framework:</strong> .NET 9 / Blazor Server</div>
-                    <div class="mb-3"><strong>Plattform:</strong> Web-basiert</div>
-                    <div class="mb-3"><strong>Integration:</strong> Divera 24/7 und Live-Tracking (aktive Alarme, Verfuegbarkeiten, Alarm-Import, GPS-Halsband-Ortung)</div>
-
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4">Datenpfad</dt>
-                        <dd class="col-sm-8"><code>@_dataDirectory</code></dd>
-
-                        <dt class="col-sm-4">Berichte</dt>
-                        <dd class="col-sm-8"><code>@_reportDirectory</code></dd>
-
-                        <dt class="col-sm-4">Mobile URL</dt>
-                        <dd class="col-sm-8"><a href="@_mobileUrl" target="_blank">@_mobileUrl</a></dd>
+                        else
+                        {
+                            <span class="cfg-inline-badge ok">aktuell</span>
+                        }
+                    </div>
+                    <dl class="cfg-info-grid cfg-info-grid-compact">
+                        <dt>Installiert</dt><dd>@_updateStatus.CurrentVersion</dd>
+                        <dt>Neueste</dt><dd>@DisplayLatestVersion()</dd>
+                        <dt>Letzter Check</dt><dd>@DisplayDateTime(_updateStatus.LastCheckedAt)</dd>
+                        <dt>Letzte Installation</dt><dd>@DisplayDateTime(_updateStatus.LastInstalledAt)</dd>
                     </dl>
 
-                    <div class="d-flex flex-wrap gap-2 mt-3">
-                        <a class="btn btn-outline-secondary" href="@GetDownloadUrl("/downloads/app-settings.json")">App-Settings JSON</a>
-                        <a class="btn btn-outline-secondary" href="@GetDownloadUrl("/downloads/staffel-settings.json")">Staffel JSON</a>
-                        <a class="btn btn-outline-secondary" href="@GetDownloadUrl("/downloads/session-data.json")">Session JSON</a>
-                        <a class="btn btn-outline-secondary" href="@GetDownloadUrl("/downloads/stammdaten.xlsx")">Excel Export</a>
+                    <div class="cfg-grid cfg-grid-2 mt-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Update-URL</label>
+                            <InputText class="cfg-input" placeholder="https://…" @bind-Value="_appSettings.UpdateUrl" />
+                        </div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">GitHub-Token (optional)</label>
+                            <input type="password" class="cfg-input" placeholder="ghp_…" @bind="_appSettings.GitHubToken" />
+                            <span class="cfg-help">Nur bei privaten Repositories nötig. Env-Variable hat Vorrang.</span>
+                        </div>
+                        <div class="cfg-field">
+                            <label class="cfg-toggle">
+                                <InputCheckbox @bind-Value="_appSettings.AutoCheckUpdates" />
+                                <span>Automatisch nach Updates suchen</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_updateStatus.LastError))
+                    {
+                        <div class="cfg-inline-status is-error mt-2">@_updateStatus.LastError</div>
+                    }
+
+                    <div class="cfg-actions mt-2">
+                        <button type="button" class="cfg-btn cfg-btn-ghost"
+                                @onclick="CheckForUpdatesAsync"
+                                disabled="@(_updateStatus.IsChecking || _updateStatus.IsInstalling)">
+                            <i class="bi bi-arrow-clockwise"></i> Jetzt prüfen
+                        </button>
+                        <button type="button" class="cfg-btn cfg-btn-primary"
+                                @onclick="InstallUpdateAsync"
+                                disabled="@(!_updateStatus.UpdateAvailable || _updateStatus.IsChecking || _updateStatus.IsInstalling)">
+                            <i class="bi bi-download"></i> Update installieren
+                        </button>
+                        @if (!string.IsNullOrWhiteSpace(_updateStatus.LastMessage))
+                        {
+                            <span class="cfg-help">@_updateStatus.LastMessage</span>
+                        }
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="h4 mb-0"><i class="bi bi-database-gear me-2"></i>Wartung und Datenverwaltung</h2>
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header">Datei-Exporte</h3>
+                    <div class="cfg-actions cfg-actions-wrap">
+                        <a class="cfg-btn cfg-btn-ghost" href="@GetDownloadUrl("/downloads/app-settings.json")"><i class="bi bi-filetype-json"></i> AppSettings</a>
+                        <a class="cfg-btn cfg-btn-ghost" href="@GetDownloadUrl("/downloads/staffel-settings.json")"><i class="bi bi-filetype-json"></i> Staffel</a>
+                        <a class="cfg-btn cfg-btn-ghost" href="@GetDownloadUrl("/downloads/session-data.json")"><i class="bi bi-filetype-json"></i> Session</a>
+                        <a class="cfg-btn cfg-btn-ghost" href="@GetDownloadUrl("/downloads/stammdaten.xlsx")"><i class="bi bi-filetype-xlsx"></i> Excel</a>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        <a class="btn btn-outline-success" href="@GetDownloadUrl("/downloads/data-backup.zip")">Daten-Backup herunterladen (ZIP)</a>
-                        <button class="btn btn-outline-danger" @onclick="ConfirmResetDataAsync">Daten auf Standard zuruecksetzen</button>
+            }
+
+            else if (_activeTab == SettingsTab.Wartung)
+            {
+                <h2 class="cfg-pane-title"><i class="bi bi-database-gear me-2"></i>Wartung</h2>
+                <p class="cfg-pane-subtitle">Backup erstellen / wiederherstellen und Datenimporte.</p>
+
+                <div class="cfg-section">
+                    <div class="cfg-section-title-row">
+                        <h3 class="cfg-sub-header"><i class="bi bi-archive me-1"></i>Backup</h3>
+                        <span class="cfg-inline-badge @BackupAgeSeverity">@BackupAgeLabel</span>
+                    </div>
+                    <p class="cfg-help">
+                        Letztes Backup:
+                        @if (_appSettings.LastBackupAt is null)
+                        {
+                            <strong>noch nie erstellt</strong>
+                        }
+                        else
+                        {
+                            <strong>@_appSettings.LastBackupAt.Value.ToString("dd.MM.yyyy HH:mm")</strong>
+                        }
+                    </p>
+                    <div class="cfg-actions">
+                        <a class="cfg-btn cfg-btn-primary"
+                           href="@GetDownloadUrl("/downloads/data-backup.zip")"
+                           @onclick="MarkBackupCreatedAsync">
+                            <i class="bi bi-download"></i> Daten-Backup ZIP
+                        </a>
                     </div>
 
-                    <label class="form-label">SessionData Import (JSON)</label>
-                    <textarea class="form-control"
-                              rows="8"
-                              placeholder="JSON-Inhalt von SessionData hier einfuegen"
-                              @bind="_sessionImportJson"></textarea>
-                    <div class="mt-2 d-flex flex-wrap gap-2">
-                        <button class="btn btn-outline-secondary" @onclick="ImportSessionJsonAsync">SessionData importieren</button>
-                        <InputFile OnChange="ImportSessionFileAsync" accept=".json,application/json" />
-                    </div>
-
-                    <hr />
-
-                    <label class="form-label">AppSettings / StaffelSettings Import (JSON)</label>
-                    <div class="d-flex flex-wrap gap-2">
-                        <span class="d-inline-flex align-items-center gap-2">
-                            <span class="small text-muted">AppSettings</span>
-                            <InputFile OnChange="ImportAppSettingsFileAsync" accept=".json,application/json" />
-                        </span>
-                        <span class="d-inline-flex align-items-center gap-2">
-                            <span class="small text-muted">StaffelSettings</span>
-                            <InputFile OnChange="ImportStaffelSettingsFileAsync" accept=".json,application/json" />
-                        </span>
-                    </div>
-
-                    <hr />
-
-                    <label class="form-label">Backup wiederherstellen (ZIP)</label>
-                    <p class="text-muted mb-2">Importiert SessionData, AppSettings, StaffelSettings und Archivdaten aus einer zuvor erzeugten Daten-Backup-ZIP.</p>
-                    <div>
+                    <div class="cfg-field mt-3">
+                        <label class="cfg-label">Backup wiederherstellen (ZIP)</label>
+                        <span class="cfg-help">Importiert SessionData, AppSettings, StaffelSettings und Archivdaten aus einer Backup-ZIP.</span>
                         <InputFile OnChange="ConfirmRestoreBackupZipAsync" accept=".zip,application/zip" />
                     </div>
-
-                    @if (!string.IsNullOrWhiteSpace(_maintenanceStatus))
-                    {
-                        <div class="alert @(_maintenanceError ? "alert-danger" : "alert-success") mt-3 mb-0">@_maintenanceStatus</div>
-                    }
                 </div>
-            </div>
-        </div>
+
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header"><i class="bi bi-upload me-1"></i>Daten-Imports</h3>
+                    <div class="cfg-field">
+                        <label class="cfg-label">SessionData (JSON)</label>
+                        <textarea class="cfg-input cfg-textarea"
+                                  rows="6"
+                                  placeholder="JSON-Inhalt von SessionData hier einfügen"
+                                  @bind="_sessionImportJson"></textarea>
+                        <div class="cfg-actions">
+                            <button type="button" class="cfg-btn cfg-btn-ghost" @onclick="ImportSessionJsonAsync">
+                                <i class="bi bi-clipboard-check"></i> Aus Textfeld importieren
+                            </button>
+                            <InputFile OnChange="ImportSessionFileAsync" accept=".json,application/json" />
+                        </div>
+                    </div>
+                    <div class="cfg-grid cfg-grid-2 mt-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">AppSettings (JSON)</label>
+                            <InputFile OnChange="ImportAppSettingsFileAsync" accept=".json,application/json" />
+                        </div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">StaffelSettings (JSON)</label>
+                            <InputFile OnChange="ImportStaffelSettingsFileAsync" accept=".json,application/json" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cfg-section">
+                    <h3 class="cfg-sub-header"><i class="bi bi-exclamation-triangle me-1"></i>Daten zurücksetzen</h3>
+                    <p class="cfg-help">Setzt SessionData, AppSettings und StaffelSettings auf die Standardwerte zurück. Nicht rückgängig machbar.</p>
+                    <div class="cfg-actions">
+                        <button type="button" class="cfg-btn cfg-btn-ghost-danger" @onclick="ConfirmResetDataAsync">
+                            <i class="bi bi-trash"></i> Auf Standard zurücksetzen
+                        </button>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_maintenanceStatus))
+                {
+                    <div class="cfg-inline-status @(_maintenanceError ? "is-error" : "is-ok")">@_maintenanceStatus</div>
+                }
+            }
+
+        </main>
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(_status))
+    <!-- TOAST -->
+    @if (_showSavedToast)
     {
-        <div class="alert alert-success mt-4">@_status</div>
+        <div class="cfg-toast" role="status">
+            <i class="bi bi-check-circle"></i>
+            <span>@_status</span>
+        </div>
     }
 </div>

@@ -993,10 +993,10 @@ public partial class EinsatzKarte
         {
             _phoneLayerVisible = true;
             await JSRuntime.InvokeVoidAsync("PhoneTracking.toggleVisibility", "einsatzMap", true);
+            var teamLookup = _teams.ToDictionary(t => t.TeamId);
             foreach (var (tid, loc) in EinsatzService.PhoneLocations)
             {
-                var team = _teams.FirstOrDefault(t => t.TeamId == tid);
-                if (team == null) continue;
+                if (!teamLookup.TryGetValue(tid, out var team)) continue;
                 await JSRuntime.InvokeVoidAsync("PhoneTracking.updateMarker",
                     "einsatzMap", tid, team.TeamName, loc.Latitude, loc.Longitude, loc.Timestamp);
             }

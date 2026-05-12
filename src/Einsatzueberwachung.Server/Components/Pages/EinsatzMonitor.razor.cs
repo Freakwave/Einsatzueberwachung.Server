@@ -1067,7 +1067,7 @@ public partial class EinsatzMonitor
                     SearchAreaName = team.SearchAreaName,
                     Color = color,
                     CapturedAt = DateTime.Now,
-                    TrackType = Einsatzueberwachung.Domain.Models.Enums.TrackType.CollarTrack,
+                    TrackType = TrackType.CollarTrack,
                     Points = history.Select(loc => new TrackPoint
                     {
                         Latitude = loc.Latitude,

@@ -231,9 +231,7 @@ public sealed class CollarTrackingRelayService : IHostedService
                     var restoredLatest = _trackingService.GetLatestLocation(collar.Id);
                     if (restoredLatest != null)
                     {
-                        var restoredSeenAt = restoredLatest.Timestamp.Kind == DateTimeKind.Utc
-                            ? restoredLatest.Timestamp.ToLocalTime()
-                            : restoredLatest.Timestamp;
+                        var restoredSeenAt = NormalizeSeenTimestamp(restoredLatest.Timestamp, now, collar.Id);
                         if (restoredSeenAt > lastSignal)
                         {
                             lastSignal = restoredSeenAt;
@@ -303,13 +301,29 @@ public sealed class CollarTrackingRelayService : IHostedService
                 var latest = _trackingService.GetLatestLocation(collar.Id);
                 if (latest != null)
                 {
-                    var seenAt = latest.Timestamp.Kind == DateTimeKind.Utc
-                        ? latest.Timestamp.ToLocalTime()
-                        : latest.Timestamp;
-                    _lastSignalByCollar[collar.Id] = seenAt > now ? now : seenAt;
+                    _lastSignalByCollar[collar.Id] = NormalizeSeenTimestamp(latest.Timestamp, now, collar.Id);
                 }
             }
         }
+    }
+
+    private DateTime NormalizeSeenTimestamp(DateTime timestamp, DateTime now, string collarId)
+    {
+        var seenAt = timestamp.Kind == DateTimeKind.Utc
+            ? timestamp.ToLocalTime()
+            : timestamp;
+
+        if (seenAt > now)
+        {
+            _logger.LogWarning(
+                "Halsband {CollarId} lieferte Zeitstempel in der Zukunft ({SeenAt}), clamp auf {Now}.",
+                collarId,
+                seenAt,
+                now);
+            return now;
+        }
+
+        return seenAt;
     }
 
     private bool ShouldEmitWarning(string source, string scopeKey, DateTime now)

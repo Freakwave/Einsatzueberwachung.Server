@@ -53,6 +53,7 @@ public sealed class CollarTrackingRelayService : IHostedService
     {
         _trackingService.CollarLocationReceived += OnCollarLocationReceived;
         _trackingService.OutOfBoundsDetected += OnOutOfBoundsDetected;
+        SeedLastSignalTimestamps();
 
         _monitorCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _monitorTask = MonitorNoSignalAsync(_monitorCts.Token);
@@ -225,6 +226,19 @@ public sealed class CollarTrackingRelayService : IHostedService
                 {
                     lastSignal = seenAt;
                 }
+                else
+                {
+                    var restoredLatest = _trackingService.GetLatestLocation(collar.Id);
+                    if (restoredLatest != null)
+                    {
+                        var restoredSeenAt = NormalizeSeenTimestamp(restoredLatest.Timestamp, now, collar.Id);
+                        if (restoredSeenAt > lastSignal)
+                        {
+                            lastSignal = restoredSeenAt;
+                            _lastSignalByCollar[collar.Id] = restoredSeenAt;
+                        }
+                    }
+                }
             }
 
             if (now - lastSignal < timeout)
@@ -275,6 +289,41 @@ public sealed class CollarTrackingRelayService : IHostedService
         collar = matchedCollar;
         team = matchedTeam;
         return true;
+    }
+
+    private void SeedLastSignalTimestamps()
+    {
+        var now = _timeService.Now;
+        lock (_warningLock)
+        {
+            foreach (var collar in _trackingService.Collars)
+            {
+                var latest = _trackingService.GetLatestLocation(collar.Id);
+                if (latest != null)
+                {
+                    _lastSignalByCollar[collar.Id] = NormalizeSeenTimestamp(latest.Timestamp, now, collar.Id);
+                }
+            }
+        }
+    }
+
+    private DateTime NormalizeSeenTimestamp(DateTime timestamp, DateTime now, string collarId)
+    {
+        var seenAt = timestamp.Kind == DateTimeKind.Utc
+            ? timestamp.ToLocalTime()
+            : timestamp;
+
+        if (seenAt > now)
+        {
+            _logger.LogWarning(
+                "Halsband {CollarId} lieferte Zeitstempel in der Zukunft ({SeenAt}), clamp auf {Now}.",
+                collarId,
+                seenAt,
+                now);
+            return now;
+        }
+
+        return seenAt;
     }
 
     private bool ShouldEmitWarning(string source, string scopeKey, DateTime now)

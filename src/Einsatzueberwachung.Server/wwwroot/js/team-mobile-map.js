@@ -236,6 +236,7 @@ window.teamMobileMap = (function () {
                 const lng = pos.coords.longitude;
                 setUserPosition(lat, lng);
                 appendUserTrackPoint(lat, lng);
+                postLocation(lat, lng);
                 if (dotNetRef) {
                     dotNetRef.invokeMethodAsync('OnUserLocation', lat, lng).catch(() => {});
                 }
@@ -274,6 +275,7 @@ window.teamMobileMap = (function () {
                 const lng = pos.coords.longitude;
                 setUserPosition(lat, lng);
                 appendUserTrackPoint(lat, lng);
+                postLocation(lat, lng);
                 if (ref) {
                     ref.invokeMethodAsync('OnUserLocation', lat, lng).catch(() => {});
                 }

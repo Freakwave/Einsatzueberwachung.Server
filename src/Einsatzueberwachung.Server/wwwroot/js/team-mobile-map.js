@@ -12,6 +12,9 @@ window.teamMobileMap = (function () {
     let _collarIcon = 'paw';
     let _humanIcon = 'phone';
 
+    // Farbe des aktuellen Suchgebiets – wird von renderSearchArea gesetzt und für Hund-Marker und Track übernommen
+    let _areaColor = '#dc3545';
+
     function setOptions(opts) {
         if (opts && opts.collarIcon) _collarIcon = opts.collarIcon;
         if (opts && opts.humanIcon)  _humanIcon  = opts.humanIcon;
@@ -58,8 +61,9 @@ window.teamMobileMap = (function () {
         if (!map) return;
         if (polygonLayer) map.removeLayer(polygonLayer);
         if (!coords || coords.length < 3) return;
+        _areaColor = color || '#dc3545';
         polygonLayer = L.polygon(coords.map(c => [c.lat, c.lng]), {
-            color: color || '#3388ff',
+            color: _areaColor,
             weight: 3,
             fillOpacity: 0.15
         }).addTo(map);
@@ -72,7 +76,7 @@ window.teamMobileMap = (function () {
         if (!dogMarker) {
             const icon = L.divIcon({
                 className: 'team-mobile-dog-marker',
-                html: `<i class="fa-solid ${_getCollarIconClass()}" style="font-size:26px;color:#dc3545;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;"></i>`,
+                html: `<i class="fa-solid ${_getCollarIconClass()}" style="font-size:26px;color:${_areaColor};filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;"></i>`,
                 iconSize: [26, 26],
                 iconAnchor: [13, 13]
             });
@@ -88,7 +92,7 @@ window.teamMobileMap = (function () {
         if (trackLine) { map.removeLayer(trackLine); trackLine = null; }
         if (!points || points.length < 2) return;
         trackLine = L.polyline(points.map(p => [p.lat, p.lng]), {
-            color: '#dc3545',
+            color: _areaColor,
             weight: 3,
             opacity: 0.7
         }).addTo(map);
@@ -97,7 +101,7 @@ window.teamMobileMap = (function () {
     function appendTrackPoint(lat, lng) {
         if (!map) return;
         if (!trackLine) {
-            trackLine = L.polyline([[lat, lng]], { color: '#dc3545', weight: 3, opacity: 0.7 }).addTo(map);
+            trackLine = L.polyline([[lat, lng]], { color: _areaColor, weight: 3, opacity: 0.7 }).addTo(map);
         } else {
             trackLine.addLatLng([lat, lng]);
         }

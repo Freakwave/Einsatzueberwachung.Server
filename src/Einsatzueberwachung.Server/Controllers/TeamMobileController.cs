@@ -121,7 +121,15 @@ public sealed class TeamMobileController : ControllerBase
     [Authorize(Policy = TeamMobileAuth.AuthorizationPolicy)]
     public async Task<IActionResult> PostLocation([FromBody] TeamPhoneLocationRequest request)
     {
-        if (request == null) return BadRequest();
+        if (request == null)
+            return BadRequest(new { error = "Body fehlt." });
+
+        if (double.IsNaN(request.Lat) || double.IsInfinity(request.Lat) || request.Lat < -90 || request.Lat > 90)
+            return BadRequest(new { error = "Ungültiger Breitengrad." });
+        if (double.IsNaN(request.Lng) || double.IsInfinity(request.Lng) || request.Lng < -180 || request.Lng > 180)
+            return BadRequest(new { error = "Ungültiger Längengrad." });
+        if (request.Accuracy.HasValue && (double.IsNaN(request.Accuracy.Value) || double.IsInfinity(request.Accuracy.Value) || request.Accuracy.Value < 0))
+            return BadRequest(new { error = "Ungültige Genauigkeit." });
 
         var teamId = User.FindFirst(TeamMobileAuth.TeamIdClaim)?.Value;
         if (string.IsNullOrWhiteSpace(teamId)) return Unauthorized();
@@ -133,7 +141,7 @@ public sealed class TeamMobileController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "TeamMobile-Standort konnte nicht verarbeitet werden (Team {TeamId})", teamId);
-            return Ok();
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Standort konnte nicht gespeichert werden." });
         }
         return Ok();
     }

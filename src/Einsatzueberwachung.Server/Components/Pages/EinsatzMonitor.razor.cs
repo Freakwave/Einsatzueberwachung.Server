@@ -1067,6 +1067,7 @@ public partial class EinsatzMonitor
                     SearchAreaName = team.SearchAreaName,
                     Color = color,
                     CapturedAt = DateTime.Now,
+                    TrackType = Einsatzueberwachung.Domain.Models.Enums.TrackType.CollarTrack,
                     Points = history.Select(loc => new TrackPoint
                     {
                         Latitude = loc.Latitude,
@@ -1081,11 +1082,7 @@ public partial class EinsatzMonitor
                     snapshot.SearchAreaColor = searchArea.Color;
                 }
 
-                team.TrackSnapshots.Add(snapshot);
-                EinsatzService.CurrentEinsatz.TrackSnapshots.Add(snapshot);
-
-                // Listener über neuen Snapshot informieren (z.B. für Karten-Darstellung)
-                CollarTrackingService.NotifySnapshotSaved(snapshot);
+                await EinsatzService.AddTrackSnapshotAsync(snapshot);
 
                 // Live-Track von der Karte entfernen — der Snapshot-Track ersetzt ihn
                 CollarTrackingService.ClearCollarHistory(snapshot.CollarId);

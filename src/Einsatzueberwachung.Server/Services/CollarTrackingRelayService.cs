@@ -53,6 +53,7 @@ public sealed class CollarTrackingRelayService : IHostedService
     {
         _trackingService.CollarLocationReceived += OnCollarLocationReceived;
         _trackingService.OutOfBoundsDetected += OnOutOfBoundsDetected;
+        SeedLastSignalTimestamps();
 
         _monitorCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _monitorTask = MonitorNoSignalAsync(_monitorCts.Token);
@@ -225,6 +226,21 @@ public sealed class CollarTrackingRelayService : IHostedService
                 {
                     lastSignal = seenAt;
                 }
+                else
+                {
+                    var restoredLatest = _trackingService.GetLatestLocation(collar.Id);
+                    if (restoredLatest != null)
+                    {
+                        var restoredSeenAt = restoredLatest.Timestamp.Kind == DateTimeKind.Utc
+                            ? restoredLatest.Timestamp.ToLocalTime()
+                            : restoredLatest.Timestamp;
+                        if (restoredSeenAt > lastSignal)
+                        {
+                            lastSignal = restoredSeenAt;
+                            _lastSignalByCollar[collar.Id] = restoredSeenAt;
+                        }
+                    }
+                }
             }
 
             if (now - lastSignal < timeout)
@@ -275,6 +291,25 @@ public sealed class CollarTrackingRelayService : IHostedService
         collar = matchedCollar;
         team = matchedTeam;
         return true;
+    }
+
+    private void SeedLastSignalTimestamps()
+    {
+        var now = _timeService.Now;
+        lock (_warningLock)
+        {
+            foreach (var collar in _trackingService.Collars)
+            {
+                var latest = _trackingService.GetLatestLocation(collar.Id);
+                if (latest != null)
+                {
+                    var seenAt = latest.Timestamp.Kind == DateTimeKind.Utc
+                        ? latest.Timestamp.ToLocalTime()
+                        : latest.Timestamp;
+                    _lastSignalByCollar[collar.Id] = seenAt > now ? now : seenAt;
+                }
+            }
+        }
     }
 
     private bool ShouldEmitWarning(string source, string scopeKey, DateTime now)

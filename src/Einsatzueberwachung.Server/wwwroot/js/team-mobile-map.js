@@ -311,7 +311,15 @@ window.teamMobileMap = (function () {
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lat, lng })
-        }).catch(() => {});
+        })
+            .then(response => {
+                if (!response.ok) {
+                    console.warn('TeamMobile location upload failed', response.status);
+                }
+            })
+            .catch(err => {
+                console.warn('TeamMobile location upload error', err);
+            });
     }
 
     return {

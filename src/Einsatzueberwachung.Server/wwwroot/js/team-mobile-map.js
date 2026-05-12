@@ -19,10 +19,10 @@ window.teamMobileMap = (function () {
 
     function _getCollarIconClass() {
         switch (_collarIcon) {
-            case 'dog':  return 'bi-geo-alt-fill';
-            case 'bone': return 'bi-tag-fill';
-            case 'dot':  return 'bi-circle-fill';
-            default:     return 'bi-paw-fill'; // paw
+            case 'dog':  return 'fa-dog';
+            case 'bone': return 'fa-bone';
+            case 'dot':  return 'fa-location-dot';
+            default:     return 'fa-paw'; // paw
         }
     }
 
@@ -72,7 +72,7 @@ window.teamMobileMap = (function () {
         if (!dogMarker) {
             const icon = L.divIcon({
                 className: 'team-mobile-dog-marker',
-                html: `<i class="bi ${_getCollarIconClass()}" style="font-size:26px;color:#dc3545;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;"></i>`,
+                html: `<i class="fa-solid ${_getCollarIconClass()}" style="font-size:26px;color:#dc3545;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;"></i>`,
                 iconSize: [26, 26],
                 iconAnchor: [13, 13]
             });

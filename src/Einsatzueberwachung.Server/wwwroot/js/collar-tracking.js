@@ -38,13 +38,45 @@ window.CollarTracking = {
     // Konfiguriertes Halsband-Marker-Symbol ("paw" | "dog" | "bone" | "dot")
     _collarIcon: 'paw',
 
-    // Gibt den HTML-Inhalt des Marker-Icons zurück
-    _getCollarContent: function () {
+    // Gibt SVG oder Bootstrap-Icon basierend auf Konfiguration zurück
+    _getCollarIconSvg: function (color) {
         switch (this._collarIcon) {
-            case 'dog':  return '🐕';
-            case 'bone': return '🦴';
-            case 'dot':  return '<span style="width:10px;height:10px;background:#fff;border-radius:50%;display:block;"></span>';
-            default:     return '🐾'; // paw
+            case 'paw':
+                // Pfoten-Icon als SVG
+                return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="${color}" opacity="0.9" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;">
+                    <circle cx="12" cy="18" r="3"/>
+                    <circle cx="5" cy="11" r="2.5"/>
+                    <circle cx="19" cy="11" r="2.5"/>
+                    <circle cx="8" cy="5" r="2.5"/>
+                    <circle cx="16" cy="5" r="2.5"/>
+                </svg>`;
+            case 'dog':
+                // Hund-Kopf als SVG (von vorne)
+                return `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 100 100" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;">
+                    <ellipse cx="50" cy="60" rx="30" ry="28" fill="${color}"/>
+                    <circle cx="50" cy="40" r="22" fill="${color}"/>
+                    <circle cx="32" cy="15" r="14" fill="${color}"/>
+                    <circle cx="68" cy="15" r="14" fill="${color}"/>
+                    <circle cx="40" cy="45" r="4" fill="white"/>
+                    <circle cx="60" cy="45" r="4" fill="white"/>
+                    <circle cx="40" cy="45" r="2" fill="black"/>
+                    <circle cx="60" cy="45" r="2" fill="black"/>
+                    <ellipse cx="50" cy="60" rx="6" ry="8" fill="black"/>
+                </svg>`;
+            case 'bone':
+                // Knochen-Icon als SVG
+                return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="${color}" opacity="0.9" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;">
+                    <circle cx="4" cy="12" r="3"/>
+                    <circle cx="20" cy="12" r="3"/>
+                    <rect x="7" y="10" width="10" height="4"/>
+                </svg>`;
+            case 'dot':
+            default:
+                // Einfacher farbiger Punkt
+                return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;">
+                    <circle cx="10" cy="10" r="8" fill="${color}" stroke="white" stroke-width="2"/>
+                    <circle cx="10" cy="10" r="3" fill="white"/>
+                </svg>`;
         }
     },
 
@@ -55,22 +87,22 @@ window.CollarTracking = {
 
     // Erstellt das divIcon für einen Halsband-Marker (konfiguriertes Symbol, optional mit OOB-Pulsring)
     _createCollarIcon: function (color, oobActive) {
-        const content = this._getCollarContent();
+        const svg = this._getCollarIconSvg(color);
         if (oobActive) {
             return L.divIcon({
                 html: `<div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">` +
                       `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36" style="position:absolute;top:0;left:0;" class="collar-oob-pulse-svg">` +
                       `<circle cx="18" cy="18" r="16" fill="none" stroke="#FF0000" stroke-width="2" opacity="0.6" class="collar-oob-ring"/></svg>` +
-                      `<div style="width:26px;height:26px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;">${content}</div></div>`,
+                      svg + `</div>`,
                 iconSize: [36, 36],
                 iconAnchor: [18, 18],
                 className: 'collar-marker-icon collar-oob-active'
             });
         }
         return L.divIcon({
-            html: `<div style="width:26px;height:26px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;">${content}</div>`,
-            iconSize: [26, 26],
-            iconAnchor: [13, 13],
+            html: svg,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
             className: 'collar-marker-icon'
         });
     },

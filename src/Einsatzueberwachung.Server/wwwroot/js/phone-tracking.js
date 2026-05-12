@@ -1,4 +1,4 @@
-// Handy-GPS-Tracking: Zeigt Team-Telefon-Positionen auf der Karte als Kreise mit Handy-Symbol
+// Handy-GPS-Tracking: Zeigt Team-Telefon-Positionen auf der Karte
 
 window.PhoneTracking = (function () {
     // teamId -> { marker }
@@ -10,13 +10,13 @@ window.PhoneTracking = (function () {
     // Konfiguriertes Symbol ("phone" | "person" | "person_walking" | "radio" | "dot")
     let _humanIcon = 'phone';
 
-    function _getHumanContent() {
+    function _getHumanIconClass() {
         switch (_humanIcon) {
-            case 'person':         return '<i class="bi bi-person-fill"></i>';
-            case 'person_walking': return '<i class="bi bi-person-walking"></i>';
-            case 'radio':          return '<i class="bi bi-broadcast"></i>';
-            case 'dot':            return '<span style="width:10px;height:10px;background:#fff;border-radius:50%;display:block;"></span>';
-            default:               return '<i class="bi bi-phone-fill"></i>'; // phone
+            case 'person':         return 'bi-person-fill';
+            case 'person_walking': return 'bi-person-walking';
+            case 'radio':          return 'bi-broadcast';
+            case 'dot':            return 'bi-circle-fill';
+            default:               return 'bi-phone-fill'; // phone
         }
     }
 
@@ -42,12 +42,13 @@ window.PhoneTracking = (function () {
     }
 
     function _createHumanIcon(color) {
+        const iconClass = _getHumanIconClass();
         return L.divIcon({
             className: '',
-            html: `<div style="width:34px;height:34px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;line-height:1;">${_getHumanContent()}</div>`,
-            iconSize: [34, 34],
-            iconAnchor: [17, 17],
-            popupAnchor: [0, -19]
+            html: `<i class="bi ${iconClass}" style="font-size:24px;color:${color};filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;"></i>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+            popupAnchor: [0, -14]
         });
     }
 

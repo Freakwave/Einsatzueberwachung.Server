@@ -248,7 +248,7 @@ public partial class EinsatzKarte
                 }
 
                 // Abgeschlossene Tracks (Snapshots) aus diesem Einsatz laden
-                var existingSnapshots = EinsatzService.CurrentEinsatz.TrackSnapshots;
+                var existingSnapshots = GetAllTrackSnapshotsForMap();
                 if (existingSnapshots?.Count > 0)
                 {
                     _trackingVisible = true;
@@ -833,7 +833,7 @@ public partial class EinsatzKarte
             }
 
             // Abgeschlossene Tracks einblenden/synchronisieren
-            var snapshots = EinsatzService.CurrentEinsatz.TrackSnapshots;
+            var snapshots = GetAllTrackSnapshotsForMap();
             if (snapshots != null)
             {
                 foreach (var snap in snapshots)
@@ -850,6 +850,41 @@ public partial class EinsatzKarte
                 }
             }
         }
+    }
+
+    private List<TeamTrackSnapshot> GetAllTrackSnapshotsForMap()
+    {
+        var result = new List<TeamTrackSnapshot>();
+        var seenIds = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var search in EinsatzService.CurrentEinsatz.CompletedSearches ?? Enumerable.Empty<CompletedSearch>())
+        {
+            foreach (var track in search.Tracks)
+            {
+                if (string.IsNullOrWhiteSpace(track.Id))
+                {
+                    result.Add(track);
+                    continue;
+                }
+
+                if (seenIds.Add(track.Id))
+                    result.Add(track);
+            }
+        }
+
+        foreach (var track in EinsatzService.CurrentEinsatz.TrackSnapshots ?? Enumerable.Empty<TeamTrackSnapshot>())
+        {
+            if (string.IsNullOrWhiteSpace(track.Id))
+            {
+                result.Add(track);
+                continue;
+            }
+
+            if (seenIds.Add(track.Id))
+                result.Add(track);
+        }
+
+        return result;
     }
 
     // Legacy alias (called from ToggleTracking keyboard shortcut etc.)
@@ -890,11 +925,13 @@ public partial class EinsatzKarte
 
     private void OnTeamPhoneLocationChanged(string teamId, string teamName, TeamPhoneLocation location)
     {
-        if (!_phoneLayerVisible) return;
+        // Immer aktualisieren: Daten werden auch während Layer inaktiv ist gepuffert
         _ = InvokeAsync(async () =>
         {
             try
             {
+                // Falls die PhoneLayer noch nicht initialisiert ist, initialisieren
+                if (!_mapInitialized) return;
                 await JSRuntime.InvokeVoidAsync("PhoneTracking.updateMarker",
                     "einsatzMap", teamId, teamName, location.Latitude, location.Longitude, location.Timestamp);
             }
@@ -904,11 +941,13 @@ public partial class EinsatzKarte
 
     private void OnTeamPhoneTrackPointAdded(string teamId, string teamName, TeamPhoneLocation location)
     {
-        if (!_phoneLayerVisible) return;
+        // Immer aktualisieren: Live-Track sollte auch angezeigt werden wenn bereits sichtbar
         _ = InvokeAsync(async () =>
         {
             try
             {
+                // Falls die PhoneLayer noch nicht initialisiert ist, initialisieren
+                if (!_mapInitialized) return;
                 await JSRuntime.InvokeVoidAsync("PhoneTracking.appendTrackPoint", "einsatzMap", teamId, location.Latitude, location.Longitude);
             }
             catch (ObjectDisposedException) { }

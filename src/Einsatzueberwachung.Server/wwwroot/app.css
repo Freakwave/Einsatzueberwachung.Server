@@ -39,6 +39,10 @@
     --theme-intensity-text: 84%;
     --theme-button-fill: 76%;
     --theme-alert-fill: 12%;
+    --theme-border-radius: 8px;
+    --theme-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --theme-transition: all 0.2s ease;
+    --theme-navbar-accent: var(--theme-primary-soft);
 
     --primary-color: var(--theme-primary);
     --secondary-color: var(--theme-secondary);
@@ -92,18 +96,22 @@
 }
 
 [data-intensity="dezent"] {
-    --signal-text-strength: 58%;
-    --signal-border-strength: 24%;
-    --signal-fill-strength: 14%;
-    --signal-soft-strength: 4%;
-    --signal-shadow-strength: 8%;
-    --theme-intensity-border: 58%;
-    --theme-intensity-soft: 4%;
-    --theme-intensity-fill: 16%;
-    --theme-intensity-shadow: 8%;
-    --theme-intensity-text: 88%;
-    --theme-button-fill: 18%;
-    --theme-alert-fill: 4%;
+    --signal-text-strength: 40%;
+    --signal-border-strength: 10%;
+    --signal-fill-strength: 8%;
+    --signal-soft-strength: 2%;
+    --signal-shadow-strength: 0%;
+    --theme-intensity-border: 6%;
+    --theme-intensity-soft: 2%;
+    --theme-intensity-fill: 4%;
+    --theme-intensity-shadow: 0%;
+    --theme-intensity-text: 35%;
+    --theme-button-fill: 6%;
+    --theme-alert-fill: 2%;
+    --theme-border-radius: 3px;
+    --theme-card-shadow: none;
+    --theme-transition: none;
+    --theme-navbar-accent: transparent;
 }
 
 [data-intensity="ausgewogen"] {
@@ -119,21 +127,29 @@
     --theme-intensity-text: 84%;
     --theme-button-fill: 76%;
     --theme-alert-fill: 12%;
+    --theme-border-radius: 8px;
+    --theme-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --theme-transition: all 0.2s ease;
+    --theme-navbar-accent: var(--theme-primary-soft);
 }
 
 [data-intensity="lebhaft"] {
-    --signal-text-strength: 82%;
-    --signal-border-strength: 46%;
-    --signal-fill-strength: 74%;
-    --signal-soft-strength: 14%;
-    --signal-shadow-strength: 20%;
-    --theme-intensity-border: 72%;
-    --theme-intensity-soft: 20%;
-    --theme-intensity-fill: 92%;
-    --theme-intensity-shadow: 34%;
-    --theme-intensity-text: 96%;
-    --theme-button-fill: 94%;
-    --theme-alert-fill: 34%;
+    --signal-text-strength: 100%;
+    --signal-border-strength: 70%;
+    --signal-fill-strength: 90%;
+    --signal-soft-strength: 22%;
+    --signal-shadow-strength: 40%;
+    --theme-intensity-border: 100%;
+    --theme-intensity-soft: 28%;
+    --theme-intensity-fill: 100%;
+    --theme-intensity-shadow: 55%;
+    --theme-intensity-text: 100%;
+    --theme-button-fill: 100%;
+    --theme-alert-fill: 55%;
+    --theme-border-radius: 14px;
+    --theme-card-shadow: 0 6px 24px var(--theme-primary-shadow);
+    --theme-transition: all 0.15s ease;
+    --theme-navbar-accent: var(--theme-primary);
 }
 
 .theme-accent-btn {
@@ -190,7 +206,34 @@
 
 [data-intensity="dezent"] .theme-alert {
     background: transparent;
-    border-color: color-mix(in srgb, var(--theme-primary) 38%, var(--ui-border, #d5deea));
+    border-color: var(--theme-primary-border);
+}
+
+/* ── Dezent: kill all animations and transitions globally ─────────────
+   The universal selector is intentional here — Dezent is a "zero visual
+   noise" mode. Any animation added elsewhere automatically respects this
+   without extra maintenance. The performance cost is negligible for this
+   internal single-page app (well under 1000 DOM nodes per view).       */
+[data-intensity="dezent"] * {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition: none !important;
+}
+
+/* ── Lebhaft: keyframe animations ─────────────────────────────────── */
+@keyframes lebhaft-running-glow {
+    0%, 100% { box-shadow: 0 0 8px color-mix(in srgb, var(--signal-success-hue) 30%, transparent); }
+    50%       { box-shadow: 0 0 22px color-mix(in srgb, var(--signal-success-hue) 58%, transparent); }
+}
+
+@keyframes pulse-critical-lebhaft {
+    0%, 100% { box-shadow: -4px 0 18px color-mix(in srgb, var(--danger-color) 50%, transparent); }
+    50%       { box-shadow: -4px 0 32px color-mix(in srgb, var(--danger-color) 76%, transparent); }
+}
+
+@keyframes lebhaft-alarm-pulse {
+    0%, 100% { box-shadow: 0 0 12px color-mix(in srgb, var(--theme-primary) 42%, transparent); }
+    50%       { box-shadow: 0 0 28px color-mix(in srgb, var(--theme-primary) 72%, transparent); }
 }
 
 html, body {
@@ -1096,6 +1139,12 @@ a.list-group-item {
 
 [data-intensity="lebhaft"] .monitor-team-card.team-critical {
     background: var(--danger-soft);
+    animation: pulse-critical-lebhaft 1.2s infinite;
+}
+
+/* Lebhaft: running teams glow green */
+[data-intensity="lebhaft"] .monitor-team-card.team-running {
+    animation: lebhaft-running-glow 3s ease-in-out infinite;
 }
 
 @keyframes pulse-critical {
@@ -3523,10 +3572,39 @@ main,
     border-right: 1px solid var(--ui-sidebar-border);
 }
 
+/* Dezent: completely flat sidebar, no gradient, minimal border
+   !important required because the base .sidebar rule above also uses it. */
+[data-intensity="dezent"] .sidebar {
+    border-right-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Lebhaft: theme-colored gradient bleeds into the top of the sidebar
+   !important required because the base .sidebar rule above also uses it. */
+[data-intensity="lebhaft"] .sidebar {
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--theme-primary) 28%, var(--ui-sidebar-bg)) 0%,
+        var(--ui-sidebar-bg) 60%
+    ) !important;
+    border-right: 2px solid color-mix(in srgb, var(--theme-primary) 55%, transparent) !important;
+}
+
 .top-row.navbar {
     background: var(--ui-sidebar-bg);
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     padding: 0.8rem 0.6rem;
+}
+
+/* Dezent: barely-visible separator, no shadow */
+[data-intensity="dezent"] .top-row.navbar {
+    border-bottom-color: rgba(255, 255, 255, 0.04);
+    box-shadow: none;
+}
+
+/* Lebhaft: strong theme-colored bottom line + glow shadow */
+[data-intensity="lebhaft"] .top-row.navbar {
+    border-bottom: 2px solid color-mix(in srgb, var(--theme-primary) 70%, transparent);
+    box-shadow: 0 3px 12px color-mix(in srgb, var(--theme-primary) 28%, rgba(0, 0, 0, 0.25));
 }
 
 .nav-brand-row {
@@ -3563,6 +3641,22 @@ main,
     box-shadow: inset 3px 0 0 var(--theme-primary);
 }
 
+/* Dezent: minimal active indicator — just a thin neutral stripe, no fill.
+   !important overrides the base .nav-link.active background above.
+   Opacity values mirror the surrounding sidebar convention (0.08/0.18/0.75). */
+[data-intensity="dezent"] .nav-link.active {
+    background: rgba(255, 255, 255, 0.08) !important;
+    box-shadow: inset 2px 0 0 rgba(255, 255, 255, 0.35);
+    font-weight: 500;
+}
+
+/* Lebhaft: filled active link with glowing left border
+   !important overrides the base .nav-link.active background above. */
+[data-intensity="lebhaft"] .nav-link.active {
+    background: color-mix(in srgb, var(--theme-primary) 28%, var(--ui-nav-active-bg)) !important;
+    box-shadow: inset 3px 0 0 var(--theme-primary), 0 0 8px color-mix(in srgb, var(--theme-primary) 30%, transparent);
+}
+
 .nav-icon i {
     color: color-mix(in srgb, var(--ui-nav-active-text) 84%, transparent);
 }
@@ -3576,8 +3670,13 @@ h1 {
 .card {
     background: var(--ui-surface);
     border: 1px solid var(--ui-border);
-    box-shadow: none;
-    border-radius: 10px;
+    box-shadow: var(--theme-card-shadow, none);
+    border-radius: var(--theme-border-radius, 10px);
+}
+
+/* Lebhaft: colored top accent border on cards */
+[data-intensity="lebhaft"] .card {
+    border-top: 3px solid var(--theme-primary-border);
 }
 
 .card-header {
@@ -3749,6 +3848,34 @@ textarea:focus {
     color: var(--warning-color);
 }
 
+/* Lebhaft: buttons glow with a coloured box-shadow on hover */
+[data-intensity="lebhaft"] .btn-primary,
+[data-intensity="lebhaft"] .btn-success,
+[data-intensity="lebhaft"] .btn-info,
+[data-intensity="lebhaft"] .btn-warning {
+    box-shadow: 0 2px 10px var(--theme-primary-shadow);
+}
+
+[data-intensity="lebhaft"] .btn-primary:hover,
+[data-intensity="lebhaft"] .btn-primary:focus {
+    box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--theme-primary) 40%, transparent);
+}
+
+[data-intensity="lebhaft"] .btn-success:hover,
+[data-intensity="lebhaft"] .btn-success:focus {
+    box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--signal-success-hue) 40%, transparent);
+}
+
+[data-intensity="lebhaft"] .btn-info:hover,
+[data-intensity="lebhaft"] .btn-info:focus {
+    box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--signal-info-hue) 40%, transparent);
+}
+
+[data-intensity="lebhaft"] .btn-warning:hover,
+[data-intensity="lebhaft"] .btn-warning:focus {
+    box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--signal-warning-hue) 40%, transparent);
+}
+
 .btn-outline-secondary,
 .btn-outline-primary,
 .btn-outline-success,
@@ -3856,6 +3983,27 @@ textarea:focus {
     border-color: var(--danger-border) !important;
 }
 
+/* Lebhaft: badges get a bold coloured border that pops */
+[data-intensity="lebhaft"] .badge.text-bg-success {
+    border-color: var(--success-color) !important;
+    box-shadow: 0 0 6px color-mix(in srgb, var(--signal-success-hue) 40%, transparent);
+}
+
+[data-intensity="lebhaft"] .badge.text-bg-info {
+    border-color: var(--info-color) !important;
+    box-shadow: 0 0 6px color-mix(in srgb, var(--signal-info-hue) 40%, transparent);
+}
+
+[data-intensity="lebhaft"] .badge.text-bg-warning {
+    border-color: var(--warning-color) !important;
+    box-shadow: 0 0 6px color-mix(in srgb, var(--signal-warning-hue) 40%, transparent);
+}
+
+[data-intensity="lebhaft"] .badge.text-bg-danger {
+    border-color: var(--danger-color) !important;
+    box-shadow: 0 0 8px color-mix(in srgb, var(--signal-danger-hue) 50%, transparent);
+}
+
 .alert {
     border-left-width: 4px;
 }
@@ -3892,6 +4040,23 @@ textarea:focus {
 
 [data-intensity="dezent"] .alert-danger {
     background: var(--theme-alert-danger);
+}
+
+/* Lebhaft: alerts are fully saturated and cast a soft coloured shadow */
+[data-intensity="lebhaft"] .alert-success {
+    box-shadow: 0 2px 12px color-mix(in srgb, var(--signal-success-hue) 30%, transparent);
+}
+
+[data-intensity="lebhaft"] .alert-info {
+    box-shadow: 0 2px 12px color-mix(in srgb, var(--signal-info-hue) 30%, transparent);
+}
+
+[data-intensity="lebhaft"] .alert-warning {
+    box-shadow: 0 2px 12px color-mix(in srgb, var(--signal-warning-hue) 30%, transparent);
+}
+
+[data-intensity="lebhaft"] .alert-danger {
+    box-shadow: 0 2px 14px color-mix(in srgb, var(--signal-danger-hue) 40%, transparent);
 }
 
 @media (max-width: 768px) {
@@ -5681,6 +5846,8 @@ main:has(.monitor-dashboard-wrapper) .app-content {
 [data-intensity="lebhaft"] .home-action-btn--alarm,
 [data-intensity="lebhaft"] .home-status-band.is-alarm {
     box-shadow: 0 0 0 0 color-mix(in srgb, var(--home-ember) 44%, transparent);
+    animation: lebhaft-alarm-pulse 1s ease-in-out infinite;
+    border-width: 2px;
 }
 
 .home-lobby-row {

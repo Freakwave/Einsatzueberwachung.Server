@@ -500,15 +500,50 @@
                     <p class="cfg-help mb-2">Beispiel-Elemente reagieren sofort auf Theme und Intensität.</p>
 
                     <div class="theme-preview-grid">
-                        <button type="button" class="btn theme-accent-btn">
-                            <i class="bi bi-stars me-2"></i>Akzent-Button
-                        </button>
+                        <div class="theme-preview-col">
+                            <button type="button" class="btn theme-accent-btn w-100 mb-2">
+                                <i class="bi bi-stars me-2"></i>Akzent-Button
+                            </button>
 
-                        <div class="theme-alert theme-alert-success" role="status">
-                            <i class="bi bi-check-circle-fill"></i>
-                            <div>
-                                <strong>Statusmeldung</strong>
-                                <div class="theme-alert-text">Im Modus Dezent nur mit Akzent-Rand, in Lebhaft flächiger hervorgehoben.</div>
+                            <div class="d-flex gap-2 flex-wrap mb-2">
+                                <span class="badge text-bg-success">Aktiv</span>
+                                <span class="badge text-bg-warning">Warnung</span>
+                                <span class="badge text-bg-danger">Kritisch</span>
+                                <span class="badge text-bg-info">Info</span>
+                            </div>
+
+                            <div class="theme-preview-nav-mock">
+                                <div class="theme-preview-nav-link">
+                                    <i class="bi bi-house me-2"></i>Startseite
+                                </div>
+                                <div class="theme-preview-nav-link active">
+                                    <i class="bi bi-map me-2"></i>Einsatzkarte
+                                </div>
+                                <div class="theme-preview-nav-link">
+                                    <i class="bi bi-people me-2"></i>Teams
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="theme-preview-col">
+                            <div class="theme-alert theme-alert-success mb-2" role="status">
+                                <i class="bi bi-check-circle-fill"></i>
+                                <div>
+                                    <strong>Statusmeldung</strong>
+                                    <div class="theme-alert-text">Im Modus Dezent nur mit Akzent-Rand, in Lebhaft flächiger hervorgehoben.</div>
+                                </div>
+                            </div>
+
+                            <div class="card p-3">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="badge text-bg-success">Team 1</span>
+                                    <strong style="font-size: 0.9rem;">Beispiel-Karte</strong>
+                                </div>
+                                <div class="text-muted" style="font-size: 0.8rem;">Cards reagieren auf Border-Radius und Schatten.</div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-primary btn-sm me-1">Primär</button>
+                                    <button type="button" class="btn btn-success btn-sm">Erfolg</button>
+                                </div>
                             </div>
                         </div>
                     </div>

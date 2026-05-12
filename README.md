@@ -155,7 +155,7 @@ Alle Endpunkte sind über `/api/` erreichbar. Im Development-Modus steht Swagger
 | `POST /api/truemmer/karten` | Trümmer-Lagekarte (Drohnenfoto) hochladen — Multipart, max 20 MB, JPG/PNG/WEBP |
 | `GET /api/truemmer/karten/{id}/image` | Trümmer-Bild ausliefern |
 | `DELETE /api/truemmer/karten/{id}` | Trümmer-Karte löschen |
-| `POST /api/collar/receive-location` | GPS-Halsband-Position empfangen (Webhook) |
+| `POST /api/CollarWebhook/location` | GPS-Halsband-Position empfangen (Webhook) |
 | `GET /api/team-mobile/state` | Mobilen Team-Zustand inkl. Halsband- und Handy-Track abrufen (authentifiziert) |
 | `POST /api/team-mobile/location` | Handy-GPS-Position eines Team-Users speichern (authentifiziert) |
 | `GET /api/radio` | Funksprüche abrufen |

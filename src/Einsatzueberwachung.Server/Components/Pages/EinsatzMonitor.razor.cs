@@ -1049,6 +1049,9 @@ public partial class EinsatzMonitor
     private async Task StopTeamAsync(string teamId)
     {
         var team = EinsatzService.Teams.FirstOrDefault(t => t.TeamId == teamId);
+        TeamTrackSnapshot? collarSnapshot = null;
+        TeamTrackSnapshot? humanSnapshot = null;
+
         if (team?.CollarId != null)
         {
             var history = CollarTrackingService.GetLocationHistory(team.CollarId);
@@ -1058,7 +1061,7 @@ public partial class EinsatzMonitor
                     .FirstOrDefault(a => a.Id == team.SearchAreaId);
                 var color = searchArea?.Color ?? "#FF4444";
 
-                var snapshot = new TeamTrackSnapshot
+                collarSnapshot = new TeamTrackSnapshot
                 {
                     CollarId = team.CollarId,
                     CollarName = team.CollarName ?? team.CollarId,
@@ -1075,24 +1078,7 @@ public partial class EinsatzMonitor
                         Timestamp = loc.Timestamp
                     }).ToList()
                 };
-
-                if (searchArea?.Coordinates != null && searchArea.Coordinates.Count >= 3)
-                {
-                    snapshot.SearchAreaCoordinates = new List<(double, double)>(searchArea.Coordinates);
-                    snapshot.SearchAreaColor = searchArea.Color;
-                }
-
-                await EinsatzService.AddTrackSnapshotAsync(snapshot);
-
-                // Live-Track von der Karte entfernen — der Snapshot-Track ersetzt ihn
-                CollarTrackingService.ClearCollarHistory(snapshot.CollarId);
             }
-        }
-
-        // Halsband nach dem Stopp automatisch freigeben (übergabe an nächstes Team möglich)
-        if (team?.CollarId != null)
-        {
-            await CollarTrackingService.UnassignCollarAsync(team.CollarId);
         }
 
         // Mensch-Laufweg (HumanTrack) aus Telefon-GPS aufzeichnen
@@ -1105,7 +1091,7 @@ public partial class EinsatzMonitor
                     .FirstOrDefault(a => a.Id == team.SearchAreaId);
                 var humanColor = searchArea?.Color ?? "#1976D2";
 
-                var humanSnapshot = new TeamTrackSnapshot
+                humanSnapshot = new TeamTrackSnapshot
                 {
                     CollarId = string.Empty,
                     // CollarName wird hier als generischer Anzeigename im Snapshot verwendet —
@@ -1124,16 +1110,52 @@ public partial class EinsatzMonitor
                         Timestamp = loc.Timestamp
                     }).ToList()
                 };
+            }
+        }
 
-                if (searchArea?.Coordinates != null && searchArea.Coordinates.Count >= 3)
-                {
-                    humanSnapshot.SearchAreaCoordinates = new List<(double, double)>(searchArea.Coordinates);
-                    humanSnapshot.SearchAreaColor = searchArea.Color;
-                }
+        // Collar- und Human-Track derselben Team-Suche in eine gemeinsame Episode gruppieren.
+        if (team != null && (collarSnapshot != null || humanSnapshot != null))
+        {
+            var starts = new List<DateTime>();
+            var ends = new List<DateTime>();
 
-                await EinsatzService.AddTrackSnapshotAsync(humanSnapshot);
+            if (collarSnapshot != null)
+            {
+                starts.Add(collarSnapshot.Points.Count > 0 ? collarSnapshot.Points[0].Timestamp : collarSnapshot.CapturedAt);
+                ends.Add(collarSnapshot.Points.Count > 0 ? collarSnapshot.Points[^1].Timestamp : collarSnapshot.CapturedAt);
+            }
+
+            if (humanSnapshot != null)
+            {
+                starts.Add(humanSnapshot.Points.Count > 0 ? humanSnapshot.Points[0].Timestamp : humanSnapshot.CapturedAt);
+                ends.Add(humanSnapshot.Points.Count > 0 ? humanSnapshot.Points[^1].Timestamp : humanSnapshot.CapturedAt);
+            }
+
+            var search = await EinsatzService.CreateCompletedSearchAsync(
+                team.TeamId,
+                starts.Min(),
+                ends.Max(),
+                team.SearchAreaId);
+
+            if (collarSnapshot != null)
+            {
+                await EinsatzService.AddTrackToCompletedSearchAsync(search.Id, collarSnapshot);
+
+                // Live-Track von der Karte entfernen — der Snapshot-Track ersetzt ihn
+                CollarTrackingService.ClearCollarHistory(collarSnapshot.CollarId);
+            }
+
+            if (humanSnapshot != null)
+            {
+                await EinsatzService.AddTrackToCompletedSearchAsync(search.Id, humanSnapshot);
                 EinsatzService.ClearPhoneTrackHistory(team.TeamId);
             }
+        }
+
+        // Halsband nach dem Stopp automatisch freigeben (übergabe an nächstes Team möglich)
+        if (team?.CollarId != null)
+        {
+            await CollarTrackingService.UnassignCollarAsync(team.CollarId);
         }
 
         await EinsatzService.StopTeamTimerAsync(teamId);

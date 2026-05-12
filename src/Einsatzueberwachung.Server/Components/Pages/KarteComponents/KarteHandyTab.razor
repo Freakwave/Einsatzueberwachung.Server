@@ -107,6 +107,7 @@
                     await InvokeAsync(StateHasChanged);
             }
             catch (OperationCanceledException) { }
+            catch (ObjectDisposedException) { }
         }, token);
     }
 

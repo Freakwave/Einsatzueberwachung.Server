@@ -9,6 +9,8 @@ namespace Einsatzueberwachung.Server.Services;
 public sealed class RuntimeStatePersistenceService : BackgroundService
 {
     private const int RuntimeStateRowId = 1;
+    private const int MaxPersistedCollarHistoryPoints = 2000;
+    private const int MaxPersistedPhoneHistoryPoints = 2000;
 
     private readonly IDbContextFactory<RuntimeDbContext> _dbContextFactory;
     private readonly IEinsatzService _einsatzService;
@@ -255,14 +257,14 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
         {
             var history = _collarTrackingService.GetLocationHistory(collar.Id);
             if (history.Count > 0)
-                snapshot.CollarLocationHistory[collar.Id] = history.ToList();
+                snapshot.CollarLocationHistory[collar.Id] = TrimHistory(history, MaxPersistedCollarHistoryPoints);
         }
 
         // Telefon-GPS-Verlauf der laufenden Suche einschließen
         foreach (var kvp in _einsatzService.GetAllPhoneTrackHistories())
         {
             if (kvp.Value.Count > 0)
-                snapshot.PhoneTrackHistory[kvp.Key] = kvp.Value.ToList();
+                snapshot.PhoneTrackHistory[kvp.Key] = TrimHistory(kvp.Value, MaxPersistedPhoneHistoryPoints);
         }
 
         var json = JsonSerializer.Serialize(snapshot, _jsonOptions);
@@ -287,6 +289,14 @@ public sealed class RuntimeStatePersistenceService : BackgroundService
         }
 
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static List<T> TrimHistory<T>(IReadOnlyList<T> points, int maxPoints)
+    {
+        if (points.Count <= maxPoints)
+            return points.ToList();
+
+        return points.Skip(points.Count - maxPoints).ToList();
     }
 
     // WICHTIG: Wird ein neues Event zu IEinsatzService hinzugefügt, das persistenten Zustand verändert,

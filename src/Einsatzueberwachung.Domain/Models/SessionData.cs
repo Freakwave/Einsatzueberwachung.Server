@@ -99,7 +99,7 @@ namespace Einsatzueberwachung.Domain.Models
         /// <summary>Gibt den konfigurierten Human-Marker-Icon-Typ zurück (nie null/leer).</summary>
         [System.Text.Json.Serialization.JsonIgnore]
         public string HumanMarkerIconOrDefault =>
-            string.IsNullOrWhiteSpace(HumanMarkerIcon) ? "phone" : HumanMarkerIcon;
+            string.IsNullOrWhiteSpace(HumanMarkerIcon) ? "person_walking" : HumanMarkerIcon;
 
         // Warnzentrum-Regelkonfiguration (keyed by WarningEntry.Source)
         public Dictionary<string, WarningRuleConfig> WarningRules { get; set; } = new();

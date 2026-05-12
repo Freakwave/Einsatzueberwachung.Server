@@ -934,6 +934,7 @@ public partial class EinsatzKarte
                 if (!_mapInitialized) return;
                 await JSRuntime.InvokeVoidAsync("PhoneTracking.updateMarker",
                     "einsatzMap", teamId, teamName, location.Latitude, location.Longitude, location.Timestamp);
+                StateHasChanged(); // Handy-Tab-Anzeige (letzte Position, Alter) aktualisieren
             }
             catch (ObjectDisposedException) { }
         });
@@ -983,6 +984,25 @@ public partial class EinsatzKarte
     {
         // Passt die Kartenansicht so an, dass der gesamte aufgezeichnete Live-Track sichtbar ist
         await JSRuntime.InvokeVoidAsync("CollarTracking.zoomToCollar", "einsatzMap", collar.Id);
+    }
+
+    private async Task ZoomToPhoneTeamAsync(string teamId)
+    {
+        // Layer einblenden falls noch nicht aktiv
+        if (!_phoneLayerVisible)
+        {
+            _phoneLayerVisible = true;
+            await JSRuntime.InvokeVoidAsync("PhoneTracking.toggleVisibility", "einsatzMap", true);
+            foreach (var (tid, loc) in EinsatzService.PhoneLocations)
+            {
+                var team = _teams.FirstOrDefault(t => t.TeamId == tid);
+                if (team == null) continue;
+                await JSRuntime.InvokeVoidAsync("PhoneTracking.updateMarker",
+                    "einsatzMap", tid, team.TeamName, loc.Latitude, loc.Longitude, loc.Timestamp);
+            }
+            await LoadRunningTeamPhoneTracksAsync("einsatzMap");
+        }
+        await JSRuntime.InvokeVoidAsync("PhoneTracking.zoomToTeam", "einsatzMap", teamId);
     }
 
     private async Task ZoomToCompletedTrackAsync(string snapshotId)

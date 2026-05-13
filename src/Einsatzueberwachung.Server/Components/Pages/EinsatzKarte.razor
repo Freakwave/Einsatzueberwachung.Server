@@ -249,7 +249,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-trash me-2 text-danger"></i>Suchgebiet löschen</h5>
+                    <h5 class="modal-title"><i class="bi bi-trash me-2"></i>Suchgebiet löschen</h5>
                     <button type="button" class="btn-close" @onclick="() => _deleteCandidate = null"></button>
                 </div>
                 <div class="modal-body">
@@ -258,7 +258,7 @@
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" @onclick="() => _deleteCandidate = null">Abbrechen</button>
-                    <button class="btn btn-danger" @onclick="ConfirmDeleteSearchAreaAsync">Löschen</button>
+                    <button class="btn btn-primary" @onclick="ConfirmDeleteSearchAreaAsync">Löschen</button>
                 </div>
             </div>
         </div>

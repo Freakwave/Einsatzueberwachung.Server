@@ -129,7 +129,7 @@
                                                 <td class="text-end">
                                                     <div class="btn-group btn-group-sm">
                                                         <button class="btn btn-outline-primary" @onclick="() => EditPersonal(person.Id)">Bearbeiten</button>
-                                                        <button class="btn btn-outline-danger" @onclick="() => DeletePersonalAsync(person.Id)">Loeschen</button>
+                                                        <button class="btn btn-outline-secondary" @onclick="() => DeletePersonalAsync(person.Id)">Loeschen</button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -247,7 +247,7 @@
                                                 <td class="text-end">
                                                     <div class="btn-group btn-group-sm">
                                                         <button class="btn btn-outline-primary" @onclick="() => EditDog(dog.Id)">Bearbeiten</button>
-                                                        <button class="btn btn-outline-danger" @onclick="() => DeleteDogAsync(dog.Id)">Loeschen</button>
+                                                        <button class="btn btn-outline-secondary" @onclick="() => DeleteDogAsync(dog.Id)">Loeschen</button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -354,7 +354,7 @@
                                                 <td class="text-end">
                                                     <div class="btn-group btn-group-sm">
                                                         <button class="btn btn-outline-primary" @onclick="() => EditDrone(drone.Id)">Bearbeiten</button>
-                                                        <button class="btn btn-outline-danger" @onclick="() => DeleteDroneAsync(drone.Id)">Loeschen</button>
+                                                        <button class="btn btn-outline-secondary" @onclick="() => DeleteDroneAsync(drone.Id)">Loeschen</button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -418,7 +418,7 @@
                                             <td class="text-end">
                                                 <div class="btn-group btn-group-sm">
                                                     <button class="btn btn-outline-primary" @onclick="() => EditChecklistTemplate(tmpl.Id)">Bearbeiten</button>
-                                                    <button class="btn btn-outline-danger" @onclick="() => DeleteChecklistTemplateAsync(tmpl.Id)">Löschen</button>
+                                                    <button class="btn btn-outline-secondary" @onclick="() => DeleteChecklistTemplateAsync(tmpl.Id)">Löschen</button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -517,7 +517,7 @@
                                                             @onclick="() => MoveChecklistItem(idx, 1)" title="Runter">
                                                         <i class="bi bi-arrow-down"></i>
                                                     </button>
-                                                    <button class="btn btn-outline-danger" type="button" @onclick="() => RemoveChecklistItem(idx)" title="Entfernen">
+                                                    <button class="btn btn-outline-secondary" type="button" @onclick="() => RemoveChecklistItem(idx)" title="Entfernen">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
                                                 </div>

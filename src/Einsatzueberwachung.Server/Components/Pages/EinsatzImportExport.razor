@@ -135,7 +135,7 @@
                                 </div>
                                 @if (!merge.IsReverted)
                                 {
-                                    <button class="btn btn-outline-danger btn-sm flex-shrink-0"
+                                    <button class="btn btn-outline-secondary btn-sm flex-shrink-0"
                                             @onclick="() => RevertHistoryMergeAsync(merge.MergeId)"
                                             disabled="@_revertingHistoryIds.Contains(merge.MergeId)">
                                         @if (_revertingHistoryIds.Contains(merge.MergeId))
@@ -744,7 +744,7 @@
                                     <i class="bi bi-info-circle me-1"></i>
                                     Diese Zusammenführung kann vollständig rückgängig gemacht werden.
                                 </span>
-                                <button class="btn btn-outline-danger btn-sm"
+                                <button class="btn btn-outline-secondary btn-sm"
                                         @onclick="RevertCurrentMergeAsync"
                                         disabled="@_isLoading">
                                     <i class="bi bi-arrow-counterclockwise me-1"></i>Rückgängig

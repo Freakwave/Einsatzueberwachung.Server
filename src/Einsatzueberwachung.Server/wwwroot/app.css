@@ -6599,8 +6599,8 @@ a.mention-badge-link:hover {
 .monitor-szenario-btn {
     cursor: pointer;
     line-height: 1.2;
-    border: 1px solid color-mix(in srgb, var(--monitor-szenario-color, var(--theme-primary)) 58%, var(--ui-border));
-    background: color-mix(in srgb, var(--monitor-szenario-color, var(--theme-primary)) 78%, var(--theme-secondary) 22%);
+    border: 1px solid var(--theme-primary-border);
+    background: color-mix(in srgb, var(--theme-primary) var(--theme-button-fill), var(--ui-surface));
     color: var(--theme-on-accent);
 }
 .monitor-szenario-btn:hover,
@@ -6721,6 +6721,7 @@ a.mention-badge-link:hover {
 [data-intensity="dezent"] .monitor-action-btn--stop,
 [data-intensity="dezent"] .monitor-action-btn--team-mobile {
     background: transparent;
+    color: var(--ui-text);
 }
 
 [data-intensity="dezent"] .monitor-action-btn--accent-solid {
@@ -6769,6 +6770,3 @@ a.mention-badge-link:hover {
     border-style: dashed;
     color: var(--bs-secondary-color, #6c757d);
 }
-
-[data-intensity="dezent"] .monitor-action-btn--stop {
-    color: var(--ui-text);

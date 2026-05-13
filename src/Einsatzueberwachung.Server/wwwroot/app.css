@@ -1143,7 +1143,7 @@ a.list-group-item {
 
 [data-intensity="lebhaft"] .monitor-team-card.team-critical {
     background: var(--danger-soft);
-    animation: pulse-critical-lebhaft 1.2s infinite;
+    animation: pulse-critical-lebhaft 1.2s infinite !important;
 }
 
 /* Lebhaft: running teams glow green */

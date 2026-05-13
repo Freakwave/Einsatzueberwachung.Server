@@ -58,7 +58,7 @@
                                         <strong>@(string.IsNullOrWhiteSpace(k.Title) ? "Karte" : k.Title)</strong><br />
                                         <small class="@(isActive ? "" : "text-muted")">@k.ImageWidthPx × @k.ImageHeightPx px · @k.UploadedAt.ToString("dd.MM. HH:mm")</small>
                                     </span>
-                                    <button class="btn btn-sm btn-outline-danger ms-2" type="button"
+                                    <button class="btn btn-sm btn-outline-secondary ms-2" type="button"
                                             @onclick:stopPropagation="true"
                                             @onclick="() => DeleteKarteAsync(k.Id)" title="Löschen">
                                         <i class="bi bi-trash"></i>
@@ -115,7 +115,7 @@
                                                                value="@a.Color"
                                                                @onchange="e => UpdateAreaColor(a, e.Value?.ToString())" />
                                                     </div>
-                                                    <button class="btn btn-sm btn-outline-danger ms-2" type="button"
+                                                    <button class="btn btn-sm btn-outline-secondary ms-2" type="button"
                                                             @onclick="() => DeleteAreaAsync(a.Id)" title="Löschen">
                                                         <i class="bi bi-trash"></i>
                                                     </button>

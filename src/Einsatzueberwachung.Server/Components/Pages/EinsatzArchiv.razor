@@ -161,7 +161,7 @@
                                 <button class="btn btn-sm btn-outline-success" @onclick="() => NavigateToExport(item.Id)" title="Als .einsatz-export.json herunterladen">
                                     <i class="bi bi-download me-1"></i>Exportieren
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => PromptDelete(item)">Loeschen</button>
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => PromptDelete(item)">Loeschen</button>
                             </td>
                         </tr>
                     }
@@ -324,7 +324,7 @@
                                     </div>
                                     @if (!merge.IsReverted)
                                     {
-                                        <button class="btn btn-outline-danger btn-sm"
+                                        <button class="btn btn-outline-secondary btn-sm"
                                                 @onclick="() => RevertArchivedMergeAsync(_selected.Id, merge.MergeId)"
                                                 disabled="@_revertingMergeId.Contains(merge.MergeId)">
                                             @if (_revertingMergeId.Contains(merge.MergeId))
@@ -425,7 +425,7 @@
                 </div>
                 <div class="modal-modern-footer">
                     <button class="btn btn-outline-secondary" @onclick="CancelDelete">Abbrechen</button>
-                    <button class="btn btn-danger" @onclick="ConfirmDeleteAsync">Endgueltig loeschen</button>
+                    <button class="btn btn-primary" @onclick="ConfirmDeleteAsync">Endgueltig loeschen</button>
                 </div>
             </div>
         </div>

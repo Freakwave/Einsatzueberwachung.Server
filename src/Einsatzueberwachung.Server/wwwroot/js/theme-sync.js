@@ -3,9 +3,9 @@ window.themeSync = (() => {
     const legacyStorageKey = "theme";
     const browserPrefsKey = "browser-prefs";
 
-    const themePalette = {
-        nrw: { primary: "#A72920", secondary: "#404040" },
-        ruhr: { primary: "#005D9E", secondary: "#FFED00" }
+            const themePalette = {
+        nrw: { primary: "#A72920", secondary: "#404040", tertiary: "#E3000F", surface: "#F4F4F4" },
+        ruhr: { primary: "#005D9E", secondary: "#FFED00", tertiary: "#00B4E0", surface: "#F0F8FF" }
     };
 
     const defaultState = {
@@ -26,7 +26,12 @@ window.themeSync = (() => {
         }
 
         const normalized = value.trim().toLowerCase();
-        return normalized === "ruhr" ? "ruhr" : "nrw";
+        // Allow anything that is not nrw or ruhr to be returned as-is
+        if (normalized === "ruhr" || normalized === "nrw") {
+            return normalized;
+        }
+
+        return value.trim();
     }
 
     function normalizeIntensity(value) {
@@ -47,7 +52,8 @@ window.themeSync = (() => {
     }
 
     function canonicalPreset(value) {
-        return normalizePreset(value) === "ruhr" ? "Ruhr" : "NRW";
+        const normalized = normalizePreset(value);
+        return normalized === "ruhr" ? "Ruhr" : (normalized === "nrw" ? "NRW" : value);
     }
 
     function canonicalIntensity(value) {
@@ -91,7 +97,30 @@ window.themeSync = (() => {
     function applyThemeState(themeState) {
         const resolved = resolveThemeState(themeState);
         const value = resolved.isDark ? "dark" : "light";
-        const palette = themePalette[resolved.preset] || themePalette.nrw;
+
+        let palette = themePalette[resolved.preset] || themePalette.nrw;
+
+        // Check custom themes in local storage
+        try {
+             const raw = localStorage.getItem(browserPrefsKey);
+             if (raw) {
+                 const parsed = JSON.parse(raw);
+                 const customThemes = parsed.customThemes || parsed.CustomThemes;
+                 if (customThemes && Array.isArray(customThemes)) {
+                     const customTheme = customThemes.find(t => t.id === resolved.preset || t.Id === resolved.preset);
+                     if (customTheme) {
+                         palette = {
+                             primary: customTheme.primaryColor || customTheme.PrimaryColor,
+                             secondary: customTheme.secondaryColor || customTheme.SecondaryColor,
+                             tertiary: customTheme.tertiaryColor || customTheme.TertiaryColor,
+                             surface: customTheme.surfaceColor || customTheme.SurfaceColor
+                         };
+                     }
+                 }
+             }
+        } catch (e) {
+            console.error("Error loading custom themes", e);
+        }
 
         setAttributeOnThemeRoots("data-bs-theme", value);
         setAttributeOnThemeRoots("data-theme-preset", resolved.preset);
@@ -99,6 +128,28 @@ window.themeSync = (() => {
 
         setStyleVariableOnThemeRoots("--theme-primary", palette.primary);
         setStyleVariableOnThemeRoots("--theme-secondary", palette.secondary);
+        if (palette.tertiary) {
+            setStyleVariableOnThemeRoots("--theme-tertiary", palette.tertiary);
+            setStyleVariableOnThemeRoots("--tertiary-color", palette.tertiary);
+        } else {
+            document.documentElement.style.removeProperty('--theme-tertiary');
+            document.documentElement.style.removeProperty('--tertiary-color');
+            if (document.body) {
+                document.body.style.removeProperty('--theme-tertiary');
+                document.body.style.removeProperty('--tertiary-color');
+            }
+        }
+        if (palette.surface) {
+            setStyleVariableOnThemeRoots("--theme-surface", palette.surface);
+            setStyleVariableOnThemeRoots("--surface-color", palette.surface);
+        } else {
+            document.documentElement.style.removeProperty('--theme-surface');
+            document.documentElement.style.removeProperty('--surface-color');
+            if (document.body) {
+                document.body.style.removeProperty('--theme-surface');
+                document.body.style.removeProperty('--surface-color');
+            }
+        }
         setStyleVariableOnThemeRoots("--primary-color", palette.primary);
         setStyleVariableOnThemeRoots("--secondary-color", palette.secondary);
     }

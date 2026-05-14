@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Einsatzueberwachung.Domain.Models
 {
     /// <summary>
@@ -14,6 +16,7 @@ namespace Einsatzueberwachung.Domain.Models
         public string DarkModeEndTime { get; set; } = "06:00";   // HH:mm
         public string ThemePreset { get; set; } = ThemePresets.Nrw;
         public string VisualIntensity { get; set; } = VisualIntensityLevels.Ausgewogen;
+        public List<CustomTheme> CustomThemes { get; set; } = new();
 
         // --- Sound ---
         public bool SoundAlertsEnabled { get; set; } = true;
@@ -40,6 +43,16 @@ namespace Einsatzueberwachung.Domain.Models
         public const string Dezent = "Dezent";
         public const string Ausgewogen = "Ausgewogen";
         public const string Lebhaft = "Lebhaft";
+    }
+
+    public class CustomTheme
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string PrimaryColor { get; set; } = "#A72920";
+        public string SecondaryColor { get; set; } = "#404040";
+        public string TertiaryColor { get; set; } = "#005D9E";
+        public string SurfaceColor { get; set; } = "#FFFFFF";
     }
 
     /// <summary>

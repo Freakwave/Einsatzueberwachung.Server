@@ -6782,3 +6782,9 @@ a.mention-badge-link:hover {
 [data-intensity="dezent"] .monitor-action-btn--push,
 [data-intensity="dezent"] .monitor-action-btn--accent-solid.monitor-action-btn--accent-success {
     background: transparent;
+
+
+.theme-preview-surface {
+    background: var(--theme-surface, var(--ui-surface-2)) !important;
+    border-color: var(--theme-secondary, var(--ui-border)) !important;
+}

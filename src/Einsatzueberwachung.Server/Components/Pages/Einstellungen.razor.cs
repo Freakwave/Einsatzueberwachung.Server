@@ -367,7 +367,103 @@ public partial class Einstellungen
         }
     }
 
-    private async Task SetDesignModeAsync(bool darkMode)
+
+    private bool _isEditingCustomTheme;
+    private Einsatzueberwachung.Domain.Models.CustomTheme _editingCustomTheme;
+
+    private void StartNewCustomTheme()
+    {
+        _editingCustomTheme = new Einsatzueberwachung.Domain.Models.CustomTheme
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = "Neues Theme",
+            PrimaryColor = "#005D9E",
+            SecondaryColor = "#FFED00",
+            TertiaryColor = "#28A745",
+            SurfaceColor = "#FFFFFF"
+        };
+        _isEditingCustomTheme = true;
+    }
+
+    private void EditCustomTheme(Einsatzueberwachung.Domain.Models.CustomTheme theme)
+    {
+        _editingCustomTheme = new Einsatzueberwachung.Domain.Models.CustomTheme
+        {
+            Id = theme.Id,
+            Name = theme.Name,
+            PrimaryColor = theme.PrimaryColor,
+            SecondaryColor = theme.SecondaryColor,
+            TertiaryColor = theme.TertiaryColor,
+            SurfaceColor = theme.SurfaceColor
+        };
+        _isEditingCustomTheme = true;
+    }
+
+    private void CancelEditCustomTheme()
+    {
+        _editingCustomTheme = null;
+        _isEditingCustomTheme = false;
+    }
+
+    private async Task SaveCustomThemeAsync()
+    {
+        if (_editingCustomTheme != null)
+        {
+            if (BrowserPrefs.Preferences.CustomThemes == null)
+            {
+                BrowserPrefs.Preferences.CustomThemes = new List<Einsatzueberwachung.Domain.Models.CustomTheme>();
+            }
+
+            var existing = BrowserPrefs.Preferences.CustomThemes.FirstOrDefault(t => t.Id == _editingCustomTheme.Id);
+            if (existing != null)
+            {
+                existing.Name = _editingCustomTheme.Name;
+                existing.PrimaryColor = _editingCustomTheme.PrimaryColor;
+                existing.SecondaryColor = _editingCustomTheme.SecondaryColor;
+                existing.TertiaryColor = _editingCustomTheme.TertiaryColor;
+                existing.SurfaceColor = _editingCustomTheme.SurfaceColor;
+            }
+            else
+            {
+                BrowserPrefs.Preferences.CustomThemes.Add(_editingCustomTheme);
+            }
+
+            if (BrowserPrefs.Preferences.ThemePreset == _editingCustomTheme.Id)
+            {
+                await SetThemePresetAsync(new ChangeEventArgs { Value = _editingCustomTheme.Id });
+            }
+            else
+            {
+                await BrowserPrefs.SaveAsync();
+            }
+
+            _editingCustomTheme = null;
+            _isEditingCustomTheme = false;
+        }
+    }
+
+    private async Task DeleteCustomThemeAsync(string id)
+    {
+        if (BrowserPrefs.Preferences.CustomThemes != null)
+        {
+            var theme = BrowserPrefs.Preferences.CustomThemes.FirstOrDefault(t => t.Id == id);
+            if (theme != null)
+            {
+                BrowserPrefs.Preferences.CustomThemes.Remove(theme);
+
+                if (BrowserPrefs.Preferences.ThemePreset == id)
+                {
+                    await SetThemePresetAsync(new ChangeEventArgs { Value = "NRW" });
+                }
+                else
+                {
+                    await BrowserPrefs.SaveAsync();
+                }
+            }
+        }
+    }
+
+private async Task SetDesignModeAsync(bool darkMode)
     {
         if (BrowserPrefs.Preferences.ThemeMode != "Manual")
             return;

@@ -501,12 +501,23 @@ private async Task SetDesignModeAsync(bool darkMode)
 
     private static string NormalizeThemePreset(string? value)
     {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return ThemePresets.Nrw;
+        }
+
         if (string.Equals(value, ThemePresets.Ruhr, StringComparison.OrdinalIgnoreCase))
         {
             return ThemePresets.Ruhr;
         }
 
-        return ThemePresets.Nrw;
+        if (string.Equals(value, ThemePresets.Nrw, StringComparison.OrdinalIgnoreCase))
+        {
+            return ThemePresets.Nrw;
+        }
+
+        // Benutzerdefinierte Themes speichern ihre eigene ID als Preset-Wert.
+        return value.Trim();
     }
 
     private static string NormalizeVisualIntensity(string? value)

@@ -2,7 +2,7 @@
 @inject IEinsatzService EinsatzService
 @implements IDisposable
 
-<div class="top-row navbar navbar-dark @(IsCollapsed ? "nav-header-collapsed" : "")">
+<div class="top-row navbar @(IsCollapsed ? "nav-header-collapsed" : "")">
     <div class="container-fluid nav-brand-row">
         <a class="navbar-brand" href="/" title="Startseite">
             @if (!string.IsNullOrWhiteSpace(_staffelLogoUrl))

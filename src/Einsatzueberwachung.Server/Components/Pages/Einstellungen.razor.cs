@@ -516,6 +516,7 @@ private async Task SetDesignModeAsync(bool darkMode)
             return ThemePresets.Nrw;
         }
 
+        // Benutzerdefinierte Themes speichern ihre eigene ID als Preset-Wert.
         return value.Trim();
     }
 

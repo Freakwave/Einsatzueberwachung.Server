@@ -144,6 +144,7 @@ public sealed class BrowserPreferencesService
             return ThemePresets.Nrw;
         }
 
+        // Benutzerdefinierte Themes werden über ihre gespeicherte Theme-ID geladen.
         return preset.Trim();
     }
 

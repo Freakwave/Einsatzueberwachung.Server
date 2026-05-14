@@ -21,11 +21,6 @@
     background: transparent;
 }
 
-/* Caret icon inside szenario badge */
-.monitor-caret-icon {
-    font-size: 9px;
-}
-
 /* Wrapper div around the panel picker button */
 .monitor-panel-picker-wrapper {
     position: relative;

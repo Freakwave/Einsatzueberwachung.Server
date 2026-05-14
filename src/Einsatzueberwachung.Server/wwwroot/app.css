@@ -6616,8 +6616,6 @@ a.mention-badge-link:hover {
 }
 .monitor-szenario-btn {
     cursor: pointer;
-    line-height: 1.2;
-    border: 1px solid color-mix(in srgb, var(--monitor-szenario-color, var(--theme-primary)) 58%, var(--ui-border));
     background: color-mix(in srgb, var(--monitor-szenario-color, var(--theme-primary)) 78%, var(--theme-secondary) 22%);
     color: var(--theme-on-accent);
 }

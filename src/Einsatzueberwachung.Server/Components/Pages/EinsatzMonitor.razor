@@ -12,43 +12,7 @@
     {
     <header class="monitor-dash-header">
         <div class="monitor-dash-title">
-            <span class="badge @(EinsatzService.CurrentEinsatz.IstEinsatz ? "bg-primary" : "bg-warning text-dark") me-2 fs-6">
-                @EinsatzService.CurrentEinsatz.EinsatzTyp
-            </span>
-            <div class="monitor-szenario-wrap me-2">
-                <button class="badge fs-6 monitor-szenario-btn"
-                        type="button"
-                    style="--monitor-szenario-color:@EinsatzService.CurrentEinsatz.Szenario.GetColorHex();"
-                        title="Szenario wechseln (auf Anweisung der EL)"
-                        @onclick="() => _szenarioMenuOpen = !_szenarioMenuOpen">
-                    <i class="bi bi-diagram-3 me-1"></i>@EinsatzService.CurrentEinsatz.Szenario.GetDisplayName()
-                    <i class="bi bi-caret-down-fill ms-1 monitor-caret-icon"></i>
-                </button>
-                @if (_szenarioMenuOpen)
-                {
-                    <div class="monitor-szenario-backdrop" @onclick="() => _szenarioMenuOpen = false"></div>
-                    <ul class="monitor-szenario-menu">
-                        @foreach (var sz in new[] { EinsatzSzenarioType.Mantrailer, EinsatzSzenarioType.Flaeche, EinsatzSzenarioType.Truemmer, EinsatzSzenarioType.Sonstige })
-                        {
-                            <li>
-                                <button class="monitor-szenario-item @(EinsatzService.CurrentEinsatz.Szenario == sz ? "active" : "")"
-                                        type="button"
-                                        @onclick="() => SetSzenarioAsync(sz)">
-                                    <span class="monitor-szenario-dot" style="background:@sz.GetColorHex();"></span>
-                                    <span>@sz.GetDisplayName()</span>
-                                </button>
-                            </li>
-                        }
-                    </ul>
-                }
-            </div>
-            <strong>@EinsatzService.CurrentEinsatz.Einsatzort</strong>
-            @if (_einsatzdauerFromHeader.HasValue)
-            {
-                <span class="ms-3 einsatz-dauer-badge">
-                    <i class="bi bi-clock-history"></i>@GetEinsatzdauerDisplay()
-                </span>
-            }
+            <span class="text-muted small fw-semibold">Einsatz-Monitor</span>
         </div>
         <div class="monitor-dash-actions">
             <div class="monitor-panel-picker-wrapper">
@@ -75,18 +39,10 @@
                             aria-label="Panel-Menü schließen"></button>
                 }
             </div>
-            <a class="btn btn-sm monitor-action-btn monitor-action-btn--map" href="/einsatz-karte">
-                <i class="bi bi-map me-1"></i>Karte
-            </a>
-            <button class="btn btn-sm monitor-action-btn monitor-action-btn--team-mobile monitor-action-btn--accent-solid monitor-action-btn--accent-success" type="button" @onclick="OpenTeamMobileModal" title="QR-Code fuer Team-Smartphones">
+            <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="OpenTeamMobileModal" title="QR-Code fuer Team-Smartphones">
                 <i class="bi bi-qr-code me-1"></i>Team-Mobile
             </button>
-            <button class="btn btn-sm monitor-action-btn monitor-action-btn--push" type="button" @onclick="OpenTeamMessageModal" title="Nachricht an ein Team-Smartphone">
-                <i class="bi bi-megaphone me-1"></i>Push
-            </button>
-            <button class="btn btn-sm monitor-action-btn monitor-action-btn--stop" type="button" @onclick="OpenCloseMissionModal">
-                <i class="bi bi-stop-circle me-1"></i>Beenden
-            </button>
+            
         </div>
     </header>
     }
@@ -304,9 +260,12 @@
                                     break;
 
                                 case KnownPanels.Notizen:
+                                    <button class="btn btn-outline-secondary btn-sm me-2" type="button" @onclick="OpenTeamMessageModal" title="Nachricht an ein Team-Smartphone">
+                                        <i class="bi bi-megaphone me-1"></i>Push
+                                    </button>
                                     @if (!_isNoteFormExpanded)
                                     {
-                                        <button class="btn btn-outline-primary w-100 mb-3 note-expander-trigger"
+                                        <button class="btn btn-outline-primary note-expander-trigger"
                                                 @onclick="OpenNoteFormAsync">
                                             <i class="bi bi-pencil-fill me-2"></i>Notiz / Funk hinzufügen...
                                         </button>

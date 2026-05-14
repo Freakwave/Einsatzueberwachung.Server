@@ -1,5 +1,6 @@
 ﻿using Einsatzueberwachung.Domain.Interfaces;
 using Einsatzueberwachung.Domain.Models;
+using Einsatzueberwachung.Domain.Models.Enums;
 using Einsatzueberwachung.Server.Services;
 using Einsatzueberwachung.Server.Training;
 using Microsoft.AspNetCore.Components;
@@ -30,6 +31,9 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
     private bool _showExerciseEndedPopup;
     private string _exerciseEndedName = string.Empty;
     private string _exerciseEndedSummary = string.Empty;
+    private bool _szenarioMenuOpen;
+    private TimeSpan? _missionDuration;
+    private System.Threading.Timer? _missionDurationTimer;
 
     private WarningEntry? _lastWarning;
 
@@ -126,11 +130,15 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         }
 
         await JS.InvokeVoidAsync("initializeClock");
+        RefreshMissionDuration();
+        StartMissionDurationTimer();
         StateHasChanged();
     }
 
     private void OnEinsatzStateChanged()
     {
+        _szenarioMenuOpen = false;
+        RefreshMissionDuration();
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -208,6 +216,43 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         });
     }
 
+    private async Task SetSzenarioAsync(EinsatzSzenarioType szenario)
+    {
+        _szenarioMenuOpen = false;
+        await EinsatzService.UpdateSzenarioAsync(szenario);
+    }
+
+    private void StartMissionDurationTimer()
+    {
+        _missionDurationTimer?.Dispose();
+        _missionDurationTimer = new System.Threading.Timer(
+            _ => _ = InvokeAsync(() =>
+            {
+                RefreshMissionDuration();
+                StateHasChanged();
+            }),
+            null,
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(1));
+    }
+
+    private void RefreshMissionDuration()
+    {
+        if (!HasActiveEinsatz || !EinsatzService.CurrentEinsatz.AlarmierungsZeit.HasValue)
+        {
+            _missionDuration = null;
+            return;
+        }
+
+        var duration = TimeService.Now - EinsatzService.CurrentEinsatz.AlarmierungsZeit.Value;
+        _missionDuration = duration < TimeSpan.Zero ? TimeSpan.Zero : duration;
+    }
+
+    private string GetMissionDurationDisplay()
+    {
+        return (_missionDuration ?? EinsatzService.CurrentEinsatz.Dauer)?.ToString(@"hh\:mm\:ss") ?? "--:--:--";
+    }
+
     private async Task DismissCriticalWarningAsync()
     {
         _showCriticalWarningPopup = false;
@@ -266,6 +311,12 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         Navigation.NavigateTo("/");
     }
 
+    private void OpenCloseMissionFromTopbar()
+    {
+        var token = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        Navigation.NavigateTo($"/einsatz-monitor?openCloseMissionAt={token}");
+    }
+
     private async Task ToggleThemeAsync()
     {
         if (BrowserPrefs.Preferences.ThemeMode != "Manual")
@@ -306,6 +357,7 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         EinsatzService.DogPauseStarted -= OnDogPauseStarted;
         TrainerNotifications.ExerciseEnded -= OnExerciseEnded;
         WarningService.WarningAdded -= OnWarningAdded;
+        _missionDurationTimer?.Dispose();
 
         try
         {

@@ -9,19 +9,9 @@
 
     <main>
         <div class="mission-topbar @(HasActiveEinsatz ? "mission-active" : "")">
-            <button class="mission-topbar-close"
-                    type="button"
-                    title="@(HasActiveEinsatz ? "Zur Startseite (Einsatz läuft weiter)" : "Zur Startseite")"
-                    @onclick="GoHome">
-                <i class="bi bi-house-door"></i>
-            </button>
-
             <div class="mission-status-strip" aria-live="polite">
                 @if (HasActiveEinsatz)
                 {
-                    <span class="badge @(EinsatzService.CurrentEinsatz.IstEinsatz ? "bg-primary" : "bg-warning text-dark")">
-                        @EinsatzService.CurrentEinsatz.EinsatzTyp
-                    </span>
                     <span class="badge text-bg-success">Laufend: @RunningTeamsCount</span>
                     @if (PausingTeamsCount > 0)
                     {

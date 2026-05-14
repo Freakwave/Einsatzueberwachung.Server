@@ -472,16 +472,16 @@
 
                         </div>
 
-                        <div class="cfg-field" style="grid-column: 1 / -1;">
+                        <div class="cfg-field cfg-field-full">
                             <label class="cfg-label">Benutzerdefinierte Themes</label>
                             <div class="custom-themes-list mb-3">
                                 @if (BrowserPrefs.Preferences.CustomThemes != null && BrowserPrefs.Preferences.CustomThemes.Any())
                                 {
-                                    <ul class="list-group mb-2" style="max-width: 500px;">
+                                    <ul class="list-group mb-2 cfg-theme-list">
                                         @foreach (var theme in BrowserPrefs.Preferences.CustomThemes)
                                         {
-                                            <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent" style="border-color: var(--ui-border);">
-                                                <span style="color: var(--ui-text);">@theme.Name</span>
+                                            <li class="list-group-item">
+                                                <span>@theme.Name</span>
                                                 <div class="btn-group btn-group-sm">
                                                     <button type="button" class="btn btn-outline-secondary" @onclick="() => EditCustomTheme(theme)"><i class="bi bi-pencil"></i></button>
                                                     <button type="button" class="btn btn-outline-danger" @onclick="() => DeleteCustomThemeAsync(theme.Id)"><i class="bi bi-trash"></i></button>
@@ -498,28 +498,28 @@
 
                             @if (_isEditingCustomTheme && _editingCustomTheme != null)
                             {
-                                <div class="card card-body mb-3" style="max-width: 600px; background: var(--surface-color, var(--ui-surface-2)); border-color: var(--ui-border);">
-                                    <h6 class="mb-3" style="color: var(--ui-text);">Theme bearbeiten</h6>
+                                <div class="card card-body mb-3 cfg-theme-editor-card">
+                                    <h6 class="mb-3">Theme bearbeiten</h6>
                                     <div class="mb-2">
-                                        <label class="form-label small" style="color: var(--ui-text);">Name</label>
-                                        <input type="text" class="form-control form-control-sm bg-transparent" style="color: var(--ui-text); border-color: var(--ui-border);" @bind="_editingCustomTheme.Name" />
+                                        <label class="form-label small">Name</label>
+                                        <input type="text" class="form-control form-control-sm bg-transparent" @bind="_editingCustomTheme.Name" />
                                     </div>
                                     <div class="row g-2 mb-3">
                                         <div class="col-6 col-md-3">
-                                            <label class="form-label small" style="color: var(--ui-text);">Primary</label>
-                                            <input type="color" class="form-control form-control-sm form-control-color w-100 bg-transparent" style="border-color: var(--ui-border);" @bind="_editingCustomTheme.PrimaryColor" />
+                                            <label class="form-label small">Primary</label>
+                                            <input type="color" class="form-control form-control-sm form-control-color w-100 bg-transparent" @bind="_editingCustomTheme.PrimaryColor" />
                                         </div>
                                         <div class="col-6 col-md-3">
-                                            <label class="form-label small" style="color: var(--ui-text);">Secondary</label>
-                                            <input type="color" class="form-control form-control-sm form-control-color w-100 bg-transparent" style="border-color: var(--ui-border);" @bind="_editingCustomTheme.SecondaryColor" />
+                                            <label class="form-label small">Secondary</label>
+                                            <input type="color" class="form-control form-control-sm form-control-color w-100 bg-transparent" @bind="_editingCustomTheme.SecondaryColor" />
                                         </div>
                                         <div class="col-6 col-md-3">
-                                            <label class="form-label small" style="color: var(--ui-text);">Tertiary</label>
-                                            <input type="color" class="form-control form-control-sm form-control-color w-100 bg-transparent" style="border-color: var(--ui-border);" @bind="_editingCustomTheme.TertiaryColor" />
+                                            <label class="form-label small">Tertiary</label>
+                                            <input type="color" class="form-control form-control-sm form-control-color w-100 bg-transparent" @bind="_editingCustomTheme.TertiaryColor" />
                                         </div>
                                         <div class="col-6 col-md-3">
-                                            <label class="form-label small" style="color: var(--ui-text);">Quaternary</label>
-                                            <input type="color" class="form-control form-control-sm form-control-color w-100 bg-transparent" style="border-color: var(--ui-border);" @bind="_editingCustomTheme.QuaternaryColor" />
+                                            <label class="form-label small">Quaternary</label>
+                                            <input type="color" class="form-control form-control-sm form-control-color w-100 bg-transparent" @bind="_editingCustomTheme.QuaternaryColor" />
                                         </div>
                                     </div>
                                     <div class="d-flex justify-content-end gap-2">
@@ -604,9 +604,9 @@
                             <div class="card p-3">
                                 <div class="d-flex align-items-center gap-2 mb-1">
                                     <span class="badge text-bg-success">Team 1</span>
-                                    <strong style="font-size: 0.9rem;">Beispiel-Karte</strong>
+                                    <strong class="small">Beispiel-Karte</strong>
                                 </div>
-                                <div class="text-muted" style="font-size: 0.8rem;">Cards reagieren auf Border-Radius und Schatten.</div>
+                                <div class="text-muted small">Cards reagieren auf Border-Radius und Schatten.</div>
                                 <div class="mt-2">
                                     <button type="button" class="btn btn-primary btn-sm me-1">Primär</button>
                                     <button type="button" class="btn btn-success btn-sm">Erfolg</button>

@@ -789,3 +789,27 @@
     box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
     background-color: var(--bs-primary-bg-subtle, #cfe2ff);
 }
+
+/* ---------- Custom Theme Editor ------------------------------------ */
+
+::deep .cfg-field-full {
+    grid-column: 1 / -1;
+}
+
+::deep .cfg-theme-list {
+    max-width: 500px;
+}
+
+::deep .cfg-theme-list .list-group-item {
+    border-color: var(--ui-border);
+    background: transparent;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+::deep .cfg-theme-editor-card {
+    max-width: 600px;
+    background: var(--surface-color, var(--ui-surface-2));
+    border-color: var(--ui-border);
+}

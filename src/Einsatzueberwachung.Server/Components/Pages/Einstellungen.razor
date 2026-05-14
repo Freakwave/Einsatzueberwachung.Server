@@ -453,14 +453,81 @@
                     <div class="cfg-grid cfg-grid-2 mt-2">
                         <div class="cfg-field">
                             <label class="cfg-label">Farb-Theme</label>
-                            <select class="cfg-input"
+                                                                                    <select class="cfg-input"
                                     value="@BrowserPrefs.Preferences.ThemePreset"
                                     @onchange="SetThemePresetAsync">
                                 <option value="NRW">NRW (Primary #A72920, Secondary #404040)</option>
                                 <option value="Ruhr">Ruhr (Primary #005D9E, Secondary #FFED00)</option>
+                                @if (BrowserPrefs.Preferences.CustomThemes != null)
+                                {
+                                    @foreach (var theme in BrowserPrefs.Preferences.CustomThemes)
+                                    {
+                                        <option value="@theme.Id">@theme.Name (Custom)</option>
+                                    }
+                                }
                             </select>
-                            <span class="cfg-help">Basiert auf exakt zwei Grundfarben: Primary und Secondary.</span>
+                            <span class="cfg-help">Basiert auf 4 Grundfarben (Primary, Secondary, Tertiary/Highlight, Quaternary).</span>
                         </div>
+
+
+                        </div>
+
+                        <div class="cfg-field" style="grid-column: 1 / -1;">
+                            <label class="cfg-label">Benutzerdefinierte Themes</label>
+                            <div class="custom-themes-list mb-3">
+                                @if (BrowserPrefs.Preferences.CustomThemes != null && BrowserPrefs.Preferences.CustomThemes.Any())
+                                {
+                                    <ul class="list-group mb-2" style="max-width: 500px;">
+                                        @foreach (var theme in BrowserPrefs.Preferences.CustomThemes)
+                                        {
+                                            <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent" style="border-color: var(--ui-border);">
+                                                <span style="color: var(--ui-text);">@theme.Name</span>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button type="button" class="btn btn-outline-secondary" @onclick="() => EditCustomTheme(theme)"><i class="bi bi-pencil"></i></button>
+                                                    <button type="button" class="btn btn-outline-danger" @onclick="() => DeleteCustomThemeAsync(theme.Id)"><i class="bi bi-trash"></i></button>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                                @if (!_isEditingCustomTheme)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="StartNewCustomTheme"><i class="bi bi-plus-circle me-1"></i>Neues Theme erstellen</button>
+                                }
+                            </div>
+
+                            @if (_isEditingCustomTheme && _editingCustomTheme != null)
+                            {
+                                <div class="card card-body mb-3" style="max-width: 600px; background: var(--surface-color, var(--ui-surface-2)); border-color: var(--ui-border);">
+                                    <h6 class="mb-3" style="color: var(--ui-text);">Theme bearbeiten</h6>
+                                    <div class="mb-2">
+                                        <label class="form-label small" style="color: var(--ui-text);">Name</label>
+                                        <input type="text" class="form-control form-control-sm bg-transparent" style="color: var(--ui-text); border-color: var(--ui-border);" @bind="_editingCustomTheme.Name" />
+                                    </div>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label small" style="color: var(--ui-text);">Primary</label>
+                                            <input type="color" class="form-control form-control-sm form-control-color w-100 bg-transparent" style="border-color: var(--ui-border);" @bind="_editingCustomTheme.PrimaryColor" />
+                                        </div>
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label small" style="color: var(--ui-text);">Secondary</label>
+                                            <input type="color" class="form-control form-control-sm form-control-color w-100 bg-transparent" style="border-color: var(--ui-border);" @bind="_editingCustomTheme.SecondaryColor" />
+                                        </div>
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label small" style="color: var(--ui-text);">Tertiary</label>
+                                            <input type="color" class="form-control form-control-sm form-control-color w-100 bg-transparent" style="border-color: var(--ui-border);" @bind="_editingCustomTheme.TertiaryColor" />
+                                        </div>
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label small" style="color: var(--ui-text);">Quaternary</label>
+                                            <input type="color" class="form-control form-control-sm form-control-color w-100 bg-transparent" style="border-color: var(--ui-border);" @bind="_editingCustomTheme.QuaternaryColor" />
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <button type="button" class="btn btn-sm btn-secondary" @onclick="CancelEditCustomTheme">Abbrechen</button>
+                                        <button type="button" class="btn btn-sm btn-primary" @onclick="SaveCustomThemeAsync">Speichern</button>
+                                    </div>
+                                </div>
+                            }
 
                         <div class="cfg-field">
                             <label class="cfg-label">Visuelle Intensität</label>

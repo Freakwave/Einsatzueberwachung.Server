@@ -20,7 +20,7 @@
     --theme-quaternary: #5BB969;
     --theme-on-accent: #ffffff;
     --signal-success-hue: var(--theme-quaternary, #56785f);
-    --signal-warning-hue: #9c7540;
+    --signal-warning-hue: #d97706;
     --signal-danger-hue: #e12431;
     --signal-info-hue: #6c7a8b;
     --signal-pause-hue: #6c7586;
@@ -1489,7 +1489,7 @@ a.list-group-item {
 
 .note-entry.note-type-teamwarning {
     border-left-color: var(--warning-color);
-    background: rgba(255, 152, 0, 0.05);
+    background: var(--warning-soft);
 }
 
 .note-entry.note-type-einsatzupdate {
@@ -1744,7 +1744,8 @@ a.list-group-item {
 }
 
 .badge-uebung {
-    background: rgba(255, 152, 0, 0.9);
+    background: var(--signal-warning-hue);
+    color: var(--theme-on-accent);
     padding: 0.5rem 1.5rem;
     border-radius: 20px;
     font-weight: 700;
@@ -1827,17 +1828,17 @@ a.list-group-item {
 
 .team-card-monitor.running {
     border-left-color: var(--success-color);
-    background: linear-gradient(to right, rgba(76, 175, 80, 0.05) 0%, white 50%);
+    background: linear-gradient(to right, var(--success-soft) 0%, var(--ui-surface, #ffffff) 50%);
 }
 
 .team-card-monitor.warning {
     border-left-color: var(--warning-color);
-    background: linear-gradient(to right, rgba(255, 152, 0, 0.05) 0%, white 50%);
+    background: linear-gradient(to right, var(--warning-soft) 0%, var(--ui-surface, #ffffff) 50%);
 }
 
 .team-card-monitor.critical {
     border-left-color: var(--danger-color);
-    background: linear-gradient(to right, rgba(244, 67, 54, 0.18) 0%, #fff8f8 50%);
+    background: linear-gradient(to right, var(--danger-soft) 0%, var(--ui-surface, #ffffff) 50%);
     animation: pulse-critical 2s infinite;
 }
 
@@ -2083,17 +2084,17 @@ a.list-group-item {
 .note-card.note-type-teamstop,
 .note-card.note-type-teamreset {
     border-left-color: var(--info-color);
-    background: rgba(0, 188, 212, 0.05);
+    background: var(--info-soft);
 }
 
 .note-card.note-type-teamwarning {
     border-left-color: var(--warning-color);
-    background: rgba(255, 152, 0, 0.08);
+    background: var(--warning-soft);
 }
 
 .note-card.note-type-einsatzupdate {
     border-left-color: var(--success-color);
-    background: rgba(76, 175, 80, 0.05);
+    background: var(--success-soft);
 }
 
 .note-header {
@@ -2931,15 +2932,15 @@ main:has(.map-page-layout) {
 
 /* Marker Cluster */
 .marker-cluster-small {
-    background-color: rgba(33, 150, 243, 0.6);
+    background-color: color-mix(in srgb, var(--signal-info-hue) 60%, transparent);
 }
 
 .marker-cluster-medium {
-    background-color: rgba(255, 152, 0, 0.6);
+    background-color: color-mix(in srgb, var(--signal-warning-hue) 60%, transparent);
 }
 
 .marker-cluster-large {
-    background-color: rgba(244, 67, 54, 0.6);
+    background-color: color-mix(in srgb, var(--signal-danger-hue) 60%, transparent);
 }
 
 /* ========================================
@@ -3483,7 +3484,13 @@ textarea:focus {
 .btn-secondary {
     background: color-mix(in srgb, var(--secondary-color) var(--theme-button-fill), var(--ui-surface, #ffffff));
     border-color: color-mix(in srgb, var(--secondary-color) var(--theme-intensity-border), var(--ui-border, #d5deea));
-    color: color-mix(in srgb, var(--secondary-color) var(--theme-intensity-text), var(--ui-text, #1f2937));
+    /* text uses ui-text directly — prevents low contrast when bg is heavily tinted */
+    color: var(--ui-text, #1f2937);
+}
+
+[data-intensity="lebhaft"] .btn-secondary {
+    /* solid secondary bg in lebhaft mode → needs on-accent contrast */
+    color: var(--theme-on-accent);
 }
 
 .btn-success {

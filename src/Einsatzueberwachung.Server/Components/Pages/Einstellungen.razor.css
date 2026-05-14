@@ -657,6 +657,31 @@
     }
 }
 
+/* ---------- Theme Preview – Button Showcase ------------------------ */
+
+::deep .theme-preview-btn-section {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--ui-border);
+}
+
+::deep .theme-preview-btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+::deep .theme-preview-btn-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ui-muted);
+}
+
 /* ---------- System Info Grid (definition list) --------------------- */
 
 ::deep .cfg-info-grid {

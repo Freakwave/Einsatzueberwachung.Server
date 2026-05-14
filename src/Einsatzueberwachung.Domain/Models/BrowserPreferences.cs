@@ -52,7 +52,7 @@ namespace Einsatzueberwachung.Domain.Models
         public string PrimaryColor { get; set; } = "#A72920";
         public string SecondaryColor { get; set; } = "#404040";
         public string TertiaryColor { get; set; } = "#005D9E";
-        public string SurfaceColor { get; set; } = "#FFFFFF";
+        public string QuaternaryColor { get; set; } = "#00B4E0";
     }
 
     /// <summary>

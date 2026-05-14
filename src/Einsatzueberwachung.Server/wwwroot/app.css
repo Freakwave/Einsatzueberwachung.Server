@@ -6785,6 +6785,5 @@ a.mention-badge-link:hover {
 
 
 .theme-preview-surface {
-    background: var(--theme-surface, var(--ui-surface-2)) !important;
     border-color: var(--theme-secondary, var(--ui-border)) !important;
 }

@@ -380,7 +380,7 @@ public partial class Einstellungen
             PrimaryColor = "#005D9E",
             SecondaryColor = "#FFED00",
             TertiaryColor = "#28A745",
-            SurfaceColor = "#FFFFFF"
+            QuaternaryColor = "#FFFFFF"
         };
         _isEditingCustomTheme = true;
     }
@@ -394,7 +394,7 @@ public partial class Einstellungen
             PrimaryColor = theme.PrimaryColor,
             SecondaryColor = theme.SecondaryColor,
             TertiaryColor = theme.TertiaryColor,
-            SurfaceColor = theme.SurfaceColor
+            QuaternaryColor = theme.QuaternaryColor
         };
         _isEditingCustomTheme = true;
     }
@@ -421,7 +421,7 @@ public partial class Einstellungen
                 existing.PrimaryColor = _editingCustomTheme.PrimaryColor;
                 existing.SecondaryColor = _editingCustomTheme.SecondaryColor;
                 existing.TertiaryColor = _editingCustomTheme.TertiaryColor;
-                existing.SurfaceColor = _editingCustomTheme.SurfaceColor;
+                existing.QuaternaryColor = _editingCustomTheme.QuaternaryColor;
             }
             else
             {

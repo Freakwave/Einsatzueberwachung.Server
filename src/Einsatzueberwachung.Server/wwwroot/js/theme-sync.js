@@ -4,8 +4,8 @@ window.themeSync = (() => {
     const browserPrefsKey = "browser-prefs";
 
             const themePalette = {
-        nrw: { primary: "#A72920", secondary: "#404040", tertiary: "#E3000F", surface: "#F4F4F4" },
-        ruhr: { primary: "#005D9E", secondary: "#FFED00", tertiary: "#00B4E0", surface: "#F0F8FF" }
+        nrw: { primary: "#A72920", secondary: "#404040", tertiary: "#E3000F", quaternary: "#5BB969" },
+        ruhr: { primary: "#005D9E", secondary: "#FFED00", tertiary: "#00B4E0", quaternary: "#F28C28" }
     };
 
     const defaultState = {
@@ -113,7 +113,7 @@ window.themeSync = (() => {
                              primary: customTheme.primaryColor || customTheme.PrimaryColor,
                              secondary: customTheme.secondaryColor || customTheme.SecondaryColor,
                              tertiary: customTheme.tertiaryColor || customTheme.TertiaryColor,
-                             surface: customTheme.surfaceColor || customTheme.SurfaceColor
+                             quaternary: customTheme.quaternaryColor || customTheme.QuaternaryColor
                          };
                      }
                  }
@@ -139,15 +139,15 @@ window.themeSync = (() => {
                 document.body.style.removeProperty('--tertiary-color');
             }
         }
-        if (palette.surface) {
-            setStyleVariableOnThemeRoots("--theme-surface", palette.surface);
-            setStyleVariableOnThemeRoots("--surface-color", palette.surface);
+        if (palette.quaternary) {
+            setStyleVariableOnThemeRoots("--theme-quaternary", palette.quaternary);
+            setStyleVariableOnThemeRoots("--quaternary-color", palette.quaternary);
         } else {
-            document.documentElement.style.removeProperty('--theme-surface');
-            document.documentElement.style.removeProperty('--surface-color');
+            document.documentElement.style.removeProperty('--theme-quaternary');
+            document.documentElement.style.removeProperty('--quaternary-color');
             if (document.body) {
-                document.body.style.removeProperty('--theme-surface');
-                document.body.style.removeProperty('--surface-color');
+                document.body.style.removeProperty('--theme-quaternary');
+                document.body.style.removeProperty('--quaternary-color');
             }
         }
         setStyleVariableOnThemeRoots("--primary-color", palette.primary);

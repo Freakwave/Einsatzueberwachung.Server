@@ -107,7 +107,7 @@ window.themeSync = (() => {
                  const parsed = JSON.parse(raw);
                  const customThemes = parsed.customThemes || parsed.CustomThemes;
                  if (customThemes && Array.isArray(customThemes)) {
-                     const customTheme = customThemes.find(t => t.id === resolved.preset || t.Id === resolved.preset);
+                     const customTheme = customThemes.find(t => (t.id || t.Id) === resolved.preset || (t.id || t.Id) === resolved.preset.trim());
                      if (customTheme) {
                          palette = {
                              primary: customTheme.primaryColor || customTheme.PrimaryColor,

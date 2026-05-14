@@ -506,6 +506,11 @@ private async Task SetDesignModeAsync(bool darkMode)
             return ThemePresets.Ruhr;
         }
 
+        if (!string.IsNullOrWhiteSpace(value) && !string.Equals(value, ThemePresets.Nrw, StringComparison.OrdinalIgnoreCase))
+        {
+            return value;
+        }
+
         return ThemePresets.Nrw;
     }
 

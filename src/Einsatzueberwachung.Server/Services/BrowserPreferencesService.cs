@@ -134,9 +134,17 @@ public sealed class BrowserPreferencesService
             return ThemePresets.Nrw;
         }
 
-        return preset.Equals(ThemePresets.Ruhr, StringComparison.OrdinalIgnoreCase)
-            ? ThemePresets.Ruhr
-            : ThemePresets.Nrw;
+        if (preset.Equals(ThemePresets.Ruhr, StringComparison.OrdinalIgnoreCase))
+        {
+            return ThemePresets.Ruhr;
+        }
+
+        if (preset.Equals(ThemePresets.Nrw, StringComparison.OrdinalIgnoreCase))
+        {
+            return ThemePresets.Nrw;
+        }
+
+        return preset.Trim();
     }
 
     private static string NormalizeIntensity(string? intensity)

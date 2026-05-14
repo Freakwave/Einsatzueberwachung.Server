@@ -135,10 +135,12 @@
 .top-row {
     min-height: 3.5rem;
     background-color: var(--ui-sidebar-bg);
+    color: var(--ui-sidebar-text);
 }
 
 .navbar-brand {
     font-size: 1.1rem;
+    color: var(--ui-sidebar-text) !important;
 }
 
 .brand-logo {
@@ -166,7 +168,7 @@
     }
 
     .nav-item ::deep .nav-link {
-        color: color-mix(in srgb, var(--ui-nav-active-text) 82%, transparent);
+        color: color-mix(in srgb, var(--ui-sidebar-text) 80%, transparent);
         background: none;
         border: none;
         border-radius: 4px;
@@ -184,11 +186,11 @@
 
 .nav-item ::deep .nav-link:hover {
     background-color: color-mix(in srgb, var(--theme-primary) 16%, transparent);
-    color: var(--ui-nav-active-text);
+    color: var(--ui-sidebar-text);
 }
 
 .nav-icon-accent {
-    color: color-mix(in srgb, var(--warning-color) 80%, var(--ui-nav-active-text) 20%);
+    color: color-mix(in srgb, var(--warning-color) 80%, var(--ui-sidebar-text) 20%);
 }
 
 .nav-scrollable {

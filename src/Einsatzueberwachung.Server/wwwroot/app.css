@@ -3319,6 +3319,8 @@ main:has(.map-page-layout) {
     --ui-topbar-btn-text: #243247;
     --ui-sidebar-bg: #eef3fb;
     --ui-sidebar-border: #d5deea;
+    --ui-sidebar-text: #1f2937;
+    --ui-sidebar-text-muted: #556070;
     --ui-nav-active-bg: color-mix(in srgb, var(--theme-tertiary) 14%, var(--ui-surface));
     --ui-nav-active-text: #243247;
     --ui-heading-text: #163253;
@@ -3383,6 +3385,8 @@ main:has(.map-page-layout) {
     --ui-topbar-btn-text: #d9dbe0;
     --ui-sidebar-bg: #1c1f26;
     --ui-sidebar-border: rgba(255, 255, 255, 0.08);
+    --ui-sidebar-text: #eef5ff;
+    --ui-sidebar-text-muted: #9aa4b5;
     --ui-nav-active-bg: color-mix(in srgb, var(--theme-primary) 12%, rgba(255, 255, 255, 0.05));
     --ui-nav-active-text: #eef5ff;
     --ui-heading-text: #4aa8ff;
@@ -3590,7 +3594,7 @@ main,
 /* Dezent: completely flat sidebar, no gradient, minimal border
    !important required because the base .sidebar rule above also uses it. */
 [data-intensity="dezent"] .sidebar {
-    border-right-color: rgba(255, 255, 255, 0.06) !important;
+    border-right-color: color-mix(in srgb, var(--ui-sidebar-text) 12%, transparent) !important;
 }
 
 /* Lebhaft: theme-colored gradient bleeds into the top of the sidebar
@@ -3634,13 +3638,13 @@ main,
 }
 
 .brand-icon {
-    color: color-mix(in srgb, var(--theme-tertiary) 60%, var(--theme-primary) 40%);
+    color: color-mix(in srgb, var(--theme-tertiary) 60%, var(--ui-sidebar-text) 40%);
 }
 
 .nav-section-header {
     font-size: 0.88rem;
     font-weight: 800;
-    color: color-mix(in srgb, var(--ui-nav-active-text) 90%, transparent) !important;
+    color: color-mix(in srgb, var(--ui-sidebar-text) 55%, transparent) !important;
     opacity: 0.92;
     margin-top: 0.55rem;
 }
@@ -3660,8 +3664,8 @@ main,
    !important overrides the base .nav-link.active background above.
    Opacity values mirror the surrounding sidebar convention (0.08/0.18/0.75). */
 [data-intensity="dezent"] .nav-link.active {
-    background: rgba(255, 255, 255, 0.08) !important;
-    box-shadow: inset 2px 0 0 rgba(255, 255, 255, 0.35);
+    background: color-mix(in srgb, var(--ui-sidebar-text) 8%, transparent) !important;
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--ui-sidebar-text) 35%, transparent);
     font-weight: 500;
 }
 
@@ -3673,7 +3677,7 @@ main,
 }
 
 .nav-icon i {
-    color: color-mix(in srgb, var(--ui-nav-active-text) 84%, transparent);
+    color: color-mix(in srgb, var(--ui-sidebar-text) 84%, transparent);
 }
 
 h1 {

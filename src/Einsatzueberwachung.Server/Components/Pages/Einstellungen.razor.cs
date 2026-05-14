@@ -369,7 +369,7 @@ public partial class Einstellungen
 
 
     private bool _isEditingCustomTheme;
-    private Einsatzueberwachung.Domain.Models.CustomTheme _editingCustomTheme;
+    private Einsatzueberwachung.Domain.Models.CustomTheme? _editingCustomTheme;
 
     private void StartNewCustomTheme()
     {

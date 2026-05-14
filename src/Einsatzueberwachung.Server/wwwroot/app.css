@@ -16,8 +16,10 @@
 [data-bs-theme="dark"] {
     --theme-primary: #A72920;
     --theme-secondary: #404040;
+    --theme-tertiary: #E3000F;
+    --theme-quaternary: #5BB969;
     --theme-on-accent: #ffffff;
-    --signal-success-hue: #56785f;
+    --signal-success-hue: var(--theme-quaternary, #56785f);
     --signal-warning-hue: #9c7540;
     --signal-danger-hue: #e12431;
     --signal-info-hue: #6c7a8b;
@@ -81,8 +83,13 @@
     --theme-primary-fill: color-mix(in srgb, var(--theme-primary) var(--theme-intensity-fill), var(--ui-surface, #ffffff));
     --theme-primary-text: color-mix(in srgb, var(--theme-primary) var(--theme-intensity-text), var(--ui-text, #1f2937));
     --theme-primary-shadow: color-mix(in srgb, var(--theme-primary) var(--theme-intensity-shadow), transparent);
-    --theme-alert-success: color-mix(in srgb, var(--signal-success-hue) var(--theme-alert-fill), var(--ui-surface, #ffffff));
-    --theme-alert-success-border: color-mix(in srgb, var(--signal-success-hue) var(--theme-intensity-border), var(--ui-border, #d5deea));
+    --theme-tertiary-soft: color-mix(in srgb, var(--theme-tertiary) var(--theme-intensity-soft), transparent);
+    --theme-tertiary-border: color-mix(in srgb, var(--theme-tertiary) var(--theme-intensity-border), var(--ui-border, #d5deea));
+    --theme-tertiary-fill: color-mix(in srgb, var(--theme-tertiary) var(--theme-intensity-fill), var(--ui-surface, #ffffff));
+    --theme-tertiary-text: color-mix(in srgb, var(--theme-tertiary) var(--theme-intensity-text), var(--ui-text, #1f2937));
+    --theme-tertiary-shadow: color-mix(in srgb, var(--theme-tertiary) var(--theme-intensity-shadow), transparent);
+    --theme-alert-success: color-mix(in srgb, var(--theme-quaternary) var(--theme-alert-fill), var(--ui-surface, #ffffff));
+    --theme-alert-success-border: color-mix(in srgb, var(--theme-quaternary) var(--theme-intensity-border), var(--ui-border, #d5deea));
     --theme-alert-info: color-mix(in srgb, var(--signal-info-hue) var(--theme-alert-fill), var(--ui-surface, #ffffff));
     --theme-alert-warning: color-mix(in srgb, var(--signal-warning-hue) var(--theme-alert-fill), var(--ui-surface, #ffffff));
     --theme-alert-danger: color-mix(in srgb, var(--signal-danger-hue) 14%, var(--ui-surface, #ffffff));
@@ -153,16 +160,20 @@
 }
 
 .theme-accent-btn {
-    border: 1px solid var(--theme-primary-border);
-    background: color-mix(in srgb, var(--theme-primary) var(--theme-button-fill), var(--ui-surface, #ffffff));
+    border: 1px solid var(--theme-tertiary-border);
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--theme-primary) var(--theme-button-fill), var(--ui-surface, #ffffff)) 0%,
+        color-mix(in srgb, var(--theme-tertiary) 22%, var(--ui-surface, #ffffff)) 100%);
     color: var(--theme-on-accent);
     border-radius: 8px;
     font-weight: 600;
-    box-shadow: 0 2px 10px var(--theme-primary-shadow);
+    box-shadow: 0 2px 10px var(--theme-tertiary-shadow);
 }
 
 .theme-accent-btn:hover {
-    background: color-mix(in srgb, var(--theme-primary) 100%, var(--ui-surface, #ffffff));
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--theme-primary) 100%, var(--ui-surface, #ffffff)) 0%,
+        color-mix(in srgb, var(--theme-tertiary) 58%, var(--ui-surface, #ffffff)) 100%);
     color: var(--theme-on-accent);
 }
 
@@ -3306,10 +3317,10 @@ main:has(.map-page-layout) {
     --ui-topbar-btn-bg: #f5f7fb;
     --ui-topbar-btn-border: #b7c3d8;
     --ui-topbar-btn-text: #243247;
-    --ui-sidebar-bg: #1c1f26;
-    --ui-sidebar-border: rgba(255, 255, 255, 0.08);
-    --ui-nav-active-bg: color-mix(in srgb, var(--theme-primary) 12%, rgba(255, 255, 255, 0.05));
-    --ui-nav-active-text: #eef5ff;
+    --ui-sidebar-bg: #eef3fb;
+    --ui-sidebar-border: #d5deea;
+    --ui-nav-active-bg: color-mix(in srgb, var(--theme-tertiary) 14%, var(--ui-surface));
+    --ui-nav-active-text: #243247;
     --ui-heading-text: #163253;
     --ui-card-header-bg: linear-gradient(90deg, #f3f6fb 0%, #edf1f8 100%);
     --ui-card-header-border: #d6dfeb;
@@ -3587,21 +3598,21 @@ main,
 [data-intensity="lebhaft"] .sidebar {
     background: linear-gradient(
         180deg,
-        color-mix(in srgb, var(--theme-primary) 28%, var(--ui-sidebar-bg)) 0%,
+        color-mix(in srgb, var(--theme-tertiary) 18%, var(--ui-sidebar-bg)) 0%,
         var(--ui-sidebar-bg) 60%
     ) !important;
-    border-right: 2px solid color-mix(in srgb, var(--theme-primary) 55%, transparent) !important;
+    border-right: 2px solid color-mix(in srgb, var(--theme-tertiary) 55%, transparent) !important;
 }
 
 .top-row.navbar {
     background: var(--ui-sidebar-bg);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    border-bottom: 1px solid var(--ui-sidebar-border);
     padding: 0.8rem 0.6rem;
 }
 
 /* Dezent: barely-visible separator, no shadow */
 [data-intensity="dezent"] .top-row.navbar {
-    border-bottom-color: rgba(255, 255, 255, 0.04);
+    border-bottom-color: color-mix(in srgb, var(--ui-sidebar-border) 70%, transparent);
     box-shadow: none;
 }
 
@@ -3623,7 +3634,7 @@ main,
 }
 
 .brand-icon {
-    color: color-mix(in srgb, var(--theme-primary) 82%, #ffffff 18%);
+    color: color-mix(in srgb, var(--theme-tertiary) 60%, var(--theme-primary) 40%);
 }
 
 .nav-section-header {
@@ -3642,7 +3653,7 @@ main,
 .nav-link.active {
     background: var(--ui-nav-active-bg);
     color: var(--ui-nav-active-text) !important;
-    box-shadow: inset 3px 0 0 var(--theme-primary);
+    box-shadow: inset 3px 0 0 var(--theme-tertiary);
 }
 
 /* Dezent: minimal active indicator — just a thin neutral stripe, no fill.
@@ -3657,8 +3668,8 @@ main,
 /* Lebhaft: filled active link with glowing left border
    !important overrides the base .nav-link.active background above. */
 [data-intensity="lebhaft"] .nav-link.active {
-    background: color-mix(in srgb, var(--theme-primary) 28%, var(--ui-nav-active-bg)) !important;
-    box-shadow: inset 3px 0 0 var(--theme-primary), 0 0 8px color-mix(in srgb, var(--theme-primary) 30%, transparent);
+    background: color-mix(in srgb, var(--theme-tertiary) 28%, var(--ui-nav-active-bg)) !important;
+    box-shadow: inset 3px 0 0 var(--theme-tertiary), 0 0 8px color-mix(in srgb, var(--theme-tertiary) 30%, transparent);
 }
 
 .nav-icon i {

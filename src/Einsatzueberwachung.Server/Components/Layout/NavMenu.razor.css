@@ -85,9 +85,9 @@
     width: 1.85rem;
     height: 1.85rem;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: rgba(238, 245, 255, 0.75);
+    background: color-mix(in srgb, var(--ui-text) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ui-text) 18%, transparent);
+    color: color-mix(in srgb, var(--ui-text) 72%, transparent);
     cursor: pointer;
     flex-shrink: 0;
     transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
@@ -95,10 +95,10 @@
 }
 
 .btn-sidebar-toggle:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: color-mix(in srgb, var(--theme-primary) 55%, transparent);
+    background: color-mix(in srgb, var(--theme-primary) 12%, var(--ui-surface));
+    border-color: color-mix(in srgb, var(--theme-tertiary) 55%, transparent);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 15%, transparent);
-    color: #eef5ff;
+    color: var(--ui-text);
 }
 
 .btn-sidebar-toggle:focus-visible {

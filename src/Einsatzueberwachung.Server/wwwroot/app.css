@@ -281,37 +281,37 @@ html, body {
     transition: width 0.3s ease, min-width 0.3s ease;
 }
 
-/* Sidebar Text (Light Theme) */
+/* Sidebar Text (theme-aware via --ui-text) */
 .sidebar,
 .sidebar * {
-    color: #ffffff !important;
+    color: var(--ui-text) !important;
     opacity: 1 !important;
 }
 
 .sidebar .nav-section-header {
-    color: rgba(255, 255, 255, 0.85) !important;
+    color: color-mix(in srgb, var(--ui-text) 85%, transparent) !important;
 }
 
 .sidebar .nav-link,
 .sidebar .nav-item .nav-link,
 .sidebar a.nav-link,
 .sidebar .nav-item a {
-    color: #ffffff !important;
+    color: var(--ui-text) !important;
 }
 
 .sidebar .nav-link:hover,
 .sidebar .nav-link:focus,
 .sidebar .nav-item .nav-link:hover,
 .sidebar .nav-item .nav-link:focus {
-    background-color: rgba(255, 255, 255, 0.12);
-    color: #ffffff !important;
+    background-color: color-mix(in srgb, var(--ui-text) 12%, transparent);
+    color: var(--ui-text) !important;
 }
 
 /* Aktiver Nav-Eintrag: deutlicher Linksrand + heller Hintergrund */
 .sidebar .nav-link.active,
 .sidebar .nav-item .nav-link.active {
-    background-color: rgba(255, 255, 255, 0.18) !important;
-    box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.75);
+    background-color: color-mix(in srgb, var(--ui-text) 18%, transparent) !important;
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--ui-text) 75%, transparent);
     font-weight: 600;
 }
 

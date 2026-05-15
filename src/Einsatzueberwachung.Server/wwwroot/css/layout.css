@@ -18,7 +18,7 @@ html, body {
 }
 
 .sidebar {
-    background-color: #0d1f3c;
+    background-color: var(--ui-sidebar-bg);
     width: 250px;
     min-width: 250px;
     height: 100vh;
@@ -249,16 +249,16 @@ main {
 
 /* Dark Mode Global Styles */
 [data-bs-theme="dark"] body {
-    background-color: #121212;
-    color: #e0e0e0;
+    background-color: var(--ui-bg);
+    color: var(--ui-text);
 }
 
 [data-bs-theme="dark"] .page {
-    background-color: #121212;
+    background-color: var(--ui-bg);
 }
 
 [data-bs-theme="dark"] .sidebar {
-    background-color: #13132a;
+    background-color: var(--ui-sidebar-bg);
     /* Scrollbar — browsers don't inherit Bootstrap dark mode */
     [data-bs-theme="dark"] ::-webkit-scrollbar {
         width: 8px;
@@ -286,8 +286,8 @@ main {
     /* Secondary badge — Bootstrap default is too dark on dark surfaces */
     [data-bs-theme="dark"] .badge.text-bg-secondary,
     [data-bs-theme="dark"] .badge.bg-secondary {
-        background-color: #484848 !important;
-        color: #e0e0e0 !important;
+        background-color: var(--ui-surface-2) !important;
+        color: var(--ui-text) !important;
     }
 
     /* Dropdown hover — subtle theme-aware tint */
@@ -548,7 +548,7 @@ main,
 }
 
 .global-warning-overlay-dismiss:focus-visible {
-    outline: 2px solid #3b82f6;
+    outline: 2px solid var(--ui-focus-outline);
     outline-offset: -2px;
 }
 

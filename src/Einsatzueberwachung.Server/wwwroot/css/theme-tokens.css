@@ -167,51 +167,60 @@
    ======================================== */
 
 :root {
-    --ui-bg: #f5f7fb;
-    --ui-surface: #ffffff;
-    --ui-surface-2: #eef3fb;
+    /* Phase 1: Surfaces carry a subtle secondary-colour tint so the background
+       shifts with the active theme preset instead of staying neutral grey. */
+    --ui-bg:        color-mix(in srgb, var(--theme-secondary) 6%,  #f3f5f8);
+    --ui-surface:   color-mix(in srgb, var(--theme-secondary) 3%,  #ffffff);
+    --ui-surface-2: color-mix(in srgb, var(--theme-secondary) 10%, #edf1f6);
     --ui-border: #d5deea;
     --ui-text: #1f2937;
     --ui-muted: #617083;
-    --ui-blue: #1f6fbe;
-    --ui-topbar-bg: #f5f7fa;
+    /* Phase 3: Single interaction-accent token; focus/form-focus are aliases. */
+    --ui-blue: color-mix(in srgb, var(--theme-primary) 55%, #2565c0);
+    /* Phase 6: topbar and sidebar derive from surface tokens. */
+    --ui-topbar-bg: var(--ui-bg);
     --ui-topbar-border: #dce3ec;
     --ui-topbar-btn-bg: #f5f7fb;
     --ui-topbar-btn-border: #b7c3d8;
     --ui-topbar-btn-text: #243247;
-    --ui-sidebar-bg: #eef3fb;
+    --ui-sidebar-bg: var(--ui-surface-2);
     --ui-sidebar-border: #d5deea;
     --ui-sidebar-text: #1f2937;
     --ui-sidebar-text-muted: #556070;
     --ui-nav-active-bg: color-mix(in srgb, var(--theme-tertiary) 14%, var(--ui-surface));
     --ui-nav-active-text: #243247;
-    --ui-heading-text: #163253;
+    /* Phase 2: Heading colour derived from primary instead of a hard-coded blue. */
+    --ui-heading-text: color-mix(in srgb, var(--theme-primary) 78%, var(--ui-text));
     --ui-card-header-bg: linear-gradient(90deg, #f3f6fb 0%, #edf1f8 100%);
     --ui-card-header-border: #d6dfeb;
     --ui-card-header-text: #2b3a4f;
-    --ui-form-bg: #ffffff;
+    /* Phase 6: Form surfaces alias surface token. */
+    --ui-form-bg: var(--ui-surface);
     --ui-form-border: #c6d2e4;
     --ui-form-text: #1f2937;
-    --ui-form-focus-bg: #ffffff;
-    --ui-form-focus-border: #4a88c7;
+    --ui-form-focus-bg: var(--ui-surface);
+    /* Phase 3: Focus border is the single interaction accent. */
+    --ui-form-focus-border: var(--ui-blue);
     --ui-table-border: #d2dbe8;
     --ui-table-striped-bg: rgba(21, 42, 69, 0.035);
     --ui-btn-primary-bg: var(--theme-primary-fill);
     --ui-btn-primary-text: #102034;
     --ui-btn-success-bg: var(--success-fill);
     --ui-btn-success-text: var(--success-on-fill);
-    --ui-toolbar-bg: #f3f6fb;
+    /* Phase 6: Toolbar, tiles, segment, and history alias surface tokens. */
+    --ui-toolbar-bg: var(--ui-bg);
     --ui-toolbar-border: #d5deea;
-    --ui-tile-bg: #ffffff;
+    --ui-tile-bg: var(--ui-surface);
     --ui-tile-border: #d5deea;
     --ui-tile-strong-text: #1f2937;
     --ui-tile-muted-text: #617083;
     --ui-row-border: #d5deea;
-    --ui-segment-bg: #eef3fb;
+    --ui-segment-bg: var(--ui-surface-2);
     --ui-page-headline-border: #d5deea;
-    --ui-gradient-card-bg: linear-gradient(180deg, #ffffff 0%, #f5f7fb 100%);
-    --ui-popout-history-bg: #eef3fb;
-    --ui-focus-outline: #1f6fbe;
+    --ui-gradient-card-bg: linear-gradient(180deg, var(--ui-surface) 0%, var(--ui-bg) 100%);
+    --ui-popout-history-bg: var(--ui-surface-2);
+    /* Phase 3: Focus outline aliases the interaction accent. */
+    --ui-focus-outline: var(--ui-blue);
     --ui-clock-bg: #d9dee8;
     --ui-clock-text: color-mix(in srgb, var(--ui-text) 90%, var(--theme-primary) 10%);
     --ui-clock-link: #243247;
@@ -227,16 +236,33 @@
     --ui-segment-btn-border: #c6d2e4;
     --ui-segment-btn-text: #243247;
     --ui-segment-btn-hover-bg: #e7eef9;
+    /* Phase 4: Override Bootstrap's hard-coded cyan info colour with the
+       theme-derived info signal so badges/alerts stay on-theme. */
+    --bs-info: var(--signal-info-hue);
+    /* NOTE: --bs-info-rgb must be a static "r, g, b" triplet because CSS has no
+       way to extract individual channel values from a color-mix() expression at
+       the moment. Bootstrap uses this token in rgba() calls for opacity variants.
+       The value below (108, 122, 139) is calibrated to the neutral steel-blue
+       of the default info hue and is acceptable as a close-enough fallback for
+       all built-in presets. Custom themes with a very different hue may drift. */
+    --bs-info-rgb: 108, 122, 139;
+    --bs-info-text-emphasis: var(--info-color);
+    --bs-info-bg-subtle: var(--theme-alert-info);
+    --bs-info-border-subtle: var(--theme-alert-info-border);
 }
 
 [data-bs-theme="dark"] {
-    --ui-bg: #05070c;
-    --ui-surface: #1a1d24;
-    --ui-surface-2: #2a2d35;
+    /* Phase 1: Dark surfaces tinted with secondary colour. */
+    --ui-bg:        color-mix(in srgb, var(--theme-secondary) 12%, #030406);
+    --ui-surface:   color-mix(in srgb, var(--theme-secondary) 8%,  #141519);
+    --ui-surface-2: color-mix(in srgb, var(--theme-secondary) 12%, #1e2028);
     --ui-border: #323843;
     --ui-text: #e8edf6;
     --ui-muted: #9aa4b5;
-    --ui-blue: #4aa8ff;
+    /* Phase 3: Single interaction-accent token. */
+    --ui-blue: color-mix(in srgb, var(--theme-primary) 50%, #5090e8);
+    /* Dark sidebar/topbar keep their own distinct values intentionally — they
+       sit in a visually separate chrome layer from page content. */
     --ui-topbar-bg: #1e2229;
     --ui-topbar-border: rgba(255, 255, 255, 0.07);
     --ui-topbar-btn-bg: #2f3238;
@@ -248,34 +274,40 @@
     --ui-sidebar-text-muted: #9aa4b5;
     --ui-nav-active-bg: color-mix(in srgb, var(--theme-primary) 12%, rgba(255, 255, 255, 0.05));
     --ui-nav-active-text: #eef5ff;
-    --ui-heading-text: #4aa8ff;
+    /* Phase 2: Heading colour derived from primary instead of a hard-coded blue. */
+    --ui-heading-text: color-mix(in srgb, var(--theme-primary) 62%, #e8f0ff);
     --ui-card-header-bg: linear-gradient(90deg, #32343a 0%, #2b2d33 100%);
     --ui-card-header-border: #454954;
     --ui-card-header-text: #e7ebf3;
-    --ui-form-bg: #262a31;
+    /* Phase 6: Form surfaces alias surface token. */
+    --ui-form-bg: var(--ui-surface);
     --ui-form-border: #3b414d;
     --ui-form-text: #ebf0f7;
-    --ui-form-focus-bg: #2a2f38;
-    --ui-form-focus-border: #4aa8ff;
+    --ui-form-focus-bg: var(--ui-surface);
+    /* Phase 3: Focus border is the single interaction accent. */
+    --ui-form-focus-border: var(--ui-blue);
     --ui-table-border: #343946;
     --ui-table-striped-bg: rgba(255, 255, 255, 0.015);
     --ui-btn-primary-bg: var(--theme-primary-fill);
     --ui-btn-primary-text: #0d1723;
     --ui-btn-success-bg: var(--success-fill);
     --ui-btn-success-text: var(--success-on-fill);
-    --ui-toolbar-bg: #161a22;
+    /* Phase 6: Toolbar, tiles, segment, and history alias surface tokens. */
+    --ui-toolbar-bg: var(--ui-bg);
     --ui-toolbar-border: #2f3542;
-    --ui-tile-bg: #1f242d;
+    --ui-tile-bg: var(--ui-surface);
     --ui-tile-border: #343c4a;
     --ui-tile-strong-text: #eef3fb;
     --ui-tile-muted-text: #9aa4b5;
     --ui-row-border: #2f3542;
-    --ui-segment-bg: #181d26;
+    --ui-segment-bg: var(--ui-surface-2);
     --ui-page-headline-border: #2e3440;
-    --ui-gradient-card-bg: linear-gradient(180deg, #1f242d 0%, #191e26 100%);
-    --ui-popout-history-bg: #202632;
-    --ui-focus-outline: #64B5F6;
-    --ui-clock-bg: #444444;
+    --ui-gradient-card-bg: linear-gradient(180deg, var(--ui-surface) 0%, var(--ui-bg) 100%);
+    --ui-popout-history-bg: var(--ui-surface-2);
+    /* Phase 3: Focus outline aliases the interaction accent. */
+    --ui-focus-outline: var(--ui-blue);
+    /* Phase 6: Clock background uses surface-2 instead of an arbitrary grey. */
+    --ui-clock-bg: var(--ui-surface-2);
     --ui-clock-text: color-mix(in srgb, var(--ui-text) 92%, var(--theme-primary) 8%);
     --ui-clock-link: #ffffff;
     --ui-clock-link-hover: #cccccc;
@@ -290,6 +322,14 @@
     --ui-segment-btn-border: #3a4352;
     --ui-segment-btn-text: #eef3fb;
     --ui-segment-btn-hover-bg: #2a3340;
+    /* Phase 4: Override Bootstrap's hard-coded cyan info colour. */
+    --bs-info: var(--signal-info-hue);
+    /* NOTE: Static triplet — CSS cannot extract rgb channels from color-mix().
+       See light-mode block above for full explanation. */
+    --bs-info-rgb: 108, 122, 139;
+    --bs-info-text-emphasis: var(--info-color);
+    --bs-info-bg-subtle: var(--theme-alert-info);
+    --bs-info-border-subtle: var(--theme-alert-info-border);
 }
 
 

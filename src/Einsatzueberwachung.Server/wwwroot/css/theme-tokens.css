@@ -19,11 +19,11 @@
     --theme-tertiary: #E3000F;
     --theme-quaternary: #5BB969;
     --theme-on-accent: #ffffff;
-    --signal-success-hue: var(--theme-quaternary, #56785f);
-    --signal-warning-hue: #d97706;
-    --signal-danger-hue: #e12431;
-    --signal-info-hue: #6c7a8b;
-    --signal-pause-hue: #6c7586;
+    --signal-success-hue: color-mix(in srgb, var(--theme-tertiary) 20%, #00FF00 80%);
+    --signal-warning-hue: color-mix(in srgb, var(--theme-tertiary) 20%, #d97706 80%);
+    --signal-danger-hue: color-mix(in srgb, var(--theme-tertiary) 20%, #e12431 80%);
+    --signal-info-hue: color-mix(in srgb, var(--theme-tertiary) 20%, #6c7a8b 80%);
+    --signal-pause-hue: color-mix(in srgb, var(--theme-quaternary) 20%, #6c7586 80%);
     --signal-text-strength: 66%;
     --signal-border-strength: 34%;
     --signal-fill-strength: 54%;

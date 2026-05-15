@@ -73,11 +73,14 @@
             const preset = normalizePreset(serverThemePreset);
             const intensity = normalizeIntensity(serverVisualIntensity);
             const customTheme = Array.isArray(serverCustomThemes)
-                ? serverCustomThemes.find(t => t && t.id === preset)
+                ? serverCustomThemes.find(t => t && ((t.id ?? t.Id) === preset))
                 : null;
             const normalized = isDark ? "dark" : "light";
             const palette = customTheme
-                ? { primary: customTheme.primaryColor, secondary: customTheme.secondaryColor }
+                ? {
+                    primary: customTheme.primaryColor ?? customTheme.PrimaryColor,
+                    secondary: customTheme.secondaryColor ?? customTheme.SecondaryColor
+                }
                 : (themeMap[preset] ?? themeMap.nrw);
 
             setAttributeOnRoots("data-bs-theme", normalized);

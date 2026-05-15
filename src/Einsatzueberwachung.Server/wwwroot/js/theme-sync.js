@@ -5,7 +5,7 @@ window.themeSync = (() => {
 
             const themePalette = {
         nrw: { primary: "#A72920", secondary: "#404040", tertiary: "#E3000F", quaternary: "#5BB969" },
-        ruhr: { primary: "#005D9E", secondary: "#FFED00", tertiary: "#00B4E0", quaternary: "#F28C28" }
+        ruhr: { primary: "#005D9E", secondary: "#D6D6D6", tertiary: "#DDED00", quaternary: "#FF7B00" }
     };
 
     const defaultState = {

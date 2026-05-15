@@ -29,11 +29,11 @@
     --signal-fill-strength: 54%;
     --signal-soft-strength: 8%;
     --signal-shadow-strength: 14%;
-    --danger-text-strength: 100%;
-    --danger-border-strength: 68%;
-    --danger-fill-strength: 92%;
-    --danger-soft-strength: 18%;
-    --danger-shadow-strength: 28%;
+    --signal-danger-text-strength: 100%;
+    --signal-danger-border-strength: 68%;
+    --signal-danger-fill-strength: 92%;
+    --signal-danger-soft-strength: 18%;
+    --signal-danger-shadow-strength: 28%;
     --theme-intensity-border: 44%;
     --theme-intensity-soft: 10%;
     --theme-intensity-fill: 74%;
@@ -50,33 +50,33 @@
     --secondary-color: var(--theme-secondary);
     --success-color: color-mix(in srgb, var(--signal-success-hue) var(--signal-text-strength), var(--ui-text, #1f2937));
     --warning-color: color-mix(in srgb, var(--signal-warning-hue) var(--signal-text-strength), var(--ui-text, #1f2937));
-    --danger-color: color-mix(in srgb, var(--signal-danger-hue) var(--danger-text-strength), var(--ui-text, #1f2937));
+    --danger-color: color-mix(in srgb, var(--signal-danger-hue) var(--signal-danger-text-strength), var(--ui-text, #1f2937));
     --info-color: color-mix(in srgb, var(--signal-info-hue) var(--signal-text-strength), var(--ui-text, #1f2937));
     --pause-color: color-mix(in srgb, var(--signal-pause-hue) var(--signal-text-strength), var(--ui-text, #1f2937));
     --success-border: color-mix(in srgb, var(--signal-success-hue) var(--signal-border-strength), var(--ui-border, #d5deea));
     --warning-border: color-mix(in srgb, var(--signal-warning-hue) var(--signal-border-strength), var(--ui-border, #d5deea));
-    --danger-border: color-mix(in srgb, var(--signal-danger-hue) var(--danger-border-strength), var(--ui-border, #d5deea));
+    --danger-border: color-mix(in srgb, var(--signal-danger-hue) var(--signal-danger-border-strength), var(--ui-border, #d5deea));
     --info-border: color-mix(in srgb, var(--signal-info-hue) var(--signal-border-strength), var(--ui-border, #d5deea));
     --pause-border: color-mix(in srgb, var(--signal-pause-hue) var(--signal-border-strength), var(--ui-border, #d5deea));
     --success-fill: color-mix(in srgb, var(--signal-success-hue) var(--signal-fill-strength), var(--ui-surface, #ffffff));
     --warning-fill: color-mix(in srgb, var(--signal-warning-hue) var(--signal-fill-strength), var(--ui-surface, #ffffff));
-    --danger-fill: color-mix(in srgb, var(--signal-danger-hue) var(--danger-fill-strength), var(--ui-surface, #ffffff));
+    --danger-fill: color-mix(in srgb, var(--signal-danger-hue) var(--signal-danger-fill-strength), var(--ui-surface, #ffffff));
     --info-fill: color-mix(in srgb, var(--signal-info-hue) var(--signal-fill-strength), var(--ui-surface, #ffffff));
     --pause-fill: color-mix(in srgb, var(--signal-pause-hue) var(--signal-fill-strength), var(--ui-surface, #ffffff));
     --success-soft: color-mix(in srgb, var(--signal-success-hue) var(--signal-soft-strength), transparent);
     --warning-soft: color-mix(in srgb, var(--signal-warning-hue) var(--signal-soft-strength), transparent);
-    --danger-soft: color-mix(in srgb, var(--signal-danger-hue) var(--danger-soft-strength), transparent);
+    --danger-soft: color-mix(in srgb, var(--signal-danger-hue) var(--signal-danger-soft-strength), transparent);
     --info-soft: color-mix(in srgb, var(--signal-info-hue) var(--signal-soft-strength), transparent);
-    --pause-soft: color-mix(in srgb, var(--signal-pause-hue) var(--signal-soft-strength), transparent);
     --success-shadow: color-mix(in srgb, var(--signal-success-hue) var(--signal-shadow-strength), transparent);
     --warning-shadow: color-mix(in srgb, var(--signal-warning-hue) var(--signal-shadow-strength), transparent);
-    --danger-shadow: color-mix(in srgb, var(--signal-danger-hue) var(--danger-shadow-strength), transparent);
+    --danger-shadow: color-mix(in srgb, var(--signal-danger-hue) var(--signal-danger-shadow-strength), transparent);
     --info-shadow: color-mix(in srgb, var(--signal-info-hue) var(--signal-shadow-strength), transparent);
-    --pause-shadow: color-mix(in srgb, var(--signal-pause-hue) var(--signal-shadow-strength), transparent);
+    --ui-info-msg-bg:     color-mix(in srgb, var(--signal-info-hue) 8%, var(--ui-surface, #ffffff));
+    --ui-info-msg-border: color-mix(in srgb, var(--signal-info-hue) 30%, var(--ui-border, #d5deea));
+    --ui-info-msg-text:   color-mix(in srgb, var(--signal-info-hue) 90%, var(--ui-text, #1f2937));
     --success-on-fill: #ffffff;
     --warning-on-fill: #1f1405;
     --danger-on-fill: #ffffff;
-    --info-on-fill: #ffffff;
     --pause-on-fill: #ffffff;
     --theme-primary-soft: color-mix(in srgb, var(--theme-primary) var(--theme-intensity-soft), transparent);
     --theme-primary-border: color-mix(in srgb, var(--theme-primary) var(--theme-intensity-border), var(--ui-border, #d5deea));
@@ -88,14 +88,14 @@
     --theme-tertiary-fill: color-mix(in srgb, var(--theme-tertiary) var(--theme-intensity-fill), var(--ui-surface, #ffffff));
     --theme-tertiary-text: color-mix(in srgb, var(--theme-tertiary) var(--theme-intensity-text), var(--ui-text, #1f2937));
     --theme-tertiary-shadow: color-mix(in srgb, var(--theme-tertiary) var(--theme-intensity-shadow), transparent);
-    --theme-alert-success: color-mix(in srgb, var(--theme-quaternary) var(--theme-alert-fill), var(--ui-surface, #ffffff));
-    --theme-alert-success-border: color-mix(in srgb, var(--theme-quaternary) var(--theme-intensity-border), var(--ui-border, #d5deea));
+    --theme-alert-success: color-mix(in srgb, var(--signal-success-hue) var(--theme-alert-fill), var(--ui-surface, #ffffff));
+    --theme-alert-success-border: color-mix(in srgb, var(--signal-success-hue) var(--theme-intensity-border), var(--ui-border, #d5deea));
     --theme-alert-info: color-mix(in srgb, var(--signal-info-hue) var(--theme-alert-fill), var(--ui-surface, #ffffff));
     --theme-alert-warning: color-mix(in srgb, var(--signal-warning-hue) var(--theme-alert-fill), var(--ui-surface, #ffffff));
-    --theme-alert-danger: color-mix(in srgb, var(--signal-danger-hue) 14%, var(--ui-surface, #ffffff));
+    --theme-alert-danger: color-mix(in srgb, var(--signal-danger-hue) var(--theme-alert-fill), var(--ui-surface, #ffffff));
     --theme-alert-info-border: color-mix(in srgb, var(--signal-info-hue) var(--theme-intensity-border), var(--ui-border, #d5deea));
     --theme-alert-warning-border: color-mix(in srgb, var(--signal-warning-hue) var(--theme-intensity-border), var(--ui-border, #d5deea));
-    --theme-alert-danger-border: color-mix(in srgb, var(--signal-danger-hue) 60%, var(--ui-border, #d5deea));
+    --theme-alert-danger-border: color-mix(in srgb, var(--signal-danger-hue) var(--theme-intensity-border), var(--ui-border, #d5deea));
 }
 
 [data-theme-preset="ruhr"] {
@@ -174,9 +174,6 @@
     --ui-text: #1f2937;
     --ui-muted: #617083;
     --ui-blue: #1f6fbe;
-    --ui-cyan: #0f93a8;
-    --ui-green: #2f8f4f;
-    --ui-red: #b53d44;
     --ui-topbar-bg: #f5f7fa;
     --ui-topbar-border: #dce3ec;
     --ui-topbar-btn-bg: #f5f7fb;
@@ -240,9 +237,6 @@
     --ui-text: #e8edf6;
     --ui-muted: #9aa4b5;
     --ui-blue: #4aa8ff;
-    --ui-cyan: #2dc6dd;
-    --ui-green: #84d38c;
-    --ui-red: #e26d72;
     --ui-topbar-bg: #1e2229;
     --ui-topbar-border: rgba(255, 255, 255, 0.07);
     --ui-topbar-btn-bg: #2f3238;
@@ -298,15 +292,4 @@
     --ui-segment-btn-hover-bg: #2a3340;
 }
 
-/* ── Info-message tokens (map.css .search-message) ─────────────────────── */
-:root {
-    --ui-info-msg-bg:     #e8f4f8;
-    --ui-info-msg-border: #b8dfe8;
-    --ui-info-msg-text:   #0c5460;
-}
 
-[data-bs-theme="dark"] {
-    --ui-info-msg-bg:     #1a2535;
-    --ui-info-msg-border: #2c3d52;
-    --ui-info-msg-text:   #7db5d8;
-}

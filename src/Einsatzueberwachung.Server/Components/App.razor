@@ -19,6 +19,7 @@
             const serverThemePreset = @((MarkupString)_serverThemePresetJson);
             const serverVisualIntensity = @((MarkupString)_serverVisualIntensityJson);
             const serverCustomThemes = @((MarkupString)_serverCustomThemesJson);
+            window.__einsatzServerCustomThemes = Array.isArray(serverCustomThemes) ? serverCustomThemes : [];
             const themeMap = {
                 nrw: { primary: "#A72920", secondary: "#404040" },
                 ruhr: { primary: "#005D9E", secondary: "#FFED00" }

@@ -20,6 +20,15 @@ window.themeSync = (() => {
     let systemThemeHandler = null;
     let currentState = { ...defaultState };
 
+    function findCustomTheme(customThemes, preset) {
+        if (!Array.isArray(customThemes)) {
+            return null;
+        }
+
+        return customThemes.find(t =>
+            t && ((t.id ?? t.Id) === preset));
+    }
+
     function normalizePreset(value) {
         if (typeof value !== "string") {
             return defaultState.preset;
@@ -100,22 +109,34 @@ window.themeSync = (() => {
 
         let palette = themePalette[resolved.preset] || themePalette.nrw;
 
-        // Check custom themes in local storage
+        // Check custom themes in local storage or server bootstrap state
         try {
              const raw = localStorage.getItem(browserPrefsKey);
+             const serverThemes = Array.isArray(window.__einsatzServerCustomThemes)
+                 ? window.__einsatzServerCustomThemes
+                 : [];
              if (raw) {
                  const parsed = JSON.parse(raw);
                  const customThemes = parsed.customThemes || parsed.CustomThemes;
-                 if (customThemes && Array.isArray(customThemes)) {
-                     const customTheme = customThemes.find(t => t.id === resolved.preset || t.Id === resolved.preset);
-                     if (customTheme) {
-                         palette = {
-                             primary: customTheme.primaryColor || customTheme.PrimaryColor,
-                             secondary: customTheme.secondaryColor || customTheme.SecondaryColor,
-                             tertiary: customTheme.tertiaryColor || customTheme.TertiaryColor,
-                             quaternary: customTheme.quaternaryColor || customTheme.QuaternaryColor
-                         };
-                     }
+                 const customTheme = findCustomTheme(customThemes, resolved.preset)
+                     ?? findCustomTheme(serverThemes, resolved.preset);
+                 if (customTheme) {
+                     palette = {
+                         primary: customTheme.primaryColor || customTheme.PrimaryColor,
+                         secondary: customTheme.secondaryColor || customTheme.SecondaryColor,
+                         tertiary: customTheme.tertiaryColor || customTheme.TertiaryColor,
+                         quaternary: customTheme.quaternaryColor || customTheme.QuaternaryColor
+                     };
+                 }
+             } else {
+                 const customTheme = findCustomTheme(serverThemes, resolved.preset);
+                 if (customTheme) {
+                     palette = {
+                         primary: customTheme.primaryColor || customTheme.PrimaryColor,
+                         secondary: customTheme.secondaryColor || customTheme.SecondaryColor,
+                         tertiary: customTheme.tertiaryColor || customTheme.TertiaryColor,
+                         quaternary: customTheme.quaternaryColor || customTheme.QuaternaryColor
+                     };
                  }
              }
         } catch (e) {

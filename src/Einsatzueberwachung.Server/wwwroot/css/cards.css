@@ -249,7 +249,6 @@
 
 .btn-group-modern button.active {
     background: var(--primary-color);
-
     border-color: var(--primary-color);
 }
 

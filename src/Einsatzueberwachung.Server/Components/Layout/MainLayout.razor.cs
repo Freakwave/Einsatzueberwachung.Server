@@ -325,6 +325,7 @@ public partial class MainLayout : LayoutComponentBase, IAsyncDisposable
         _isDarkMode = !_isDarkMode;
         BrowserPrefs.Update(p => p.IsDarkMode = _isDarkMode);
         await BrowserPrefs.SaveAsync();
+        await BrowserPrefs.SaveThemeToServerAsync();
         await JS.InvokeVoidAsync("themeSync.setThemeState", new
         {
             isDark = _isDarkMode,

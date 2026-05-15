@@ -12,6 +12,7 @@
 @inject IEinsatzService EinsatzService
 @inject ICollarTrackingService CollarTrackingService
 @inject ISettingsService SettingsService
+@inject BrowserPreferencesService BrowserPrefs
 @inject ITeamMobileTokenService TokenService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -275,6 +276,22 @@ else
     {
         if (_mapInitDone || _team == null) return;
         _mapInitDone = true;
+
+        try
+        {
+            await BrowserPrefs.LoadAsync();
+            await JS.InvokeVoidAsync("themeSync.setThemeState", new
+            {
+                isDark = BrowserPrefs.Preferences.IsDarkMode,
+                preset = BrowserPrefs.Preferences.ThemePreset,
+                intensity = BrowserPrefs.Preferences.VisualIntensity
+            });
+        }
+        catch
+        {
+            Console.Error.WriteLine("team-mobile theme apply failed.");
+            // tolerant — mobile team page continues with bootstrap fallback theme
+        }
 
         try
         {

@@ -273,6 +273,7 @@ public partial class Einstellungen
         }
 
         await BrowserPrefs.SaveAsync();
+        await BrowserPrefs.SaveThemeToServerAsync();
 
         // Theme im Browser sofort anwenden
         if (prefs.ThemeMode == "Auto")
@@ -435,6 +436,7 @@ public partial class Einstellungen
             else
             {
                 await BrowserPrefs.SaveAsync();
+                await BrowserPrefs.SaveThemeToServerAsync();
             }
 
             _editingCustomTheme = null;
@@ -458,6 +460,7 @@ public partial class Einstellungen
                 else
                 {
                     await BrowserPrefs.SaveAsync();
+                    await BrowserPrefs.SaveThemeToServerAsync();
                 }
             }
         }
@@ -470,6 +473,7 @@ private async Task SetDesignModeAsync(bool darkMode)
 
         BrowserPrefs.Update(p => p.IsDarkMode = darkMode);
         await BrowserPrefs.SaveAsync();
+        await BrowserPrefs.SaveThemeToServerAsync();
         await ApplyThemeStateAsync(darkMode);
     }
 
@@ -478,6 +482,7 @@ private async Task SetDesignModeAsync(bool darkMode)
         var selected = e.Value?.ToString();
         BrowserPrefs.Update(p => p.ThemePreset = NormalizeThemePreset(selected));
         await BrowserPrefs.SaveAsync();
+        await BrowserPrefs.SaveThemeToServerAsync();
         await ApplyThemeStateAsync(BrowserPrefs.Preferences.IsDarkMode);
     }
 
@@ -486,6 +491,7 @@ private async Task SetDesignModeAsync(bool darkMode)
         var selected = e.Value?.ToString();
         BrowserPrefs.Update(p => p.VisualIntensity = NormalizeVisualIntensity(selected));
         await BrowserPrefs.SaveAsync();
+        await BrowserPrefs.SaveThemeToServerAsync();
         await ApplyThemeStateAsync(BrowserPrefs.Preferences.IsDarkMode);
     }
 

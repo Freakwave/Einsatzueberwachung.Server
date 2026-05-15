@@ -1,4 +1,9 @@
-﻿<!DOCTYPE html>
+﻿@using System.Text.Json
+@using Einsatzueberwachung.Domain.Interfaces
+@using Einsatzueberwachung.Domain.Models
+@inject ISettingsService SettingsService
+
+<!DOCTYPE html>
 <html lang="de" data-bs-theme="light">
 
 <head>
@@ -9,24 +14,32 @@
         (function () {
             const storageKey = "einsatz.theme";
             const legacyStorageKey = "theme";
-            const browserPrefsKey = "browser-prefs";
+            const serverThemeMode = @((MarkupString)_serverThemeModeJson);
+            const serverThemeDark = @(_serverThemeDark ? "true" : "false");
+            const serverThemePreset = @((MarkupString)_serverThemePresetJson);
+            const serverVisualIntensity = @((MarkupString)_serverVisualIntensityJson);
+            const serverCustomThemes = @((MarkupString)_serverCustomThemesJson);
+            window.__einsatzServerCustomThemes = Array.isArray(serverCustomThemes) ? serverCustomThemes : [];
             const themeMap = {
                 nrw: { primary: "#A72920", secondary: "#404040" },
                 ruhr: { primary: "#005D9E", secondary: "#FFED00" }
             };
 
-            const parseDark = (value) => {
-                const normalizedValue = (value ?? "").toString().trim().toLowerCase();
-                return normalizedValue === "dark"
-                    || normalizedValue === "true"
-                    || normalizedValue === "1"
-                    || normalizedValue === "yes"
-                    || normalizedValue === "on";
-            };
-
             const normalizePreset = (value) => {
                 const normalizedValue = (value ?? "").toString().trim().toLowerCase();
-                return normalizedValue === "ruhr" ? "ruhr" : "nrw";
+                if (!normalizedValue) {
+                    return "nrw";
+                }
+
+                if (normalizedValue === "ruhr") {
+                    return "ruhr";
+                }
+
+                if (normalizedValue === "nrw") {
+                    return "nrw";
+                }
+
+                return (value ?? "").toString().trim();
             };
 
             const normalizeIntensity = (value) => {
@@ -56,40 +69,32 @@
                 }
             };
 
-            let browserState = null;
-            const rawPrefs = localStorage.getItem(browserPrefsKey);
-            if (rawPrefs) {
-                try {
-                    const parsed = JSON.parse(rawPrefs);
-                    browserState = {
-                        isDark: Boolean(parsed?.isDarkMode ?? parsed?.IsDarkMode),
-                        preset: normalizePreset(parsed?.themePreset ?? parsed?.ThemePreset),
-                        intensity: normalizeIntensity(parsed?.visualIntensity ?? parsed?.VisualIntensity)
-                    };
-                } catch {
-                    browserState = null;
-                }
-            }
-
             const storedValue = localStorage.getItem(storageKey) ?? localStorage.getItem(legacyStorageKey);
-            const isDark = browserState ? browserState.isDark : parseDark(storedValue);
-            const preset = browserState ? browserState.preset : "nrw";
-            const intensity = browserState ? browserState.intensity : "ausgewogen";
+            const isDark = serverThemeDark;
+            const preset = normalizePreset(serverThemePreset);
+            const intensity = normalizeIntensity(serverVisualIntensity);
+            const customTheme = Array.isArray(serverCustomThemes)
+                ? serverCustomThemes.find(t => t && ((t.id ?? t.Id) === preset))
+                : null;
             const normalized = isDark ? "dark" : "light";
-            const palette = themeMap[preset] ?? themeMap.nrw;
+            const palette = customTheme
+                ? {
+                    primary: customTheme.primaryColor ?? customTheme.PrimaryColor,
+                    secondary: customTheme.secondaryColor ?? customTheme.SecondaryColor
+                }
+                : (themeMap[preset] ?? themeMap.nrw);
 
             setAttributeOnRoots("data-bs-theme", normalized);
             setAttributeOnRoots("data-theme-preset", preset);
             setAttributeOnRoots("data-intensity", intensity);
+            setAttributeOnRoots("data-theme-mode", serverThemeMode);
 
             setStyleOnRoots("--theme-primary", palette.primary);
             setStyleOnRoots("--theme-secondary", palette.secondary);
             setStyleOnRoots("--primary-color", palette.primary);
             setStyleOnRoots("--secondary-color", palette.secondary);
 
-            if (storedValue === null) {
-                localStorage.setItem(storageKey, normalized);
-            }
+            localStorage.setItem(storageKey, normalized);
         })();
     </script>
     <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
@@ -136,3 +141,56 @@
 </body>
 
 </html>
+
+@code {
+    private string _serverThemeModeJson = "\"Manual\"";
+    private bool _serverThemeDark;
+    private string _serverThemePresetJson = "\"nrw\"";
+    private string _serverVisualIntensityJson = "\"ausgewogen\"";
+    private string _serverCustomThemesJson = "[]";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var app = await SettingsService.GetAppSettingsAsync();
+        _serverThemeModeJson = JsonSerializer.Serialize(string.IsNullOrWhiteSpace(app.ThemeMode) ? "Manual" : app.ThemeMode);
+        _serverThemeDark = app.IsDarkMode;
+        _serverThemePresetJson = JsonSerializer.Serialize(NormalizeThemePreset(app.ThemePreset));
+        _serverVisualIntensityJson = JsonSerializer.Serialize(NormalizeVisualIntensity(app.VisualIntensity));
+        _serverCustomThemesJson = JsonSerializer.Serialize(app.CustomThemes ?? new List<CustomTheme>());
+    }
+
+    private static string NormalizeThemePreset(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "nrw";
+        }
+
+        if (value.Equals(ThemePresets.Ruhr, StringComparison.OrdinalIgnoreCase))
+        {
+            return "ruhr";
+        }
+
+        if (value.Equals(ThemePresets.Nrw, StringComparison.OrdinalIgnoreCase))
+        {
+            return "nrw";
+        }
+
+        return value.Trim();
+    }
+
+    private static string NormalizeVisualIntensity(string? value)
+    {
+        if (string.Equals(value, VisualIntensityLevels.Dezent, StringComparison.OrdinalIgnoreCase))
+        {
+            return "dezent";
+        }
+
+        if (string.Equals(value, VisualIntensityLevels.Lebhaft, StringComparison.OrdinalIgnoreCase))
+        {
+            return "lebhaft";
+        }
+
+        return "ausgewogen";
+    }
+}

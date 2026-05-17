@@ -32,6 +32,13 @@ namespace Einsatzueberwachung.Domain.Interfaces
         event Action<Guid>? TruemmerAreaRemoved;
         event Action? ElNotizAdded;
         event Action<string, string, TeamPhoneLocation>? TeamPhoneLocationChanged;
+
+        /// <summary>
+        /// Wird ausgelöst wenn ein neuer GPS-Punkt zum Telefon-Track eines aktiv laufenden Teams hinzugefügt wird.
+        /// Parameter: teamId, teamName, location
+        /// </summary>
+        event Action<string, string, TeamPhoneLocation>? TeamPhoneTrackPointAdded;
+
         event Action<Team>? DogPauseStarted;
 
         Task StartEinsatzAsync(EinsatzData einsatzData);
@@ -140,5 +147,27 @@ namespace Einsatzueberwachung.Domain.Interfaces
         void ResetEinsatz();
 
         Task UpdateTeamPhoneLocationAsync(string teamId, double lat, double lng, double? accuracy = null);
+
+        /// <summary>
+        /// Gibt den aufgezeichneten GPS-Pfad eines laufenden Teams zurück (Telefon-Tracking).
+        /// </summary>
+        IReadOnlyList<TeamPhoneLocation> GetPhoneTrackHistory(string teamId);
+
+        /// <summary>
+        /// Löscht den aufgezeichneten GPS-Pfad eines Teams (z.B. beim Timer-Start oder nach Snapshot-Sicherung).
+        /// </summary>
+        void ClearPhoneTrackHistory(string teamId);
+
+        /// <summary>
+        /// Stellt den aufgezeichneten GPS-Pfad eines Teams wieder her (z.B. nach Server-Neustart aus Persistenz).
+        /// Vorhandene Einträge werden ersetzt, nicht ergänzt.
+        /// </summary>
+        void SetPhoneTrackHistory(string teamId, List<TeamPhoneLocation> history);
+
+        /// <summary>
+        /// Gibt alle vorhandenen Telefon-Track-Verläufe zurück (pro Team-ID).
+        /// Wird für die Persistenz verwendet.
+        /// </summary>
+        IReadOnlyDictionary<string, IReadOnlyList<TeamPhoneLocation>> GetAllPhoneTrackHistories();
     }
 }

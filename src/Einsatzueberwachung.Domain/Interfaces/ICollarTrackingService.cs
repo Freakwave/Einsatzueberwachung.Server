@@ -44,8 +44,14 @@ namespace Einsatzueberwachung.Domain.Interfaces
         /// <summary>Letzte bekannte Position eines Halsbands (auch ausserhalb aktiver Aufzeichnung)</summary>
         CollarLocation? GetLatestLocation(string collarId);
 
-        /// <summary>Positionsverlauf eines einzelnen Halsbands löschen (z.B. bei neuem Suchstart)</summary>
+        /// <summary>Positionsverlauf eines Halsbands löschen (z.B. bei neuem Suchstart)</summary>
         void ClearCollarHistory(string collarId);
+
+        /// <summary>
+        /// Positionsverlauf eines Halsbands wiederherstellen (z.B. nach Server-Neustart aus Persistenz).
+        /// Vorhandene Einträge werden ersetzt, nicht ergänzt.
+        /// </summary>
+        void SetLocationHistory(string collarId, List<CollarLocation> history);
 
         /// <summary>Alle Positionsdaten löschen (z.B. bei Einsatz-Ende)</summary>
         void ClearAll();

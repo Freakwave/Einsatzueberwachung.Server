@@ -229,6 +229,33 @@
                 </div>
 
                 <div class="cfg-section">
+                    <h3 class="cfg-sub-header"><i class="bi bi-pin-map-fill me-1"></i>Karten-Marker</h3>
+                    <div class="cfg-grid cfg-grid-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Symbol: GPS-Halsband (Hund)</label>
+                            <InputSelect class="cfg-input" @bind-Value="_appSettings.CollarMarkerIcon">
+                                <option value="paw">Pfote (Standard)</option>
+                                <option value="dog">Hund-Kopf</option>
+                                <option value="bone">Knochen</option>
+                                <option value="dot">Farbiger Punkt</option>
+                            </InputSelect>
+                            <span class="cfg-help">Symbol für die aktuelle Position eines GPS-Halsbands auf der Karte.</span>
+                        </div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">Symbol: Handy-GPS (Mensch)</label>
+                            <InputSelect class="cfg-input" @bind-Value="_appSettings.HumanMarkerIcon">
+                                <option value="person_walking">Person laufend (Standard)</option>
+                                <option value="person">Person (stehend)</option>
+                                <option value="phone">Handy</option>
+                                <option value="radio">Funk</option>
+                                <option value="dot">Farbiger Punkt</option>
+                            </InputSelect>
+                            <span class="cfg-help">Symbol für die aktuelle Handy-GPS-Position eines Teams auf der Karte.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cfg-section">
                     <h3 class="cfg-sub-header"><i class="bi bi-map me-1"></i>Karten-Standard</h3>
                     <div class="cfg-grid cfg-grid-3">
                         <div class="cfg-field">

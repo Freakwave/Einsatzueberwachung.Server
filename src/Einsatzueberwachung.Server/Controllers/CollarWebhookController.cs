@@ -25,6 +25,11 @@ public class CollarWebhookController : ControllerBase
     [HttpPost("location")]
     public async Task<IActionResult> ReceiveLocation([FromBody] CollarLocationRequest request)
     {
+        if (request is null)
+        {
+            return BadRequest(new ErrorResponse("Body ist erforderlich."));
+        }
+
         if (string.IsNullOrWhiteSpace(request.Id))
         {
             return BadRequest(new ErrorResponse("Id ist erforderlich."));
@@ -33,6 +38,18 @@ public class CollarWebhookController : ControllerBase
         if (request.Coordinates == null)
         {
             return BadRequest(new ErrorResponse("Coordinates sind erforderlich."));
+        }
+
+        if (double.IsNaN(request.Coordinates.Lat) || double.IsInfinity(request.Coordinates.Lat) ||
+            request.Coordinates.Lat < -90 || request.Coordinates.Lat > 90)
+        {
+            return BadRequest(new ErrorResponse("Coordinates.Lat ist ungültig."));
+        }
+
+        if (double.IsNaN(request.Coordinates.Lng) || double.IsInfinity(request.Coordinates.Lng) ||
+            request.Coordinates.Lng < -180 || request.Coordinates.Lng > 180)
+        {
+            return BadRequest(new ErrorResponse("Coordinates.Lng ist ungültig."));
         }
 
         var location = await _trackingService.ReceiveLocationAsync(

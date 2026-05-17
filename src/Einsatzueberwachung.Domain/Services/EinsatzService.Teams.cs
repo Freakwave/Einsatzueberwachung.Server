@@ -81,6 +81,7 @@ namespace Einsatzueberwachung.Domain.Services
             }
 
             team.StartTimer(_timeService?.Now ?? DateTime.Now);
+            ClearPhoneTrackHistory(teamId);
         }
 
         public async Task StopTeamTimerAsync(string teamId)

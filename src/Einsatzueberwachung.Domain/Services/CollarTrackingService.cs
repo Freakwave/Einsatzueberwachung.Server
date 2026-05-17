@@ -182,6 +182,19 @@ namespace Einsatzueberwachung.Domain.Services
             CollarHistoryCleared?.Invoke(collarId);
         }
 
+        public void SetLocationHistory(string collarId, List<CollarLocation> history)
+        {
+            if (history == null || history.Count == 0) return;
+            var list = _locationHistory.GetOrAdd(collarId, _ => new List<CollarLocation>());
+            lock (_lock)
+            {
+                list.Clear();
+                list.AddRange(history);
+            }
+            var last = history[history.Count - 1];
+            _latestLocations[collarId] = last;
+        }
+
         public void NotifySnapshotSaved(TeamTrackSnapshot snapshot)
         {
             TrackSnapshotSaved?.Invoke(snapshot);

@@ -15,4 +15,16 @@ public class EinsatzRuntimeSnapshot
     /// deren IsPausing inzwischen false ist).
     /// </summary>
     public List<DogPauseRecord> DogPauses { get; set; } = new();
+
+    /// <summary>
+    /// Live-Halsband-Positionsverlauf der laufenden Suche (pro Halsband-ID).
+    /// Wird persistiert damit der Hundetrack nach einem Server-Neustart vollständig bleibt.
+    /// </summary>
+    public Dictionary<string, List<CollarLocation>> CollarLocationHistory { get; set; } = new();
+
+    /// <summary>
+    /// Live-Telefon-GPS-Track der laufenden Suche (pro Team-ID).
+    /// Wird persistiert damit der Mensch-Laufweg nach einem Server-Neustart vollständig bleibt.
+    /// </summary>
+    public Dictionary<string, List<TeamPhoneLocation>> PhoneTrackHistory { get; set; } = new();
 }

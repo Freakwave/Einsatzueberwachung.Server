@@ -94,6 +94,16 @@
                         <span class="vtab-badge badge bg-secondary">@EinsatzService.CurrentEinsatz.TrackSnapshots!.Count</span>
                     }
                 </button>
+                <button class="sidebar-vtab @(_activeSidebarTab == "handy" ? "active" : "")"
+                        @onclick='() => SetSidebarTabAsync("handy")'
+                        title="Handy-GPS">
+                    <i class="bi bi-phone"></i>
+                    <span class="vtab-label">Handy</span>
+                    @if (EinsatzService.PhoneLocations.Any())
+                    {
+                        <span class="vtab-badge badge bg-info">@EinsatzService.PhoneLocations.Count</span>
+                    }
+                </button>
                 <button class="sidebar-vtab @(_activeSidebarTab == "points" ? "active" : "")"
                         @onclick='() => SetSidebarTabAsync("points")'
                         title="Koordinaten-Marker">
@@ -143,6 +153,16 @@
                                   OnZoomToTrack="ZoomToCompletedTrackAsync"
                                   OnToggleTrackVisibility="HandleToggleTrackVisibility"
                                   OnGpxImported="HandleGpxImportedAsync" />
+                    }
+
+                    @if (_activeSidebarTab == "handy")
+                    {
+                        <KarteHandyTab PhoneLocations="EinsatzService.PhoneLocations"
+                                       Teams="_teams"
+                                       PhoneTrackHistories="EinsatzService.GetAllPhoneTrackHistories()"
+                                       PhoneLayerVisible="_phoneLayerVisible"
+                                       OnZoomToTeam="ZoomToPhoneTeamAsync"
+                                       OnTogglePhoneLayer="TogglePhoneLayer" />
                     }
 
                     @if (_activeSidebarTab == "points")

@@ -1,8 +1,28 @@
-// Handy-GPS-Tracking: Zeigt Team-Telefon-Positionen auf der Karte als Kreise mit 2-Buchstaben-Kürzel
+// Handy-GPS-Tracking: Zeigt Team-Telefon-Positionen auf der Karte
 
 window.PhoneTracking = (function () {
     // teamId -> { marker }
     const _markers = {};
+
+    // teamId -> { polyline, color }
+    const _tracks = {};
+
+    // Konfiguriertes Symbol ("phone" | "person" | "person_walking" | "radio" | "dot")
+    let _humanIcon = 'phone';
+
+    function _getHumanIconClass() {
+        switch (_humanIcon) {
+            case 'person':         return 'bi-person-fill';
+            case 'person_walking': return 'bi-person-walking';
+            case 'radio':          return 'bi-broadcast';
+            case 'dot':            return 'bi-circle-fill';
+            default:               return 'bi-phone-fill'; // phone
+        }
+    }
+
+    function setOptions(opts) {
+        if (opts && opts.humanIcon) _humanIcon = opts.humanIcon;
+    }
 
     function _getMapData(mapId) {
         return window.LeafletMap?.maps?.[mapId] ?? null;
@@ -18,15 +38,17 @@ window.PhoneTracking = (function () {
         }
         // Zustand aus altem Seitenbesuch zurücksetzen
         Object.keys(_markers).forEach(k => delete _markers[k]);
+        Object.keys(_tracks).forEach(k => delete _tracks[k]);
     }
 
-    function _createIcon(abbrev, color) {
+    function _createHumanIcon(color) {
+        const iconClass = _getHumanIconClass();
         return L.divIcon({
             className: '',
-            html: `<div style="width:34px;height:34px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;line-height:1;">${abbrev}</div>`,
-            iconSize: [34, 34],
-            iconAnchor: [17, 17],
-            popupAnchor: [0, -19]
+            html: `<i class="bi ${iconClass}" style="font-size:24px;color:${color};filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;"></i>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+            popupAnchor: [0, -14]
         });
     }
 
@@ -39,17 +61,19 @@ window.PhoneTracking = (function () {
                `<small>Stand: ${time}</small>`;
     }
 
-    function updateMarker(mapId, teamId, teamName, lat, lng, timestamp) {
-        const mapData = _getMapData(mapId);
-        if (!mapData || !mapData.phoneLayer) return;
-
-        const abbrev = (teamName || '??').substring(0, 2).toUpperCase();
-        // Feste Farbe: deterministisch via Hashcode des teamId
+    function _teamColor(teamId) {
         const colors = ['#1976d2', '#d32f2f', '#388e3c', '#f57c00', '#7b1fa2',
                         '#00838f', '#c2185b', '#5d4037', '#455a64', '#0288d1'];
         let h = 0;
         for (let i = 0; i < teamId.length; i++) h = (h * 31 + teamId.charCodeAt(i)) & 0xffff;
-        const color = colors[h % colors.length];
+        return colors[h % colors.length];
+    }
+
+    function updateMarker(mapId, teamId, teamName, lat, lng, timestamp) {
+        const mapData = _getMapData(mapId);
+        if (!mapData || !mapData.phoneLayer) return;
+
+        const color = _teamColor(teamId);
 
         const popupContent = _buildPopup(teamName, lat, lng, timestamp);
 
@@ -57,11 +81,72 @@ window.PhoneTracking = (function () {
             _markers[teamId].setLatLng([lat, lng]);
             _markers[teamId].setPopupContent(popupContent);
         } else {
-            const icon = _createIcon(abbrev, color);
+            const icon = _createHumanIcon(color);
             const marker = L.marker([lat, lng], { icon })
                 .bindPopup(popupContent);
             marker.addTo(mapData.phoneLayer);
             _markers[teamId] = marker;
+        }
+    }
+
+    /**
+     * Lädt einen bestehenden Telefon-GPS-Track und zeichnet ihn als Polylinie.
+     * @param {string} mapId
+     * @param {string} teamId
+     * @param {{lat: number, lng: number}[]} points
+     * @param {string} [color]
+     */
+    function loadTrack(mapId, teamId, points, color) {
+        const mapData = _getMapData(mapId);
+        if (!mapData || !mapData.phoneLayer) return;
+        if (!points || points.length < 2) return;
+
+        const trackColor = color || _teamColor(teamId);
+
+        // Bestehenden Track entfernen falls vorhanden
+        if (_tracks[teamId]) {
+            mapData.phoneLayer.removeLayer(_tracks[teamId].polyline);
+        }
+
+        const polyline = L.polyline(
+            points.map(p => [p.lat, p.lng]),
+            { color: trackColor, weight: 3, opacity: 0.7, dashArray: '3 8' }
+        ).addTo(mapData.phoneLayer);
+
+        _tracks[teamId] = { polyline, color: trackColor };
+    }
+
+    /**
+     * Fügt einen einzelnen GPS-Punkt zum laufenden Telefon-Track hinzu.
+     * @param {string} mapId
+     * @param {string} teamId
+     * @param {number} lat
+     * @param {number} lng
+     */
+    function appendTrackPoint(mapId, teamId, lat, lng) {
+        const mapData = _getMapData(mapId);
+        if (!mapData || !mapData.phoneLayer) return;
+
+        if (!_tracks[teamId]) {
+            const trackColor = _teamColor(teamId);
+            const polyline = L.polyline([[lat, lng]], {
+                color: trackColor, weight: 3, opacity: 0.7, dashArray: '3 8'
+            }).addTo(mapData.phoneLayer);
+            _tracks[teamId] = { polyline, color: trackColor };
+        } else {
+            _tracks[teamId].polyline.addLatLng([lat, lng]);
+        }
+    }
+
+    /**
+     * Entfernt den Telefon-Track eines Teams von der Karte.
+     */
+    function clearTrack(mapId, teamId) {
+        const mapData = _getMapData(mapId);
+        if (!mapData || !mapData.phoneLayer) return;
+        if (_tracks[teamId]) {
+            mapData.phoneLayer.removeLayer(_tracks[teamId].polyline);
+            delete _tracks[teamId];
         }
     }
 
@@ -92,7 +177,24 @@ window.PhoneTracking = (function () {
         if (!mapData || !mapData.phoneLayer) return;
         mapData.phoneLayer.clearLayers();
         Object.keys(_markers).forEach(k => delete _markers[k]);
+        Object.keys(_tracks).forEach(k => delete _tracks[k]);
     }
 
-    return { initialize, updateMarker, toggleVisibility, removeMarker, clearAll };
+    /**
+     * Zoomt die Karte auf den aktuellen Marker eines Teams und öffnet dessen Popup.
+     * @param {string} mapId
+     * @param {string} teamId
+     */
+    function zoomToTeam(mapId, teamId) {
+        const mapData = _getMapData(mapId);
+        if (!mapData) return;
+
+        const marker = _markers[teamId];
+        if (!marker) return;
+
+        mapData.map.setView(marker.getLatLng(), 16);
+        marker.openPopup();
+    }
+
+    return { initialize, updateMarker, loadTrack, appendTrackPoint, clearTrack, toggleVisibility, removeMarker, clearAll, setOptions, zoomToTeam };
 })();

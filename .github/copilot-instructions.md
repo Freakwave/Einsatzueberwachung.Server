@@ -56,6 +56,7 @@ src/
 │   ├── Controllers/                    ← REST-API Controller
 │   │   ├── EinsatzController           ← Einsatz-API
 │   │   ├── CollarWebhookController     ← GPS-Halsband Webhook-Empfang
+│   │   ├── TeamMobileController         ← Team-Mobile Login, State & Handy-GPS
 │   │   ├── RadioController             ← Funksprüche-API
 │   │   ├── ThreadsController           ← Antwort-Threads
 │   │   ├── DiveraController            ← Divera 24/7 Integration
@@ -132,7 +133,9 @@ deploy/
 13. **PopoutTeams.razor** — Popout-Fenster für Team-Übersicht
 14. **MobileDashboard.razor** — Mobiles Dashboard
 15. **MobileKarte.razor** — Mobile Kartenansicht
-16. **Error.razor** — Fehlerseite
+16. **TeamLogin.razor** — Team-Mobile Login (Token-gestützt)
+17. **TeamMobile.razor** — Team-Mobile Einsatzansicht mit Handy-GPS-Übertragung
+18. **Error.razor** — Fehlerseite
 
 ### REST-API Endpoints
 Alle REST-Endpoints sind über `/api/` erreichbar. Swagger-UI ist im Development-Modus unter `/swagger` verfügbar.
@@ -141,6 +144,7 @@ Alle REST-Endpoints sind über `/api/` erreichbar. Swagger-UI ist im Development
 |---|---|---|
 | `/api/einsatz` | `EinsatzController` | Einsatz starten/beenden, aktuelle Daten |
 | `/api/collar` | `CollarWebhookController` | GPS-Halsband-Positionen empfangen (Webhook) |
+| `/api/team-mobile` | `TeamMobileController` | Team-Mobile Login/Status und Handy-GPS-Positionsupdates |
 | `/api/radio` | `RadioController` | Funksprüche lesen/erstellen |
 | `/api/threads` | `ThreadsController` | Antwort-Threads auf Funksprüche |
 | `/api/divera` | `DiveraController` | Divera 24/7 Status & Alarme |
@@ -229,6 +233,7 @@ Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze 
 - **🌓 Dark Mode**: Persistente Einstellungen, Cross-Tab Sync via `theme-sync.js`
 - **🗺️ Interaktive Karten (Leaflet.js)**: Suchgebiete, Marker, Polygone, GPS-Halsband-Live-Tracking auf Karte
 - **📡 GPS-Halsband-Tracking**: Bis zu 20 Halsbänder gleichzeitig, Live-Position via Webhook-API, Bereichserkennung (im/außerhalb Suchgebiet), Relay via SignalR
+- **🚶 Mensch-Laufweg (Handy-GPS)**: Team-Mobile (`/team`) sendet Smartphone-Positionen; wird als `HumanTrack` in Suche/Karte/PDF geführt
 - **🐕 LiveTracking Desktop-App**: WPF-App liest USB-GPS-Gerät (Garmin Alpha) und sendet Positionen an Server-API; als ZIP-Download unter `/downloads/livetracking.zip`
 - **👥 Team-Management**: Teams anlegen/bearbeiten/löschen, Timer mit Farbcodierung (Grün→Orange→Rot), Blink-Animation, Pause-Funktion für Hunde
 - **📻 Funksprüche**: Chronologisch, mit Antwort-Threads, persistent in SQLite, Echtzeit-SignalR
@@ -242,6 +247,7 @@ Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze 
 - **📐 UTM-Koordinaten**: `UtmConverter` für UTM ↔ WGS84 Umrechnung
 - **🌤️ Wetter (DWD/BrightSky)**: Wetteranzeige für Einsatzort
 - **📊 Runtime-Persistenz**: Einsatzzustand überlebt Server-Neustarts (SQLite, alle 3 Sekunden gespeichert)
+- **💾 Persistierte Live-Tracks**: Halsband-History und Handy-GPS-History (`PhoneTrackHistory`) werden im Runtime-Snapshot mitgespeichert
 - **⌨️ Keyboard Shortcuts**: `keyboard-shortcuts.js`
 - **📥 Downloads**: PDF-Berichte, Excel-Stammdaten, JSON-Export, ZIP-Backup, LiveTracking-App
 
@@ -252,9 +258,5 @@ Bevor du Dateien löschst oder massive Refactorings durchführst, die das ganze 
 
 * [2026-04-28] - Initialer Start des Agenten-Gedächtnisses. Projektstandards, Architektur und Self-Improvement-Protokoll in `.github/copilot-instructions.md` als einziger Wahrheitsquelle zusammengeführt.
 * [2026-05-05] - **RuntimeStatePersistenceService.Subscribe/Unsubscribe**: Jedes neue Event auf `IEinsatzService`, das persistenten Zustand mutiert, MUSS in `Subscribe()` UND `Unsubscribe()` in `RuntimeStatePersistenceService` eingetragen werden — sonst setzt kein Code `_isDirty = true`, der 3-Sekunden-Timer schreibt nichts in SQLite, und die Daten gehen beim nächsten Server-Neustart verloren. Beispiel: `TrackSnapshotAdded` und `CompletedSearchUpdated` fehlten, was dazu führte, dass importierte GPX-Tracks nicht persistiert wurden.
-* [2026-05-08] - **Query-Parameter-Navigation in Blazor**: Scroll-/Highlight-Logik mit `SupplyParameterFromQuery` darf nicht ausschließlich an `firstRender` in `OnAfterRenderAsync` hängen. Bei Navigation zur gleichen Route wird die Komponente wiederverwendet; neue Query-Werte müssen über `OnParametersSet` erkannt und als „pending action“ im nächsten Render ausgeführt werden.
-* [2026-05-08] - **Mention-Token-Format stabil halten**: Bei Tokens im Format `@[Type:Name|Id]` müssen Delimiter im Namen (`|`, `]`, ggf. `\`) beim Schreiben escaped und beim Rendern wieder unescaped werden; sonst werden Mentions unparsebar. Zusätzlich muss `CloseSuggestions` immer den JS-Status (`mentionTextarea.setDropdownOpen(..., false)`) synchronisieren, damit Keydown-Interception nach dem Schließen nicht hängenbleibt.
-* [2026-05-08] - **Disambiguierung für Mention-Vorschläge**: Wenn Duplicate-Namen aufgelöst werden (z.B. Hunde), reicht `Name / Handler` nicht immer aus. Die Anzeige muss deterministisch eindeutig bleiben (bei Bedarf zusätzlicher numerischer Suffix innerhalb derselben Name+Handler-Gruppe).
-* [2026-05-08] - **JS catch-Variable vs. gleichnamige Funktionen**: In `leaflet-interop.js` (und anderen JS-Dateien) darf die catch-Variable **nicht** `error` heißen, wenn im selben Scope eine Funktion `error(...)` als Logger existiert — die Variable schattiert die Funktion, der Logger-Aufruf im catch-Block schlägt dann zur Laufzeit still fehl. Catch-Variablen immer `err` nennen, Logger-Aufrufe als `error('msg', err)` formulieren.
-* [2026-05-08] - **Klickbare Elemente immer semantisch korrekt**: Interaktive Chips, Badges oder ähnliche klickbare Elemente müssen `<button type="button">` sein (nicht `<span>` mit `@onclick`). Beim Umwandeln: Browser-Standard-Button-Styles (`appearance`, `font`, `text-align`) per CSS zurücksetzen und `:focus-visible` Outline ergänzen, damit die visuelle Erscheinung erhalten bleibt und Keyboard-Navigation funktioniert.
-* [2026-05-08] - **Button-Reset ohne Größen-Regression**: Beim Umstellen von `<span>` auf `<button>` in kompakten Chips/Badges darf kein `font: inherit` verwendet werden, wenn die Komponente eigene `font-size`-Werte setzt — das überschreibt die kompakte Typografie. Stattdessen gezielt `font-family`, `font-weight` und `line-height` erben.
+* [2026-05-09] - **JS-Interop `setOptions()` vor `loadHistory()`**: Wenn JS-Module (CollarTracking, PhoneTracking, teamMobileMap) konfigurierbare Darstellung (z.B. Icons) haben, muss `setOptions()` IMMER unmittelbar nach `initialize()` und VOR allen datenladeenden Aufrufen wie `loadHistory()` oder `setDogPosition()` aufgerufen werden — sonst werden bereits platzierte Marker mit dem Default-Icon erstellt.
+* [2026-05-09] - **try-catch in `OnAfterRenderAsync` sauber aufteilen**: In `TeamMobile.razor` (und ähnlichen Seiten) darf der try-catch für `init` NICHT mit `setOptions`/Settings-Aufrufen vermischt werden. Wenn `init` fehlschlägt und `return` aufgerufen wird, ist das richtig; wenn aber `setOptions` fehlschlägt, war die Karte bereits initialisiert — die Fehlermeldung "map init failed" ist dann falsch und der `return` erzeugt eine leere, funktionslose Seite. Lösung: separater (toleranter) try-catch für `setOptions`.

@@ -70,13 +70,27 @@ public partial class EinsatzMonitor
     {
         var appSettings = await SettingsService.GetAppSettingsAsync();
         if (!string.IsNullOrWhiteSpace(appSettings.MobileBaseUrl))
-            return appSettings.MobileBaseUrl.TrimEnd('/');
+            return NormalizeBaseUrl(appSettings.MobileBaseUrl);
 
         var configuredUrl = TeamMobileOptions.CurrentValue.PublicBaseUrl;
         if (!string.IsNullOrWhiteSpace(configuredUrl))
-            return configuredUrl.TrimEnd('/');
+            return NormalizeBaseUrl(configuredUrl);
 
         return string.Empty;
+    }
+
+    /// <summary>
+    /// Stellt sicher, dass die URL ein gültiges Schema hat. Fehlt es, wird „https://" vorangestellt.
+    /// </summary>
+    private static string NormalizeBaseUrl(string url)
+    {
+        var trimmed = url.Trim().TrimEnd('/');
+        if (!trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = "https://" + trimmed;
+        }
+        return trimmed;
     }
 
     private void CloseTeamMobileModal() => _showTeamMobileModal = false;

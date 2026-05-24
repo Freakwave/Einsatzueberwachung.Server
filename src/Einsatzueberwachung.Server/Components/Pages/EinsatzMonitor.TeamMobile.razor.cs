@@ -80,7 +80,7 @@ public partial class EinsatzMonitor
     }
 
     /// <summary>
-    /// Stellt sicher, dass die URL ein gültiges Schema hat. Fehlt es, wird „https://" vorangestellt.
+    /// Stellt sicher, dass die URL ein gültiges URL-Schema hat. Fehlt es, wird „https://" vorangestellt.
     /// </summary>
     private static string NormalizeBaseUrl(string url)
     {

@@ -42,7 +42,7 @@ public partial class EinsatzMonitor
         _teamMessageText = string.Empty;
     }
 
-    private void OpenTeamMobileModal()
+    private async Task OpenTeamMobileModalAsync()
     {
         var token = TeamMobileTokenService.CurrentMasterToken;
         if (string.IsNullOrEmpty(token))
@@ -52,7 +52,7 @@ public partial class EinsatzMonitor
         }
         else
         {
-            var baseUrl = (TeamMobileOptions.CurrentValue.PublicBaseUrl ?? string.Empty).TrimEnd('/');
+            var baseUrl = await ResolveTeamMobileBaseUrlAsync();
             _teamMobileFullUrl = string.IsNullOrEmpty(baseUrl)
                 ? $"/team/login/{token}"
                 : $"{baseUrl}/team/login/{token}";
@@ -60,6 +60,23 @@ public partial class EinsatzMonitor
             _teamMobileQrDataUrl = GenerateQrDataUrl(_teamMobileFullUrl);
         }
         _showTeamMobileModal = true;
+    }
+
+    /// <summary>
+    /// Gibt die effektive Basis-URL für den Team-Mobile QR-Code zurück.
+    /// Priorität: AppSettings.MobileBaseUrl > TeamMobileOptions.PublicBaseUrl > leer (= relativ).
+    /// </summary>
+    private async Task<string> ResolveTeamMobileBaseUrlAsync()
+    {
+        var appSettings = await SettingsService.GetAppSettingsAsync();
+        if (!string.IsNullOrWhiteSpace(appSettings.MobileBaseUrl))
+            return appSettings.MobileBaseUrl.TrimEnd('/');
+
+        var configuredUrl = TeamMobileOptions.CurrentValue.PublicBaseUrl;
+        if (!string.IsNullOrWhiteSpace(configuredUrl))
+            return configuredUrl.TrimEnd('/');
+
+        return string.Empty;
     }
 
     private void CloseTeamMobileModal() => _showTeamMobileModal = false;

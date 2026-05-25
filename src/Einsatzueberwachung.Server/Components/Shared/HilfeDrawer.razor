@@ -56,10 +56,10 @@
         }
 
         var anchorId = GetCurrentAnchorId();
-        var openedNow = !_wasOpen;
+        var drawerJustOpened = !_wasOpen;
         var pageChanged = !string.Equals(_lastAnchorId, anchorId, StringComparison.Ordinal);
 
-        if (openedNow || pageChanged)
+        if (drawerJustOpened || pageChanged)
         {
             await ScrollToSectionAsync(anchorId);
             _lastAnchorId = anchorId;

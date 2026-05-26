@@ -44,6 +44,10 @@ public partial class EinsatzKarte
     private string _mapBaseLayerType = "streets";
     private string _gridLayerType = "none";
     private string _karteTeamFilter = "";
+    private bool _karteShowSearchAreas = true;
+    private bool _karteShowPoints = true;
+    private bool _karteShowGps = false;
+    private bool _karteShowPhone = false;
     private SearchArea _currentArea = new();
     private SearchArea? _editingArea = null;
     private string _selectedTeamId = "";
@@ -651,7 +655,20 @@ public partial class EinsatzKarte
     private string BuildKarteUrl()
     {
         var teamParam = string.IsNullOrWhiteSpace(_karteTeamFilter) ? "" : $"&teamId={Uri.EscapeDataString(_karteTeamFilter)}";
-        return $"/downloads/einsatz-karte.pdf?mapType={_karteTileType}{teamParam}";
+        var showAreas = _karteShowSearchAreas ? "" : "&showSearchAreas=false";
+        var showPoints = _karteShowPoints ? "" : "&showPoints=false";
+        var showGps = _karteShowGps ? "&showGps=true" : "";
+        var showPhone = _karteShowPhone ? "&showPhone=true" : "";
+        return $"/downloads/einsatz-karte.pdf?mapType={_karteTileType}{teamParam}{showAreas}{showPoints}{showGps}{showPhone}";
+    }
+
+    private void SyncPrintDialogFromMap()
+    {
+        _karteTileType = _mapBaseLayerType;
+        _karteShowSearchAreas = _searchAreasVisible;
+        _karteShowPoints = _pointMarkersVisible;
+        _karteShowGps = _trackingVisible;
+        _karteShowPhone = _phoneLayerVisible;
     }
 
     // Draw-Modi aktivieren

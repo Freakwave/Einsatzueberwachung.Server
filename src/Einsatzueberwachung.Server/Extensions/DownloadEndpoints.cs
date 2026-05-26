@@ -28,23 +28,80 @@ internal static class DownloadEndpoints
         app.MapGet("/downloads/einsatz-karte.pdf", async (
             IEinsatzService einsatzService,
             IPdfExportService pdfExportService,
+            ICollarTrackingService collarTrackingService,
             ILoggerFactory loggerFactory,
             string? mapType = null,
-            string? teamId = null) =>
+            string? teamId = null,
+            bool? showSearchAreas = null,
+            bool? showPoints = null,
+            bool? showGps = null,
+            bool? showPhone = null) =>
         {
             var tileType = mapType switch
             {
                 "satellite" => Einsatzueberwachung.Domain.Models.Enums.MapTileType.Satellite,
+                "satelliteGoogle" => Einsatzueberwachung.Domain.Models.Enums.MapTileType.SatelliteGoogle,
+                "hybrid" => Einsatzueberwachung.Domain.Models.Enums.MapTileType.Hybrid,
                 "topo" => Einsatzueberwachung.Domain.Models.Enums.MapTileType.Topographic,
                 _ => Einsatzueberwachung.Domain.Models.Enums.MapTileType.Streets
             };
 
+            var options = new Einsatzueberwachung.Domain.Models.MapPrintOptions
+            {
+                TileType = tileType,
+                FilterTeamId = teamId,
+                ShowSearchAreas = showSearchAreas ?? true,
+                ShowPointMarkers = showPoints ?? true,
+                ShowGpsTracks = showGps ?? false,
+                ShowPhoneTracks = showPhone ?? false
+            };
+
             var einsatz = einsatzService.CurrentEinsatz;
+
+            // Collect GPS tracks if requested
+            List<Einsatzueberwachung.Domain.Models.TeamTrackSnapshot>? gpsTracks = null;
+            if (options.ShowGpsTracks)
+            {
+                gpsTracks = new List<Einsatzueberwachung.Domain.Models.TeamTrackSnapshot>();
+                // Add completed track snapshots
+                if (einsatz.TrackSnapshots?.Count > 0)
+                    gpsTracks.AddRange(einsatz.TrackSnapshots.Where(t => t.Points.Count >= 2));
+                // Add live collar histories
+                foreach (var collar in collarTrackingService.Collars)
+                {
+                    var history = collarTrackingService.GetLocationHistory(collar.Id);
+                    if (history.Count >= 2)
+                    {
+                        gpsTracks.Add(new Einsatzueberwachung.Domain.Models.TeamTrackSnapshot
+                        {
+                            TeamName = collar.CollarName ?? collar.Id,
+                            CollarName = collar.CollarName ?? collar.Id,
+                            Color = "#FF5722",
+                            Points = history.Select(h => new Einsatzueberwachung.Domain.Models.TrackPoint
+                            {
+                                Latitude = h.Latitude,
+                                Longitude = h.Longitude,
+                                Timestamp = h.Timestamp
+                            }).ToList()
+                        });
+                    }
+                }
+            }
+
+            // Collect phone track histories if requested
+            Dictionary<string, List<Einsatzueberwachung.Domain.Models.TeamPhoneLocation>>? phoneHistories = null;
+            if (options.ShowPhoneTracks)
+            {
+                phoneHistories = einsatzService.GetAllPhoneTrackHistories()
+                    .Where(kvp => kvp.Value.Count >= 2)
+                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToList());
+            }
+
             byte[] bytes;
             try
             {
                 bytes = await pdfExportService.ExportEinsatzKarteToPdfBytesAsync(
-                    einsatz, einsatzService.Teams, tileType, teamId);
+                    einsatz, einsatzService.Teams, options, gpsTracks, phoneHistories);
             }
             catch (Exception ex)
             {

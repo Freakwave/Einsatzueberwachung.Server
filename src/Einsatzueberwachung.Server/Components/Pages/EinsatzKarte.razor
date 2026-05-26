@@ -345,6 +345,11 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
+                        <button class="btn btn-outline-warning btn-sm w-100" @onclick="SyncPrintDialogFromMap">
+                            <i class="bi bi-arrow-repeat me-1"></i>Aktuelle Kartenansicht übernehmen
+                        </button>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label fw-bold">Kartentyp</label>
                         <div class="d-grid gap-1">
                             <label class="border rounded px-3 py-2 @(_karteTileType == "streets" ? "border-warning bg-warning bg-opacity-10" : "") cursor-pointer">
@@ -357,13 +362,50 @@
                                 <input type="radio" name="karteMapType" class="me-2" value="satellite"
                                        checked="@(_karteTileType == "satellite")"
                                        @onchange='() => _karteTileType = "satellite"' />
-                                <i class="bi bi-globe me-1"></i>Satellit
+                                <i class="bi bi-globe me-1"></i>Satellit (Esri)
+                            </label>
+                            <label class="border rounded px-3 py-2 @(_karteTileType == "satelliteGoogle" ? "border-warning bg-warning bg-opacity-10" : "") cursor-pointer">
+                                <input type="radio" name="karteMapType" class="me-2" value="satelliteGoogle"
+                                       checked="@(_karteTileType == "satelliteGoogle")"
+                                       @onchange='() => _karteTileType = "satelliteGoogle"' />
+                                <i class="bi bi-globe me-1"></i>Satellit (Google)
+                            </label>
+                            <label class="border rounded px-3 py-2 @(_karteTileType == "hybrid" ? "border-warning bg-warning bg-opacity-10" : "") cursor-pointer">
+                                <input type="radio" name="karteMapType" class="me-2" value="hybrid"
+                                       checked="@(_karteTileType == "hybrid")"
+                                       @onchange='() => _karteTileType = "hybrid"' />
+                                <i class="bi bi-globe2 me-1"></i>Hybrid (Google)
                             </label>
                             <label class="border rounded px-3 py-2 @(_karteTileType == "topo" ? "border-warning bg-warning bg-opacity-10" : "") cursor-pointer">
                                 <input type="radio" name="karteMapType" class="me-2" value="topo"
                                        checked="@(_karteTileType == "topo")"
                                        @onchange='() => _karteTileType = "topo"' />
                                 <i class="bi bi-bar-chart-steps me-1"></i>Topografisch
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Anzeige</label>
+                        <div class="d-grid gap-1">
+                            <label class="border rounded px-3 py-2 cursor-pointer d-flex align-items-center">
+                                <input type="checkbox" class="me-2" checked="@_karteShowSearchAreas"
+                                       @onchange="() => _karteShowSearchAreas = !_karteShowSearchAreas" />
+                                <i class="bi bi-geo-alt me-1"></i>Suchgebiete
+                            </label>
+                            <label class="border rounded px-3 py-2 cursor-pointer d-flex align-items-center">
+                                <input type="checkbox" class="me-2" checked="@_karteShowPoints"
+                                       @onchange="() => _karteShowPoints = !_karteShowPoints" />
+                                <i class="bi bi-crosshair me-1"></i>Punkte
+                            </label>
+                            <label class="border rounded px-3 py-2 cursor-pointer d-flex align-items-center">
+                                <input type="checkbox" class="me-2" checked="@_karteShowGps"
+                                       @onchange="() => _karteShowGps = !_karteShowGps" />
+                                <i class="bi bi-broadcast me-1"></i>GPS-Tracks
+                            </label>
+                            <label class="border rounded px-3 py-2 cursor-pointer d-flex align-items-center">
+                                <input type="checkbox" class="me-2" checked="@_karteShowPhone"
+                                       @onchange="() => _karteShowPhone = !_karteShowPhone" />
+                                <i class="bi bi-phone me-1"></i>Handy-Tracks
                             </label>
                         </div>
                     </div>

@@ -611,7 +611,7 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 return false;
             }
 
-            if (mapData.currentGridLayer && mapData.map.hasLayer(mapData.currentGridLayer)) {
+            if (mapData.currentGridLayer) {
                 mapData.map.removeLayer(mapData.currentGridLayer);
             }
 

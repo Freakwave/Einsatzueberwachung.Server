@@ -140,7 +140,7 @@ public partial class EinsatzKarte
         _ => "Ohne"
     };
 
-    private string MapContentSummary => $"{new[] { _searchAreasVisible, _pointMarkersVisible, _trackingVisible, _phoneLayerVisible }.Count(isVisible => isVisible)}/4 aktiv";
+    private string MapContentSummary => $"{(_searchAreasVisible ? 1 : 0) + (_pointMarkersVisible ? 1 : 0) + (_trackingVisible ? 1 : 0) + (_phoneLayerVisible ? 1 : 0)}/4 aktiv";
 
     protected override async Task OnInitializedAsync()
     {

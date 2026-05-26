@@ -14,7 +14,8 @@ public sealed class MissionTopbarService
     {
         _owner = owner;
         Content = content;
-        Changed?.Invoke();
+        var changed = Changed;
+        changed?.Invoke();
     }
 
     public void ClearContent(object owner)
@@ -26,6 +27,7 @@ public sealed class MissionTopbarService
 
         _owner = null;
         Content = null;
-        Changed?.Invoke();
+        var changed = Changed;
+        changed?.Invoke();
     }
 }

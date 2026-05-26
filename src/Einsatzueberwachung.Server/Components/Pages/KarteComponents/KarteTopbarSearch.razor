@@ -1,9 +1,4 @@
 <form class="map-topbar-search" @onsubmit="HandleSubmit" @onsubmit:preventDefault="true">
-    <span class="map-topbar-search-badge" aria-hidden="true">
-        <i class="bi bi-pin-map"></i>
-        <span class="map-topbar-search-badge-text">Kartensuche</span>
-    </span>
-
     <div class="input-group input-group-sm map-topbar-search-input-group">
         <input type="text"
                class="form-control"
@@ -12,7 +7,7 @@
                placeholder="Ort oder Adresse suchen"
                aria-label="Kartensuche" />
         <button class="btn btn-primary" type="submit" aria-label="Kartensuche ausführen">
-            <i class="bi bi-search"></i>
+            <i class="bi bi-pin-map"></i>
         </button>
     </div>
 </form>

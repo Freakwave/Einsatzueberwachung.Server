@@ -148,9 +148,12 @@
                             <button class="btn btn-xs btn-link" @onclick:stopPropagation="true" @onclick="() => OnZoomToTrack.InvokeAsync(snap.Id)" title="Zoomen">
                                 <i class="bi bi-zoom-in"></i>
                             </button>
-                            <button class="btn btn-xs btn-link" @onclick:stopPropagation="true" @onclick="() => OnNavigateToTeam.InvokeAsync(snap.TeamId)" title="Zum Team im Monitor">
-                                <i class="bi bi-people"></i>
-                            </button>
+                            @if (!string.IsNullOrEmpty(snap.TeamId))
+                            {
+                                <button class="btn btn-xs btn-link" @onclick:stopPropagation="true" @onclick="() => OnNavigateToTeam.InvokeAsync(snap.TeamId)" title="Zum Team im Monitor">
+                                    <i class="bi bi-people"></i>
+                                </button>
+                            }
                             <button class="btn btn-xs btn-link @(isVisible ? "" : "opacity-50")"
                                     title="@(isVisible ? "Auf Karte ausblenden" : "Auf Karte einblenden")"
                                     @onclick:stopPropagation="true"

@@ -40,7 +40,7 @@
                     <button class="btn btn-xs btn-link" @onclick:stopPropagation="true" @onclick="() => OnZoomToArea.InvokeAsync(area)" title="Zoomen">
                         <i class="bi bi-zoom-in"></i>
                     </button>
-                    @if (!string.IsNullOrEmpty(area.AssignedTeamName))
+                    @if (!string.IsNullOrEmpty(area.AssignedTeamId))
                     {
                         <button class="btn btn-xs btn-link" @onclick:stopPropagation="true" @onclick="() => OnNavigateToTeam.InvokeAsync(area.AssignedTeamId)" title="Zum Team im Monitor">
                             <i class="bi bi-people"></i>

@@ -919,16 +919,31 @@ public partial class EinsatzKarte
     private void ToggleTileMenu()
     {
         _mapTileMenuExpanded = !_mapTileMenuExpanded;
+        if (_mapTileMenuExpanded)
+        {
+            _mapGridMenuExpanded = false;
+            _mapContentMenuExpanded = false;
+        }
     }
 
     private void ToggleGridMenu()
     {
         _mapGridMenuExpanded = !_mapGridMenuExpanded;
+        if (_mapGridMenuExpanded)
+        {
+            _mapTileMenuExpanded = false;
+            _mapContentMenuExpanded = false;
+        }
     }
 
     private void ToggleMapContentMenu()
     {
         _mapContentMenuExpanded = !_mapContentMenuExpanded;
+        if (_mapContentMenuExpanded)
+        {
+            _mapTileMenuExpanded = false;
+            _mapGridMenuExpanded = false;
+        }
     }
 
     private async Task RecenterMap()

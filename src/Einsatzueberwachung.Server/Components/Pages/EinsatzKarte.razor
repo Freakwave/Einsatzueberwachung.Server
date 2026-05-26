@@ -191,24 +191,24 @@
                     @if (_mapTileMenuExpanded)
                     {
                         <div class="map-control-body">
-                            <label class="map-control-radio">
-                                <input type="radio" name="mapBaseLayer" checked="@(_mapBaseLayerType == "streets")" @onchange='() => ChangeMapBaseLayerAsync("streets")' />
+                            <label class="map-control-radio" @onclick='() => ChangeMapBaseLayerAsync("streets")' >
+                                <input type="radio" name="mapBaseLayer" checked="@(_mapBaseLayerType == "streets")" />
                                 <span>Straßenkarte</span>
                             </label>
-                            <label class="map-control-radio">
-                                <input type="radio" name="mapBaseLayer" checked="@(_mapBaseLayerType == "satellite")" @onchange='() => ChangeMapBaseLayerAsync("satellite")' />
+                            <label class="map-control-radio" @onclick='() => ChangeMapBaseLayerAsync("satellite")' >
+                                <input type="radio" name="mapBaseLayer" checked="@(_mapBaseLayerType == "satellite")" />
                                 <span>Satellit (Esri)</span>
                             </label>
-                            <label class="map-control-radio">
-                                <input type="radio" name="mapBaseLayer" checked="@(_mapBaseLayerType == "satelliteGoogle")" @onchange='() => ChangeMapBaseLayerAsync("satelliteGoogle")' />
+                            <label class="map-control-radio" @onclick='() => ChangeMapBaseLayerAsync("satelliteGoogle")' >
+                                <input type="radio" name="mapBaseLayer" checked="@(_mapBaseLayerType == "satelliteGoogle")" />
                                 <span>Satellit (Google)</span>
                             </label>
-                            <label class="map-control-radio">
-                                <input type="radio" name="mapBaseLayer" checked="@(_mapBaseLayerType == "hybrid")" @onchange='() => ChangeMapBaseLayerAsync("hybrid")' />
+                            <label class="map-control-radio" @onclick='() => ChangeMapBaseLayerAsync("hybrid")' >
+                                <input type="radio" name="mapBaseLayer" checked="@(_mapBaseLayerType == "hybrid")" />
                                 <span>Hybrid (Google)</span>
                             </label>
-                            <label class="map-control-radio">
-                                <input type="radio" name="mapBaseLayer" checked="@(_mapBaseLayerType == "topo")" @onchange='() => ChangeMapBaseLayerAsync("topo")' />
+                            <label class="map-control-radio" @onclick='() => ChangeMapBaseLayerAsync("topo")' >
+                                <input type="radio" name="mapBaseLayer" checked="@(_mapBaseLayerType == "topo")" />
                                 <span>Topografisch</span>
                             </label>
                         </div>
@@ -228,16 +228,16 @@
                     @if (_mapGridMenuExpanded)
                     {
                         <div class="map-control-body">
-                            <label class="map-control-radio">
-                                <input type="radio" name="mapGridLayer" checked="@(_gridLayerType == "none")" @onchange='() => ChangeGridLayerAsync("none")' />
+                            <label class="map-control-radio" @onclick='() => ChangeGridLayerAsync("none")' >
+                                <input type="radio" name="mapGridLayer" checked="@(_gridLayerType == "none")" />
                                 <span>Ohne</span>
                             </label>
-                            <label class="map-control-radio">
-                                <input type="radio" name="mapGridLayer" checked="@(_gridLayerType == "utm")" @onchange='() => ChangeGridLayerAsync("utm")' />
+                            <label class="map-control-radio" @onclick='() => ChangeGridLayerAsync("utm")' >
+                                <input type="radio" name="mapGridLayer" checked="@(_gridLayerType == "utm")" />
                                 <span>UTM</span>
                             </label>
-                            <label class="map-control-radio">
-                                <input type="radio" name="mapGridLayer" checked="@(_gridLayerType == "latlon")" @onchange='() => ChangeGridLayerAsync("latlon")' />
+                            <label class="map-control-radio" @onclick='() => ChangeGridLayerAsync("latlon")' >
+                                <input type="radio" name="mapGridLayer" checked="@(_gridLayerType == "latlon")" />
                                 <span>Lat/Lon (dezimal)</span>
                             </label>
                         </div>

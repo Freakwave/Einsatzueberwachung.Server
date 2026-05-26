@@ -438,6 +438,7 @@ public sealed partial class OsmStaticMapRenderer
                 // Draw phone tracks
                 var phoneColors = new[] { "#4CAF50", "#FF9800", "#9C27B0", "#00BCD4", "#E91E63", "#3F51B5" };
                 var phoneColorIdx = 0;
+                var teamLookup = teams?.ToDictionary(t => t.TeamId, t => t.TeamName);
                 foreach (var (teamId, history) in validPhoneTracks)
                 {
                     var validPoints = history.Where(p => p.Latitude != 0 || p.Longitude != 0).ToList();
@@ -458,7 +459,7 @@ public sealed partial class OsmStaticMapRenderer
                     canvas.DrawPath(phonePath, phonePaint);
 
                     // Draw team label at last point
-                    var teamName = teams?.FirstOrDefault(t => t.TeamId == teamId)?.TeamName;
+                    var teamName = teamLookup != null && teamLookup.TryGetValue(teamId, out var tn) ? tn : null;
                     if (!string.IsNullOrWhiteSpace(teamName))
                     {
                         var lastPt = phonePts[^1];

@@ -479,6 +479,9 @@ public sealed partial class OsmStaticMapRenderer
                 if (elwPosition.HasValue)
                     DrawMarker(canvas, new SKPoint(ToX(elwPosition.Value.Longitude), ToY(elwPosition.Value.Latitude)), new SKColor(220, 20, 60), "ELW");
 
+                if (!string.IsNullOrEmpty(options.GridType) && options.GridType != "none")
+                    DrawGrid(canvas, ToX, ToY, minLat, maxLat, minLon, maxLon, width, height, options.GridType);
+
                 DrawNorthArrow(canvas, width, height);
                 DrawAttribution(canvas, width, height, tileConfig.Attribution);
 

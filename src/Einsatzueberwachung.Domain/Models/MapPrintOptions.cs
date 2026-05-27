@@ -13,4 +13,6 @@ public class MapPrintOptions
     public bool ShowPointMarkers { get; set; } = true;
     public bool ShowGpsTracks { get; set; } = false;
     public bool ShowPhoneTracks { get; set; } = false;
+    /// <summary>Koordinatengitter: "none", "latlon" oder "utm"</summary>
+    public string GridType { get; set; } = "none";
 }

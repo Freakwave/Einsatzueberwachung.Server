@@ -337,7 +337,7 @@
 {
     <div class="modal-backdrop show"></div>
     <div class="modal show d-block" tabindex="-1">
-        <div class="modal-dialog modal-sm">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-printer me-2"></i>Einsatzkarte drucken</h5>
@@ -406,6 +406,29 @@
                                 <input type="checkbox" class="me-2" checked="@_karteShowPhone"
                                        @onchange="() => _karteShowPhone = !_karteShowPhone" />
                                 <i class="bi bi-phone me-1"></i>Handy-Tracks
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold">Koordinaten-Gitter</label>
+                        <div class="d-grid gap-1">
+                            <label class="border rounded px-3 py-2 @(_karteGridType == "none" ? "border-warning bg-warning bg-opacity-10" : "") cursor-pointer">
+                                <input type="radio" name="karteGridType" class="me-2" value="none"
+                                       checked="@(_karteGridType == "none")"
+                                       @onchange='() => _karteGridType = "none"' />
+                                <i class="bi bi-slash-circle me-1"></i>Ohne Gitter
+                            </label>
+                            <label class="border rounded px-3 py-2 @(_karteGridType == "utm" ? "border-warning bg-warning bg-opacity-10" : "") cursor-pointer">
+                                <input type="radio" name="karteGridType" class="me-2" value="utm"
+                                       checked="@(_karteGridType == "utm")"
+                                       @onchange='() => _karteGridType = "utm"' />
+                                <i class="bi bi-grid me-1"></i>UTM-Gitter
+                            </label>
+                            <label class="border rounded px-3 py-2 @(_karteGridType == "latlon" ? "border-warning bg-warning bg-opacity-10" : "") cursor-pointer">
+                                <input type="radio" name="karteGridType" class="me-2" value="latlon"
+                                       checked="@(_karteGridType == "latlon")"
+                                       @onchange='() => _karteGridType = "latlon"' />
+                                <i class="bi bi-grid-3x3 me-1"></i>Breitengrad / Längengrad
                             </label>
                         </div>
                     </div>

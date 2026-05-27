@@ -35,7 +35,8 @@ internal static class DownloadEndpoints
             bool? showSearchAreas = null,
             bool? showPoints = null,
             bool? showGps = null,
-            bool? showPhone = null) =>
+            bool? showPhone = null,
+            string? gridType = null) =>
         {
             var tileType = mapType switch
             {
@@ -53,7 +54,8 @@ internal static class DownloadEndpoints
                 ShowSearchAreas = showSearchAreas ?? true,
                 ShowPointMarkers = showPoints ?? true,
                 ShowGpsTracks = showGps ?? false,
-                ShowPhoneTracks = showPhone ?? false
+                ShowPhoneTracks = showPhone ?? false,
+                GridType = gridType is "utm" or "latlon" ? gridType : "none"
             };
 
             var einsatz = einsatzService.CurrentEinsatz;

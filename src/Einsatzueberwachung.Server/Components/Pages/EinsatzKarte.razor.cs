@@ -41,6 +41,7 @@ public partial class EinsatzKarte
     private bool _showDialog = false;
     private bool _showKarteDialog = false;
     private string _karteTileType = "streets";
+    private string _karteGridType = "none";
     private string _mapBaseLayerType = "streets";
     private string _gridLayerType = "none";
     private string _karteTeamFilter = "";
@@ -659,12 +660,14 @@ public partial class EinsatzKarte
         var showPoints = _karteShowPoints ? "" : "&showPoints=false";
         var showGps = _karteShowGps ? "&showGps=true" : "";
         var showPhone = _karteShowPhone ? "&showPhone=true" : "";
-        return $"/downloads/einsatz-karte.pdf?mapType={_karteTileType}{teamParam}{showAreas}{showPoints}{showGps}{showPhone}";
+        var gridType = _karteGridType != "none" ? $"&gridType={_karteGridType}" : "";
+        return $"/downloads/einsatz-karte.pdf?mapType={_karteTileType}{teamParam}{showAreas}{showPoints}{showGps}{showPhone}{gridType}";
     }
 
     private void SyncPrintDialogFromMap()
     {
         _karteTileType = _mapBaseLayerType;
+        _karteGridType = _gridLayerType;
         _karteShowSearchAreas = _searchAreasVisible;
         _karteShowPoints = _pointMarkersVisible;
         _karteShowGps = _trackingVisible;

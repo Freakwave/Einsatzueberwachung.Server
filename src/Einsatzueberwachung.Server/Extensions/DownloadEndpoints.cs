@@ -36,7 +36,11 @@ internal static class DownloadEndpoints
             bool? showPoints = null,
             bool? showGps = null,
             bool? showPhone = null,
-            string? gridType = null) =>
+            string? gridType = null,
+            string? zoomMode = null,
+            double? centerLat = null,
+            double? centerLng = null,
+            int? zoom = null) =>
         {
             var tileType = mapType switch
             {
@@ -55,7 +59,11 @@ internal static class DownloadEndpoints
                 ShowPointMarkers = showPoints ?? true,
                 ShowGpsTracks = showGps ?? false,
                 ShowPhoneTracks = showPhone ?? false,
-                GridType = gridType is "utm" or "latlon" ? gridType : "none"
+                GridType = gridType is "utm" or "latlon" ? gridType : "none",
+                ZoomMode = zoomMode ?? "all",
+                CenterLat = centerLat,
+                CenterLng = centerLng,
+                ZoomLevel = zoom
             };
 
             var einsatz = einsatzService.CurrentEinsatz;
@@ -74,8 +82,10 @@ internal static class DownloadEndpoints
                     var history = collarTrackingService.GetLocationHistory(collar.Id);
                     if (history.Count >= 2)
                     {
+                        var matchingTeam = einsatzService.Teams.FirstOrDefault(t => t.CollarId == collar.Id);
                         gpsTracks.Add(new Einsatzueberwachung.Domain.Models.TeamTrackSnapshot
                         {
+                            TeamId = matchingTeam?.TeamId ?? string.Empty,
                             TeamName = collar.CollarName ?? collar.Id,
                             CollarName = collar.CollarName ?? collar.Id,
                             Color = "#FF5722",

@@ -15,4 +15,8 @@ public class MapPrintOptions
     public bool ShowPhoneTracks { get; set; } = false;
     /// <summary>Koordinatengitter: "none", "latlon" oder "utm"</summary>
     public string GridType { get; set; } = "none";
+    public string ZoomMode { get; set; } = "all"; // "all", "team", "viewport"
+    public double? CenterLat { get; set; }
+    public double? CenterLng { get; set; }
+    public int? ZoomLevel { get; set; }
 }

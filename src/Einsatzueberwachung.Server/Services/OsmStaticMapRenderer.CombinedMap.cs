@@ -300,33 +300,76 @@ public sealed partial class OsmStaticMapRenderer
         var validTracks = options.ShowGpsTracks ? (gpsTracks?.Where(t => t.Points.Count >= 2).ToList() ?? new List<TeamTrackSnapshot>()) : new List<TeamTrackSnapshot>();
         var validPhoneTracks = options.ShowPhoneTracks ? (phoneTrackHistories ?? new Dictionary<string, List<TeamPhoneLocation>>()) : new Dictionary<string, List<TeamPhoneLocation>>();
 
-        // Collect all coordinate points to determine bounds
+        // Collect all coordinate points to determine bounds (if not in viewport mode)
         var allLats = new List<double>();
         var allLons = new List<double>();
 
-        foreach (var a in validAreas)
-        {
-            allLats.AddRange(a.Coordinates.Select(c => c.Latitude));
-            allLons.AddRange(a.Coordinates.Select(c => c.Longitude));
-        }
-        foreach (var m in validMarkers)
-        {
-            allLats.Add(m.Latitude);
-            allLons.Add(m.Longitude);
-        }
-        foreach (var t in validTracks)
-        {
-            allLats.AddRange(t.Points.Select(p => p.Latitude));
-            allLons.AddRange(t.Points.Select(p => p.Longitude));
-        }
-        foreach (var (_, history) in validPhoneTracks)
-        {
-            allLats.AddRange(history.Select(p => p.Latitude));
-            allLons.AddRange(history.Select(p => p.Longitude));
-        }
-        if (elwPosition.HasValue) { allLats.Add(elwPosition.Value.Latitude); allLons.Add(elwPosition.Value.Longitude); }
+        var isZoomTeam = options.ZoomMode == "team" && !string.IsNullOrWhiteSpace(options.FilterTeamId);
 
-        if (allLats.Count == 0) return null;
+        if (isZoomTeam)
+        {
+            var targetTeamId = options.FilterTeamId!;
+            foreach (var a in validAreas)
+            {
+                var belongs = a.AssignedTeamId == targetTeamId || 
+                    (!string.IsNullOrWhiteSpace(a.AssignedTeamName) && 
+                     teams != null && 
+                     teams.Any(t => t.TeamId == targetTeamId && 
+                                    string.Equals(t.TeamName, a.AssignedTeamName, StringComparison.OrdinalIgnoreCase)));
+
+                if (belongs)
+                {
+                    allLats.AddRange(a.Coordinates.Select(c => c.Latitude));
+                    allLons.AddRange(a.Coordinates.Select(c => c.Longitude));
+                }
+            }
+            foreach (var t in validTracks)
+            {
+                if (t.TeamId == targetTeamId)
+                {
+                    allLats.AddRange(t.Points.Select(p => p.Latitude));
+                    allLons.AddRange(t.Points.Select(p => p.Longitude));
+                }
+            }
+            foreach (var (teamId, history) in validPhoneTracks)
+            {
+                if (teamId == targetTeamId)
+                {
+                    allLats.AddRange(history.Select(p => p.Latitude));
+                    allLons.AddRange(history.Select(p => p.Longitude));
+                }
+            }
+        }
+
+        // Fallback to "all" if not zooming to team, or if the selected team has no content coordinates
+        if (!isZoomTeam || allLats.Count == 0)
+        {
+            foreach (var a in validAreas)
+            {
+                allLats.AddRange(a.Coordinates.Select(c => c.Latitude));
+                allLons.AddRange(a.Coordinates.Select(c => c.Longitude));
+            }
+            foreach (var m in validMarkers)
+            {
+                allLats.Add(m.Latitude);
+                allLons.Add(m.Longitude);
+            }
+            foreach (var t in validTracks)
+            {
+                allLats.AddRange(t.Points.Select(p => p.Latitude));
+                allLons.AddRange(t.Points.Select(p => p.Longitude));
+            }
+            foreach (var (_, history) in validPhoneTracks)
+            {
+                allLats.AddRange(history.Select(p => p.Latitude));
+                allLons.AddRange(history.Select(p => p.Longitude));
+            }
+            if (elwPosition.HasValue) 
+            { 
+                allLats.Add(elwPosition.Value.Latitude); 
+                allLons.Add(elwPosition.Value.Longitude); 
+            }
+        }
 
         var tileConfig = GetSearchAreaTileConfig(options.TileType);
         var tilePixelSize = tileConfig.PixelSize;
@@ -342,22 +385,66 @@ public sealed partial class OsmStaticMapRenderer
 
         try
         {
-            var minLat = allLats.Min(); var maxLat = allLats.Max();
-            var minLon = allLons.Min(); var maxLon = allLons.Max();
+            double TileXToLon(double x, int z, int pixelSize)
+            {
+                var tileX = x / pixelSize;
+                return (tileX / (1 << z)) * 360.0 - 180.0;
+            }
 
-            var latPad = Math.Max((maxLat - minLat) * 0.12, 0.002);
-            var lonPad = Math.Max((maxLon - minLon) * 0.12, 0.003);
-            minLat -= latPad; maxLat += latPad;
-            minLon -= lonPad; maxLon += lonPad;
+            double TileYToLat(double y, int z, int pixelSize)
+            {
+                var tileY = y / pixelSize;
+                var val = Math.PI * (1.0 - 2.0 * (tileY / (1 << z)));
+                var e = Math.Exp(val);
+                var sinLat = (e * e - 1.0) / (e * e + 1.0);
+                return Math.Asin(sinLat) * 180.0 / Math.PI;
+            }
 
-            var zoom = CalculateZoom(minLat, maxLat, minLon, maxLon, width, height);
+            double absCropLeft, absCropTop, absCropRight, absCropBottom;
+            int zoom;
+            double minLat = 0, maxLat = 0, minLon = 0, maxLon = 0;
 
-            var absCropLeft = LonToTileXFloat(minLon, zoom) * tilePixelSize;
-            var absCropTop = LatToTileYFloat(maxLat, zoom) * tilePixelSize;
-            var absCropRight = LonToTileXFloat(maxLon, zoom) * tilePixelSize;
-            var absCropBottom = LatToTileYFloat(minLat, zoom) * tilePixelSize;
+            if (options.ZoomMode == "viewport" && options.CenterLat.HasValue && options.CenterLng.HasValue && options.ZoomLevel.HasValue)
+            {
+                zoom = options.ZoomLevel.Value;
+                if (zoom < 0) zoom = 0;
+                if (zoom > 19) zoom = 19;
 
-            AdjustCropToAspect(ref absCropLeft, ref absCropTop, ref absCropRight, ref absCropBottom, width, height);
+                var centerXPixels = LonToTileXFloat(options.CenterLng.Value, zoom) * tilePixelSize;
+                var centerYPixels = LatToTileYFloat(options.CenterLat.Value, zoom) * tilePixelSize;
+
+                absCropLeft = centerXPixels - width / 2.0;
+                absCropRight = centerXPixels + width / 2.0;
+                absCropTop = centerYPixels - height / 2.0;
+                absCropBottom = centerYPixels + height / 2.0;
+            }
+            else
+            {
+                if (allLats.Count == 0) return null;
+
+                var tempMinLat = allLats.Min(); var tempMaxLat = allLats.Max();
+                var tempMinLon = allLons.Min(); var tempMaxLon = allLons.Max();
+
+                var latPad = Math.Max((tempMaxLat - tempMinLat) * 0.12, 0.002);
+                var lonPad = Math.Max((tempMaxLon - tempMinLon) * 0.12, 0.003);
+                tempMinLat -= latPad; tempMaxLat += latPad;
+                tempMinLon -= lonPad; tempMaxLon += lonPad;
+
+                zoom = CalculateZoom(tempMinLat, tempMaxLat, tempMinLon, tempMaxLon, width, height);
+
+                absCropLeft = LonToTileXFloat(tempMinLon, zoom) * tilePixelSize;
+                absCropTop = LatToTileYFloat(tempMaxLat, zoom) * tilePixelSize;
+                absCropRight = LonToTileXFloat(tempMaxLon, zoom) * tilePixelSize;
+                absCropBottom = LatToTileYFloat(tempMinLat, zoom) * tilePixelSize;
+
+                AdjustCropToAspect(ref absCropLeft, ref absCropTop, ref absCropRight, ref absCropBottom, width, height);
+            }
+
+            // Compute final lat/lon bounds corresponding to the crop area for accurate grid drawing
+            minLon = TileXToLon(absCropLeft, zoom, tilePixelSize);
+            maxLon = TileXToLon(absCropRight, zoom, tilePixelSize);
+            maxLat = TileYToLat(absCropTop, zoom, tilePixelSize);
+            minLat = TileYToLat(absCropBottom, zoom, tilePixelSize);
 
             var minTileX = (int)Math.Floor(absCropLeft / tilePixelSize);
             var maxTileX = (int)Math.Floor(absCropRight / tilePixelSize);

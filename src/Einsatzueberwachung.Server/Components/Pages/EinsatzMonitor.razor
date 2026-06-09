@@ -39,7 +39,10 @@
                             aria-label="Panel-Menü schließen"></button>
                 }
             </div>
-            <button class="btn btn-secondary btn-sm" type="button" @onclick="OpenTeamMobileModal" title="QR-Code fuer Team-Smartphones">
+            <a class="btn btn-info btn-sm" href="/einsatz-karte">
+                <i class="bi bi-map me-1"></i>Karte
+            </a>
+            <button class="btn btn-outline-success btn-sm" type="button" @onclick="OpenTeamMobileModalAsync" title="QR-Code fuer Team-Smartphones">
                 <i class="bi bi-qr-code me-1"></i>Team-Mobile
             </button>
             

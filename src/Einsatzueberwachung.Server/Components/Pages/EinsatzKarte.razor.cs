@@ -1168,6 +1168,44 @@ public partial class EinsatzKarte
         await JSRuntime.InvokeVoidAsync("CollarTracking.zoomToCollar", "einsatzMap", collar.Id);
     }
 
+    private async Task UnassignCollarAsync(string collarId)
+    {
+        await CollarTrackingService.UnassignCollarAsync(collarId);
+        _collars = CollarTrackingService.Collars.ToList();
+
+        // Nach Freigabe kann das Halsband nicht mehr OOB sein → Warnung sofort entfernen
+        if (_oobWarnings.Remove(collarId) && _mapInitialized)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("CollarTracking.clearOobWarning", "einsatzMap", collarId);
+            }
+            catch (ObjectDisposedException) { }
+        }
+
+        // Marker/Popup-Farbe & Label sofort aktualisieren (ohne auf den nächsten GPS-Punkt zu warten)
+        if (_mapInitialized && _collarLastLocations.TryGetValue(collarId, out var lastLoc))
+        {
+            try
+            {
+                var color = GetCollarColor(collarId);
+                var dogLabel = GetDogLabelForCollar(collarId);
+                await JSRuntime.InvokeVoidAsync(
+                    "CollarTracking.updatePosition",
+                    "einsatzMap",
+                    collarId,
+                    lastLoc.Latitude,
+                    lastLoc.Longitude,
+                    lastLoc.Timestamp,
+                    color,
+                    dogLabel);
+            }
+            catch (ObjectDisposedException) { }
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
     private async Task ZoomToPhoneTeamAsync(string teamId)
     {
         // Layer einblenden falls noch nicht aktiv

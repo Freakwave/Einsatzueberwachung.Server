@@ -1,4 +1,4 @@
-﻿// Leaflet Map Interop fuer Einsatzueberwachung
+// Leaflet Map Interop fuer Einsatzueberwachung
 // Ermoeglicht das Zeichnen und Verwalten von Suchgebieten auf einer interaktiven Karte
 // Debug-Flag - setze auf false fuer Production
 const DEBUG = false;
@@ -237,6 +237,15 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             drawControl: drawControl,
             markers: {},
             dotNetReference: dotNetReference,
+            gridLayers: {
+                none: null,
+                utm: utmGridGroup,
+                latlon: latLonGrid
+            },
+            currentGridLayer: null,
+            currentGridLayerType: 'none',
+            searchAreasVisible: true,
+            coordinateMarkersVisible: true,
             layers: {
                 streets: osmLayer,
                 satellite: satelliteLayer,
@@ -545,6 +554,25 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         }
     },
     
+    // Gibt das aktuelle Viewport (Mitte + Zoom) zurueck
+    getMapViewport: function(mapId) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return { lat: 0, lng: 0, zoom: 13 };
+            
+            const center = mapData.map.getCenter();
+            const zoom = mapData.map.getZoom();
+            return {
+                lat: center.lat,
+                lng: center.lng,
+                zoom: zoom
+            };
+        } catch (err) {
+            error('Fehler beim Abrufen des Viewports:', err);
+            return { lat: 0, lng: 0, zoom: 13 };
+        }
+    },
+    
     // Wechselt die Basis-Layer-Ansicht
     changeBaseLayer: function(mapId, layerType) {
         try {
@@ -590,6 +618,87 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
             return true;
         } catch (err) {
             error('Fehler beim Wechseln des Layers:', err);
+            return false;
+        }
+    },
+
+    changeGridLayer: function(mapId, layerType) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) {
+                error('Karte nicht gefunden:', mapId);
+                return false;
+            }
+
+            if (mapData.currentGridLayer) {
+                mapData.map.removeLayer(mapData.currentGridLayer);
+            }
+
+            mapData.currentGridLayer = null;
+            mapData.currentGridLayerType = layerType || 'none';
+
+            const nextLayer = mapData.gridLayers?.[mapData.currentGridLayerType];
+            if (nextLayer) {
+                nextLayer.addTo(mapData.map);
+                mapData.currentGridLayer = nextLayer;
+            }
+
+            return true;
+        } catch (err) {
+            error('Fehler beim Wechseln des Koordinaten-Gitters:', err);
+            return false;
+        }
+    },
+
+    toggleSearchAreas: function(mapId, visible) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData || !mapData.savedAreas) return false;
+
+            mapData.searchAreasVisible = !!visible;
+
+            if (mapData.searchAreasVisible) {
+                if (!mapData.map.hasLayer(mapData.savedAreas)) {
+                    mapData.savedAreas.addTo(mapData.map);
+                }
+            } else if (mapData.map.hasLayer(mapData.savedAreas)) {
+                mapData.map.removeLayer(mapData.savedAreas);
+            }
+
+            return true;
+        } catch (err) {
+            error('Fehler beim Umschalten der Suchgebiete:', err);
+            return false;
+        }
+    },
+
+    toggleCoordinateMarkers: function(mapId, visible) {
+        try {
+            const mapData = this.maps[mapId];
+            if (!mapData) return false;
+
+            mapData.coordinateMarkersVisible = !!visible;
+
+            Object.keys(mapData.markers)
+                .filter(key => key.startsWith('coord_'))
+                .forEach(key => {
+                    const marker = mapData.markers[key];
+                    if (!marker) {
+                        return;
+                    }
+
+                    if (mapData.coordinateMarkersVisible) {
+                        if (!mapData.map.hasLayer(marker)) {
+                            marker.addTo(mapData.map);
+                        }
+                    } else if (mapData.map.hasLayer(marker)) {
+                        mapData.map.removeLayer(marker);
+                    }
+                });
+
+            return true;
+        } catch (err) {
+            error('Fehler beim Umschalten der Punkte:', err);
             return false;
         }
     },
@@ -1293,7 +1402,11 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
                 icon: icon,
                 title: label || 'Koordinaten-Marker',
                 draggable: false
-            }).addTo(mapData.map);
+            });
+
+            if (mapData.coordinateMarkersVisible !== false) {
+                marker.addTo(mapData.map);
+            }
 
             // Popup mit Koordinaten-Info
             const utmInfo = this._latLngToUtmString(lat, lng);
@@ -1589,4 +1702,3 @@ initialize: function(mapId, centerLat, centerLng, zoom, dotNetReference) {
         }
     }
 };
-

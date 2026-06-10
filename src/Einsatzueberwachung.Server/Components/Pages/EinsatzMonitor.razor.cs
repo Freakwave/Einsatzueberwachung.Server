@@ -32,6 +32,7 @@ public partial class EinsatzMonitor
     private readonly TeamEditorModel _teamForm = new();
     private readonly Dictionary<string, string> _replyTexts = new();
     private readonly Dictionary<string, string> _replySourceIds = new();
+    private readonly Dictionary<string, bool> _replyVisible = new();
     private readonly Dictionary<string, bool> _historyVisible = new();
     private readonly Dictionary<string, List<GlobalNotesHistory>> _historyCache = new();
 
@@ -1652,6 +1653,7 @@ public partial class EinsatzMonitor
             createdBy);
 
         _replyTexts[noteId] = string.Empty;
+        _replyVisible[noteId] = false;
     }
 
     private async Task ToggleHistoryAsync(string noteId)
@@ -1698,6 +1700,17 @@ public partial class EinsatzMonitor
     private void SetReplySourceId(string noteId, string? sourceId)
     {
         _replySourceIds[noteId] = string.IsNullOrWhiteSpace(sourceId) ? "einsatzleitung" : sourceId;
+    }
+
+    private void ToggleReplyForm(string noteId)
+    {
+        var isVisible = _replyVisible.TryGetValue(noteId, out var v) && v;
+        _replyVisible[noteId] = !isVisible;
+    }
+
+    private bool IsReplyFormVisible(string noteId)
+    {
+        return _replyVisible.TryGetValue(noteId, out var v) && v;
     }
 
     private (string SourceId, string SourceName, string CreatedBy) ResolveSelectedSource(string sourceId)

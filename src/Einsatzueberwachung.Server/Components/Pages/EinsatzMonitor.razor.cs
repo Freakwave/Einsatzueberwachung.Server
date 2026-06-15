@@ -36,7 +36,7 @@ public partial class EinsatzMonitor
 
     private string _newNoteText = string.Empty;
     private string _newNoteType = "Notiz";
-    private string _newNoteSourceId = string.Empty;
+    private string _newNoteSourceId = "einsatzleitung";
     private string? _editingTeamId;
     private string _teamFormMessage = string.Empty;
     private bool _teamFormIsError;
@@ -55,7 +55,6 @@ public partial class EinsatzMonitor
     private bool _wetterDetailsExpanded;
     private bool _vermisstenDetailsExpanded;
     private Guid? _vermisstenPanelSelectedId;
-    private bool _isNoteFormExpanded;
 
     // Halsband-Auswahl beim Start (falls noch kein Halsband zugewiesen)
     private bool _showCollarSelectModal;
@@ -94,6 +93,7 @@ public partial class EinsatzMonitor
     };
 
     private List<string> _quickNoteTemplates = new();
+    private bool _showQuickNoteDropdown;
 
     private WeatherData? _monitorWeather;
     private WeatherForecast? _monitorForecast;
@@ -1594,28 +1594,12 @@ public partial class EinsatzMonitor
             createdBy);
 
         _newNoteText = string.Empty;
-        _isNoteFormExpanded = false;
-    }
-
-    private async Task OpenNoteFormAsync()
-    {
-        _isNoteFormExpanded = true;
-        await InvokeAsync(StateHasChanged);
-        await JS.InvokeVoidAsync("eval", "setTimeout(()=>document.querySelector('#note-expander-form textarea')?.focus(),50)");
-    }
-
-    private void CloseNoteForm()
-    {
-        _isNoteFormExpanded = false;
-        _newNoteText = string.Empty;
     }
 
     private async Task AddQuickNoteAsync(string shortText)
     {
         if (string.IsNullOrWhiteSpace(shortText))
-        {
             return;
-        }
 
         var selectedSource = string.IsNullOrWhiteSpace(_newNoteSourceId) ? "einsatzleitung" : _newNoteSourceId;
         var (sourceId, sourceName, createdBy) = ResolveSelectedSource(selectedSource);
@@ -1628,8 +1612,6 @@ public partial class EinsatzMonitor
             "Notiz",
             GlobalNotesEntryType.Manual,
             createdBy);
-
-        _isNoteFormExpanded = false;
     }
 
     private async Task AddReplyAsync(string noteId)

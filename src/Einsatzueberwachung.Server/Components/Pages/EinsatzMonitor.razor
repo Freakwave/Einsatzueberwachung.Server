@@ -354,7 +354,7 @@
                                                             <span class="badge bg-info">Bearbeitet</span>
                                                         }
                                                         <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleHistoryAsync(note.Id)">Historie</button>
-                                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ToggleReplyForm(note.Id)">
+                                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleReplyForm(note.Id)">
                                                             <i class="bi bi-reply-fill me-1"></i>Antworten
                                                         </button>
                                                     </div>
@@ -397,7 +397,7 @@
                                                                    placeholder="Antwort"
                                                                    value="@GetReplyText(note.Id)"
                                                                    @oninput="e => SetReplyText(note.Id, e.Value?.ToString())" />
-                                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => AddReplyAsync(note.Id)">
+                                                            <button class="btn btn-sm btn-primary" @onclick="() => AddReplyAsync(note.Id)">
                                                                 <i class="bi bi-send-fill"></i>
                                                             </button>
                                                         </div>

@@ -349,37 +349,10 @@
                                                     <div class="mb-2">@MentionTextarea.RenderWithMentions(note.Text)</div>
 
                                                     <div class="d-flex align-items-center gap-2 mb-2">
-                                                        @if (note.IsEdited)
-                                                        {
-                                                            <span class="badge bg-info">Bearbeitet</span>
-                                                        }
-                                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleHistoryAsync(note.Id)">Historie</button>
                                                         <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleReplyForm(note.Id)">
                                                             <i class="bi bi-reply-fill me-1"></i>Antworten
                                                         </button>
                                                     </div>
-
-                                                    @if (IsHistoryVisible(note.Id))
-                                                    {
-                                                        var historyEntries = GetHistoryEntries(note.Id);
-                                                        if (historyEntries.Count == 0)
-                                                        {
-                                                            <div class="small text-muted mb-2">Keine Historie vorhanden.</div>
-                                                        }
-                                                        else
-                                                        {
-                                                            <div class="small border rounded p-2 mb-2 bg-light-subtle">
-                                                                @foreach (var history in historyEntries)
-                                                                {
-                                                                    <div class="mb-1">
-                                                                        <div class="text-muted">@history.FormattedChangedAt · @history.ChangedBy</div>
-                                                                        <div><strong>Alt:</strong> @history.OldText</div>
-                                                                        <div><strong>Neu:</strong> @history.NewText</div>
-                                                                    </div>
-                                                                }
-                                                            </div>
-                                                        }
-                                                    }
 
                                                     @if (IsReplyFormVisible(note.Id))
                                                     {

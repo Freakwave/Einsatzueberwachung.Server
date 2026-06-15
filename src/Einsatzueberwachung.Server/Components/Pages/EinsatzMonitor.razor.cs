@@ -33,8 +33,6 @@ public partial class EinsatzMonitor
     private readonly Dictionary<string, string> _replyTexts = new();
     private readonly Dictionary<string, string> _replySourceIds = new();
     private readonly Dictionary<string, bool> _replyVisible = new();
-    private readonly Dictionary<string, bool> _historyVisible = new();
-    private readonly Dictionary<string, List<GlobalNotesHistory>> _historyCache = new();
 
     private string _newNoteText = string.Empty;
     private string _newNoteType = "Notiz";
@@ -1654,27 +1652,6 @@ public partial class EinsatzMonitor
 
         _replyTexts[noteId] = string.Empty;
         _replyVisible[noteId] = false;
-    }
-
-    private async Task ToggleHistoryAsync(string noteId)
-    {
-        var show = !_historyVisible.TryGetValue(noteId, out var isVisible) || !isVisible;
-        _historyVisible[noteId] = show;
-
-        if (show)
-        {
-            _historyCache[noteId] = await EinsatzService.GetNoteHistoryAsync(noteId);
-        }
-    }
-
-    private bool IsHistoryVisible(string noteId)
-    {
-        return _historyVisible.TryGetValue(noteId, out var value) && value;
-    }
-
-    private List<GlobalNotesHistory> GetHistoryEntries(string noteId)
-    {
-        return _historyCache.TryGetValue(noteId, out var entries) ? entries : new List<GlobalNotesHistory>();
     }
 
     private string GetReplyText(string noteId)

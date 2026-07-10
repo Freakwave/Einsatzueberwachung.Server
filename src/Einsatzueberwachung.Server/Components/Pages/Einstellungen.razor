@@ -253,6 +253,26 @@
                             <span class="cfg-help">Symbol für die aktuelle Handy-GPS-Position eines Teams auf der Karte.</span>
                         </div>
                     </div>
+                    <div class="cfg-grid cfg-grid-2 mt-2">
+                        <div class="cfg-field">
+                            <label class="cfg-label">Farbe: Hundetrack</label>
+                            <InputSelect class="cfg-input" @bind-Value="_appSettings.CollarTrackColorMode">
+                                <option value="area">Suchgebiet-Farbe</option>
+                                <option value="black">Schwarz</option>
+                                <option value="contrast">Kontrastfarbe</option>
+                            </InputSelect>
+                            <span class="cfg-help">Farbe des GPS-Pfads des Hundes auf Live-Karten.</span>
+                        </div>
+                        <div class="cfg-field">
+                            <label class="cfg-label">Farbe: Live-Icon Hund</label>
+                            <InputSelect class="cfg-input" @bind-Value="_appSettings.CollarMarkerColorMode">
+                                <option value="area">Suchgebiet-Farbe</option>
+                                <option value="black">Schwarz</option>
+                                <option value="contrast">Kontrastfarbe</option>
+                            </InputSelect>
+                            <span class="cfg-help">Farbe des GPS-Halsband-Symbols auf Live-Karten.</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="cfg-section">

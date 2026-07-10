@@ -93,6 +93,8 @@ namespace Einsatzueberwachung.Domain.Models
         // Human:  "phone" | "person" | "person_walking" | "radio" | "dot"
         public string CollarMarkerIcon { get; set; }
         public string HumanMarkerIcon { get; set; }
+        public string CollarTrackColorMode { get; set; }
+        public string CollarMarkerColorMode { get; set; }
 
         /// <summary>Gibt den konfigurierten Collar-Marker-Icon-Typ zurück (nie null/leer).</summary>
         [System.Text.Json.Serialization.JsonIgnore]
@@ -103,6 +105,17 @@ namespace Einsatzueberwachung.Domain.Models
         [System.Text.Json.Serialization.JsonIgnore]
         public string HumanMarkerIconOrDefault =>
             string.IsNullOrWhiteSpace(HumanMarkerIcon) ? "person_walking" : HumanMarkerIcon;
+
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string CollarTrackColorModeOrDefault =>
+            CollarColorModeOrDefault(CollarTrackColorMode);
+
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string CollarMarkerColorModeOrDefault =>
+            CollarColorModeOrDefault(CollarMarkerColorMode);
+
+        private static string CollarColorModeOrDefault(string? value) =>
+            value is "black" or "contrast" or "area" ? value : "area";
 
         // Warnzentrum-Regelkonfiguration (keyed by WarningEntry.Source)
         public Dictionary<string, WarningRuleConfig> WarningRules { get; set; } = new();
@@ -180,6 +193,8 @@ namespace Einsatzueberwachung.Domain.Models
             // Karten-Marker-Defaults
             CollarMarkerIcon = "paw";
             HumanMarkerIcon = "person_walking";
+            CollarTrackColorMode = "area";
+            CollarMarkerColorMode = "area";
 
             // Divera 24/7 Defaults
             DiveraEnabled = false;

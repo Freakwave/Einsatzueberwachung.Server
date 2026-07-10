@@ -12,12 +12,25 @@ window.teamMobileMap = (function () {
     let _collarIcon = 'paw';
     let _humanIcon = 'phone';
 
-    // Farbe des aktuellen Suchgebiets – wird von renderSearchArea gesetzt und für Hund-Marker und Track übernommen
+    // Farbe des aktuellen Suchgebiets – wird von renderSearchArea gesetzt
     let _areaColor = '#dc3545';
+    let _trackColorMode = 'area';
+    let _markerColorMode = 'area';
 
     function setOptions(opts) {
         if (opts && opts.collarIcon) _collarIcon = opts.collarIcon;
         if (opts && opts.humanIcon)  _humanIcon  = opts.humanIcon;
+        if (opts && ['area', 'black', 'contrast'].includes(opts.trackColorMode)) _trackColorMode = opts.trackColorMode;
+        if (opts && ['area', 'black', 'contrast'].includes(opts.markerColorMode)) _markerColorMode = opts.markerColorMode;
+    }
+
+    function _resolveColor(mode) {
+        if (mode === 'black') return '#000000';
+        if (mode !== 'contrast' || !/^#[0-9a-f]{6}$/i.test(_areaColor)) return _areaColor;
+        const red = parseInt(_areaColor.slice(1, 3), 16);
+        const green = parseInt(_areaColor.slice(3, 5), 16);
+        const blue = parseInt(_areaColor.slice(5, 7), 16);
+        return `#${(255 - red).toString(16).padStart(2, '0')}${(255 - green).toString(16).padStart(2, '0')}${(255 - blue).toString(16).padStart(2, '0')}`;
     }
 
     function _getCollarIconClass() {
@@ -76,7 +89,7 @@ window.teamMobileMap = (function () {
         if (!dogMarker) {
             const icon = L.divIcon({
                 className: 'team-mobile-dog-marker',
-                html: `<i class="fa-solid ${_getCollarIconClass()}" style="font-size:26px;color:${_areaColor};filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;"></i>`,
+                html: `<i class="fa-solid ${_getCollarIconClass()}" style="font-size:26px;color:${_resolveColor(_markerColorMode)};filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;"></i>`,
                 iconSize: [26, 26],
                 iconAnchor: [13, 13]
             });
@@ -92,7 +105,7 @@ window.teamMobileMap = (function () {
         if (trackLine) { map.removeLayer(trackLine); trackLine = null; }
         if (!points || points.length < 2) return;
         trackLine = L.polyline(points.map(p => [p.lat, p.lng]), {
-            color: _areaColor,
+            color: _resolveColor(_trackColorMode),
             weight: 3,
             opacity: 0.7
         }).addTo(map);
@@ -101,7 +114,7 @@ window.teamMobileMap = (function () {
     function appendTrackPoint(lat, lng) {
         if (!map) return;
         if (!trackLine) {
-            trackLine = L.polyline([[lat, lng]], { color: _areaColor, weight: 3, opacity: 0.7 }).addTo(map);
+            trackLine = L.polyline([[lat, lng]], { color: _resolveColor(_trackColorMode), weight: 3, opacity: 0.7 }).addTo(map);
         } else {
             trackLine.addLatLng([lat, lng]);
         }
@@ -149,7 +162,7 @@ window.teamMobileMap = (function () {
         const polyline = L.polyline(
             points.map(p => [p.lat, p.lng]),
             {
-                color: color || '#888888',
+                color: isHumanTrack ? (color || '#888888') : _resolveColor(_trackColorMode),
                 weight: 3,
                 opacity: 0.55,
                 dashArray: isHumanTrack ? '4 9' : null

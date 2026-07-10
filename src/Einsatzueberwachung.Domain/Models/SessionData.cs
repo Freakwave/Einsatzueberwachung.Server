@@ -115,7 +115,7 @@ namespace Einsatzueberwachung.Domain.Models
             CollarColorModeOrDefault(CollarMarkerColorMode, "area-black-outline");
 
         private static string CollarColorModeOrDefault(string? value, string defaultValue) =>
-            value is "black" or "contrast" or "area" or "area-black-outline" ? value : defaultValue;
+            value is "black" or "contrast" or "area" or "area-dots" or "area-black-outline" ? value : defaultValue;
 
         // Warnzentrum-Regelkonfiguration (keyed by WarningEntry.Source)
         public Dictionary<string, WarningRuleConfig> WarningRules { get; set; } = new();

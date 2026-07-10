@@ -3,6 +3,7 @@ window.teamMobileMap = (function () {
     let polygonLayer = null;
     let dogMarker = null;
     let trackLine = null;
+    let trackDots = null;
     let userMarker = null;
     let userTrackLine = null;
     // Abgeschlossene Track-Episoden früherer Suchläufe (historisch, persistent auf dem Server)
@@ -20,7 +21,7 @@ window.teamMobileMap = (function () {
     function setOptions(opts) {
         if (opts && opts.collarIcon) _collarIcon = opts.collarIcon;
         if (opts && opts.humanIcon)  _humanIcon  = opts.humanIcon;
-        if (opts && ['area', 'black', 'contrast'].includes(opts.trackColorMode)) _trackColorMode = opts.trackColorMode;
+        if (opts && ['area', 'black', 'contrast', 'area-dots'].includes(opts.trackColorMode)) _trackColorMode = opts.trackColorMode;
         if (opts && ['area', 'black', 'contrast', 'area-black-outline'].includes(opts.markerColorMode)) _markerColorMode = opts.markerColorMode;
     }
 
@@ -31,6 +32,23 @@ window.teamMobileMap = (function () {
         const green = parseInt(_areaColor.slice(3, 5), 16);
         const blue = parseInt(_areaColor.slice(5, 7), 16);
         return `#${(255 - red).toString(16).padStart(2, '0')}${(255 - green).toString(16).padStart(2, '0')}${(255 - blue).toString(16).padStart(2, '0')}`;
+    }
+
+    function _resolveTrackColor() {
+        return _trackColorMode === 'area-dots' ? '#000000' : _resolveColor(_trackColorMode);
+    }
+
+    function _createTrackDots(points, opacity) {
+        if (_trackColorMode !== 'area-dots') return null;
+
+        return L.polyline(points, {
+            color: _areaColor,
+            weight: 6,
+            opacity: opacity,
+            dashArray: '1 17',
+            lineCap: 'round',
+            interactive: false
+        }).addTo(map);
     }
 
     function _getCollarIconClass() {
@@ -110,20 +128,25 @@ window.teamMobileMap = (function () {
     function setTrack(points) {
         if (!map) return;
         if (trackLine) { map.removeLayer(trackLine); trackLine = null; }
+        if (trackDots) { map.removeLayer(trackDots); trackDots = null; }
         if (!points || points.length < 2) return;
-        trackLine = L.polyline(points.map(p => [p.lat, p.lng]), {
-            color: _resolveColor(_trackColorMode),
+        const trackPoints = points.map(p => [p.lat, p.lng]);
+        trackLine = L.polyline(trackPoints, {
+            color: _resolveTrackColor(),
             weight: 3,
             opacity: 0.7
         }).addTo(map);
+        trackDots = _createTrackDots(trackPoints, 0.7);
     }
 
     function appendTrackPoint(lat, lng) {
         if (!map) return;
         if (!trackLine) {
-            trackLine = L.polyline([[lat, lng]], { color: _resolveColor(_trackColorMode), weight: 3, opacity: 0.7 }).addTo(map);
+            trackLine = L.polyline([[lat, lng]], { color: _resolveTrackColor(), weight: 3, opacity: 0.7 }).addTo(map);
+            trackDots = _createTrackDots([[lat, lng]], 0.7);
         } else {
             trackLine.addLatLng([lat, lng]);
+            if (trackDots) trackDots.addLatLng([lat, lng]);
         }
     }
 
@@ -169,13 +192,17 @@ window.teamMobileMap = (function () {
         const polyline = L.polyline(
             points.map(p => [p.lat, p.lng]),
             {
-                color: isHumanTrack ? (color || '#888888') : _resolveColor(_trackColorMode),
+                color: isHumanTrack ? (color || '#888888') : _resolveTrackColor(),
                 weight: 3,
                 opacity: 0.55,
                 dashArray: isHumanTrack ? '4 9' : null
             }
         ).addTo(map);
         historicalTracks.push(polyline);
+        if (!isHumanTrack) {
+            const dotOverlay = _createTrackDots(points.map(p => [p.lat, p.lng]), 0.55);
+            if (dotOverlay) historicalTracks.push(dotOverlay);
+        }
     }
 
     function loadUserTrack(points) {
@@ -224,6 +251,7 @@ window.teamMobileMap = (function () {
         polygonLayer = null;
         dogMarker = null;
         trackLine = null;
+        trackDots = null;
         userMarker = null;
         userTrackLine = null;
     }

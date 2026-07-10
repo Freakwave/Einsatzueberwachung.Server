@@ -5,17 +5,17 @@ namespace Einsatzueberwachung.Tests;
 public class AppSettingsColorModeTests
 {
     [Fact]
-    public void CollarColorModes_DefaultAndInvalidValuesUseAreaColor()
+    public void CollarColorModes_DefaultAndInvalidValuesUseConfiguredDefaults()
     {
         var settings = new AppSettings();
 
-        Assert.Equal("area", settings.CollarTrackColorModeOrDefault);
-        Assert.Equal("area", settings.CollarMarkerColorModeOrDefault);
+        Assert.Equal("black", settings.CollarTrackColorModeOrDefault);
+        Assert.Equal("area-black-outline", settings.CollarMarkerColorModeOrDefault);
 
         settings.CollarTrackColorMode = "invalid";
         settings.CollarMarkerColorMode = "contrast";
 
-        Assert.Equal("area", settings.CollarTrackColorModeOrDefault);
+        Assert.Equal("black", settings.CollarTrackColorModeOrDefault);
         Assert.Equal("contrast", settings.CollarMarkerColorModeOrDefault);
     }
 }

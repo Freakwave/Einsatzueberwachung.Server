@@ -14,14 +14,14 @@ window.teamMobileMap = (function () {
 
     // Farbe des aktuellen Suchgebiets – wird von renderSearchArea gesetzt
     let _areaColor = '#dc3545';
-    let _trackColorMode = 'area';
-    let _markerColorMode = 'area';
+    let _trackColorMode = 'black';
+    let _markerColorMode = 'area-black-outline';
 
     function setOptions(opts) {
         if (opts && opts.collarIcon) _collarIcon = opts.collarIcon;
         if (opts && opts.humanIcon)  _humanIcon  = opts.humanIcon;
         if (opts && ['area', 'black', 'contrast'].includes(opts.trackColorMode)) _trackColorMode = opts.trackColorMode;
-        if (opts && ['area', 'black', 'contrast'].includes(opts.markerColorMode)) _markerColorMode = opts.markerColorMode;
+        if (opts && ['area', 'black', 'contrast', 'area-black-outline'].includes(opts.markerColorMode)) _markerColorMode = opts.markerColorMode;
     }
 
     function _resolveColor(mode) {
@@ -39,6 +39,13 @@ window.teamMobileMap = (function () {
             case 'bone': return 'fa-bone';
             case 'dot':  return 'fa-location-dot';
             default:     return 'fa-paw'; // paw
+        }
+
+        function _getCollarIconStyle() {
+            const outline = _markerColorMode === 'area-black-outline'
+                ? '-webkit-text-stroke:1.5px #000;paint-order:stroke fill;'
+                : '';
+            return `font-size:26px;color:${_resolveColor(_markerColorMode)};${outline}filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;`;
         }
     }
 
@@ -89,7 +96,7 @@ window.teamMobileMap = (function () {
         if (!dogMarker) {
             const icon = L.divIcon({
                 className: 'team-mobile-dog-marker',
-                html: `<i class="fa-solid ${_getCollarIconClass()}" style="font-size:26px;color:${_resolveColor(_markerColorMode)};filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;"></i>`,
+                html: `<i class="fa-solid ${_getCollarIconClass()}" style="${_getCollarIconStyle()}"></i>`,
                 iconSize: [26, 26],
                 iconAnchor: [13, 13]
             });

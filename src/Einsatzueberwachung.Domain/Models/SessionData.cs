@@ -108,14 +108,14 @@ namespace Einsatzueberwachung.Domain.Models
 
         [System.Text.Json.Serialization.JsonIgnore]
         public string CollarTrackColorModeOrDefault =>
-            CollarColorModeOrDefault(CollarTrackColorMode);
+            CollarColorModeOrDefault(CollarTrackColorMode, "black");
 
         [System.Text.Json.Serialization.JsonIgnore]
         public string CollarMarkerColorModeOrDefault =>
-            CollarColorModeOrDefault(CollarMarkerColorMode);
+            CollarColorModeOrDefault(CollarMarkerColorMode, "area-black-outline");
 
-        private static string CollarColorModeOrDefault(string? value) =>
-            value is "black" or "contrast" or "area" ? value : "area";
+        private static string CollarColorModeOrDefault(string? value, string defaultValue) =>
+            value is "black" or "contrast" or "area" or "area-black-outline" ? value : defaultValue;
 
         // Warnzentrum-Regelkonfiguration (keyed by WarningEntry.Source)
         public Dictionary<string, WarningRuleConfig> WarningRules { get; set; } = new();
@@ -193,8 +193,8 @@ namespace Einsatzueberwachung.Domain.Models
             // Karten-Marker-Defaults
             CollarMarkerIcon = "paw";
             HumanMarkerIcon = "person_walking";
-            CollarTrackColorMode = "area";
-            CollarMarkerColorMode = "area";
+            CollarTrackColorMode = "black";
+            CollarMarkerColorMode = "area-black-outline";
 
             // Divera 24/7 Defaults
             DiveraEnabled = false;

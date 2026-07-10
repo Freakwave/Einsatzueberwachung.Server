@@ -21,5 +21,11 @@ public class AppSettingsColorModeTests
         settings.CollarTrackColorMode = "area-dots";
 
         Assert.Equal("area-dots", settings.CollarTrackColorModeOrDefault);
+
+        settings.CollarTrackColorMode = "area-cased";
+        Assert.Equal("area-cased", settings.CollarTrackColorModeOrDefault);
+
+        settings.CollarTrackColorMode = "black-cased";
+        Assert.Equal("black-cased", settings.CollarTrackColorModeOrDefault);
     }
 }

@@ -3,6 +3,7 @@ window.teamMobileMap = (function () {
     let polygonLayer = null;
     let dogMarker = null;
     let trackLine = null;
+    let trackOutline = null;
     let trackDots = null;
     let userMarker = null;
     let userTrackLine = null;
@@ -21,7 +22,7 @@ window.teamMobileMap = (function () {
     function setOptions(opts) {
         if (opts && opts.collarIcon) _collarIcon = opts.collarIcon;
         if (opts && opts.humanIcon)  _humanIcon  = opts.humanIcon;
-        if (opts && ['area', 'black', 'contrast', 'area-dots'].includes(opts.trackColorMode)) _trackColorMode = opts.trackColorMode;
+        if (opts && ['area', 'black', 'contrast', 'area-dots', 'area-cased', 'black-cased'].includes(opts.trackColorMode)) _trackColorMode = opts.trackColorMode;
         if (opts && ['area', 'black', 'contrast', 'area-black-outline'].includes(opts.markerColorMode)) _markerColorMode = opts.markerColorMode;
     }
 
@@ -35,7 +36,20 @@ window.teamMobileMap = (function () {
     }
 
     function _resolveTrackColor() {
-        return _trackColorMode === 'area-dots' ? '#000000' : _resolveColor(_trackColorMode);
+        return _trackColorMode === 'area-dots' || _trackColorMode === 'black-cased' ? '#000000' : _resolveColor(_trackColorMode);
+    }
+
+    function _createTrackOutline(points, opacity) {
+        if (_trackColorMode !== 'area-cased' && _trackColorMode !== 'black-cased') return null;
+
+        return L.polyline(points, {
+            color: _trackColorMode === 'area-cased' ? '#000000' : '#ffffff',
+            weight: 7,
+            opacity,
+            lineCap: 'round',
+            lineJoin: 'round',
+            interactive: false
+        }).addTo(map);
     }
 
     function _createTrackDots(points, opacity) {
@@ -55,16 +69,18 @@ window.teamMobileMap = (function () {
         switch (_collarIcon) {
             case 'dog':  return 'fa-dog';
             case 'bone': return 'fa-bone';
+            case 'crosshairs': return 'fa-crosshairs';
+            case 'location-arrow': return 'fa-location-arrow';
             case 'dot':  return 'fa-location-dot';
             default:     return 'fa-paw'; // paw
         }
+    }
 
-        function _getCollarIconStyle() {
-            const outline = _markerColorMode === 'area-black-outline'
-                ? '-webkit-text-stroke:1.5px #000;paint-order:stroke fill;'
-                : '';
-            return `font-size:26px;color:${_resolveColor(_markerColorMode)};${outline}filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;`;
-        }
+    function _getCollarIconStyle() {
+        const outline = _markerColorMode === 'area-black-outline'
+            ? '-webkit-text-stroke:1.5px #000;paint-order:stroke fill;'
+            : '';
+        return `font-size:26px;color:${_resolveColor(_markerColorMode)};${outline}filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;`;
     }
 
     function _getHumanIconClass() {
@@ -128,9 +144,11 @@ window.teamMobileMap = (function () {
     function setTrack(points) {
         if (!map) return;
         if (trackLine) { map.removeLayer(trackLine); trackLine = null; }
+        if (trackOutline) { map.removeLayer(trackOutline); trackOutline = null; }
         if (trackDots) { map.removeLayer(trackDots); trackDots = null; }
         if (!points || points.length < 2) return;
         const trackPoints = points.map(p => [p.lat, p.lng]);
+        trackOutline = _createTrackOutline(trackPoints, 0.8);
         trackLine = L.polyline(trackPoints, {
             color: _resolveTrackColor(),
             weight: 3,
@@ -142,10 +160,12 @@ window.teamMobileMap = (function () {
     function appendTrackPoint(lat, lng) {
         if (!map) return;
         if (!trackLine) {
+            trackOutline = _createTrackOutline([[lat, lng]], 0.8);
             trackLine = L.polyline([[lat, lng]], { color: _resolveTrackColor(), weight: 3, opacity: 0.7 }).addTo(map);
             trackDots = _createTrackDots([[lat, lng]], 0.7);
         } else {
             trackLine.addLatLng([lat, lng]);
+            if (trackOutline) trackOutline.addLatLng([lat, lng]);
             if (trackDots) trackDots.addLatLng([lat, lng]);
         }
     }

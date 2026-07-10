@@ -89,7 +89,7 @@ namespace Einsatzueberwachung.Domain.Models
         public int CollarNoSignalTimeoutSeconds { get; set; }
 
         // Karten-Marker Symbole
-        // Collar: "paw" | "dog" | "bone" | "dot"
+        // Collar: "paw" | "dog" | "bone" | "dot" | "crosshairs" | "location-arrow"
         // Human:  "phone" | "person" | "person_walking" | "radio" | "dot"
         public string CollarMarkerIcon { get; set; }
         public string HumanMarkerIcon { get; set; }
@@ -115,7 +115,7 @@ namespace Einsatzueberwachung.Domain.Models
             CollarColorModeOrDefault(CollarMarkerColorMode, "area-black-outline");
 
         private static string CollarColorModeOrDefault(string? value, string defaultValue) =>
-            value is "black" or "contrast" or "area" or "area-dots" or "area-black-outline" ? value : defaultValue;
+            value is "black" or "contrast" or "area" or "area-dots" or "area-black-outline" or "area-cased" or "black-cased" ? value : defaultValue;
 
         // Warnzentrum-Regelkonfiguration (keyed by WarningEntry.Source)
         public Dictionary<string, WarningRuleConfig> WarningRules { get; set; } = new();

@@ -82,10 +82,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2.75rem;
-    height: 2.75rem;
-    min-width: 44px;
-    min-height: 44px;
+    width: var(--sidebar-control-size);
+    height: var(--sidebar-control-size);
     border-radius: 50%;
     background: color-mix(in srgb, var(--ui-text) 8%, transparent);
     border: 1px solid color-mix(in srgb, var(--ui-text) 18%, transparent);
@@ -135,6 +133,7 @@
     transition: opacity 0.15s, max-width 0.3s;
 }
 .top-row {
+    --sidebar-control-size: 44px;
     box-sizing: border-box;
     height: 3.5rem;
     min-height: 3.5rem;
@@ -170,10 +169,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.75rem;
-    height: 2.75rem;
-    min-width: 44px;
-    min-height: 44px;
+    width: var(--sidebar-control-size);
+    height: var(--sidebar-control-size);
     padding: 0;
     border: 0;
     border-radius: var(--theme-border-radius);

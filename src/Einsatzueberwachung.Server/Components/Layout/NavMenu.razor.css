@@ -86,7 +86,7 @@
     height: 2.75rem;
     min-width: 44px;
     min-height: 44px;
-    border-radius: var(--theme-border-radius);
+    border-radius: 50%;
     background: color-mix(in srgb, var(--ui-text) 8%, transparent);
     border: 1px solid color-mix(in srgb, var(--ui-text) 18%, transparent);
     color: color-mix(in srgb, var(--ui-text) 72%, transparent);

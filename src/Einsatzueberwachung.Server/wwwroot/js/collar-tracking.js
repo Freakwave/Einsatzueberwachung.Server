@@ -41,7 +41,7 @@ window.CollarTracking = {
     _markerColorMode: 'area-black-outline',
 
     _resolveColor: function (areaColor, mode) {
-        if (mode === 'black') return '#000000';
+        if (mode === 'black' || mode === 'black-white-outline') return '#000000';
         if (mode !== 'contrast' || !/^#[0-9a-f]{6}$/i.test(areaColor)) return areaColor;
 
         const red = parseInt(areaColor.slice(1, 3), 16);
@@ -86,7 +86,9 @@ window.CollarTracking = {
     _getCollarIconHtml: function (color) {
         const outline = this._markerColorMode === 'area-black-outline'
             ? '-webkit-text-stroke:1.5px #000;paint-order:stroke fill;'
-            : '';
+            : this._markerColorMode === 'area-white-outline' || this._markerColorMode === 'black-white-outline'
+                ? '-webkit-text-stroke:1.5px #fff;paint-order:stroke fill;'
+                : '';
         const style = `font-size:24px;color:${color};${outline}filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;`;
         switch (this._collarIcon) {
             case 'paw':
@@ -109,7 +111,7 @@ window.CollarTracking = {
     setOptions: function (opts) {
         if (opts && opts.collarIcon) this._collarIcon = opts.collarIcon;
         if (opts && ['area', 'black', 'contrast', 'area-dots', 'area-cased', 'black-cased'].includes(opts.trackColorMode)) this._trackColorMode = opts.trackColorMode;
-        if (opts && ['area', 'black', 'contrast', 'area-black-outline'].includes(opts.markerColorMode)) this._markerColorMode = opts.markerColorMode;
+        if (opts && ['area', 'black', 'contrast', 'area-black-outline', 'area-white-outline', 'black-white-outline'].includes(opts.markerColorMode)) this._markerColorMode = opts.markerColorMode;
     },
 
     // Erstellt das divIcon für einen Halsband-Marker (konfiguriertes Symbol, optional mit OOB-Pulsring)

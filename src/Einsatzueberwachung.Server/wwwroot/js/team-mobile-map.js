@@ -23,11 +23,11 @@ window.teamMobileMap = (function () {
         if (opts && opts.collarIcon) _collarIcon = opts.collarIcon;
         if (opts && opts.humanIcon)  _humanIcon  = opts.humanIcon;
         if (opts && ['area', 'black', 'contrast', 'area-dots', 'area-cased', 'black-cased'].includes(opts.trackColorMode)) _trackColorMode = opts.trackColorMode;
-        if (opts && ['area', 'black', 'contrast', 'area-black-outline'].includes(opts.markerColorMode)) _markerColorMode = opts.markerColorMode;
+        if (opts && ['area', 'black', 'contrast', 'area-black-outline', 'area-white-outline', 'black-white-outline'].includes(opts.markerColorMode)) _markerColorMode = opts.markerColorMode;
     }
 
     function _resolveColor(mode) {
-        if (mode === 'black') return '#000000';
+        if (mode === 'black' || mode === 'black-white-outline') return '#000000';
         if (mode !== 'contrast' || !/^#[0-9a-f]{6}$/i.test(_areaColor)) return _areaColor;
         const red = parseInt(_areaColor.slice(1, 3), 16);
         const green = parseInt(_areaColor.slice(3, 5), 16);
@@ -79,7 +79,9 @@ window.teamMobileMap = (function () {
     function _getCollarIconStyle() {
         const outline = _markerColorMode === 'area-black-outline'
             ? '-webkit-text-stroke:1.5px #000;paint-order:stroke fill;'
-            : '';
+            : _markerColorMode === 'area-white-outline' || _markerColorMode === 'black-white-outline'
+                ? '-webkit-text-stroke:1.5px #fff;paint-order:stroke fill;'
+                : '';
         return `font-size:26px;color:${_resolveColor(_markerColorMode)};${outline}filter:drop-shadow(0 1px 3px rgba(0,0,0,0.55));display:block;line-height:1;`;
     }
 

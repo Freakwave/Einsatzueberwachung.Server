@@ -18,6 +18,12 @@ public class AppSettingsColorModeTests
         Assert.Equal("black", settings.CollarTrackColorModeOrDefault);
         Assert.Equal("contrast", settings.CollarMarkerColorModeOrDefault);
 
+        settings.CollarMarkerColorMode = "area-white-outline";
+        Assert.Equal("area-white-outline", settings.CollarMarkerColorModeOrDefault);
+
+        settings.CollarMarkerColorMode = "black-white-outline";
+        Assert.Equal("black-white-outline", settings.CollarMarkerColorModeOrDefault);
+
         settings.CollarTrackColorMode = "area-dots";
 
         Assert.Equal("area-dots", settings.CollarTrackColorModeOrDefault);

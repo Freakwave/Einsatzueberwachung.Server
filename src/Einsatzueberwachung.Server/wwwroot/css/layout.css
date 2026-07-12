@@ -142,12 +142,12 @@ main {
 
 /* Top row adjustments for collapsed */
 .page.sidebar-collapsed .top-row.navbar {
-    padding-left: 0.5rem !important;
-    padding-right: 0.5rem !important;
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
 }
 
 .page.sidebar-collapsed .top-row .container-fluid {
-    justify-content: center;
+    justify-content: space-between;
     padding: 0;
 }
 
@@ -164,6 +164,18 @@ main {
 .page.sidebar-collapsed .navbar-brand i {
     font-size: 1.3rem;
     margin: 0;
+}
+
+.page.sidebar-collapsed .brand-logo {
+    width: 1.5rem;
+    height: 1.5rem;
+    flex-basis: 1.5rem;
+    margin-right: 0;
+}
+
+.page.sidebar-collapsed .btn-sidebar-toggle {
+    width: 1.5rem;
+    height: 1.5rem;
 }
 
 /* Toggle Icon rotates when collapsed */

@@ -138,7 +138,17 @@
     color: var(--ui-sidebar-text);
 }
 
+.nav-brand-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    min-width: 0;
+}
+
 .navbar-brand {
+    display: flex;
+    align-items: center;
+    min-width: 0;
     font-size: 1.1rem;
     color: var(--ui-sidebar-text) !important;
 }
@@ -146,12 +156,14 @@
 .brand-logo {
     width: 2rem;
     height: 2rem;
+    box-sizing: border-box;
     border-radius: 0.35rem;
     object-fit: contain;
     margin-right: 0.6rem;
     background: color-mix(in srgb, var(--theme-primary) 18%, transparent);
     border: 1px solid color-mix(in srgb, var(--theme-primary) 34%, transparent);
     padding: 0.1rem;
+    flex: 0 0 2rem;
 }
 
 .nav-item {

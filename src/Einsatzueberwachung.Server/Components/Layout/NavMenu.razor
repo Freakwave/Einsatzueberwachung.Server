@@ -4,25 +4,32 @@
 
 <div class="top-row navbar @(IsCollapsed ? "nav-header-collapsed" : "")">
     <div class="container-fluid nav-brand-row">
-        <a class="navbar-brand" href="/" title="Startseite">
-            @if (!string.IsNullOrWhiteSpace(_staffelLogoUrl))
-            {
+        @if (!string.IsNullOrWhiteSpace(_staffelLogoUrl))
+        {
+            <button class="brand-logo-toggle"
+                    type="button"
+                    title="@(IsCollapsed ? "Navigation ausklappen" : "Navigation einklappen")"
+                    aria-label="@(IsCollapsed ? "Navigation ausklappen" : "Navigation einklappen")"
+                    aria-expanded="@(!IsCollapsed)"
+                    @onclick="() => OnToggleSidebar.InvokeAsync()">
                 <img class="brand-logo" src="@_staffelLogoUrl" alt="Staffel-Logo" />
-            }
-            else
-            {
+            </button>
+        }
+        else
+        {
+            <a class="navbar-brand" href="/" title="Startseite">
                 <i class="bi bi-radar brand-icon"></i>
-            }
-            <span class="brand-text">Einsatzüberwachung</span>
-        </a>
-        <button class="btn-sidebar-toggle @(IsCollapsed ? "is-collapsed" : "")"
-                type="button"
-                title="@(IsCollapsed ? "Navigation ausklappen" : "Navigation einklappen")"
-                aria-label="@(IsCollapsed ? "Navigation ausklappen" : "Navigation einklappen")"
-                aria-expanded="@(!IsCollapsed)"
-                @onclick="() => OnToggleSidebar.InvokeAsync()">
-            <i class="bi bi-chevron-left toggle-icon"></i>
-        </button>
+                <span class="brand-text">Einsatzüberwachung</span>
+            </a>
+            <button class="btn-sidebar-toggle @(IsCollapsed ? "is-collapsed" : "")"
+                    type="button"
+                    title="@(IsCollapsed ? "Navigation ausklappen" : "Navigation einklappen")"
+                    aria-label="@(IsCollapsed ? "Navigation ausklappen" : "Navigation einklappen")"
+                    aria-expanded="@(!IsCollapsed)"
+                    @onclick="() => OnToggleSidebar.InvokeAsync()">
+                <i class="bi bi-chevron-left toggle-icon"></i>
+            </button>
+        }
     </div>
 </div>
 
@@ -155,4 +162,3 @@
         EinsatzService.SzenarioChanged -= OnSzenarioChanged;
     }
 }
-

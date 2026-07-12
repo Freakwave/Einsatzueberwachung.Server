@@ -12,7 +12,7 @@
                     aria-label="@(IsCollapsed ? "Navigation ausklappen" : "Navigation einklappen")"
                     aria-expanded="@(!IsCollapsed)"
                     @onclick="() => OnToggleSidebar.InvokeAsync()">
-                <img class="brand-logo" src="@_staffelLogoUrl" alt="" />
+                <img class="brand-logo" src="@_staffelLogoUrl" alt="Staffellogo" />
             </button>
             @if (!IsCollapsed)
             {

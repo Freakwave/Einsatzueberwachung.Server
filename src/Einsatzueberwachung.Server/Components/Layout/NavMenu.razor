@@ -14,6 +14,17 @@
                     @onclick="() => OnToggleSidebar.InvokeAsync()">
                 <img class="brand-logo" src="@_staffelLogoUrl" alt="" />
             </button>
+            @if (!IsCollapsed)
+            {
+                <button class="btn-sidebar-toggle"
+                        type="button"
+                        title="Navigation einklappen"
+                        aria-label="Navigation einklappen"
+                        aria-expanded="true"
+                        @onclick="() => OnToggleSidebar.InvokeAsync()">
+                    <i class="bi bi-chevron-left toggle-icon"></i>
+                </button>
+            }
         }
         else
         {

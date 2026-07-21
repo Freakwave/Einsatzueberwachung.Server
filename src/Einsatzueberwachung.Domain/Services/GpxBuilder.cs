@@ -76,9 +76,9 @@ public static class GpxBuilder
     }
 
     /// <summary>Gibt den Dateinamen für das GPX eines Suchgebiets zurück.</summary>
-    public static string SearchAreaFileName(SearchArea area)
+    public static string SearchAreaFileName(SearchArea area, DateTime? date = null)
     {
-        var dateStamp = DateTime.Now.ToString("ddMM", Inv);
+        var dateStamp = (date ?? DateTime.Now).ToString("ddMM", Inv);
         var areaName = area.Name.Replace(" ", "_");
         var availableNameLength = GarminFileNameLength - dateStamp.Length - 1;
         var shortenedAreaName = areaName[..Math.Min(areaName.Length, availableNameLength)];

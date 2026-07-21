@@ -9,10 +9,11 @@ public class GpxBuilderTests
     public void SearchAreaFileName_StartsWithDayAndMonthAndFitsGarminLimit()
     {
         var area = new SearchArea { Name = "Sehr langes Suchgebiet mit Zusatz" };
+        var date = new DateTime(2026, 7, 21);
 
-        var fileName = GpxBuilder.SearchAreaFileName(area);
+        var fileName = GpxBuilder.SearchAreaFileName(area, date);
 
-        Assert.StartsWith($"{DateTime.Now:ddMM}_", fileName);
+        Assert.StartsWith("2107_", fileName);
         Assert.Equal(".gpx", Path.GetExtension(fileName));
         Assert.Equal(20, Path.GetFileNameWithoutExtension(fileName).Length);
     }
@@ -21,9 +22,10 @@ public class GpxBuilderTests
     public void SearchAreaFileName_PreservesShortAreaNameAfterDate()
     {
         var area = new SearchArea { Name = "Suchgebiet1" };
+        var date = new DateTime(2026, 7, 21);
 
-        var fileName = GpxBuilder.SearchAreaFileName(area);
+        var fileName = GpxBuilder.SearchAreaFileName(area, date);
 
-        Assert.Equal($"{DateTime.Now:ddMM}_Suchgebiet1.gpx", fileName);
+        Assert.Equal("2107_Suchgebiet1.gpx", fileName);
     }
 }

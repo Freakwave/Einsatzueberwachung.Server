@@ -81,7 +81,7 @@ public static class GpxBuilder
         var dateStamp = (date ?? DateTime.Now).ToString("ddMM", Inv);
         var areaName = area.Name.Replace(" ", "_");
         var availableNameLength = GarminFileNameLength - dateStamp.Length - 1;
-        var shortenedAreaName = areaName[..Math.Min(areaName.Length, availableNameLength)];
+        var shortenedAreaName = areaName.Substring(0, Math.Min(areaName.Length, availableNameLength));
 
         return $"{dateStamp}_{shortenedAreaName}.gpx";
     }

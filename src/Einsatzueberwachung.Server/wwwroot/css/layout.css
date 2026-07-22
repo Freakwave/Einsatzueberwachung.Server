@@ -19,6 +19,8 @@ html, body {
 
 .sidebar {
     background-color: #0d1f3c;
+    --sidebar-control-size: 44px;
+    --sidebar-header-height: 5rem;
     width: 250px;
     min-width: 250px;
     height: 100vh;
@@ -26,7 +28,7 @@ html, body {
     top: 0;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
     z-index: 100;
     flex-shrink: 0;
     transition: width 0.3s ease, min-width 0.3s ease;
@@ -81,6 +83,14 @@ main {
 .page.sidebar-collapsed .sidebar {
     width: 60px;
     min-width: 60px;
+}
+
+.sidebar-edge-toggle {
+    position: absolute;
+    top: calc(var(--sidebar-header-height) / 2);
+    right: calc(var(--sidebar-control-size) / -2);
+    z-index: 2;
+    transform: translateY(-50%);
 }
 
 /* Nav wrapper in sidebar */
@@ -151,10 +161,6 @@ main {
     padding: 0;
 }
 
-.page.sidebar-collapsed .btn-sidebar-toggle {
-    margin-left: 0;
-}
-
 .page.sidebar-collapsed .navbar-brand {
     justify-content: center;
     margin: 0;
@@ -163,10 +169,6 @@ main {
 
 .page.sidebar-collapsed .navbar-brand i {
     font-size: 1.3rem;
-    margin: 0;
-}
-
-.page.sidebar-collapsed .brand-logo {
     margin: 0;
 }
 
@@ -180,32 +182,6 @@ main {
 }
 
 /* Toggle Button Styles */
-.btn-sidebar-toggle {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-    margin-left: auto;
-}
-
-.btn-sidebar-toggle:hover {
-    background: rgba(255, 255, 255, 0.25);
-    transform: scale(1.05);
-}
-
-.btn-sidebar-toggle i {
-    font-size: 0.9rem;
-    color: white !important;
-}
-
 /* Mobile: Sidebar oben */
 @media (max-width: 640px) {
     .sidebar {

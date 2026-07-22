@@ -137,7 +137,6 @@
     --sidebar-logo-size: 64px;
     box-sizing: border-box;
     height: 5rem;
-    min-height: 5rem;
     padding: 0.5rem;
     background-color: var(--ui-sidebar-bg);
     color: var(--ui-sidebar-text);

@@ -703,7 +703,7 @@ main,
 .top-row.navbar {
     background: var(--ui-sidebar-bg);
     border-bottom: 1px solid var(--ui-sidebar-border);
-    padding: 0.8rem 0.6rem;
+    padding: 0.5rem;
 }
 
 /* Dezent: barely-visible separator, no shadow */

@@ -151,25 +151,59 @@
     color: var(--ui-sidebar-text) !important;
 }
 
-.brand-logo-link {
-    display: block;
+.brand-identity {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
     height: 100%;
+    min-width: 0;
     padding: 0.25rem;
+    color: var(--ui-sidebar-text);
+    text-decoration: none;
 }
 
-.brand-logo-link:focus-visible {
+.brand-identity:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--theme-primary) 58%, transparent);
     outline-offset: 2px;
 }
 
 .brand-logo {
     display: block;
-    width: 100%;
+    flex: 0 0 4.25rem;
+    width: 4.25rem;
     height: 100%;
     object-fit: contain;
     background: transparent;
     border: 0;
     padding: 0;
+}
+
+.brand-staffel-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ui-sidebar-text);
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: left;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.nav-header-collapsed .brand-identity {
+    gap: 0;
+    padding-inline: 0;
+}
+
+.nav-header-collapsed .brand-staffel-name {
+    display: none;
+}
+
+.nav-header-collapsed .brand-logo {
+    flex-basis: 3rem;
+    width: 3rem;
 }
 
 .nav-item {

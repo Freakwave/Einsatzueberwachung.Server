@@ -6,8 +6,12 @@
     <div class="nav-brand-row">
         @if (!string.IsNullOrWhiteSpace(_staffelLogoUrl))
         {
-            <a class="brand-logo-link" href="/" title="Startseite">
+            <a class="brand-identity" href="/" title="Startseite">
                 <img class="brand-logo" src="@_staffelLogoUrl" alt="Staffel-Logo" />
+                @if (!string.IsNullOrWhiteSpace(_staffelName))
+                {
+                    <span class="brand-staffel-name">@_staffelName</span>
+                }
             </a>
         }
         else
@@ -131,6 +135,7 @@
 
 @code {
     private string _staffelLogoUrl = string.Empty;
+    private string _staffelName = string.Empty;
 
     [Parameter]
     public bool IsCollapsed { get; set; }
@@ -145,6 +150,7 @@
         EinsatzService.SzenarioChanged += OnSzenarioChanged;
 
         var settings = await SettingsService.GetStaffelSettingsAsync();
+        _staffelName = settings.StaffelName;
         if (string.IsNullOrWhiteSpace(settings.StaffelLogoPfad))
         {
             return;

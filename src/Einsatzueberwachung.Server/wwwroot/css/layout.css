@@ -56,10 +56,11 @@ main {
 
 .sidebar-edge-toggle {
     position: absolute;
-    top: calc(var(--sidebar-header-height) / 2);
-    right: 0.5rem;
+    top: 50vh;
+    right: calc(var(--sidebar-control-size)/-4);
     z-index: 2;
-    transform: translateY(-50%);
+    width: calc(var(--sidebar-control-size)/2);
+    height: calc(var(--sidebar-control-size)/2);
 }
 
 /* Nav wrapper in sidebar */
@@ -357,8 +358,6 @@ main {
     }
     background: rgba(255, 255, 255, 0.2);
     border-color: rgba(255, 255, 255, 0.3);
-
-    transform: scale(1.05);
 }
 
 .btn-theme-toggle i {

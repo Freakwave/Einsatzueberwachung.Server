@@ -158,7 +158,7 @@
 }
 
 .brand-logo-link:focus-visible {
-    outline: 2px solid var(--ui-focus-outline);
+    outline: 2px solid color-mix(in srgb, var(--theme-primary) 58%, transparent);
     outline-offset: 2px;
 }
 

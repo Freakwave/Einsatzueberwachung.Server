@@ -135,8 +135,9 @@
 .top-row {
     --sidebar-control-size: 44px;
     --sidebar-logo-size: 64px;
+    --sidebar-header-height: 5rem;
     box-sizing: border-box;
-    height: 5rem;
+    height: var(--sidebar-header-height);
     padding: 0.5rem;
     background-color: var(--ui-sidebar-bg);
     color: var(--ui-sidebar-text);

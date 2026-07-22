@@ -5,6 +5,11 @@ html, body {
     height: 100%;
 }
 
+:root {
+    --sidebar-control-size: 44px;
+    --sidebar-header-height: 5rem;
+}
+
 /* ========================================
    SIDEBAR & LAYOUT - WICHTIG!
    ======================================== */
@@ -19,8 +24,6 @@ html, body {
 
 .sidebar {
     background-color: #0d1f3c;
-    --sidebar-control-size: 44px;
-    --sidebar-header-height: 5rem;
     width: 250px;
     min-width: 250px;
     height: 100vh;

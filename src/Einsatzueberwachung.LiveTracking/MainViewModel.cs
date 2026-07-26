@@ -161,7 +161,7 @@ namespace Einsatzueberwachung.LiveTracking
         }
 
         [RelayCommand]
-        private void ToggleUsbAccess()
+        private async Task ToggleUsbAccess()
         {
             if (_gpsService.IsReleasedForBaseCamp)
             {
@@ -170,9 +170,8 @@ namespace Einsatzueberwachung.LiveTracking
             }
             else
             {
-                _gpsService.ReleaseForBaseCamp();
-                IsGpsConnected = false;
-                AddLog("USB für BaseCamp freigegeben. LiveTracking ist pausiert.");
+                await _gpsService.StartBaseCampCaptureAsync();
+                AddLog("BaseCamp-Capture aktiviert. Hundepakete werden parallel ausgewertet.");
             }
             OnPropertyChanged(nameof(UsbAccessButtonText));
         }

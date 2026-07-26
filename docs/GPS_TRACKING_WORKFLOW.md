@@ -39,11 +39,16 @@ Team B  ────────────────── ←─── [Hal
 
 Garmin Alpha unterstützt nur eine aktive proprietäre USB-Session. Wenn
 BaseCamp benötigt wird, zuerst LiveTracking starten und anschließend in der
-App **„USB für BaseCamp freigeben“** klicken. Die App beendet ihre Session und
-schließt den USB-Handle; BaseCamp kann das Gerät dann verwenden. Währenddessen
-ist LiveTracking pausiert. Nach dem Schließen von BaseCamp **„USB wieder
-übernehmen“** klicken, damit die automatische Verbindung und Weiterleitung
-wieder startet.
+App **„USB für BaseCamp freigeben“** klicken. LiveTracking öffnet danach einen
+passiven, schreibgeschützten USB-Handle und wertet die von BaseCamp empfangenen
+GPS-Pakete zusätzlich aus. BaseCamp bleibt der aktive Kommunikationspartner;
+LiveTracking sendet in diesem Modus keine Session- oder PVT-Kommandos.
+
+Die parallele Auswertung hängt vom Garmin-Treiber und Firmware-Verhalten ab.
+Wenn der passive Handle nicht geöffnet werden kann, bleibt BaseCamp nutzbar,
+aber LiveTracking empfängt in diesem Modus keine Daten. Nach dem Schließen von
+BaseCamp **„USB wieder übernehmen“** klicken, damit die normale Session und
+Weiterleitung wieder startet.
 
 ---
 

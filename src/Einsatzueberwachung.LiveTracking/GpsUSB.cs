@@ -527,7 +527,7 @@ namespace Einsatzueberwachung.LiveTracking
         public void SetUsbProtocolLayerDataHandler(Action<GpsUsbPacketHeader> handler) => _usbProtocolLayerDataHandler = handler;
 
 
-        public bool Connect()
+        public bool Connect(bool startSession = true)
         {
             if (IsConnected) CloseHandleInternal();
             _statusMessageHandler?.Invoke("Finding GPS device...");
@@ -535,12 +535,21 @@ namespace Einsatzueberwachung.LiveTracking
             devicePath = FindGpsDevicePath(ref localGuid);
             if (string.IsNullOrEmpty(devicePath)) { _statusMessageHandler?.Invoke("Error: GPS USB device not found."); return false; }
             _statusMessageHandler?.Invoke($"Found GPS device at: {devicePath}");
-            deviceHandle = NativeMethods.CreateFile(devicePath, NativeMethods.GENERIC_READ | NativeMethods.GENERIC_WRITE, NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_WRITE, IntPtr.Zero, NativeMethods.OPEN_EXISTING, NativeMethods.FILE_FLAG_OVERLAPPED, IntPtr.Zero);
+            uint access = startSession
+                ? NativeMethods.GENERIC_READ | NativeMethods.GENERIC_WRITE
+                : NativeMethods.GENERIC_READ;
+            deviceHandle = NativeMethods.CreateFile(devicePath, access, NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_WRITE, IntPtr.Zero, NativeMethods.OPEN_EXISTING, NativeMethods.FILE_FLAG_OVERLAPPED, IntPtr.Zero);
             if (deviceHandle == NativeMethods.INVALID_HANDLE_VALUE) { _statusMessageHandler?.Invoke($"Error: Failed to open device. Win32 Error: {Marshal.GetLastWin32Error()}"); return false; }
             overlappedEventRead = NativeMethods.CreateEvent(IntPtr.Zero, true, false, null!);
             overlappedEventIoctl = NativeMethods.CreateEvent(IntPtr.Zero, true, false, null!);
             overlappedEventWrite = NativeMethods.CreateEvent(IntPtr.Zero, true, false, null!);
             if (overlappedEventRead == IntPtr.Zero || overlappedEventIoctl == IntPtr.Zero || overlappedEventWrite == IntPtr.Zero) { _statusMessageHandler?.Invoke($"Error: Failed to create event objects. Win32 Error: {Marshal.GetLastWin32Error()}"); CloseHandleInternal(); return false; }
+            if (!startSession)
+            {
+                _statusMessageHandler?.Invoke("Device opened for passive BaseCamp capture.");
+                return true;
+            }
+
             _statusMessageHandler?.Invoke("Device opened. Sending Start Session packet...");
             return SendStartSessionPacket();
         }

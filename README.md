@@ -79,6 +79,12 @@ Für Halsband-Tracking wird die beiliegende Windows-App **Einsatzueberwachung.Li
 4. Im EinsatzMonitor Team starten → Halsband zuweisen → Live-Pfad auf der Karte verfolgen.
 5. Team stoppen → GPS-Track wird als Snapshot gespeichert und steht im PDF-Bericht zur Verfügung.
 
+Für Garmin BaseCamp kann über **„USB für BaseCamp freigeben“** ein passiver,
+schreibgeschützter Capture-Modus aktiviert werden. BaseCamp bleibt dabei der
+aktive USB-Kommunikationspartner; LiveTracking wertet empfangene Hundepakete
+zusätzlich aus und sendet selbst keine Session-Kommandos. Die Unterstützung
+hängt vom Garmin-Treiber und der Geräte-Firmware ab.
+
 Verlässt ein Hund sein Suchgebiet: rot pulsierender Marker auf der Karte + Warnung im Tracking-Panel.
 
 ### 🚶 Mensch-Laufweg per Handy-GPS (Team-Mobile)

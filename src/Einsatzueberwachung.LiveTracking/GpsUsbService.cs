@@ -55,21 +55,26 @@ namespace Einsatzueberwachung.LiveTracking
                     {
                         if (usbHeader.PacketType == 0 && usbHeader.ApplicationPacketID == NativeMethods.PID_SESSION_STARTED)
                         {
-                            StatusMessageChanged?.Invoke("USB Session Started with device. Sending Start PVT command...");
-                            // This command should ideally be sent after confirming session started
-                            // and device is ready. GpsUsbDevice can manage this internally.
-                            _gpsDevice.SendStartPvtDataCommand();
+                            if (!_releasedForBaseCamp)
+                            {
+                                StatusMessageChanged?.Invoke("USB Session Started with device. Sending Start PVT command...");
+                                _gpsDevice.SendStartPvtDataCommand();
+                            }
+                            else
+                            {
+                                StatusMessageChanged?.Invoke("BaseCamp-Session erkannt. GPS-Pakete werden passiv mitgelesen.");
+                            }
                         }
                     });
                 });
             }
 
-            public async Task StartAsync()
+            public async Task StartAsync(bool passiveCapture = false)
             {
                 CancellationToken token;
                 lock (_lock)
                 {
-                    if (_isProcessing || _releasedForBaseCamp) return;
+                    if (_isProcessing || (_releasedForBaseCamp && !passiveCapture)) return;
                     _isProcessing = true;
 
                     // Dispose the previous token source and create a new one atomically.
@@ -81,17 +86,20 @@ namespace Einsatzueberwachung.LiveTracking
                 bool wasConnected = false;
                 try
                 {
-                    StatusMessageChanged?.Invoke("Verbinde mit GPS-Gerät...");
+                    StatusMessageChanged?.Invoke(passiveCapture
+                        ? "Verbinde passiv für BaseCamp-Capture..."
+                        : "Verbinde mit GPS-Gerät...");
 
-                    bool connected = await Task.Run(() => _gpsDevice.Connect(), token);
+                    bool connected = await Task.Run(() => _gpsDevice.Connect(!passiveCapture), token);
 
                     lock (_lock)
                     {
-                        if (_releasedForBaseCamp)
+                        if (_releasedForBaseCamp != passiveCapture)
                         {
                             if (connected) _gpsDevice.Disconnect();
                             connected = false;
                         }
+
                     }
 
                     if (connected)
@@ -106,6 +114,7 @@ namespace Einsatzueberwachung.LiveTracking
                         StatusMessageChanged?.Invoke("Konnte GPS-Gerät nicht verbinden.");
                     }
                 }
+
                 catch (OperationCanceledException)
                 {
                     StatusMessageChanged?.Invoke("GPS connection cancelled.");
@@ -125,6 +134,18 @@ namespace Einsatzueberwachung.LiveTracking
                     }
                     lock (_lock) { _isProcessing = false; }
                 }
+            }
+
+            public async Task StartBaseCampCaptureAsync()
+            {
+                lock (_lock) { _releasedForBaseCamp = true; }
+                Stop();
+                _gpsDevice.Disconnect();
+                while (IsProcessing)
+                {
+                    await Task.Delay(50);
+                }
+                await StartAsync(passiveCapture: true);
             }
 
             public void Stop()
@@ -155,6 +176,9 @@ namespace Einsatzueberwachung.LiveTracking
             public void ResumeFromBaseCamp()
             {
                 lock (_lock) { _releasedForBaseCamp = false; }
+                Stop();
+                _gpsDevice.Disconnect();
+                Application.Current.Dispatcher.Invoke(() => IsConnectedChanged?.Invoke(false));
                 StatusMessageChanged?.Invoke("USB wieder für LiveTracking übernommen.");
             }
 

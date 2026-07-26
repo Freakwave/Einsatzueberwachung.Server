@@ -99,7 +99,6 @@ namespace Einsatzueberwachung.LiveTracking
                             if (connected) _gpsDevice.Disconnect();
                             connected = false;
                         }
-
                     }
 
                     if (connected)
@@ -114,7 +113,6 @@ namespace Einsatzueberwachung.LiveTracking
                         StatusMessageChanged?.Invoke("Konnte GPS-Gerät nicht verbinden.");
                     }
                 }
-
                 catch (OperationCanceledException)
                 {
                     StatusMessageChanged?.Invoke("GPS connection cancelled.");

@@ -847,7 +847,8 @@ namespace Einsatzueberwachung.LiveTracking
         }
         public void Dispose()
         { /* ... as before ... */
-            Disconnect(); stopEvent?.Dispose();
+            Disconnect();
+            stopEvent?.Dispose();
             _statusMessageHandler?.Invoke("GpsUsbDevice disposed.");
         }
     }

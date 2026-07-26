@@ -13,10 +13,15 @@ namespace Einsatzueberwachung.LiveTracking
             private readonly object _lock = new();
             private CancellationTokenSource? _cts;
             private bool _isProcessing;
+            private bool _releasedForBaseCamp;
 
             public bool IsProcessing
             {
                 get { lock (_lock) { return _isProcessing; } }
+            }
+            public bool IsReleasedForBaseCamp
+            {
+                get { lock (_lock) { return _releasedForBaseCamp; } }
             }
 
             public event Action<PvtDataD800>? MainDevicePvtUpdated;
@@ -64,7 +69,7 @@ namespace Einsatzueberwachung.LiveTracking
                 CancellationToken token;
                 lock (_lock)
                 {
-                    if (_isProcessing) return;
+                    if (_isProcessing || _releasedForBaseCamp) return;
                     _isProcessing = true;
 
                     // Dispose the previous token source and create a new one atomically.
@@ -79,6 +84,15 @@ namespace Einsatzueberwachung.LiveTracking
                     StatusMessageChanged?.Invoke("Verbinde mit GPS-Gerät...");
 
                     bool connected = await Task.Run(() => _gpsDevice.Connect(), token);
+
+                    lock (_lock)
+                    {
+                        if (_releasedForBaseCamp)
+                        {
+                            if (connected) _gpsDevice.Disconnect();
+                            connected = false;
+                        }
+                    }
 
                     if (connected)
                     {
@@ -127,6 +141,21 @@ namespace Einsatzueberwachung.LiveTracking
                 try { cts?.Cancel(); }
                 catch (ObjectDisposedException) { }
                 _gpsDevice.StopListening();
+            }
+
+            public void ReleaseForBaseCamp()
+            {
+                lock (_lock) { _releasedForBaseCamp = true; }
+                Stop();
+                _gpsDevice.Disconnect();
+                Application.Current.Dispatcher.Invoke(() => IsConnectedChanged?.Invoke(false));
+                StatusMessageChanged?.Invoke("USB für Garmin BaseCamp freigegeben.");
+            }
+
+            public void ResumeFromBaseCamp()
+            {
+                lock (_lock) { _releasedForBaseCamp = false; }
+                StatusMessageChanged?.Invoke("USB wieder für LiveTracking übernommen.");
             }
 
             public void Dispose()

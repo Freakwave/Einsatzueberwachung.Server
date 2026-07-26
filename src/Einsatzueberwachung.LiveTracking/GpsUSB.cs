@@ -621,6 +621,12 @@ namespace Einsatzueberwachung.LiveTracking
             isListening = false; stopEvent.Set();
             _statusMessageHandler?.Invoke("Stopped listening.");
         }
+        public void Disconnect()
+        {
+            StopListening();
+            IsSessionStarted = false;
+            CloseHandleInternal();
+        }
         private void ListenLoopOverlapped()
         { /* ... more robust async loop as previously discussed ... */
             byte[] asyncIoBuffer = new byte[ASYNC_IOCTL_BUFFER_SIZE];
@@ -832,7 +838,7 @@ namespace Einsatzueberwachung.LiveTracking
         }
         public void Dispose()
         { /* ... as before ... */
-            StopListening(); CloseHandleInternal(); stopEvent?.Dispose();
+            Disconnect(); stopEvent?.Dispose();
             _statusMessageHandler?.Invoke("GpsUsbDevice disposed.");
         }
     }

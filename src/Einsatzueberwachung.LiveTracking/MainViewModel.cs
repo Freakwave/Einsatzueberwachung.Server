@@ -56,6 +56,9 @@ namespace Einsatzueberwachung.LiveTracking
 
         public string ServerConnectButtonText => IsServerConnected ? "Trennen" : "Verbinden";
         public string SimulationButtonText => IsSimulationActive ? "Simulation stoppen" : "Simulation starten";
+        public string UsbAccessButtonText => _gpsService.IsReleasedForBaseCamp
+            ? "USB wieder übernehmen"
+            : "USB für BaseCamp freigeben";
 
         public ObservableCollection<DogTrackInfo> DogTracks { get; } = new();
         public ObservableCollection<string> LogMessages { get; } = new();
@@ -89,7 +92,7 @@ namespace Einsatzueberwachung.LiveTracking
                 if (_connectTask != null && !_connectTask.IsCompleted)
                     return;
 
-                if (!IsGpsConnected && !_gpsService.IsProcessing)
+                if (!IsGpsConnected && !_gpsService.IsProcessing && !_gpsService.IsReleasedForBaseCamp)
                 {
                     AddLog("GPS-Gerät nicht verbunden. Starte Verbindungsversuch...");
                     _connectTask = TryStartGpsAsync();
@@ -155,6 +158,23 @@ namespace Einsatzueberwachung.LiveTracking
         partial void OnIsSimulationActiveChanged(bool value)
         {
             OnPropertyChanged(nameof(SimulationButtonText));
+        }
+
+        [RelayCommand]
+        private void ToggleUsbAccess()
+        {
+            if (_gpsService.IsReleasedForBaseCamp)
+            {
+                _gpsService.ResumeFromBaseCamp();
+                AddLog("USB wieder für LiveTracking übernommen.");
+            }
+            else
+            {
+                _gpsService.ReleaseForBaseCamp();
+                IsGpsConnected = false;
+                AddLog("USB für BaseCamp freigegeben. LiveTracking ist pausiert.");
+            }
+            OnPropertyChanged(nameof(UsbAccessButtonText));
         }
 
         [RelayCommand]
@@ -315,4 +335,3 @@ namespace Einsatzueberwachung.LiveTracking
         }
     }
 }
-

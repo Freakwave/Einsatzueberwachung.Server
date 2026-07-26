@@ -35,6 +35,16 @@ Team B  ────────────────── ←─── [Hal
 2. Server-URL eintragen (z.B. `http://10.0.0.1:5000`) und verbinden.
 3. Erkannte Halsbänder erscheinen automatisch im EinsatzMonitor und auf der Karte.
 
+### USB-Zugriff durch Garmin BaseCamp
+
+Garmin Alpha unterstützt nur eine aktive proprietäre USB-Session. Wenn
+BaseCamp benötigt wird, zuerst LiveTracking starten und anschließend in der
+App **„USB für BaseCamp freigeben“** klicken. Die App beendet ihre Session und
+schließt den USB-Handle; BaseCamp kann das Gerät dann verwenden. Währenddessen
+ist LiveTracking pausiert. Nach dem Schließen von BaseCamp **„USB wieder
+übernehmen“** klicken, damit die automatische Verbindung und Weiterleitung
+wieder startet.
+
 ---
 
 ### 2. Team starten

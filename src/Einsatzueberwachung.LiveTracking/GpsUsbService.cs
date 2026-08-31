@@ -144,9 +144,16 @@ namespace Einsatzueberwachung.LiveTracking
                 lock (_lock) { _releasedForBaseCamp = true; }
                 Stop();
                 _gpsDevice.Disconnect();
-                while (IsProcessing)
+                var stopDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+                while (IsProcessing && DateTime.UtcNow < stopDeadline)
                 {
                     await Task.Delay(50);
+                }
+                if (IsProcessing)
+                {
+                    lock (_lock) { _releasedForBaseCamp = false; }
+                    StatusMessageChanged?.Invoke("BaseCamp-Capture konnte nicht gestartet werden: GPS-Session reagiert nicht.");
+                    return false;
                 }
 
                 var started = new TaskCompletionSource<bool>(

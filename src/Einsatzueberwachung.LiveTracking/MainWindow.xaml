@@ -99,6 +99,9 @@
                         <Button Content="{Binding SimulationButtonText}"
                                 Command="{Binding ToggleSimulationCommand}"
                                 Padding="15,4" Margin="0,0,10,0"/>
+                        <Button Content="{Binding UsbAccessButtonText}"
+                                Command="{Binding ToggleUsbAccessCommand}"
+                                Padding="15,4" Margin="0,0,10,0"/>
                         <TextBlock VerticalAlignment="Center" Foreground="Gray"
                                    FontStyle="Italic"
                                    Text="Simuliert 3 Hundehalsbänder um Stadtpark Gelsenkirchen"/>

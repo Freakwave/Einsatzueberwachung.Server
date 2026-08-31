@@ -24,7 +24,16 @@ namespace Einsatzueberwachung.LiveTracking.Services
 
         public void Configure(string serverUrl)
         {
-            ServerUrl = serverUrl.TrimEnd('/');
+            if (!Uri.TryCreate(serverUrl?.Trim(), UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+                string.IsNullOrWhiteSpace(uri.Host))
+            {
+                ServerUrl = string.Empty;
+                StatusChanged?.Invoke("Ungültige Server-URL. Bitte http:// oder https:// verwenden.");
+                return;
+            }
+
+            ServerUrl = uri.GetLeftPart(UriPartial.Path).TrimEnd('/');
             StatusChanged?.Invoke($"Server konfiguriert: {ServerUrl}");
         }
 
@@ -71,6 +80,11 @@ namespace Einsatzueberwachung.LiveTracking.Services
                 StatusChanged?.Invoke($"Verbindungsfehler: {ex.Message}");
                 return false;
             }
+            catch (InvalidOperationException ex)
+            {
+                StatusChanged?.Invoke($"Ungültige Server-URL: {ex.Message}");
+                return false;
+            }
         }
 
         public async Task<bool> TestConnectionAsync()
@@ -82,8 +96,14 @@ namespace Einsatzueberwachung.LiveTracking.Services
                 var response = await _httpClient.GetAsync($"{ServerUrl}/api/CollarWebhook/collars");
                 return response.IsSuccessStatusCode;
             }
-            catch
+            catch (HttpRequestException ex)
             {
+                StatusChanged?.Invoke($"Verbindungsfehler: {ex.Message}");
+                return false;
+            }
+            catch (InvalidOperationException ex)
+            {
+                StatusChanged?.Invoke($"Ungültige Server-URL: {ex.Message}");
                 return false;
             }
         }

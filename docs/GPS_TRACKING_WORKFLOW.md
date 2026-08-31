@@ -32,7 +32,7 @@ Team B  ────────────────── ←─── [Hal
 ### 1. Vorbereitung — LiveTracking-App verbinden
 
 1. `Einsatzueberwachung.LiveTracking.exe` starten (Windows-Rechner mit GPS-Empfänger).
-2. Server-URL eintragen (z.B. `http://10.0.0.1:5000`) und verbinden.
+2. Server-URL eintragen (z.B. `https://10.10.0.1`) und verbinden. Der Windows-Rechner muss dabei mit dem VPN verbunden sein.
 3. Erkannte Halsbänder erscheinen automatisch im EinsatzMonitor und auf der Karte.
 
 ### USB-Zugriff durch Garmin BaseCamp

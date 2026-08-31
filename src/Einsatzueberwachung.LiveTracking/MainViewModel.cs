@@ -170,8 +170,15 @@ namespace Einsatzueberwachung.LiveTracking
             }
             else
             {
-                await _gpsService.StartBaseCampCaptureAsync();
-                AddLog("BaseCamp-Capture aktiviert. Hundepakete werden parallel ausgewertet.");
+                bool captureStarted = await _gpsService.StartBaseCampCaptureAsync();
+                if (captureStarted)
+                {
+                    AddLog("BaseCamp-Capture aktiviert. Empfangene Hundepakete werden ausgewertet.");
+                }
+                else
+                {
+                    AddLog("BaseCamp-Capture konnte nicht gestartet werden. USB bleibt für LiveTracking gesperrt.");
+                }
             }
             OnPropertyChanged(nameof(UsbAccessButtonText));
         }

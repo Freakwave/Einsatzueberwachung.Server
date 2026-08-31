@@ -69,7 +69,7 @@ namespace Einsatzueberwachung.LiveTracking
                 });
             }
 
-            public async Task StartAsync(bool passiveCapture = false)
+            public async Task StartAsync(bool passiveCapture = false, TaskCompletionSource<bool>? started = null)
             {
                 CancellationToken token;
                 lock (_lock)
@@ -106,20 +106,24 @@ namespace Einsatzueberwachung.LiveTracking
                         Application.Current.Dispatcher.Invoke(() => IsConnectedChanged?.Invoke(true));
                         StatusMessageChanged?.Invoke("GPS-Gerät verbunden.");
                         wasConnected = true;
+                        started?.TrySetResult(true);
                         await Task.Run(() => _gpsDevice.StartListening(), token);
                     }
                     else
                     {
                         StatusMessageChanged?.Invoke("Konnte GPS-Gerät nicht verbinden.");
+                        started?.TrySetResult(false);
                     }
                 }
                 catch (OperationCanceledException)
                 {
                     StatusMessageChanged?.Invoke("GPS connection cancelled.");
+                    started?.TrySetResult(false);
                 }
                 catch (Exception ex)
                 {
                     StatusMessageChanged?.Invoke($"GPS error: {ex.Message}");
+                    started?.TrySetResult(false);
                 }
                 finally
                 {
@@ -130,11 +134,12 @@ namespace Einsatzueberwachung.LiveTracking
                         Application.Current.Dispatcher.Invoke(() => IsConnectedChanged?.Invoke(false));
                         StatusMessageChanged?.Invoke("USB listening stopped.");
                     }
+                    started?.TrySetResult(false);
                     lock (_lock) { _isProcessing = false; }
                 }
             }
 
-            public async Task StartBaseCampCaptureAsync()
+            public async Task<bool> StartBaseCampCaptureAsync()
             {
                 lock (_lock) { _releasedForBaseCamp = true; }
                 Stop();
@@ -143,7 +148,17 @@ namespace Einsatzueberwachung.LiveTracking
                 {
                     await Task.Delay(50);
                 }
-                await StartAsync(passiveCapture: true);
+
+                var started = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                _ = StartAsync(passiveCapture: true, started);
+                if (!await started.Task)
+                {
+                    lock (_lock) { _releasedForBaseCamp = false; }
+                    return false;
+                }
+
+                return true;
             }
 
             public void Stop()

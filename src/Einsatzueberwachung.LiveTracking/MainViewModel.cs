@@ -177,7 +177,7 @@ namespace Einsatzueberwachung.LiveTracking
                 }
                 else
                 {
-                    AddLog("BaseCamp-Capture konnte nicht gestartet werden. USB bleibt für LiveTracking gesperrt.");
+                    AddLog("BaseCamp-Capture konnte nicht gestartet werden. LiveTracking bleibt aktivierbar.");
                 }
             }
             OnPropertyChanged(nameof(UsbAccessButtonText));

@@ -135,7 +135,12 @@ namespace Einsatzueberwachung.LiveTracking
                         StatusMessageChanged?.Invoke("USB listening stopped.");
                     }
                     started?.TrySetResult(false);
-                    lock (_lock) { _isProcessing = false; }
+                    lock (_lock)
+                    {
+                        _isProcessing = false;
+                        if (passiveCapture)
+                            _releasedForBaseCamp = false;
+                    }
                 }
             }
 

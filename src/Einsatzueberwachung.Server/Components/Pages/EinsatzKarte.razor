@@ -84,7 +84,8 @@
                     {
                         <KarteGebieteTab SearchAreas="_searchAreas"
                                          OnAddArea="ActivateDrawPolygon"
-                                         OnCancelDraw="CancelDrawPolygon"
+                                                         OnImportArea="ShowImportAreaDialog"
+                                                         OnCancelDraw="CancelDrawPolygon"
                                          DrawingActive="_drawingActive"
                                          OnZoomToArea="ZoomToArea"
                                          OnEdit="EditSearchArea"
@@ -550,6 +551,42 @@
                                         <button type="button" class="btn btn-outline-primary btn-sm ms-3" @onclick="StartPolygonEditMode">
                                             <i class="bi bi-vector-pen"></i> Polygon bearbeiten
                                         </button>
+                                    }
+
+                                    @if (_showImportDialog)
+                                    {
+                                        <div class="modal-backdrop show"></div>
+                                        <div class="modal show d-block" tabindex="-1">
+                                            <div class="modal-dialog modal-lg">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Suchgebiet importieren</h5>
+                                                        <button type="button" class="btn-close" @onclick="CloseImportAreaDialog"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p class="text-muted">
+                                                            Eine Koordinate pro Zeile im Format <code>Breitengrad,Längengrad</code>.
+                                                            Mindestens drei Punkte erforderlich.
+                                                        </p>
+                                                        <textarea class="form-control font-monospace" rows="10"
+                                                                  @bind="_coordinateImportText"
+                                                                  placeholder="51.70913193,10.53388506&#10;51.70927299,10.53274747"></textarea>
+                                                        @if (!string.IsNullOrWhiteSpace(_coordinateImportError))
+                                                        {
+                                                            <div class="alert alert-danger mt-3 mb-0" role="alert">
+                                                                <i class="bi bi-exclamation-triangle me-1"></i>@_coordinateImportError
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" @onclick="CloseImportAreaDialog">Abbrechen</button>
+                                                        <button type="button" class="btn btn-primary" @onclick="ImportSearchAreaAsync">
+                                                            <i class="bi bi-upload me-1"></i>Importieren
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     }
                                 </div>
                             </div>

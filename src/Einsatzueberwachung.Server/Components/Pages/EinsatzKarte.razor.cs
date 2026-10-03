@@ -7,6 +7,8 @@ using Einsatzueberwachung.Server.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
+using System.Globalization;
+using System.Text.Json;
 
 namespace Einsatzueberwachung.Server.Components.Pages;
 
@@ -57,6 +59,9 @@ public partial class EinsatzKarte
     private SearchArea? _editingArea = null;
     private string _selectedTeamId = "";
     private SearchArea? _deleteCandidate;
+    private bool _showImportDialog;
+    private string _coordinateImportText = string.Empty;
+    private string _coordinateImportError = string.Empty;
     private string _addressSearch = "";
     private string _searchMessage = "";
     private CancellationTokenSource? _searchMessageCts;
@@ -398,6 +403,78 @@ public partial class EinsatzKarte
 
         _selectedTeamId = "";
         _showDialog = true;
+    }
+
+    private void ShowImportAreaDialog()
+    {
+        _coordinateImportText = string.Empty;
+        _coordinateImportError = string.Empty;
+        _showImportDialog = true;
+    }
+
+    private void CloseImportAreaDialog()
+    {
+        _showImportDialog = false;
+        _coordinateImportError = string.Empty;
+    }
+
+    private async Task ImportSearchAreaAsync()
+    {
+        var coordinates = new List<(double Latitude, double Longitude)>();
+        var lines = _coordinateImportText
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        foreach (var (line, index) in lines.Select((value, index) => (value, index + 1)))
+        {
+            var values = line.Split(',', StringSplitOptions.TrimEntries);
+            if (values.Length != 2
+                || !double.TryParse(values[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude)
+                || !double.TryParse(values[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude)
+                || latitude is < -90 or > 90
+                || longitude is < -180 or > 180)
+            {
+                _coordinateImportError = $"Zeile {index} ist ungültig. Erwartet wird Breitengrad,Längengrad mit Dezimalpunkt.";
+                return;
+            }
+
+            coordinates.Add((latitude, longitude));
+        }
+
+        if (coordinates.Count < 3)
+        {
+            _coordinateImportError = "Bitte mindestens drei gültige Koordinaten eingeben.";
+            return;
+        }
+
+        if (Math.Abs(coordinates[0].Latitude - coordinates[^1].Latitude) > CoordinateEpsilon
+            || Math.Abs(coordinates[0].Longitude - coordinates[^1].Longitude) > CoordinateEpsilon)
+        {
+            coordinates.Add(coordinates[0]);
+        }
+
+        var geoJsonCoordinates = coordinates
+            .Select(coordinate => new[] { coordinate.Longitude, coordinate.Latitude })
+            .ToArray();
+        var geoJson = JsonSerializer.Serialize(new
+        {
+            type = "Feature",
+            geometry = new { type = "Polygon", coordinates = new[] { geoJsonCoordinates } },
+            properties = new { }
+        });
+        var area = new SearchArea
+        {
+            Name = $"Importiertes Suchgebiet {_searchAreas.Count + 1}",
+            Color = GetRandomColor(),
+            Coordinates = coordinates,
+            GeoJsonData = geoJson
+        };
+
+        await EinsatzService.AddSearchAreaAsync(area);
+        _searchAreas = EinsatzService.CurrentEinsatz.SearchAreas.ToList();
+        await JSRuntime.InvokeVoidAsync("LeafletMap.addSearchArea", "einsatzMap", area.Id, area.GeoJsonData, area.Color, area.Name);
+        await JSRuntime.InvokeVoidAsync("LeafletMap.zoomToSearchArea", "einsatzMap", area.Id);
+        CloseImportAreaDialog();
+        SetSearchMessage($"Suchgebiet „{area.Name}“ importiert.");
     }
 
     private void EditSearchArea(SearchArea area)

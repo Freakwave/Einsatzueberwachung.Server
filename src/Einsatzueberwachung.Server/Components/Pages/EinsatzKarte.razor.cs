@@ -64,6 +64,9 @@ public partial class EinsatzKarte
     private string _coordinateImportError = string.Empty;
     private string _coordinateImportMode = "latlon";
     private string _coordinateImportUtmZone = string.Empty;
+    private string CoordinateImportPlaceholder => _coordinateImportMode == "utm"
+        ? $"32U 461344 5481745{Environment.NewLine}32U 461400 5481800"
+        : $"51.70913193,10.53388506{Environment.NewLine}51.70927299,10.53274747";
     private string _addressSearch = "";
     private string _searchMessage = "";
     private CancellationTokenSource? _searchMessageCts;

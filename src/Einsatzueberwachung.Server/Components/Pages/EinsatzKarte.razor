@@ -607,13 +607,34 @@
                     <button type="button" class="btn-close" @onclick="CloseImportAreaDialog"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted">
-                        Eine Koordinate pro Zeile im Format <code>Breitengrad,Längengrad</code>.
-                        Mindestens drei Punkte erforderlich.
-                    </p>
+                    <div class="btn-group w-100 mb-3" role="group" aria-label="Koordinatenformat">
+                        <button type="button" class="btn @(_coordinateImportMode == "latlon" ? "btn-primary" : "btn-outline-primary")"
+                                @onclick='() => _coordinateImportMode = "latlon"'>
+                            Lat/Lon
+                        </button>
+                        <button type="button" class="btn @(_coordinateImportMode == "utm" ? "btn-primary" : "btn-outline-primary")"
+                                @onclick='() => _coordinateImportMode = "utm"'>
+                            UTM
+                        </button>
+                    </div>
+                    @if (_coordinateImportMode == "utm")
+                    {
+                        <label class="form-label" for="utmZone">UTM-Zone (optional, falls nicht je Zeile angegeben)</label>
+                        <input id="utmZone" class="form-control mb-3" @bind="_coordinateImportUtmZone"
+                               placeholder="z. B. 32U" />
+                        <p class="text-muted">
+                            Eine Koordinate pro Zeile, z. B. <code>32U 461344 5481745</code>
+                            oder mit Zone oben <code>461344,5481745</code>.
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="text-muted">Eine Koordinate pro Zeile im Format <code>Breitengrad,Längengrad</code>.</p>
+                    }
+                    <p class="text-muted">Mindestens drei Punkte erforderlich.</p>
                     <textarea class="form-control font-monospace" rows="10"
                               @bind="_coordinateImportText"
-                              placeholder="51.70913193,10.53388506&#10;51.70927299,10.53274747"></textarea>
+                              placeholder="@(_coordinateImportMode == "utm" ? "32U 461344 5481745&#10;32U 461400 5481800" : "51.70913193,10.53388506&#10;51.70927299,10.53274747")"></textarea>
                     @if (!string.IsNullOrWhiteSpace(_coordinateImportError))
                     {
                         <div class="alert alert-danger mt-3 mb-0" role="alert">

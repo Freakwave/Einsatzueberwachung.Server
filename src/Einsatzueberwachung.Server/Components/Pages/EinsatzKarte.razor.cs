@@ -62,6 +62,8 @@ public partial class EinsatzKarte
     private bool _showImportDialog;
     private string _coordinateImportText = string.Empty;
     private string _coordinateImportError = string.Empty;
+    private string _coordinateImportMode = "latlon";
+    private string _coordinateImportUtmZone = string.Empty;
     private string _addressSearch = "";
     private string _searchMessage = "";
     private CancellationTokenSource? _searchMessageCts;
@@ -409,6 +411,8 @@ public partial class EinsatzKarte
     {
         _coordinateImportText = string.Empty;
         _coordinateImportError = string.Empty;
+        _coordinateImportMode = "latlon";
+        _coordinateImportUtmZone = string.Empty;
         _showImportDialog = true;
     }
 
@@ -426,18 +430,16 @@ public partial class EinsatzKarte
 
         foreach (var (line, index) in lines.Select((value, index) => (value, index + 1)))
         {
-            var values = line.Split(',', StringSplitOptions.TrimEntries);
-            if (values.Length != 2
-                || !double.TryParse(values[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude)
-                || !double.TryParse(values[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude)
-                || latitude is < -90 or > 90
-                || longitude is < -180 or > 180)
+            if (!TryParseImportedCoordinate(line, out var coordinate))
             {
-                _coordinateImportError = $"Zeile {index} ist ungültig. Erwartet wird Breitengrad,Längengrad mit Dezimalpunkt.";
+                var expected = _coordinateImportMode == "utm"
+                    ? "UTM (z. B. 32U 461344 5481745 oder 461344,5481745 mit Zone oben)"
+                    : "Breitengrad,Längengrad mit Dezimalpunkt";
+                _coordinateImportError = $"Zeile {index} ist ungültig. Erwartet wird {expected}.";
                 return;
             }
 
-            coordinates.Add((latitude, longitude));
+            coordinates.Add(coordinate);
         }
 
         if (coordinates.Count < 3)
@@ -475,6 +477,65 @@ public partial class EinsatzKarte
         await JSRuntime.InvokeVoidAsync("LeafletMap.zoomToSearchArea", "einsatzMap", area.Id);
         CloseImportAreaDialog();
         SetSearchMessage($"Suchgebiet „{area.Name}“ importiert.");
+    }
+
+    private bool TryParseImportedCoordinate(string line, out (double Latitude, double Longitude) coordinate)
+    {
+        coordinate = default;
+        if (_coordinateImportMode != "utm")
+        {
+            var values = line.Split(',', StringSplitOptions.TrimEntries);
+            if (values.Length == 2
+                && double.TryParse(values[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude)
+                && double.TryParse(values[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude)
+                && latitude is >= -90 and <= 90
+                && longitude is >= -180 and <= 180)
+            {
+                coordinate = (latitude, longitude);
+                return true;
+            }
+
+            return false;
+        }
+
+        if (UtmConverter.TryParseUtm(line, out var zone, out var band, out var easting, out var northing))
+        {
+            coordinate = UtmConverter.UtmToLatLong(zone, band, easting, northing);
+            return true;
+        }
+
+        if (!TryParseUtmZone(_coordinateImportUtmZone, out zone, out band))
+            return false;
+
+        var utmValues = line.Replace(",", " ").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (utmValues.Length != 2
+            || !double.TryParse(utmValues[0].TrimEnd('E', 'e'), NumberStyles.Float, CultureInfo.InvariantCulture, out easting)
+            || !double.TryParse(utmValues[1].TrimEnd('N', 'n'), NumberStyles.Float, CultureInfo.InvariantCulture, out northing)
+            || easting is < 100000 or > 900000
+            || northing is < 0 or > 10000000)
+        {
+            return false;
+        }
+
+        coordinate = UtmConverter.UtmToLatLong(zone, band, easting, northing);
+        return true;
+    }
+
+    private static bool TryParseUtmZone(string input, out int zone, out char band)
+    {
+        zone = 0;
+        band = '\0';
+        var value = input.Trim().ToUpperInvariant();
+        if (value.Length < 2
+            || !char.IsLetter(value[^1])
+            || !int.TryParse(value[..^1], NumberStyles.None, CultureInfo.InvariantCulture, out zone)
+            || zone is < 1 or > 60)
+        {
+            return false;
+        }
+
+        band = value[^1];
+        return "CDEFGHJKLMNPQRSTUVWX".Contains(band);
     }
 
     private void EditSearchArea(SearchArea area)

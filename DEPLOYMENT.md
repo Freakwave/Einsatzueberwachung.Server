@@ -27,7 +27,7 @@ Der Workflow `.github/workflows/deploy-server.yml` testet und veröffentlicht de
 - Secret `DEPLOY_SSH_KEY`: privater SSH-Schlüssel dieses Benutzers
 - Secret `DEPLOY_KNOWN_HOSTS`: geprüfter `known_hosts`-Eintrag des Servers
 
-Der SSH-Benutzer braucht Schreibzugriff auf `/tmp` und eine eng begrenzte, passwortlose sudo-Berechtigung für das vorhandene Update-Skript. Dafür als Administrator `/etc/sudoers.d/einsatzueberwachung-deploy` anlegen (den Beispielbenutzer ersetzen) und die Datei mit `visudo -cf /etc/sudoers.d/einsatzueberwachung-deploy` prüfen:
+Den passenden öffentlichen Schlüssel für den SSH-Benutzer in `~/.ssh/authorized_keys` hinterlegen. Der SSH-Benutzer braucht Schreibzugriff auf `/tmp` und eine eng begrenzte, passwortlose sudo-Berechtigung für das vorhandene Update-Skript. Dafür als Administrator `/etc/sudoers.d/einsatzueberwachung-deploy` anlegen (den Beispielbenutzer ersetzen) und die Datei mit `visudo -cf /etc/sudoers.d/einsatzueberwachung-deploy` prüfen:
 
 ```sudoers
 github-deploy ALL=(root) NOPASSWD: /opt/einsatzueberwachung/scripts/apply-update.sh *

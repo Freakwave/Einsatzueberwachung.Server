@@ -18,6 +18,23 @@ dotnet publish src/Einsatzueberwachung.Mobile -c Release -o publish/mobile
 
 Kopiere Repository inkl. `publish/` auf den Zielserver.
 
+## Automatisches Deployment via GitHub Actions
+
+Der Workflow `.github/workflows/deploy-server.yml` testet und veröffentlicht den Server und deployt ihn bei jedem Push auf den Branch `deploy`. In den GitHub-Repository-Einstellungen müssen dafür folgende Werte konfiguriert werden:
+
+- Variable `DEPLOY_HOST`: `31.70.118.33`
+- Secret `DEPLOY_USER`: SSH-Benutzer für das Deployment
+- Secret `DEPLOY_SSH_KEY`: privater SSH-Schlüssel dieses Benutzers
+- Secret `DEPLOY_KNOWN_HOSTS`: geprüfter `known_hosts`-Eintrag des Servers
+
+Der SSH-Benutzer braucht Schreibzugriff auf `/tmp` und eine eng begrenzte, passwortlose sudo-Berechtigung für das vorhandene Update-Skript. Dafür als Administrator `/etc/sudoers.d/einsatzueberwachung-deploy` anlegen (den Beispielbenutzer ersetzen) und die Datei mit `visudo -cf /etc/sudoers.d/einsatzueberwachung-deploy` prüfen:
+
+```sudoers
+github-deploy ALL=(root) NOPASSWD: /opt/einsatzueberwachung/scripts/apply-update.sh *
+```
+
+Der Server muss SSH-Verbindungen von GitHub Actions auf Port 22 annehmen können. Den Host-Key-Eintrag für `DEPLOY_KNOWN_HOSTS` über einen vertrauenswürdigen Kanal prüfen und nicht ungeprüft aus dem Workflow per `ssh-keyscan` beziehen. Bei einer auf feste Quell-IP-Adressen eingeschränkten Firewall einen selbstverwalteten GitHub-Runner im VPN verwenden oder die aktuellen GitHub-Runner-Netzbereiche berücksichtigen.
+
 ## 3. Setup ausfuehren
 
 ```bash

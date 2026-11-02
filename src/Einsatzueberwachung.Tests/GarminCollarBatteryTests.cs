@@ -21,6 +21,7 @@ public class GarminCollarBatteryTests
     [InlineData("21000000FFFF0D040B030205FFFFCB", "Hund 2", 3)]
     [InlineData("21000000FFFF0D040B040205FFFFCB", "Hund 2", 4)]
     [InlineData("23000000FFFF13030C020305FFFFCC", "Hund 3", 2)]
+    [InlineData("23000000FFFF13030C010305FFFFCC", "Hund 3", 1)]
     public void CapturedStatus_DecodesBatteryFromByte25(string status, string name, int expected)
     {
         var payload = new byte[100];

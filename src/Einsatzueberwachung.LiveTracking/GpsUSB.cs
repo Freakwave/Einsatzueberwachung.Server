@@ -348,7 +348,7 @@ namespace Einsatzueberwachung.LiveTracking
                 data.RawStatusB = BitConverter.ToUInt32(payload, offset); offset += 4; // 24
                 data.StatusByte20 = payload[offset - 4]; data.ColorCandidateByte21 = payload[offset - 3]; data.ChannelSecondary = payload[offset - 2]; data.ChannelPrimary = payload[offset - 1];
                 data.RawStatusC = BitConverter.ToUInt16(payload, offset); offset += 2; // 26
-                // Captures correlate byte 25 with battery levels 2–4; 0 and 1 still need device verification.
+                // Captures confirm byte 25 as the 0–4 battery scale; level 1 was observed at low charge, level 0 remains unknown.
                 data.BatteryLevel = payload[25] <= 4 ? payload[25] : null;
                 data.ID = BitConverter.ToInt16(payload, 22);
 

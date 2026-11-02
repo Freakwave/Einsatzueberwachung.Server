@@ -120,7 +120,7 @@ Alles, was die Ansicht beim Öffnen braucht (Grundlage: heutige Team-Seite).
 - `suche.darfSteuern`: `true`, wenn das Team die Suche selbst steuern darf (Abschnitt 11, Einstellung auf dem Server).
   Bei `false` blendet die App die Knöpfe aus.
 - `suchgebiet` und `halsband` sind `null`, wenn keins zugewiesen ist bzw. noch keine Position vorliegt. `akku` fehlt, wenn unbekannt.
-- Garmin-Halsband-`akku` ist eine Stufe, kein Prozentwert: 4 voll, 3 hoch, 2 mittel, 1 niedrig (Warnung). Die Bedeutung von 0 und 1 ist noch nicht am Gerät bestätigt; 0 löst keine Akkuwarnung aus. Unbekannte bzw. ungültige Werte sind `null` oder fehlen. Handy-Akkuwerte sind dagegen Prozentwerte.
+- Garmin-Halsband-`akku` ist eine Stufe, kein Prozentwert: 4 voll, 3 hoch, 2 mittel, 1 niedrig (durch Mitschnitt bei niedrigem Ladestand bestätigt; Warnung). Der Wert 0 wurde noch nicht eingeordnet und löst keine Akkuwarnung aus. Unbekannte bzw. ungültige Werte sind `null` oder fehlen. Handy-Akkuwerte sind dagegen Prozentwerte.
 - `helfer` ist eine Liste (ein Team kann mehrere Helfer haben).
 - `mitteilungen`: die letzten 20 Mitteilungen der Einsatzleitung an dieses Team, **älteste zuerst**. Sie bleiben für den
   laufenden Einsatz gespeichert (auch über einen Neustart des Servers), damit die App sie nach Funkloch oder Hintergrund nachholt.
